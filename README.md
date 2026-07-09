@@ -1,24 +1,28 @@
-# Hygge & Co. — Cozy Sales Website 🕯️
+# Hygge & Co. — Editorial Cozy Shop 🕯️
 
-Eine interaktive Verkaufs-/Shop-Website mit warmem „cozy" Design und modernen,
-reaktiven Effekten. Komplett mit Platzhalter-Inhalten — einfach Texte, Preise,
-Emojis und Farben austauschen.
+Eine interaktive Verkaufs-Website im Premium-Editorial-Stil: XXL-Typografie,
+Vollbild-Hero, Chevron-Bildmasken, riesige klickbare Kategorie-Wörter und ein
+dunkler Footer mit gigantischer Wortmarke — gepaart mit warmem, „cozy" Look.
+Komplett mit Platzhalter-Inhalten: Texte, Preise, Emojis und Farben einfach
+austauschen.
 
 ## Öffnen
 
 Einfach `index.html` im Browser öffnen — funktioniert auch direkt am Handy.
-Es werden **keine** externen Bibliotheken oder ein Build-Schritt benötigt.
+Keine externen Bibliotheken, kein Build-Schritt.
 
 ## Features
 
-- 🌗 **Hell-/Dunkelmodus** mit Umschalter (merkt sich die Auswahl)
-- 🛍️ **Voll funktionsfähiger Warenkorb** — Hinzufügen, Menge ändern, Entfernen, Summe
-- 🔎 **Kategorie-Filter** (Kerzen, Textil, Deko, Küche)
+- 🖤 **Editorial-Design**: XXL-Headlines, Serifen-Akzente, helle & dunkle Sektionen im Wechsel
+- 🎬 **Cineastische Motion**: Wort-für-Wort-Hero-Reveal, Parallax, gestaffelte Chevrons, Scroll-Reveals
+- 🔤 **Wortmarke mit Farbverlaufs-Durchblick** (`background-clip: text`)
+- 🛍️ **Voll funktionsfähiger Warenkorb** — Hinzufügen, Menge ändern, Summe
+- 🔎 **Kategorie-Filter** — auch über die XXL-Kategorie-Wörter klickbar
 - ❤️ **Merken/Favoriten** pro Produkt
-- ✨ **Scroll-Reveal-Animationen** & animierte Statistik-Zähler
-- 🖱️ **Reaktiver Cursor-Glow** & 3D-Tilt auf der Hero-Karte (Desktop)
+- 📈 **Animierte Statistik-Zähler** & Lauftext-Ticker
+- 🌗 **Hell-/Dunkelmodus** mit Umschalter (merkt sich die Auswahl)
 - 💌 **Newsletter-Formular** mit Validierung
-- 📱 **Voll responsiv** — mobile-first, für's Handy optimiert
+- 📱 **Voll responsiv** — mobile-first
 - ♿ Berücksichtigt `prefers-reduced-motion`
 
 ## Dateien
@@ -34,5 +38,6 @@ Es werden **keine** externen Bibliotheken oder ein Build-Schritt benötigt.
 - **Produkte:** Array `PRODUCTS` in `app.js`
 - **Bewertungen:** Array `TESTIMONIALS` in `app.js`
 - **Farben:** CSS-Variablen unter `:root` und `[data-theme="dark"]` in `styles.css`
+- **Sektionen:** klar kommentierte Blöcke in `index.html`
 
 Alles Platzhalter — viel Spaß beim Umbauen! 💛
