@@ -189,6 +189,32 @@
       <div class="testi-grid" id="testiGrid"><!-- via JS --></div>
     </section>
 
+    <!-- ===== FAQ ===== -->
+    <section class="section faq" id="faq">
+      <div class="section__head reveal">
+        <p class="label">Fragen</p>
+        <h2 class="xxl">Gut zu <em>wissen.</em></h2>
+      </div>
+      <div class="faq__list reveal">
+        <details class="faq__item">
+          <summary>Wie lange dauert der Versand?<span aria-hidden="true">+</span></summary>
+          <p>2–4 Werktage innerhalb Deutschlands, 4–7 Werktage nach Österreich und in die Schweiz. Ab 39 € liefern wir versandkostenfrei.</p>
+        </details>
+        <details class="faq__item">
+          <summary>Kann ich Artikel zurückgeben?<span aria-hidden="true">+</span></summary>
+          <p>Klar — 30 Tage, ohne Wenn und Aber. Schreib uns kurz, wir schicken dir ein Rücksendeetikett.</p>
+        </details>
+        <details class="faq__item">
+          <summary>Woher kommen die Produkte?<span aria-hidden="true">+</span></summary>
+          <p>Alles wird in kleinen Chargen in unserer Werkstatt gefertigt oder von Manufakturen aus der Region bezogen. Keine Massenware.</p>
+        </details>
+        <details class="faq__item">
+          <summary>Verpackt ihr auch Geschenke?<span aria-hidden="true">+</span></summary>
+          <p>Sehr gern. Wähl im Checkout einfach den Geschenk-Service — wir verpacken plastikfrei und legen deine handgeschriebene Karte bei.</p>
+        </details>
+      </div>
+    </section>
+
     <!-- ===== NEWSLETTER (dunkel) ===== -->
     <section class="dark newsletter" id="newsletter">
       <div class="newsletter__inner reveal">
@@ -242,6 +268,54 @@
       <p class="drawer__hint">Demo — kein echter Bezahlvorgang.</p>
     </div>
   </aside>
+
+  <!-- ===== PRODUKT-SCHNELLANSICHT ===== -->
+  <div class="modal-overlay" id="modalOverlay" hidden></div>
+  <div class="modal modal--product" id="productModal" role="dialog" aria-modal="true" aria-hidden="true">
+    <button class="icon-btn modal__close" id="modalClose" aria-label="Schließen">✕</button>
+    <div class="modal__media" id="modalMedia"><span id="modalEmoji"></span></div>
+    <div class="modal__body">
+      <span class="card__cat" id="modalCat"></span>
+      <h3 class="modal__name" id="modalName"></h3>
+      <p class="modal__desc" id="modalDesc"></p>
+      <div class="modal__row">
+        <div class="cart-item__qty">
+          <button class="qty-btn" id="modalMinus" aria-label="Weniger">−</button>
+          <span id="modalQty">1</span>
+          <button class="qty-btn" id="modalPlus" aria-label="Mehr">+</button>
+        </div>
+        <span class="modal__price" id="modalPrice"></span>
+      </div>
+      <button class="btn btn--solid btn--block" id="modalAdd">In den Korb</button>
+    </div>
+  </div>
+
+  <!-- ===== DEMO-CHECKOUT ===== -->
+  <div class="modal modal--checkout" id="checkoutModal" role="dialog" aria-modal="true" aria-hidden="true">
+    <button class="icon-btn modal__close" id="checkoutClose" aria-label="Schließen">✕</button>
+    <div class="modal__body">
+      <form id="checkoutForm" novalidate>
+        <p class="label">Kasse</p>
+        <h3 class="modal__name">Fast <em>geschafft.</em></h3>
+        <input type="text" id="coName" placeholder="Vor- und Nachname" autocomplete="name" required />
+        <input type="email" id="coMail" placeholder="deine@mail.de" autocomplete="email" required />
+        <input type="text" id="coStreet" placeholder="Straße und Hausnummer" autocomplete="street-address" required />
+        <div class="checkout__row">
+          <input type="text" id="coZip" placeholder="PLZ" autocomplete="postal-code" required />
+          <input type="text" id="coCity" placeholder="Ort" autocomplete="address-level2" required />
+        </div>
+        <div class="drawer__total"><span>Summe</span><strong id="coTotal">0,00 €</strong></div>
+        <button type="submit" class="btn btn--solid btn--block">Jetzt kaufen (Demo)</button>
+        <p class="drawer__hint">Demo — es wird nichts berechnet oder versendet.</p>
+      </form>
+      <div class="checkout__done" id="checkoutDone" hidden>
+        <span class="checkout__emoji">🎉</span>
+        <h3 class="modal__name">Danke, <span id="coDoneName"></span>!</h3>
+        <p>Deine Demo-Bestellung <strong id="coOrderNo"></strong> ist eingegangen.<br />Eine Bestätigung wäre jetzt unterwegs zu dir.</p>
+        <button type="button" class="btn btn--line" id="coCloseBtn">Weiter stöbern</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Toast -->
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

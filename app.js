@@ -25,18 +25,37 @@ const TESTIMONIALS = [
 
 const fmt = (n) => n.toFixed(2).replace(".", ",") + " €";
 
-/* ---------- State ---------- */
+/* ---------- State (mit localStorage-Persistenz) ---------- */
 const cart = new Map(); // id -> qty
 const favs = new Set();
+
+function saveState() {
+  try {
+    localStorage.setItem("hc-state", JSON.stringify({ cart: [...cart], favs: [...favs] }));
+  } catch (_) {}
+}
+
+function loadState() {
+  try {
+    const s = JSON.parse(localStorage.getItem("hc-state"));
+    if (!s) return;
+    (s.cart || []).forEach(([id, q]) => {
+      if (PRODUCTS.some((p) => p.id === id) && q > 0) cart.set(id, q);
+    });
+    (s.favs || []).forEach((id) => {
+      if (PRODUCTS.some((p) => p.id === id)) favs.add(id);
+    });
+  } catch (_) {}
+}
 
 /* ---------- Produkte rendern ---------- */
 const grid = document.getElementById("productGrid");
 function renderProducts() {
   grid.innerHTML = PRODUCTS.map((p) => `
-    <article class="card reveal" data-cat="${p.cat}" style="--c1:${p.c1};--c2:${p.c2}">
+    <article class="card reveal" data-id="${p.id}" data-cat="${p.cat}" style="--c1:${p.c1};--c2:${p.c2}">
       <div class="card__media">
         ${p.tag ? `<span class="card__badge">${p.tag}</span>` : ""}
-        <button class="fav-btn" data-fav="${p.id}" aria-label="Merken">🤍</button>
+        <button class="fav-btn${favs.has(p.id) ? " is-fav" : ""}" data-fav="${p.id}" aria-label="Merken">${favs.has(p.id) ? "❤️" : "🤍"}</button>
         <span class="card__emoji">${p.emoji}</span>
       </div>
       <div class="card__body">
@@ -88,16 +107,20 @@ function setQty(id, delta) {
   updateCart();
 }
 
+function cartSum() {
+  let total = 0;
+  cart.forEach((q, id) => { total += q * PRODUCTS.find((p) => p.id === id).price; });
+  return total;
+}
+
 function updateCart() {
-  let count = 0, total = 0;
-  cart.forEach((q, id) => {
-    count += q;
-    total += q * PRODUCTS.find((p) => p.id === id).price;
-  });
+  let count = 0;
+  cart.forEach((q) => { count += q; });
 
   cartCount.textContent = count;
   cartCount.hidden = count === 0;
-  cartTotal.textContent = fmt(total);
+  cartTotal.textContent = fmt(cartSum());
+  saveState();
 
   if (cart.size === 0) {
     cartBody.innerHTML = `<div class="drawer__empty">Noch ist es still hier.<br />Stöber dich durch die Kollektion.</div>`;
@@ -145,14 +168,103 @@ function closeCart() {
 document.getElementById("cartToggle").addEventListener("click", openCart);
 document.getElementById("cartClose").addEventListener("click", closeCart);
 overlay.addEventListener("click", closeCart);
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeCart(); });
+
+/* ---------- Produkt-Schnellansicht ---------- */
+const modalOverlay = document.getElementById("modalOverlay");
+const productModal = document.getElementById("productModal");
+const checkoutModal = document.getElementById("checkoutModal");
+let modalProduct = null;
+let modalQty = 1;
+
+function openModal(el) {
+  el.classList.add("is-open");
+  el.setAttribute("aria-hidden", "false");
+  modalOverlay.hidden = false;
+}
+
+function closeModals() {
+  [productModal, checkoutModal].forEach((el) => {
+    el.classList.remove("is-open");
+    el.setAttribute("aria-hidden", "true");
+  });
+  modalOverlay.hidden = true;
+}
+
+function openQuickView(id) {
+  const p = PRODUCTS.find((x) => x.id === id);
+  if (!p) return;
+  modalProduct = p;
+  modalQty = 1;
+  const media = document.getElementById("modalMedia");
+  media.style.setProperty("--c1", p.c1);
+  media.style.setProperty("--c2", p.c2);
+  document.getElementById("modalEmoji").textContent = p.emoji;
+  document.getElementById("modalCat").textContent = CAT_NAMES[p.cat];
+  document.getElementById("modalName").textContent = p.name;
+  document.getElementById("modalDesc").textContent = p.desc;
+  document.getElementById("modalQty").textContent = "1";
+  document.getElementById("modalPrice").textContent = fmt(p.price);
+  openModal(productModal);
+}
+
+function setModalQty(delta) {
+  modalQty = Math.max(1, modalQty + delta);
+  document.getElementById("modalQty").textContent = modalQty;
+  document.getElementById("modalPrice").textContent = fmt(modalProduct.price * modalQty);
+}
+
+document.getElementById("modalMinus").addEventListener("click", () => setModalQty(-1));
+document.getElementById("modalPlus").addEventListener("click", () => setModalQty(1));
+document.getElementById("modalClose").addEventListener("click", closeModals);
+modalOverlay.addEventListener("click", closeModals);
+
+document.getElementById("modalAdd").addEventListener("click", () => {
+  if (!modalProduct) return;
+  cart.set(modalProduct.id, (cart.get(modalProduct.id) || 0) + modalQty);
+  updateCart();
+  bumpCart();
+  showToast(`${modalProduct.emoji} ${modalQty} × ${modalProduct.name} hinzugefügt`);
+  closeModals();
+});
+
+/* ---------- Demo-Checkout ---------- */
+const checkoutForm = document.getElementById("checkoutForm");
+const checkoutDone = document.getElementById("checkoutDone");
 
 document.getElementById("checkoutBtn").addEventListener("click", () => {
   if (cart.size === 0) { showToast("Dein Warenkorb ist leer"); return; }
-  showToast("Danke! (Demo — kein echter Checkout) ✳");
+  closeCart();
+  checkoutForm.hidden = false;
+  checkoutDone.hidden = true;
+  document.getElementById("coTotal").textContent = fmt(cartSum());
+  openModal(checkoutModal);
+});
+
+checkoutForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const name = document.getElementById("coName").value.trim();
+  const mail = document.getElementById("coMail").value.trim();
+  const street = document.getElementById("coStreet").value.trim();
+  const zip = document.getElementById("coZip").value.trim();
+  const city = document.getElementById("coCity").value.trim();
+  if (!name || !street || !zip || !city || !mail.includes("@")) {
+    showToast("Bitte alle Felder ausfüllen");
+    return;
+  }
+  document.getElementById("coDoneName").textContent = name.split(" ")[0];
+  document.getElementById("coOrderNo").textContent =
+    "HC-" + new Date().getFullYear() + "-" + String(Math.floor(1000 + Math.random() * 9000));
+  checkoutForm.hidden = true;
+  checkoutDone.hidden = false;
   cart.clear();
   updateCart();
-  setTimeout(closeCart, 900);
+});
+
+document.getElementById("checkoutClose").addEventListener("click", closeModals);
+document.getElementById("coCloseBtn").addEventListener("click", closeModals);
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { closeModals(); closeCart(); }
 });
 
 /* ---------- Zentrale Klick-Delegation ---------- */
@@ -160,13 +272,18 @@ document.addEventListener("click", (e) => {
   const add = e.target.closest("[data-add]");
   const qty = e.target.closest("[data-qty]");
   const fav = e.target.closest("[data-fav]");
-  if (add) addToCart(+add.dataset.add);
-  if (qty) setQty(+qty.dataset.qty, +qty.dataset.delta);
+  if (add) { addToCart(+add.dataset.add); return; }
+  if (qty) { setQty(+qty.dataset.qty, +qty.dataset.delta); return; }
   if (fav) {
     const id = +fav.dataset.fav;
     if (favs.has(id)) { favs.delete(id); fav.textContent = "🤍"; fav.classList.remove("is-fav"); }
     else { favs.add(id); fav.textContent = "❤️"; fav.classList.add("is-fav"); }
+    saveState();
+    return;
   }
+  /* Klick auf die Karte selbst öffnet die Schnellansicht */
+  const card = e.target.closest(".card[data-id]");
+  if (card) openQuickView(+card.dataset.id);
 });
 
 /* ---------- Filter ---------- */
@@ -275,6 +392,7 @@ document.getElementById("newsletterForm").addEventListener("submit", (e) => {
 
 /* ---------- Init ---------- */
 document.getElementById("year").textContent = new Date().getFullYear();
+loadState();
 renderProducts();
 updateCart();
 observeReveals();

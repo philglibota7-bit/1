@@ -43,6 +43,8 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+[hidden] { display: none !important; }
+
 html { scroll-behavior: smooth; }
 
 body {
@@ -583,6 +585,7 @@ body {
   flex-direction: column;
   transition: transform 0.4s var(--ease), box-shadow 0.4s;
   background: var(--bg);
+  cursor: pointer;
 }
 
 .card.is-hidden { display: none; }
@@ -787,6 +790,205 @@ body {
   text-transform: uppercase;
   color: var(--fg-soft);
 }
+
+/* ---------- FAQ ---------- */
+
+.faq__list {
+  max-width: 46rem;
+  border-top: 1px solid var(--rule);
+}
+
+.faq__item { border-bottom: 1px solid var(--rule); }
+
+.faq__item summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 0;
+  font-weight: 700;
+  font-size: 1.02rem;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  list-style: none;
+}
+
+.faq__item summary::-webkit-details-marker { display: none; }
+
+.faq__item summary span {
+  color: var(--terra);
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1;
+  transition: transform 0.3s var(--ease);
+}
+
+.faq__item[open] summary span { transform: rotate(45deg); }
+
+.faq__item p {
+  padding: 0 2.5rem 1.4rem 0;
+  color: var(--fg-soft);
+  font-size: 0.95rem;
+  max-width: 38rem;
+}
+
+/* ---------- Modals (Schnellansicht & Checkout) ---------- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(22, 17, 12, 0.55);
+  backdrop-filter: blur(3px);
+  z-index: 108;
+  animation: fadeIn 0.3s;
+}
+
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 110;
+  width: min(50rem, 92vw);
+  max-height: 90svh;
+  overflow-y: auto;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  transform: translate(-50%, -50%) scale(0.94);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform 0.35s var(--ease), opacity 0.3s, visibility 0s 0.35s;
+  box-shadow: 0 30px 80px rgba(22, 17, 12, 0.4);
+}
+
+.modal.is-open {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: transform 0.35s var(--ease), opacity 0.3s;
+}
+
+.modal--product {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 760px) {
+  .modal--product { grid-template-columns: 1fr 1fr; }
+}
+
+.modal--checkout { width: min(30rem, 92vw); }
+
+.modal__close {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  z-index: 2;
+  background: var(--bg);
+}
+
+.modal__media {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  font-size: 6rem;
+  background: linear-gradient(150deg, var(--c1), var(--c2));
+  position: relative;
+}
+
+.modal__media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(70% 60% at 30% 25%, rgba(255, 255, 255, 0.28), transparent 65%);
+}
+
+.modal__media span { position: relative; z-index: 1; }
+
+.modal__body {
+  padding: clamp(1.6rem, 4vw, 2.6rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.modal__name {
+  font-size: clamp(1.5rem, 3.5vw, 2.2rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.modal__name em {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.modal__desc { color: var(--fg-soft); font-size: 0.98rem; }
+
+.modal__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 0.6rem;
+}
+
+.modal__price {
+  font-size: 1.4rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Checkout-Formular ---------- */
+
+#checkoutForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+#checkoutForm .label { margin-bottom: -0.2rem; }
+
+#checkoutForm input {
+  font: inherit;
+  padding: 0.9rem 1.2rem;
+  border-radius: 99px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--fg);
+  outline: none;
+  transition: border-color 0.25s;
+  width: 100%;
+}
+
+#checkoutForm input::placeholder { color: var(--fg-soft); opacity: 0.7; }
+#checkoutForm input:focus { border-color: var(--terra); }
+
+.checkout__row {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 0.75rem;
+}
+
+#checkoutForm .drawer__total { margin: 0.4rem 0 0; }
+
+.checkout__done {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  align-items: center;
+  padding: 1rem 0;
+}
+
+.checkout__done p { color: var(--fg-soft); }
+
+.checkout__emoji { font-size: 3rem; }
 
 /* ---------- Newsletter ---------- */
 
