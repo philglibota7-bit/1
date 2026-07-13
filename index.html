@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Hygge & Co. — handverlesene, gemütliche Wohn-Accessoires. Editorial Cozy Design." />
+  <title>Hygge &amp; Co. — Mach's dir gemütlich</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body data-theme="light">
+
+  <!-- ===== NAVIGATION ===== -->
+  <header class="nav" id="nav">
+    <div class="nav__inner">
+      <a href="#top" class="brand" aria-label="Hygge und Co. Startseite">HYGGE<em>&amp;</em>CO.</a>
+
+      <nav class="nav__links" aria-label="Hauptnavigation">
+        <a href="#kollektion">Kollektion</a>
+        <a href="#manifest">Manifest</a>
+        <a href="#service">Service</a>
+        <a href="#stimmen">Stimmen</a>
+      </nav>
+
+      <div class="nav__actions">
+        <button class="icon-btn" id="themeToggle" aria-label="Design umschalten" title="Hell / Dunkel">
+          <span class="theme-icon">●</span>
+        </button>
+        <button class="icon-btn cart-btn" id="cartToggle" aria-label="Warenkorb öffnen">
+          Korb
+          <span class="cart-count" id="cartCount" hidden>0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+
+    <!-- ===== VOLLBILD-HERO ===== -->
+    <section class="hero">
+      <div class="hero__bg" id="heroBg" aria-hidden="true"></div>
+      <div class="hero__inner">
+        <p class="label hero__label"><span class="w" style="--i:0">Est. 2021</span> <span class="w" style="--i:1">·</span> <span class="w" style="--i:2">Handgemacht in kleinen Chargen</span></p>
+        <h1 class="hero__title">
+          <span class="w" style="--i:1">Mach's</span>
+          <span class="w" style="--i:2">dir</span>
+          <span class="w w--serif" style="--i:3">gemütlich.</span>
+        </h1>
+        <p class="hero__sub w" style="--i:5">Handverlesene Wohn-Accessoires, die aus vier Wänden ein Zuhause machen.</p>
+        <div class="hero__cta w" style="--i:6">
+          <a href="#kollektion" class="btn btn--solid">Kollektion entdecken</a>
+          <a href="#manifest" class="btn btn--line">Unser Manifest</a>
+        </div>
+      </div>
+      <div class="hero__scroll w" style="--i:8" aria-hidden="true"><span></span>Scroll</div>
+    </section>
+
+    <!-- ===== ZAHLEN-BAND ===== -->
+    <div class="band" id="statsBand">
+      <div class="band__inner">
+        <div class="stat"><span class="stat__num" data-count="12000">0</span><span class="stat__plus">+</span><span class="stat__label">Kund:innen</span></div>
+        <div class="stat"><span class="stat__num" data-count="98">0</span><span class="stat__plus">%</span><span class="stat__label">Weiterempfehlung</span></div>
+        <div class="stat"><span class="stat__num" data-count="100">0</span><span class="stat__plus">%</span><span class="stat__label">nachhaltig</span></div>
+        <div class="stat"><span class="stat__num" data-count="4800">0</span><span class="stat__plus">+</span><span class="stat__label">Bäume gepflanzt</span></div>
+      </div>
+    </div>
+
+    <!-- ===== WORTMARKE MIT DURCHBLICK ===== -->
+    <section class="brandmark" aria-hidden="true">
+      <span class="brandmark__word">HYGGE</span>
+      <span class="brandmark__tag">Wohn-Accessoires</span>
+    </section>
+
+    <!-- ===== MANIFEST / CHEVRONS (dunkel) ===== -->
+    <section class="dark manifest" id="manifest">
+      <p class="label reveal">Manifest</p>
+      <h2 class="xxl reveal">Es geht nicht<br />nur um <em>Deko.</em></h2>
+
+      <div class="chevrons reveal" aria-hidden="true">
+        <span class="chev" style="--c1:#c95d3f;--c2:#8f3f28;--d:0">🕯️</span>
+        <span class="chev" style="--c1:#d9a05b;--c2:#a86f33;--d:1">🧶</span>
+        <span class="chev" style="--c1:#7fa874;--c2:#54774c;--d:2">🌿</span>
+        <span class="chev chev--ghost" style="--d:3"></span>
+      </div>
+
+      <p class="manifest__text reveal">
+        Es geht um Ankommen. Um Ruhe. Um den Moment, in dem du die Tür hinter
+        dir schließt und alles leiser wird. <em>Das</em> bauen wir — Stück für Stück,
+        von Hand.
+      </p>
+    </section>
+
+    <!-- ===== XXL-KATEGORIEN ===== -->
+    <section class="cats" id="kategorien">
+      <p class="label reveal">Womit wir dir helfen</p>
+      <div class="cats__list">
+        <a class="cat reveal" href="#kollektion" data-cat-link="kerzen">
+          <span class="cat__no">01</span>
+          <span class="cat__desc">Warmes Licht für lange Abende. Handgegossen aus Rapswachs, mit Düften, die nach Zuhause riechen.</span>
+          <span class="cat__word">Kerzen</span>
+          <span class="cat__arrow" aria-hidden="true">→</span>
+        </a>
+        <a class="cat reveal" href="#kollektion" data-cat-link="textil">
+          <span class="cat__no">02</span>
+          <span class="cat__desc">Weich, weicher, eingekuschelt. Decken und Kissen aus Bio-Baumwolle und gewaschenem Leinen.</span>
+          <span class="cat__word">Textil</span>
+          <span class="cat__arrow" aria-hidden="true">→</span>
+        </a>
+        <a class="cat reveal" href="#kollektion" data-cat-link="deko">
+          <span class="cat__no">03</span>
+          <span class="cat__desc">Kleine Dinge, große Wirkung. Makramee, Trockenblumen und Objekte mit Charakter.</span>
+          <span class="cat__word">Deko</span>
+          <span class="cat__arrow" aria-hidden="true">→</span>
+        </a>
+        <a class="cat reveal" href="#kollektion" data-cat-link="kueche">
+          <span class="cat__no">04</span>
+          <span class="cat__desc">Rituale zum Anfassen. Handgetöpferte Tassen und Kannen für den langsamen Morgen.</span>
+          <span class="cat__word">Küche</span>
+          <span class="cat__arrow" aria-hidden="true">→</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- ===== TICKER ===== -->
+    <div class="ticker" aria-hidden="true">
+      <div class="ticker__track">
+        <span>Nachhaltig produziert</span><i>✳</i>
+        <span>Kostenloser Versand ab 39 €</span><i>✳</i>
+        <span>30 Tage Rückgabe</span><i>✳</i>
+        <span>Fair &amp; regional</span><i>✳</i>
+        <span>Nachhaltig produziert</span><i>✳</i>
+        <span>Kostenloser Versand ab 39 €</span><i>✳</i>
+        <span>30 Tage Rückgabe</span><i>✳</i>
+        <span>Fair &amp; regional</span><i>✳</i>
+      </div>
+    </div>
+
+    <!-- ===== KOLLEKTION ===== -->
+    <section class="section" id="kollektion">
+      <div class="section__head reveal">
+        <p class="label">Die Kollektion</p>
+        <h2 class="xxl">Lieblings<em>stücke.</em></h2>
+      </div>
+
+      <div class="filters reveal" id="filters" role="tablist" aria-label="Kategorien">
+        <button class="chip is-active" data-filter="all" role="tab">Alle</button>
+        <button class="chip" data-filter="kerzen" role="tab">Kerzen</button>
+        <button class="chip" data-filter="textil" role="tab">Textil</button>
+        <button class="chip" data-filter="deko" role="tab">Deko</button>
+        <button class="chip" data-filter="kueche" role="tab">Küche</button>
+      </div>
+
+      <div class="grid" id="productGrid"><!-- via JS befüllt --></div>
+    </section>
+
+    <!-- ===== SERVICE (dunkel) ===== -->
+    <section class="dark services" id="service">
+      <div class="section__head reveal">
+        <p class="label">Mehr als Produkte</p>
+        <h2 class="xxl">Wir gehen <em>weiter.</em></h2>
+      </div>
+      <div class="services__grid">
+        <article class="svc reveal" style="--c1:#c95d3f;--c2:#7e3a24">
+          <div class="svc__media">🎁</div>
+          <h3>Geschenk-Service</h3>
+          <p>Wir verpacken, schreiben deine Karte von Hand und versenden direkt an die beschenkte Person.</p>
+          <span class="svc__link">Mehr erfahren →</span>
+        </article>
+        <article class="svc reveal" style="--c1:#d9a05b;--c2:#96622c">
+          <div class="svc__media">🕯️</div>
+          <h3>Kerzen-Workshops</h3>
+          <p>Gieß deine eigene Kerze — in unserer Werkstatt oder als Box für deinen Abend zuhause.</p>
+          <span class="svc__link">Termine ansehen →</span>
+        </article>
+        <article class="svc reveal" style="--c1:#7fa874;--c2:#49663f">
+          <div class="svc__media">🛋️</div>
+          <h3>Cozy-Beratung</h3>
+          <p>30 Minuten Video-Call: Wir machen aus deinem Raum einen Rückzugsort. Ehrlich und unverbindlich.</p>
+          <span class="svc__link">Termin buchen →</span>
+        </article>
+      </div>
+    </section>
+
+    <!-- ===== STIMMEN ===== -->
+    <section class="section" id="stimmen">
+      <div class="section__head reveal">
+        <p class="label">Stimmen</p>
+        <h2 class="xxl">Glaub nicht <em>nur uns.</em></h2>
+      </div>
+      <div class="testi-grid" id="testiGrid"><!-- via JS --></div>
+    </section>
+
+    <!-- ===== FAQ ===== -->
+    <section class="section faq" id="faq">
+      <div class="section__head reveal">
+        <p class="label">Fragen</p>
+        <h2 class="xxl">Gut zu <em>wissen.</em></h2>
+      </div>
+      <div class="faq__list reveal">
+        <details class="faq__item">
+          <summary>Wie lange dauert der Versand?<span aria-hidden="true">+</span></summary>
+          <p>2–4 Werktage innerhalb Deutschlands, 4–7 Werktage nach Österreich und in die Schweiz. Ab 39 € liefern wir versandkostenfrei.</p>
+        </details>
+        <details class="faq__item">
+          <summary>Kann ich Artikel zurückgeben?<span aria-hidden="true">+</span></summary>
+          <p>Klar — 30 Tage, ohne Wenn und Aber. Schreib uns kurz, wir schicken dir ein Rücksendeetikett.</p>
+        </details>
+        <details class="faq__item">
+          <summary>Woher kommen die Produkte?<span aria-hidden="true">+</span></summary>
+          <p>Alles wird in kleinen Chargen in unserer Werkstatt gefertigt oder von Manufakturen aus der Region bezogen. Keine Massenware.</p>
+        </details>
+        <details class="faq__item">
+          <summary>Verpackt ihr auch Geschenke?<span aria-hidden="true">+</span></summary>
+          <p>Sehr gern. Wähl im Checkout einfach den Geschenk-Service — wir verpacken plastikfrei und legen deine handgeschriebene Karte bei.</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- ===== NEWSLETTER (dunkel) ===== -->
+    <section class="dark newsletter" id="newsletter">
+      <div class="newsletter__inner reveal">
+        <p class="label">Newsletter</p>
+        <h2 class="xxl">10 % für den <em>Anfang.</em></h2>
+        <p class="newsletter__sub">Melde dich an — für deine erste Bestellung und leise Post, die sich lohnt.</p>
+        <form class="newsletter__form" id="newsletterForm" novalidate>
+          <input type="email" id="email" placeholder="deine@mail.de" aria-label="E-Mail-Adresse" required />
+          <button type="submit" class="btn btn--solid">Anmelden</button>
+        </form>
+        <p class="newsletter__note" id="nlNote" hidden>Danke! Schau in dein Postfach. ✳</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer dark">
+    <div class="footer__grid">
+      <div>
+        <p class="label">Hygge &amp; Co.</p>
+        <p class="footer__tag">Gemütlich leben,<br />jeden Tag.</p>
+      </div>
+      <div>
+        <p class="label">Shop</p>
+        <a href="#kollektion">Kerzen</a><a href="#kollektion">Textil</a><a href="#kollektion">Deko</a><a href="#kollektion">Küche</a>
+      </div>
+      <div>
+        <p class="label">Service</p>
+        <a href="#">Versand</a><a href="#">Rückgabe</a><a href="#">Kontakt</a>
+      </div>
+      <div>
+        <p class="label">Folgen</p>
+        <a href="#">Instagram</a><a href="#">Pinterest</a><a href="#">TikTok</a>
+      </div>
+    </div>
+    <p class="footer__copy">© <span id="year"></span> Hygge &amp; Co. · Platzhalter-Demo</p>
+    <div class="footer__mark" aria-hidden="true">HYGGE</div>
+  </footer>
+
+  <!-- ===== WARENKORB DRAWER ===== -->
+  <div class="drawer-overlay" id="drawerOverlay" hidden></div>
+  <aside class="drawer" id="cartDrawer" aria-label="Warenkorb" aria-hidden="true">
+    <div class="drawer__head">
+      <h3>Warenkorb</h3>
+      <button class="icon-btn" id="cartClose" aria-label="Schließen">✕</button>
+    </div>
+    <div class="drawer__body" id="cartBody"></div>
+    <div class="drawer__foot">
+      <div class="drawer__total"><span>Summe</span><strong id="cartTotal">0,00 €</strong></div>
+      <button class="btn btn--solid btn--block" id="checkoutBtn">Zur Kasse</button>
+      <p class="drawer__hint">Demo — kein echter Bezahlvorgang.</p>
+    </div>
+  </aside>
+
+  <!-- ===== PRODUKT-SCHNELLANSICHT ===== -->
+  <div class="modal-overlay" id="modalOverlay" hidden></div>
+  <div class="modal modal--product" id="productModal" role="dialog" aria-modal="true" aria-hidden="true">
+    <button class="icon-btn modal__close" id="modalClose" aria-label="Schließen">✕</button>
+    <div class="modal__media" id="modalMedia"><span id="modalEmoji"></span></div>
+    <div class="modal__body">
+      <span class="card__cat" id="modalCat"></span>
+      <h3 class="modal__name" id="modalName"></h3>
+      <p class="modal__desc" id="modalDesc"></p>
+      <div class="modal__row">
+        <div class="cart-item__qty">
+          <button class="qty-btn" id="modalMinus" aria-label="Weniger">−</button>
+          <span id="modalQty">1</span>
+          <button class="qty-btn" id="modalPlus" aria-label="Mehr">+</button>
+        </div>
+        <span class="modal__price" id="modalPrice"></span>
+      </div>
+      <button class="btn btn--solid btn--block" id="modalAdd">In den Korb</button>
+    </div>
+  </div>
+
+  <!-- ===== DEMO-CHECKOUT ===== -->
+  <div class="modal modal--checkout" id="checkoutModal" role="dialog" aria-modal="true" aria-hidden="true">
+    <button class="icon-btn modal__close" id="checkoutClose" aria-label="Schließen">✕</button>
+    <div class="modal__body">
+      <form id="checkoutForm" novalidate>
+        <p class="label">Kasse</p>
+        <h3 class="modal__name">Fast <em>geschafft.</em></h3>
+        <input type="text" id="coName" placeholder="Vor- und Nachname" autocomplete="name" required />
+        <input type="email" id="coMail" placeholder="deine@mail.de" autocomplete="email" required />
+        <input type="text" id="coStreet" placeholder="Straße und Hausnummer" autocomplete="street-address" required />
+        <div class="checkout__row">
+          <input type="text" id="coZip" placeholder="PLZ" autocomplete="postal-code" required />
+          <input type="text" id="coCity" placeholder="Ort" autocomplete="address-level2" required />
+        </div>
+        <div class="drawer__total"><span>Summe</span><strong id="coTotal">0,00 €</strong></div>
+        <button type="submit" class="btn btn--solid btn--block">Jetzt kaufen (Demo)</button>
+        <p class="drawer__hint">Demo — es wird nichts berechnet oder versendet.</p>
+      </form>
+      <div class="checkout__done" id="checkoutDone" hidden>
+        <span class="checkout__emoji">🎉</span>
+        <h3 class="modal__name">Danke, <span id="coDoneName"></span>!</h3>
+        <p>Deine Demo-Bestellung <strong id="coOrderNo"></strong> ist eingegangen.<br />Eine Bestätigung wäre jetzt unterwegs zu dir.</p>
+        <button type="button" class="btn btn--line" id="coCloseBtn">Weiter stöbern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
