@@ -465,9 +465,18 @@ const cam = {
 };
 
 let sinYaw = 0, cosYaw = 1, sinPitch = 0, cosPitch = 1, focal = 1;
+let yawVel = 0;      // Schwung durch Wischen (mit Nachlauf)
+let spinFx = 0;      // 0..1, steuert Streifen-/Glüheffekte beim Drehen
 
 function updateCamera(dt) {
   cam.yaw += cam.autoSpin * dt;
+  if (pointers.size === 0) {
+    cam.yaw += yawVel * dt;              // Trägheit nach dem Loslassen
+    yawVel *= Math.exp(-1.6 * dt);       // langsam ausrollen
+    if (Math.abs(yawVel) < 0.01) yawVel = 0;
+  }
+  const target = Math.min(Math.abs(yawVel) / 1.6, 1);
+  spinFx += (target - spinFx) * Math.min(dt * 6, 1);
   sinYaw = Math.sin(cam.yaw); cosYaw = Math.cos(cam.yaw);
   sinPitch = Math.sin(cam.pitch); cosPitch = Math.cos(cam.pitch);
   focal = Math.min(W, H) * 1.35 * cam.zoom;
@@ -533,6 +542,59 @@ function makeGalaxy() {
   }
 }
 makeGalaxy();
+
+/* Feiner Sternenstaub zwischen den Armen – macht die Galaxie dichter */
+const DUST_COUNT = isSmall ? 1600 : 2600;
+const dust = [];
+for (let i = 0; i < DUST_COUNT; i++) {
+  const r = Math.pow(Math.random(), 0.5) * 1.7 + 0.05;
+  dust.push({
+    r,
+    angle: Math.random() * Math.PI * 2,
+    y: (Math.random() - 0.5) * 0.1 * (1.8 - r),
+    speed: 0.22 / (r + 0.25),
+    css: Math.random() < 0.5 ? "rgb(150,70,190)" : "rgb(190,90,160)",
+    tw: rand(0, Math.PI * 2),
+    twS: rand(1.5, 4),
+  });
+}
+
+/* Helle Flare-Sterne mit Kreuzstrahlen */
+function makeFlareSprite() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const cx = c.getContext("2d");
+  const g = cx.createRadialGradient(32, 32, 0, 32, 32, 30);
+  g.addColorStop(0, "rgba(255,255,255,.95)");
+  g.addColorStop(0.25, "rgba(255,190,230,.55)");
+  g.addColorStop(1, "rgba(255,120,200,0)");
+  cx.fillStyle = g;
+  cx.fillRect(0, 0, 64, 64);
+  cx.strokeStyle = "rgba(255,235,250,.9)";
+  cx.lineWidth = 1.4;
+  cx.beginPath();
+  cx.moveTo(32, 4); cx.lineTo(32, 60);
+  cx.moveTo(4, 32); cx.lineTo(60, 32);
+  cx.stroke();
+  return c;
+}
+const FLARE_SPRITE = makeFlareSprite();
+const flares = [];
+for (let i = 0; i < (isSmall ? 18 : 26); i++) {
+  const r = rand(0.3, 1.55);
+  flares.push({
+    r,
+    angle: rand(0, Math.PI * 2),
+    y: (Math.random() - 0.5) * 0.1,
+    speed: 0.22 / (r + 0.25),
+    size: rand(8, 17),
+    tw: rand(0, Math.PI * 2),
+    twS: rand(1.2, 3.5),
+  });
+}
+
+/* Goldener Komet mit Funkenschweif */
+const comet = { angle: rand(0, Math.PI * 2), r: 1.35, speed: 0.3 };
 
 /* =====================================================================
    Partikel-Herz über dem Zentrum
@@ -732,12 +794,14 @@ function drawFrame(dt) {
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
 
-  // Nebelwolken, langsam treibend
+  // Nebelwolken, langsam treibend – mit Parallaxe beim Drehen
   ctx.globalCompositeOperation = "lighter";
+  let ni = 0;
   for (const n of nebulas) {
     const d = Math.min(W, H) * n.sc;
-    const nx = (n.ax + Math.sin(time * n.sp + n.ph) * n.amp) * W - d / 2;
-    const ny = (n.ay + Math.cos(time * n.sp * 1.3 + n.ph) * n.amp) * H - d / 2;
+    const par = (0.5 + ni++ * 0.5) * 0.045;   // jede Wolke verschiebt sich anders stark
+    const nx = (n.ax + Math.sin(time * n.sp + n.ph) * n.amp + Math.sin(cam.yaw) * par) * W - d / 2;
+    const ny = (n.ay + Math.cos(time * n.sp * 1.3 + n.ph) * n.amp + Math.cos(cam.yaw) * par * 0.4) * H - d / 2;
     ctx.drawImage(n.img, nx, ny, d, d);
   }
   ctx.globalCompositeOperation = "source-over";
@@ -756,6 +820,7 @@ function drawFrame(dt) {
 
   // ---------- Galaxie (additiv) ----------
   ctx.globalCompositeOperation = "lighter";
+  const streaks = spinFx > 0.06 && f > 0.9;   // Lichtspuren bei schnellem Drehen
   for (let i = 0; i < galaxy.length; i += stride) {
     const p = galaxy[i];
     p.angle += p.speed * dt;
@@ -764,22 +829,78 @@ function drawFrame(dt) {
     const x = lerp(p.ix, tx, f);
     const y = lerp(p.iy, p.y, f);
     const z = lerp(p.iz, tz, f);
-    if (!project(x, y, z, P)) continue;
-    if (P.x < -20 || P.x > W + 20 || P.y < -20 || P.y > H + 20) continue;
+    if (!project(x, y, z, P)) { p.px = -1; continue; }
+    if (P.x < -20 || P.x > W + 20 || P.y < -20 || P.y > H + 20) { p.px = -1; continue; }
     const tw = 0.55 + 0.45 * Math.sin(time * p.twS + p.tw);
     const sz = Math.max(p.size * P.s * focal * 0.011, 0.5);
     ctx.globalAlpha = Math.min(tw * f * Math.min(P.persp * 1.1, 1), 1);
+    if (streaks && p.px >= 0) {
+      // Stern verwischt zur Lichtspur entlang der Bewegung
+      ctx.strokeStyle = p.css;
+      ctx.lineWidth = Math.max(sz * 0.75, 0.5);
+      ctx.beginPath();
+      ctx.moveTo(p.px, p.py);
+      ctx.lineTo(P.x, P.y);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = p.css;
+      ctx.fillRect(P.x - sz / 2, P.y - sz / 2, sz, sz);
+    }
+    p.px = P.x; p.py = P.y;
+  }
+
+  // ---------- Sternenstaub zwischen den Armen ----------
+  for (let i = 0; i < dust.length; i += stride) {
+    const p = dust[i];
+    p.angle += p.speed * dt;
+    const x = Math.cos(p.angle) * p.r;
+    const z = Math.sin(p.angle) * p.r;
+    if (!project(x, p.y, z, P)) continue;
+    if (P.x < 0 || P.x > W || P.y < 0 || P.y > H) continue;
+    const tw = 0.4 + 0.3 * Math.sin(time * p.twS + p.tw);
+    ctx.globalAlpha = tw * f * 0.8;
     ctx.fillStyle = p.css;
-    ctx.fillRect(P.x - sz / 2, P.y - sz / 2, sz, sz);
+    const sz = Math.max(P.s * focal * 0.007, 0.4);
+    ctx.fillRect(P.x, P.y, sz, sz);
+  }
+
+  // ---------- Flare-Sterne ----------
+  for (const fl of flares) {
+    fl.angle += fl.speed * dt;
+    const x = Math.cos(fl.angle) * fl.r;
+    const z = Math.sin(fl.angle) * fl.r;
+    if (!project(x, fl.y, z, P)) continue;
+    const tw = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(time * fl.twS + fl.tw));
+    const d = Math.max(fl.size * P.persp, 4) * (1 + 0.25 * tw);
+    ctx.globalAlpha = tw * f;
+    ctx.drawImage(FLARE_SPRITE, P.x - d / 2, P.y - d / 2, d, d);
+  }
+
+  // ---------- Goldener Komet mit Schweif ----------
+  if (f > 0.95) {
+    comet.angle += comet.speed * dt;
+    const cx3 = Math.cos(comet.angle) * comet.r;
+    const cz3 = Math.sin(comet.angle) * comet.r;
+    const cy3 = 0.28 * Math.sin(comet.angle * 0.7) + 0.18;
+    if (project(cx3, cy3, cz3, P)) {
+      ctx.globalAlpha = 0.95;
+      const d = Math.max(10 * P.persp, 5);
+      ctx.drawImage(FLARE_SPRITE, P.x - d / 2, P.y - d / 2, d, d);
+      if (Math.random() < dt * 50) {
+        addSparkle(P.x + rand(-2, 2), P.y + rand(-2, 2),
+                   rand(-14, 14), rand(-14, 14), rand(0.9, 1.6), rand(1, 2.2));
+      }
+    }
   }
 
   // ---------- Zentrum: Glühen + dunkles "schwarzes Loch" ----------
   if (project(0, 0, 0, P)) {
-    const R = P.s * focal * 0.42;
+    const R = P.s * focal * 0.42 * (1 + spinFx * 0.25);
+    const gb = 1 + spinFx * 0.7;   // Kern glüht heller beim schnellen Drehen
     const glow = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, R);
-    glow.addColorStop(0, `rgba(255,190,230,${0.95 * f})`);
-    glow.addColorStop(0.25, `rgba(255,90,180,${0.55 * f})`);
-    glow.addColorStop(0.6, `rgba(200,50,255,${0.22 * f})`);
+    glow.addColorStop(0, `rgba(255,190,230,${Math.min(0.95 * f * gb, 1)})`);
+    glow.addColorStop(0.25, `rgba(255,90,180,${Math.min(0.55 * f * gb, 1)})`);
+    glow.addColorStop(0.6, `rgba(200,50,255,${Math.min(0.22 * f * gb, 1)})`);
     glow.addColorStop(1, "rgba(255,45,149,0)");
     ctx.fillStyle = glow;
     ctx.beginPath(); ctx.arc(P.x, P.y, R, 0, Math.PI * 2); ctx.fill();
@@ -987,6 +1108,7 @@ let dragMoved = 0, downTime = 0, pinchDist = 0;
 canvas.addEventListener("pointerdown", e => {
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   dragMoved = 0; downTime = performance.now();
+  yawVel = 0;   // Galaxie "festhalten"
   if (pointers.size === 2) {
     const [a, b] = [...pointers.values()];
     pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
@@ -1002,6 +1124,8 @@ canvas.addEventListener("pointermove", e => {
   if (pointers.size === 1) {
     cam.yaw += dx * 0.005;
     cam.pitch = Math.max(-1.25, Math.min(-0.08, cam.pitch - dy * 0.004));
+    // Schwung merken -> Galaxie dreht nach dem Loslassen weiter
+    yawVel = Math.max(-4, Math.min(4, yawVel * 0.55 + dx * 0.005 * 60 * 0.45));
     // Sternenstaub am Finger
     if (introT > INTRO_DUR && Math.abs(dx) + Math.abs(dy) > 2) {
       addSparkle(e.clientX + rand(-4, 4), e.clientY + rand(-4, 4),
