@@ -461,7 +461,7 @@ const cam = {
   pitch: -0.42,
   dist: 3.1,
   zoom: 1,
-  autoSpin: 0.055,
+  autoSpin: 0.028,
 };
 
 let sinYaw = 0, cosYaw = 1, sinPitch = 0, cosPitch = 1, focal = 1;
@@ -503,7 +503,7 @@ const P = { x: 0, y: 0, s: 0, persp: 1, depth: 0 };
 /* =====================================================================
    Galaxie-Partikel
    ===================================================================== */
-const GALAXY_COUNT = isSmall ? 4200 : 7000;
+const GALAXY_COUNT = isSmall ? 3600 : 5800;
 const galaxy = [];
 
 const PALETTE = [
@@ -512,7 +512,27 @@ const PALETTE = [
   [255, 120, 200],  // hellrosa
   [190, 60, 255],   // violett
   [255, 220, 240],  // fast weiß
+  [255, 170, 130],  // pfirsich / roségold
+  [170, 130, 255],  // lavendel
+  [130, 150, 255],  // perlblau
 ];
+
+/* Weiche, runde Glüh-Punkte statt harter Quadrate */
+const SPRITE_CACHE = {};
+function dotSprite(c) {
+  const key = c.join(",");
+  if (SPRITE_CACHE[key]) return SPRITE_CACHE[key];
+  const cv = document.createElement("canvas");
+  cv.width = cv.height = 32;
+  const cx = cv.getContext("2d");
+  const g = cx.createRadialGradient(16, 16, 0, 16, 16, 16);
+  g.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},1)`);
+  g.addColorStop(0.35, `rgba(${c[0]},${c[1]},${c[2]},.55)`);
+  g.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+  cx.fillStyle = g;
+  cx.fillRect(0, 0, 32, 32);
+  return (SPRITE_CACHE[key] = cv);
+}
 
 function makeGalaxy() {
   const arms = 3;
@@ -523,14 +543,15 @@ function makeGalaxy() {
     const angle = (arm / arms) * Math.PI * 2 + r * 2.6 + spread;
     const y = (Math.random() - 0.5) * (Math.random() - 0.5) * 0.22 * (1.7 - r);
     let c;
-    if (r < 0.35) c = Math.random() < 0.6 ? PALETTE[4] : PALETTE[2];
-    else if (r < 0.9) c = PALETTE[(Math.random() * 3) | 0];
-    else c = Math.random() < 0.35 ? PALETTE[3] : PALETTE[1];
+    if (r < 0.35) c = Math.random() < 0.55 ? PALETTE[4] : (Math.random() < 0.5 ? PALETTE[2] : PALETTE[5]);
+    else if (r < 0.9) c = PALETTE[[0, 1, 2, 5, 6][(Math.random() * 5) | 0]];
+    else c = PALETTE[[1, 3, 6, 7][(Math.random() * 4) | 0]];
     if (Math.random() < 0.07) c = [255, 205, 130];   // vereinzelte Goldsterne
     galaxy.push({
       r, angle, y,
-      speed: 0.22 / (r + 0.25),
-      size: rand(0.7, 2.1),
+      speed: 0.12 / (r + 0.25),
+      size: rand(0.5, 1.6),
+      spr: dotSprite(c),
       css: `rgb(${c[0]},${c[1]},${c[2]})`,
       tw: rand(0, Math.PI * 2),
       twS: rand(2, 6),
@@ -544,16 +565,17 @@ function makeGalaxy() {
 makeGalaxy();
 
 /* Feiner Sternenstaub zwischen den Armen – macht die Galaxie dichter */
-const DUST_COUNT = isSmall ? 1600 : 2600;
+const DUST_COUNT = isSmall ? 2100 : 3400;
 const dust = [];
+const DUST_COLORS = ["rgb(150,70,190)", "rgb(190,90,160)", "rgb(120,90,220)", "rgb(210,120,150)"];
 for (let i = 0; i < DUST_COUNT; i++) {
   const r = Math.pow(Math.random(), 0.5) * 1.7 + 0.05;
   dust.push({
     r,
     angle: Math.random() * Math.PI * 2,
     y: (Math.random() - 0.5) * 0.1 * (1.8 - r),
-    speed: 0.22 / (r + 0.25),
-    css: Math.random() < 0.5 ? "rgb(150,70,190)" : "rgb(190,90,160)",
+    speed: 0.12 / (r + 0.25),
+    css: DUST_COLORS[(Math.random() * DUST_COLORS.length) | 0],
     tw: rand(0, Math.PI * 2),
     twS: rand(1.5, 4),
   });
@@ -586,7 +608,7 @@ for (let i = 0; i < (isSmall ? 18 : 26); i++) {
     r,
     angle: rand(0, Math.PI * 2),
     y: (Math.random() - 0.5) * 0.1,
-    speed: 0.22 / (r + 0.25),
+    speed: 0.12 / (r + 0.25),
     size: rand(8, 17),
     tw: rand(0, Math.PI * 2),
     twS: rand(1.2, 3.5),
@@ -594,7 +616,7 @@ for (let i = 0; i < (isSmall ? 18 : 26); i++) {
 }
 
 /* Goldener Komet mit Funkenschweif */
-const comet = { angle: rand(0, Math.PI * 2), r: 1.35, speed: 0.3 };
+const comet = { angle: rand(0, Math.PI * 2), r: 1.35, speed: 0.18 };
 
 /* "Marwa ♥" aus Sternen – alle 10 Sekunden fliegen Sterne zusammen
    und schreiben den Namen an den Himmel */
@@ -630,7 +652,7 @@ for (let i = 0; i < NAME_COUNT; i++) {
     r,
     angle: rand(0, Math.PI * 2),
     y: (Math.random() - 0.5) * 0.12,
-    speed: 0.22 / (r + 0.25),
+    speed: 0.12 / (r + 0.25),
     size: rand(1.2, 2.4),
     tw: rand(0, Math.PI * 2),
     twS: rand(2, 6),
@@ -661,12 +683,12 @@ function makeHeart() {
     const edge = Math.random() < 0.55;
     const shrink = edge ? rand(0.94, 1.0) : Math.sqrt(Math.random());
     const p = heartPoint(t, shrink);
-    const c = edge ? PALETTE[2] : PALETTE[(Math.random() * PALETTE.length) | 0];
+    const c = edge ? PALETTE[2] : PALETTE[[0, 1, 2, 3, 4, 5][(Math.random() * 6) | 0]];
     heart.push({
       x: p.x, y: p.y,
       z: (Math.random() - 0.5) * 0.12,
-      size: edge ? rand(1.1, 2.4) : rand(0.6, 1.6),
-      css: `rgb(${c[0]},${c[1]},${c[2]})`,
+      size: edge ? rand(0.9, 1.9) : rand(0.5, 1.3),
+      spr: dotSprite(c),
       tw: rand(0, Math.PI * 2),
       twS: rand(3, 8),
       ix: (Math.random() - 0.5) * 8,
@@ -691,7 +713,7 @@ for (let i = 0; i < MINI_COUNT; i++) {
     r: rand(0.35, 1.7),
     angle: rand(0, Math.PI * 2),
     y: rand(0.02, 0.75),
-    speed: rand(0.05, 0.16),
+    speed: rand(0.028, 0.09),
     rise: rand(0.008, 0.03),
     size: rand(5, 11),
     tw: rand(0, Math.PI * 2),
@@ -707,7 +729,7 @@ const texts = MESSAGES.map((m, i) => ({
   r: rand(0.55, 1.5),
   angle: (i / MESSAGES.length) * Math.PI * 2 + rand(-0.3, 0.3),
   y: rand(0.02, 0.14),
-  speed: rand(0.06, 0.14) * (Math.random() < 0.2 ? -1 : 1),
+  speed: rand(0.035, 0.08) * (Math.random() < 0.2 ? -1 : 1),
   size: rand(0.85, 1.15),
   // für Antippen (Bildschirm-Bounding-Box vom letzten Frame)
   bx: -999, by: -999, bw: 0, bh: 0, visible: false,
@@ -879,8 +901,8 @@ function drawFrame(dt) {
     if (!project(x, y, z, P)) { p.px = -1; continue; }
     if (P.x < -20 || P.x > W + 20 || P.y < -20 || P.y > H + 20) { p.px = -1; continue; }
     const tw = 0.55 + 0.45 * Math.sin(time * p.twS + p.tw);
-    const sz = Math.max(p.size * P.s * focal * 0.011, 0.5);
-    ctx.globalAlpha = Math.min(tw * f * Math.min(P.persp * 1.1, 1), 1);
+    const sz = Math.max(p.size * P.s * focal * 0.0085, 0.4);
+    ctx.globalAlpha = Math.min(tw * f * Math.min(P.persp * 1.1, 1), 1) * 0.9;
     if (streaks && p.px >= 0) {
       // Stern verwischt zur Lichtspur entlang der Bewegung
       ctx.strokeStyle = p.css;
@@ -890,8 +912,8 @@ function drawFrame(dt) {
       ctx.lineTo(P.x, P.y);
       ctx.stroke();
     } else {
-      ctx.fillStyle = p.css;
-      ctx.fillRect(P.x - sz / 2, P.y - sz / 2, sz, sz);
+      const d = sz * 3.2;   // weicher Glüh-Punkt
+      ctx.drawImage(p.spr, P.x - d / 2, P.y - d / 2, d, d);
     }
     p.px = P.x; p.py = P.y;
   }
@@ -905,9 +927,9 @@ function drawFrame(dt) {
     if (!project(x, p.y, z, P)) continue;
     if (P.x < 0 || P.x > W || P.y < 0 || P.y > H) continue;
     const tw = 0.4 + 0.3 * Math.sin(time * p.twS + p.tw);
-    ctx.globalAlpha = tw * f * 0.8;
+    ctx.globalAlpha = tw * f * 0.55;
     ctx.fillStyle = p.css;
-    const sz = Math.max(P.s * focal * 0.007, 0.4);
+    const sz = Math.max(P.s * focal * 0.0055, 0.35);
     ctx.fillRect(P.x, P.y, sz, sz);
   }
 
@@ -1022,7 +1044,7 @@ function drawFrame(dt) {
   }
   const beatT = time % 1.15;
   const beat = 1 + 0.055 * (Math.exp(-beatT * 6) * Math.sin(beatT * 22)); // Herzschlag
-  const heartSpin = time * 0.5;
+  const heartSpin = time * 0.32;
   const hs = Math.sin(heartSpin), hc = Math.cos(heartSpin);
   const bob = Math.sin(time * 1.3) * 0.03;
   for (const p of heart) {
@@ -1038,10 +1060,10 @@ function drawFrame(dt) {
     const z = lerp(p.iz, tz, f);
     if (!project(x, y, z, P)) continue;
     const tw = 0.6 + 0.4 * Math.sin(time * p.twS + p.tw);
-    const sz = Math.max(p.size * P.s * focal * 0.012, 0.5);
+    const sz = Math.max(p.size * P.s * focal * 0.0095, 0.4);
     ctx.globalAlpha = Math.min(tw * f, 1);
-    ctx.fillStyle = p.css;
-    ctx.fillRect(P.x - sz / 2, P.y - sz / 2, sz, sz);
+    const d = sz * 3.2;
+    ctx.drawImage(p.spr, P.x - d / 2, P.y - d / 2, d, d);
   }
 
   // Bildschirmposition des Herzens für die Tipp-Erkennung merken
