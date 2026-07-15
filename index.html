@@ -748,6 +748,7 @@ const nebulas = [
 ];
 
 const shooting = [];
+window.__shoot = shooting;
 let nextShoot = 5;
 
 const SPARK_COLORS = ["255,220,240", "255,200,120", "255,120,200"];
@@ -1000,27 +1001,52 @@ function drawFrame(dt) {
 
   // ---------- Sternschnuppen ----------
   if (f > 0.95 && time > nextShoot) {
-    shooting.push({
-      x: rand(0.1, 0.9) * W, y: rand(0.04, 0.28) * H,
-      vx: rand(260, 430) * (Math.random() < 0.5 ? -1 : 1),
-      vy: rand(80, 150),
-      life: 1,
-    });
-    nextShoot = time + rand(4, 9);
+    const n = Math.random() < 0.3 ? 2 + (Math.random() < 0.3 ? 1 : 0) : 1;  // manchmal ein kleiner Schauer
+    for (let k = 0; k < n; k++) {
+      const fromLeft = Math.random() < 0.5;
+      shooting.push({
+        x: (fromLeft ? rand(-0.1, 0.25) : rand(0.75, 1.1)) * W,
+        y: rand(0.02, 0.35) * H - k * 40,
+        vx: rand(380, 650) * (fromLeft ? 1 : -1),
+        vy: rand(110, 220),
+        life: 1,
+        heart: Math.random() < 0.22,   // ab und zu eine Herz-Sternschnuppe
+        w: rand(2, 3.2),
+      });
+    }
+    nextShoot = time + rand(2.5, 6);
   }
   for (let i = shooting.length - 1; i >= 0; i--) {
     const s = shooting[i];
-    s.life -= dt * 0.85;
+    s.life -= dt * 0.55;
     if (s.life <= 0) { shooting.splice(i, 1); continue; }
     s.x += s.vx * dt; s.y += s.vy * dt;
-    const tx = s.x - s.vx * 0.16, ty = s.y - s.vy * 0.16;
+    const a = Math.min(s.life * 1.6, 1);
+    // langer Schweif
+    const tx = s.x - s.vx * 0.26, ty = s.y - s.vy * 0.26;
     const g2 = ctx.createLinearGradient(s.x, s.y, tx, ty);
-    g2.addColorStop(0, `rgba(255,255,255,${0.9 * s.life})`);
+    g2.addColorStop(0, `rgba(255,255,255,${0.95 * a})`);
+    g2.addColorStop(0.35, `rgba(255,150,215,${0.5 * a})`);
     g2.addColorStop(1, "rgba(255,120,200,0)");
     ctx.strokeStyle = g2;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = s.w;
     ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(tx, ty); ctx.stroke();
+    // glühender Kopf
+    ctx.globalAlpha = a;
+    if (s.heart) {
+      const d = 26 + s.w * 4;
+      ctx.drawImage(HEART_SPRITE, s.x - d / 2, s.y - d / 2, d, d);
+    } else {
+      const d = 12 + s.w * 4;
+      ctx.drawImage(FLARE_SPRITE, s.x - d / 2, s.y - d / 2, d, d);
+    }
+    // Glitzer, der vom Schweif abfällt
+    if (Math.random() < dt * 20) {
+      addSparkle(s.x - s.vx * rand(0.02, 0.14), s.y - s.vy * rand(0.02, 0.14),
+                 rand(-10, 10), rand(-5, 20), rand(1, 1.8), rand(1, 2));
+    }
   }
+  ctx.globalAlpha = 1;
 
   // ---------- Glitzerfunken (Herz + Fingerstaub) ----------
   for (let i = sparkles.length - 1; i >= 0; i--) {
