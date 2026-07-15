@@ -596,6 +596,52 @@ for (let i = 0; i < (isSmall ? 18 : 26); i++) {
 /* Goldener Komet mit Funkenschweif */
 const comet = { angle: rand(0, Math.PI * 2), r: 1.35, speed: 0.3 };
 
+/* "Marwa ♥" aus Sternen – alle 10 Sekunden fliegen Sterne zusammen
+   und schreiben den Namen an den Himmel */
+function sampleTextPoints(text, count) {
+  const fs = 110;
+  const c = document.createElement("canvas");
+  let cx = c.getContext("2d");
+  cx.font = `700 ${fs}px "Segoe UI", system-ui, sans-serif`;
+  const w = Math.ceil(cx.measureText(text).width);
+  c.width = w + 16;
+  c.height = Math.ceil(fs * 1.45);
+  cx = c.getContext("2d");
+  cx.font = `700 ${fs}px "Segoe UI", system-ui, sans-serif`;
+  cx.textBaseline = "middle";
+  cx.fillStyle = "#fff";
+  cx.fillText(text, 8, c.height / 2);
+  const img = cx.getImageData(0, 0, c.width, c.height).data;
+  const pts = [];
+  for (let y = 0; y < c.height; y += 2)
+    for (let x = 0; x < c.width; x += 2)
+      if (img[(y * c.width + x) * 4 + 3] > 120)
+        pts.push({ x: (x - c.width / 2) / c.width, y: (y - c.height / 2) / c.width });
+  const out = [];
+  for (let i = 0; i < count; i++) out.push(pts[(Math.random() * pts.length) | 0]);
+  return out;
+}
+const NAME_COUNT = isSmall ? 480 : 660;
+const namePts = sampleTextPoints("Marwa ♥", NAME_COUNT);
+const nameStars = [];
+for (let i = 0; i < NAME_COUNT; i++) {
+  const r = Math.pow(Math.random(), 0.6) * 1.5 + 0.1;
+  nameStars.push({
+    r,
+    angle: rand(0, Math.PI * 2),
+    y: (Math.random() - 0.5) * 0.12,
+    speed: 0.22 / (r + 0.25),
+    size: rand(1.2, 2.4),
+    tw: rand(0, Math.PI * 2),
+    twS: rand(2, 6),
+    pt: namePts[i],
+  });
+}
+const NAME_CYCLE = 10;               // Sekunden pro Durchlauf
+const easeInOut = t => t * t * (3 - 2 * t);
+let nameGather = 0;
+window.__nameGather = 0;
+
 /* =====================================================================
    Partikel-Herz über dem Zentrum
    ===================================================================== */
@@ -894,6 +940,45 @@ function drawFrame(dt) {
     }
   }
 
+  // ---------- "Marwa ♥" aus Sternen ----------
+  if (introT > INTRO_DUR + 1.5) {
+    const nt = time % NAME_CYCLE;
+    if (nt < 1.5) nameGather = easeInOut(nt / 1.5);                    // Sterne sammeln sich
+    else if (nt < 5.5) nameGather = 1;                                 // Name steht am Himmel
+    else if (nt < 7) nameGather = 1 - easeInOut((nt - 5.5) / 1.5);     // löst sich wieder auf
+    else nameGather = 0;
+  } else nameGather = 0;
+  window.__nameGather = nameGather;
+  {
+    const S = Math.min(W, H) * 0.92;
+    const tyBase = H * 0.13;
+    // sanftes Glühen hinter dem Namen
+    if (nameGather > 0.5) {
+      const gg = ctx.createRadialGradient(CX, tyBase, 0, CX, tyBase, S * 0.55);
+      gg.addColorStop(0, `rgba(255,90,180,${0.14 * (nameGather - 0.5) * 2})`);
+      gg.addColorStop(1, "rgba(255,90,180,0)");
+      ctx.fillStyle = gg;
+      ctx.fillRect(CX - S * 0.6, tyBase - S * 0.3, S * 1.2, S * 0.6);
+    }
+    for (const p of nameStars) {
+      p.angle += p.speed * dt;
+      const x = Math.cos(p.angle) * p.r;
+      const z = Math.sin(p.angle) * p.r;
+      const ok = project(x, p.y, z, P);
+      const tx = CX + p.pt.x * S;
+      const ty = tyBase + p.pt.y * S;
+      let bx, by;
+      if (ok) { bx = lerp(P.x, tx, nameGather); by = lerp(P.y, ty, nameGather); }
+      else if (nameGather > 0.05) { bx = tx; by = ty; }
+      else continue;
+      const tw = 0.5 + 0.5 * Math.sin(time * p.twS + p.tw);
+      const sz = p.size * (1 + nameGather * 0.5);
+      ctx.globalAlpha = Math.min(f * (0.35 + 0.65 * tw) * (ok ? 1 : nameGather), 1);
+      ctx.fillStyle = nameGather > 0.6 && tw > 0.75 ? "rgb(255,255,255)" : "rgb(255,190,225)";
+      ctx.fillRect(bx - sz / 2, by - sz / 2, sz, sz);
+    }
+  }
+
   // ---------- Zentrum: Glühen + dunkles "schwarzes Loch" ----------
   if (project(0, 0, 0, P)) {
     const R = P.s * focal * 0.42 * (1 + spinFx * 0.25);
@@ -1149,9 +1234,10 @@ canvas.addEventListener("pointermove", e => {
   dragMoved += Math.abs(dx) + Math.abs(dy);
   if (pointers.size === 1) {
     cam.yaw += dx * 0.005;
-    cam.pitch = Math.max(-1.25, Math.min(-0.08, cam.pitch - dy * 0.004));
+    cam.pitch -= dy * 0.005;   // frei drehbar, volle 360° hoch/runter
     // Schwung merken -> Galaxie dreht nach dem Loslassen weiter
     yawVel = Math.max(-4, Math.min(4, yawVel * 0.55 + dx * 0.005 * 60 * 0.45));
+    pitchVel = Math.max(-4, Math.min(4, pitchVel * 0.55 - dy * 0.005 * 60 * 0.45));
     // Sternenstaub am Finger
     if (introT > INTRO_DUR && Math.abs(dx) + Math.abs(dy) > 2) {
       addSparkle(e.clientX + rand(-4, 4), e.clientY + rand(-4, 4),
