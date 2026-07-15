@@ -348,7 +348,7 @@
 
 <canvas id="scene"></canvas>
 <div id="title">For Marwa&nbsp;&nbsp;❤</div>
-<div id="hint">Drag to rotate&nbsp;·&nbsp;Tap the heart or a message</div>
+<div id="hint">Drag to spin&nbsp;·&nbsp;Tap heart or message&nbsp;·&nbsp;Double-tap&nbsp;✨</div>
 
 <div id="intro">
   <div class="big-heart">❤️</div>
@@ -461,7 +461,7 @@ const cam = {
   pitch: -0.42,
   dist: 3.1,
   zoom: 1,
-  autoSpin: 0.055,
+  autoSpin: 0.006,
 };
 
 let sinYaw = 0, cosYaw = 1, sinPitch = 0, cosPitch = 1, focal = 1;
@@ -472,7 +472,7 @@ function updateCamera(dt) {
   cam.yaw += cam.autoSpin * dt;
   if (pointers.size === 0) {
     cam.yaw += yawVel * dt;              // Trägheit nach dem Loslassen
-    yawVel *= Math.exp(-1.6 * dt);       // langsam ausrollen
+    yawVel *= Math.exp(-2.6 * dt);       // schnell wieder zur Ruhe kommen
     if (Math.abs(yawVel) < 0.01) yawVel = 0;
   }
   const target = Math.min(Math.abs(yawVel) / 1.6, 1);
@@ -503,7 +503,7 @@ const P = { x: 0, y: 0, s: 0, persp: 1, depth: 0 };
 /* =====================================================================
    Galaxie-Partikel
    ===================================================================== */
-const GALAXY_COUNT = isSmall ? 4200 : 7000;
+const GALAXY_COUNT = isSmall ? 3600 : 5800;
 const galaxy = [];
 
 const PALETTE = [
@@ -512,7 +512,27 @@ const PALETTE = [
   [255, 120, 200],  // hellrosa
   [190, 60, 255],   // violett
   [255, 220, 240],  // fast weiß
+  [255, 170, 130],  // pfirsich / roségold
+  [170, 130, 255],  // lavendel
+  [130, 150, 255],  // perlblau
 ];
+
+/* Weiche, runde Glüh-Punkte statt harter Quadrate */
+const SPRITE_CACHE = {};
+function dotSprite(c) {
+  const key = c.join(",");
+  if (SPRITE_CACHE[key]) return SPRITE_CACHE[key];
+  const cv = document.createElement("canvas");
+  cv.width = cv.height = 32;
+  const cx = cv.getContext("2d");
+  const g = cx.createRadialGradient(16, 16, 0, 16, 16, 16);
+  g.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},1)`);
+  g.addColorStop(0.35, `rgba(${c[0]},${c[1]},${c[2]},.55)`);
+  g.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+  cx.fillStyle = g;
+  cx.fillRect(0, 0, 32, 32);
+  return (SPRITE_CACHE[key] = cv);
+}
 
 function makeGalaxy() {
   const arms = 3;
@@ -523,14 +543,15 @@ function makeGalaxy() {
     const angle = (arm / arms) * Math.PI * 2 + r * 2.6 + spread;
     const y = (Math.random() - 0.5) * (Math.random() - 0.5) * 0.22 * (1.7 - r);
     let c;
-    if (r < 0.35) c = Math.random() < 0.6 ? PALETTE[4] : PALETTE[2];
-    else if (r < 0.9) c = PALETTE[(Math.random() * 3) | 0];
-    else c = Math.random() < 0.35 ? PALETTE[3] : PALETTE[1];
+    if (r < 0.35) c = Math.random() < 0.55 ? PALETTE[4] : (Math.random() < 0.5 ? PALETTE[2] : PALETTE[5]);
+    else if (r < 0.9) c = PALETTE[[0, 1, 2, 5, 6][(Math.random() * 5) | 0]];
+    else c = PALETTE[[1, 3, 6, 7][(Math.random() * 4) | 0]];
     if (Math.random() < 0.07) c = [255, 205, 130];   // vereinzelte Goldsterne
     galaxy.push({
       r, angle, y,
-      speed: 0.22 / (r + 0.25),
-      size: rand(0.7, 2.1),
+      speed: 0.065 / (r + 0.25),
+      size: rand(0.5, 1.6),
+      spr: dotSprite(c),
       css: `rgb(${c[0]},${c[1]},${c[2]})`,
       tw: rand(0, Math.PI * 2),
       twS: rand(2, 6),
@@ -544,16 +565,17 @@ function makeGalaxy() {
 makeGalaxy();
 
 /* Feiner Sternenstaub zwischen den Armen – macht die Galaxie dichter */
-const DUST_COUNT = isSmall ? 1600 : 2600;
+const DUST_COUNT = isSmall ? 2100 : 3400;
 const dust = [];
+const DUST_COLORS = ["rgb(150,70,190)", "rgb(190,90,160)", "rgb(120,90,220)", "rgb(210,120,150)"];
 for (let i = 0; i < DUST_COUNT; i++) {
   const r = Math.pow(Math.random(), 0.5) * 1.7 + 0.05;
   dust.push({
     r,
     angle: Math.random() * Math.PI * 2,
     y: (Math.random() - 0.5) * 0.1 * (1.8 - r),
-    speed: 0.22 / (r + 0.25),
-    css: Math.random() < 0.5 ? "rgb(150,70,190)" : "rgb(190,90,160)",
+    speed: 0.065 / (r + 0.25),
+    css: DUST_COLORS[(Math.random() * DUST_COLORS.length) | 0],
     tw: rand(0, Math.PI * 2),
     twS: rand(1.5, 4),
   });
@@ -586,7 +608,7 @@ for (let i = 0; i < (isSmall ? 18 : 26); i++) {
     r,
     angle: rand(0, Math.PI * 2),
     y: (Math.random() - 0.5) * 0.1,
-    speed: 0.22 / (r + 0.25),
+    speed: 0.065 / (r + 0.25),
     size: rand(8, 17),
     tw: rand(0, Math.PI * 2),
     twS: rand(1.2, 3.5),
@@ -594,7 +616,84 @@ for (let i = 0; i < (isSmall ? 18 : 26); i++) {
 }
 
 /* Goldener Komet mit Funkenschweif */
-const comet = { angle: rand(0, Math.PI * 2), r: 1.35, speed: 0.3 };
+const comet = { angle: rand(0, Math.PI * 2), r: 1.35, speed: 0.11 };
+
+/* Himmelsschrift aus Sternen – alle 10 Sekunden fliegen Sterne zusammen
+   und schreiben abwechselnd "Marwa ♥" und "I ♥ U ∞" an den Himmel */
+function sampleTextPoints(text, count) {
+  const fs = 120;
+  const c = document.createElement("canvas");
+  let cx = c.getContext("2d");
+  cx.font = `800 ${fs}px "Segoe UI", system-ui, sans-serif`;
+  const w = Math.ceil(cx.measureText(text).width);
+  c.width = w + 16;
+  c.height = Math.ceil(fs * 1.45);
+  cx = c.getContext("2d");
+  cx.font = `800 ${fs}px "Segoe UI", system-ui, sans-serif`;
+  cx.textBaseline = "middle";
+  cx.fillStyle = "#fff";
+  cx.fillText(text, 8, c.height / 2);
+  const img = cx.getImageData(0, 0, c.width, c.height).data;
+  const pts = [];
+  for (let y = 0; y < c.height; y += 2)
+    for (let x = 0; x < c.width; x += 2)
+      if (img[(y * c.width + x) * 4 + 3] > 120)
+        pts.push({ x: (x - c.width / 2) / c.width, y: (y - c.height / 2) / c.width });
+  // mischen und gleichmäßig ohne Lücken verteilen
+  for (let i = pts.length - 1; i > 0; i--) {
+    const j = (Math.random() * (i + 1)) | 0;
+    [pts[i], pts[j]] = [pts[j], pts[i]];
+  }
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    const p = pts[i % pts.length];
+    out.push({ x: p.x + rand(-0.002, 0.002), y: p.y + rand(-0.002, 0.002) });
+  }
+  return out;
+}
+/* Leucht-Schrift, die beim Halten hinter den Sternen erscheint */
+function makeNameGlowSprite(text) {
+  const fs = 120;
+  const c = document.createElement("canvas");
+  let cx = c.getContext("2d");
+  cx.font = `800 ${fs}px "Segoe UI", system-ui, sans-serif`;
+  const w = Math.ceil(cx.measureText(text).width);
+  c.width = w + fs * 1.6;
+  c.height = Math.ceil(fs * 2.2);
+  cx = c.getContext("2d");
+  cx.font = `800 ${fs}px "Segoe UI", system-ui, sans-serif`;
+  cx.textAlign = "center";
+  cx.textBaseline = "middle";
+  cx.shadowColor = "#ff2d95";
+  cx.shadowBlur = fs * 0.45;
+  cx.fillStyle = "#ffd9ec";
+  cx.fillText(text, c.width / 2, c.height / 2);
+  cx.fillText(text, c.width / 2, c.height / 2);
+  return { img: c, innerW: w };
+}
+const NAME_TEXTS = ["Marwa ♥", "I ♥ U ∞"];
+const NAME_COUNT = isSmall ? 700 : 950;
+const namePtSets = NAME_TEXTS.map(t => sampleTextPoints(t, NAME_COUNT));
+const nameGlows = NAME_TEXTS.map(makeNameGlowSprite);
+let nameSet = 0;
+const nameStars = [];
+for (let i = 0; i < NAME_COUNT; i++) {
+  const r = Math.pow(Math.random(), 0.6) * 1.5 + 0.1;
+  nameStars.push({
+    r,
+    angle: rand(0, Math.PI * 2),
+    y: (Math.random() - 0.5) * 0.12,
+    speed: 0.065 / (r + 0.25),
+    size: rand(1.2, 2.2),
+    tw: rand(0, Math.PI * 2),
+    twS: rand(2, 6),
+    pt: namePtSets[0][i],
+  });
+}
+const NAME_CYCLE = 10;               // Sekunden pro Durchlauf
+const easeInOut = t => t * t * (3 - 2 * t);
+let nameGather = 0;
+window.__nameGather = 0;
 
 /* =====================================================================
    Partikel-Herz über dem Zentrum
@@ -615,12 +714,12 @@ function makeHeart() {
     const edge = Math.random() < 0.55;
     const shrink = edge ? rand(0.94, 1.0) : Math.sqrt(Math.random());
     const p = heartPoint(t, shrink);
-    const c = edge ? PALETTE[2] : PALETTE[(Math.random() * PALETTE.length) | 0];
+    const c = edge ? PALETTE[2] : PALETTE[[0, 1, 2, 3, 4, 5][(Math.random() * 6) | 0]];
     heart.push({
       x: p.x, y: p.y,
       z: (Math.random() - 0.5) * 0.12,
-      size: edge ? rand(1.1, 2.4) : rand(0.6, 1.6),
-      css: `rgb(${c[0]},${c[1]},${c[2]})`,
+      size: edge ? rand(0.9, 1.9) : rand(0.5, 1.3),
+      spr: dotSprite(c),
       tw: rand(0, Math.PI * 2),
       twS: rand(3, 8),
       ix: (Math.random() - 0.5) * 8,
@@ -645,7 +744,7 @@ for (let i = 0; i < MINI_COUNT; i++) {
     r: rand(0.35, 1.7),
     angle: rand(0, Math.PI * 2),
     y: rand(0.02, 0.75),
-    speed: rand(0.05, 0.16),
+    speed: rand(0.018, 0.055),
     rise: rand(0.008, 0.03),
     size: rand(5, 11),
     tw: rand(0, Math.PI * 2),
@@ -661,7 +760,7 @@ const texts = MESSAGES.map((m, i) => ({
   r: rand(0.55, 1.5),
   angle: (i / MESSAGES.length) * Math.PI * 2 + rand(-0.3, 0.3),
   y: rand(0.02, 0.14),
-  speed: rand(0.06, 0.14) * (Math.random() < 0.2 ? -1 : 1),
+  speed: rand(0.02, 0.05) * (Math.random() < 0.2 ? -1 : 1),
   size: rand(0.85, 1.15),
   // für Antippen (Bildschirm-Bounding-Box vom letzten Frame)
   bx: -999, by: -999, bw: 0, bh: 0, visible: false,
@@ -708,6 +807,23 @@ function makeHeartSprite(size, color) {
 const HEART_SPRITE = makeHeartSprite(32, "#ff5aa8");
 
 /* =====================================================================
+   Herzregen bei Doppeltipp
+   ===================================================================== */
+const rain = [];
+function heartRain() {
+  for (let i = 0; i < 26; i++) {
+    rain.push({
+      x: Math.random(),
+      y: -rand(0.02, 0.45),
+      v: rand(0.16, 0.34),
+      sway: rand(18, 55),
+      ph: rand(0, Math.PI * 2),
+      size: rand(14, 34),
+    });
+  }
+}
+
+/* =====================================================================
    Herz-Feuerwerk beim Tippen
    ===================================================================== */
 const bursts = [];
@@ -745,6 +861,7 @@ const nebulas = [
   { img: makeNebula("rgba(255,45,149,.30)", "rgba(255,45,149,.09)"), ax: .22, ay: .32, amp: .05, sp: .05, ph: 0,   sc: 1.6 },
   { img: makeNebula("rgba(150,60,255,.28)", "rgba(150,60,255,.08)"), ax: .78, ay: .55, amp: .06, sp: .04, ph: 2.1, sc: 1.9 },
   { img: makeNebula("rgba(70,120,255,.18)", "rgba(70,120,255,.05)"), ax: .50, ay: .82, amp: .04, sp: .06, ph: 4.2, sc: 1.5 },
+  { img: makeNebula("rgba(255,170,120,.14)", "rgba(255,140,130,.04)"), ax: .55, ay: .12, amp: .03, sp: .035, ph: 1.3, sc: 1.25 },
 ];
 
 const shooting = [];
@@ -765,11 +882,13 @@ function addSparkle(x, y, vx, vy, decay, size) {
 let bgStars = [];
 function makeBgStars() {
   bgStars = [];
-  const n = isSmall ? 70 : 120;
+  const n = isSmall ? 90 : 150;
+  const cols = ["#ffffff", "#ffd9ec", "#cfd8ff", "#ffe9d0"];
   for (let i = 0; i < n; i++) {
     bgStars.push({
       x: Math.random(), y: Math.random(),
-      size: rand(0.4, 1.4),
+      size: rand(0.4, 1.5),
+      css: cols[(Math.random() * cols.length) | 0],
       tw: rand(0, Math.PI * 2),
       twS: rand(1, 3),
     });
@@ -808,10 +927,10 @@ function drawFrame(dt) {
   ctx.globalCompositeOperation = "source-over";
 
   // Sterne
-  ctx.fillStyle = "#fff";
   for (const s of bgStars) {
     const a = 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(time * s.twS + s.tw));
     ctx.globalAlpha = a;
+    ctx.fillStyle = s.css;
     ctx.fillRect(s.x * W, s.y * H, s.size, s.size);
   }
   ctx.globalAlpha = 1;
@@ -833,8 +952,8 @@ function drawFrame(dt) {
     if (!project(x, y, z, P)) { p.px = -1; continue; }
     if (P.x < -20 || P.x > W + 20 || P.y < -20 || P.y > H + 20) { p.px = -1; continue; }
     const tw = 0.55 + 0.45 * Math.sin(time * p.twS + p.tw);
-    const sz = Math.max(p.size * P.s * focal * 0.011, 0.5);
-    ctx.globalAlpha = Math.min(tw * f * Math.min(P.persp * 1.1, 1), 1);
+    const sz = Math.max(p.size * P.s * focal * 0.0085, 0.4);
+    ctx.globalAlpha = Math.min(tw * f * Math.min(P.persp * 1.1, 1), 1) * 0.9;
     if (streaks && p.px >= 0) {
       // Stern verwischt zur Lichtspur entlang der Bewegung
       ctx.strokeStyle = p.css;
@@ -844,8 +963,8 @@ function drawFrame(dt) {
       ctx.lineTo(P.x, P.y);
       ctx.stroke();
     } else {
-      ctx.fillStyle = p.css;
-      ctx.fillRect(P.x - sz / 2, P.y - sz / 2, sz, sz);
+      const d = sz * 3.2;   // weicher Glüh-Punkt
+      ctx.drawImage(p.spr, P.x - d / 2, P.y - d / 2, d, d);
     }
     p.px = P.x; p.py = P.y;
   }
@@ -859,9 +978,9 @@ function drawFrame(dt) {
     if (!project(x, p.y, z, P)) continue;
     if (P.x < 0 || P.x > W || P.y < 0 || P.y > H) continue;
     const tw = 0.4 + 0.3 * Math.sin(time * p.twS + p.tw);
-    ctx.globalAlpha = tw * f * 0.8;
+    ctx.globalAlpha = tw * f * 0.55;
     ctx.fillStyle = p.css;
-    const sz = Math.max(P.s * focal * 0.007, 0.4);
+    const sz = Math.max(P.s * focal * 0.0055, 0.35);
     ctx.fillRect(P.x, P.y, sz, sz);
   }
 
@@ -891,6 +1010,63 @@ function drawFrame(dt) {
         addSparkle(P.x + rand(-2, 2), P.y + rand(-2, 2),
                    rand(-14, 14), rand(-14, 14), rand(0.9, 1.6), rand(1, 2.2));
       }
+    }
+  }
+
+  // ---------- Himmelsschrift aus Sternen ----------
+  if (introT > INTRO_DUR + 1.5) {
+    const nt = time % NAME_CYCLE;
+    if (nt < 1.5) nameGather = easeInOut(nt / 1.5);                    // Sterne sammeln sich
+    else if (nt < 5.5) nameGather = 1;                                 // Name steht am Himmel
+    else if (nt < 7) nameGather = 1 - easeInOut((nt - 5.5) / 1.5);     // löst sich wieder auf
+    else {
+      nameGather = 0;
+      // im Ruhe-Fenster den nächsten Text vorbereiten (abwechselnd)
+      const want = Math.floor(time / NAME_CYCLE + 1) % NAME_TEXTS.length;
+      if (want !== nameSet) {
+        nameSet = want;
+        for (let i = 0; i < nameStars.length; i++) nameStars[i].pt = namePtSets[nameSet][i];
+      }
+    }
+  } else nameGather = 0;
+  window.__nameGather = nameGather;
+  {
+    const S = Math.min(W, H) * 0.94;
+    const tyBase = H * 0.13;
+    // sanftes Glühen hinter dem Namen
+    if (nameGather > 0.5) {
+      const gg = ctx.createRadialGradient(CX, tyBase, 0, CX, tyBase, S * 0.55);
+      gg.addColorStop(0, `rgba(255,90,180,${0.14 * (nameGather - 0.5) * 2})`);
+      gg.addColorStop(1, "rgba(255,90,180,0)");
+      ctx.fillStyle = gg;
+      ctx.fillRect(CX - S * 0.6, tyBase - S * 0.3, S * 1.2, S * 0.6);
+    }
+    // Leucht-Schrift hinter den Sternen -> gut lesbar
+    if (nameGather > 0.15) {
+      const gs = nameGlows[nameSet];
+      const scale = S / gs.innerW;
+      const dw = gs.img.width * scale, dh = gs.img.height * scale;
+      ctx.globalAlpha = 0.55 * (nameGather - 0.15) / 0.85;
+      ctx.drawImage(gs.img, CX - dw / 2, tyBase - dh / 2, dw, dh);
+    }
+    for (const p of nameStars) {
+      p.angle += p.speed * dt;
+      const x = Math.cos(p.angle) * p.r;
+      const z = Math.sin(p.angle) * p.r;
+      const ok = project(x, p.y, z, P);
+      const tx = CX + p.pt.x * S;
+      const ty = tyBase + p.pt.y * S;
+      let bx, by;
+      if (ok) { bx = lerp(P.x, tx, nameGather); by = lerp(P.y, ty, nameGather); }
+      else if (nameGather > 0.05) { bx = tx; by = ty; }
+      else continue;
+      const tw = 0.5 + 0.5 * Math.sin(time * p.twS + p.tw);
+      // beim Halten ruhiger und heller funkeln, damit die Schrift stabil lesbar bleibt
+      const bright = lerp(0.35 + 0.65 * tw, 0.85 + 0.15 * tw, nameGather);
+      const sz = p.size * (1 + nameGather * 0.5);
+      ctx.globalAlpha = Math.min(f * bright * (ok ? 1 : nameGather), 1);
+      ctx.fillStyle = nameGather > 0.6 && tw > 0.6 ? "rgb(255,255,255)" : "rgb(255,200,230)";
+      ctx.fillRect(bx - sz / 2, by - sz / 2, sz, sz);
     }
   }
 
@@ -937,7 +1113,7 @@ function drawFrame(dt) {
   }
   const beatT = time % 1.15;
   const beat = 1 + 0.055 * (Math.exp(-beatT * 6) * Math.sin(beatT * 22)); // Herzschlag
-  const heartSpin = time * 0.5;
+  const heartSpin = time * 0.22;
   const hs = Math.sin(heartSpin), hc = Math.cos(heartSpin);
   const bob = Math.sin(time * 1.3) * 0.03;
   for (const p of heart) {
@@ -953,10 +1129,10 @@ function drawFrame(dt) {
     const z = lerp(p.iz, tz, f);
     if (!project(x, y, z, P)) continue;
     const tw = 0.6 + 0.4 * Math.sin(time * p.twS + p.tw);
-    const sz = Math.max(p.size * P.s * focal * 0.012, 0.5);
+    const sz = Math.max(p.size * P.s * focal * 0.0095, 0.4);
     ctx.globalAlpha = Math.min(tw * f, 1);
-    ctx.fillStyle = p.css;
-    ctx.fillRect(P.x - sz / 2, P.y - sz / 2, sz, sz);
+    const d = sz * 3.2;
+    ctx.drawImage(p.spr, P.x - d / 2, P.y - d / 2, d, d);
   }
 
   // Bildschirmposition des Herzens für die Tipp-Erkennung merken
@@ -1047,6 +1223,17 @@ function drawFrame(dt) {
     }
   }
   ctx.globalAlpha = 1;
+
+  // ---------- Herzregen ----------
+  for (let i = rain.length - 1; i >= 0; i--) {
+    const r = rain[i];
+    r.y += r.v * dt;
+    if (r.y > 1.12) { rain.splice(i, 1); continue; }
+    const rx = r.x * W + Math.sin(time * 1.4 + r.ph) * r.sway;
+    const ry = r.y * H;
+    ctx.globalAlpha = Math.min(1, (1.12 - r.y) * 4) * 0.9;
+    ctx.drawImage(HEART_SPRITE, rx - r.size / 2, ry - r.size / 2, r.size, r.size);
+  }
 
   // ---------- Glitzerfunken (Herz + Fingerstaub) ----------
   for (let i = sparkles.length - 1; i >= 0; i--) {
@@ -1148,10 +1335,10 @@ canvas.addEventListener("pointermove", e => {
   const dx = e.clientX - p.x, dy = e.clientY - p.y;
   dragMoved += Math.abs(dx) + Math.abs(dy);
   if (pointers.size === 1) {
-    cam.yaw += dx * 0.005;
-    cam.pitch = Math.max(-1.25, Math.min(-0.08, cam.pitch - dy * 0.004));
-    // Schwung merken -> Galaxie dreht nach dem Loslassen weiter
-    yawVel = Math.max(-4, Math.min(4, yawVel * 0.55 + dx * 0.005 * 60 * 0.45));
+    cam.yaw += dx * 0.003;
+    cam.pitch = Math.max(-1.25, Math.min(-0.08, cam.pitch - dy * 0.003));
+    // nur ein ganz sanfter Nachlauf nach dem Loslassen
+    yawVel = Math.max(-0.5, Math.min(0.5, yawVel * 0.5 + dx * 0.003 * 60 * 0.2));
     // Sternenstaub am Finger
     if (introT > INTRO_DUR && Math.abs(dx) + Math.abs(dy) > 2) {
       addSparkle(e.clientX + rand(-4, 4), e.clientY + rand(-4, 4),
@@ -1203,9 +1390,17 @@ function handleTap(x, y) {
     document.getElementById("cardText").textContent = hit.text;
     document.getElementById("cardOverlay").classList.add("show");
   } else {
-    spawnBurst(x, y);
+    // Doppeltipp ins Leere -> Herzregen, sonst kleines Feuerwerk
+    const now = performance.now();
+    if (now - lastTap.t < 380 && Math.hypot(x - lastTap.x, y - lastTap.y) < 90) {
+      heartRain();
+    } else {
+      spawnBurst(x, y);
+    }
+    lastTap.t = now; lastTap.x = x; lastTap.y = y;
   }
 }
+const lastTap = { t: 0, x: -999, y: -999 };
 
 document.getElementById("cardClose").addEventListener("click", () => {
   document.getElementById("cardOverlay").classList.remove("show");
