@@ -36,6 +36,11 @@
     transition: opacity 2.5s ease;
     pointer-events: none;
     z-index: 5;
+    animation: titleGlow 3.5s ease-in-out infinite;
+  }
+  @keyframes titleGlow {
+    0%, 100% { text-shadow: 0 0 12px #ff2d95, 0 0 34px #ff2d95; }
+    50% { text-shadow: 0 0 20px #ff5aa8, 0 0 65px #ff2d95; }
   }
   #hint {
     position: fixed;
@@ -75,12 +80,46 @@
     50% { transform: scale(1); }
   }
   #intro .intro-title {
-    color: #ffe3f1;
-    font-size: clamp(22px, 7vw, 42px);
-    letter-spacing: .18em;
-    text-shadow: 0 0 18px #ff2d95;
+    font-size: clamp(24px, 7.5vw, 44px);
+    letter-spacing: .16em;
     text-align: center;
     padding: 0 20px;
+    background: linear-gradient(90deg, #ffd9ec 0%, #ff5aa8 40%, #ffffff 50%, #ff5aa8 60%, #ffd9ec 100%);
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 16px rgba(255, 45, 149, .75));
+    animation: shimmer 3.2s linear infinite;
+  }
+  @keyframes shimmer {
+    from { background-position: 0% 0; }
+    to { background-position: -220% 0; }
+  }
+  #intro .intro-sub {
+    color: rgba(255, 210, 233, .6);
+    font-size: clamp(12px, 3.6vw, 16px);
+    letter-spacing: .16em;
+    margin-top: -16px;
+    text-align: center;
+    padding: 0 24px;
+  }
+  #intro .ih {
+    position: absolute;
+    left: var(--x);
+    bottom: -6vh;
+    font-size: clamp(16px, 6vw, 26px);
+    color: #ff5aa8;
+    text-shadow: 0 0 12px #ff2d95;
+    opacity: 0;
+    pointer-events: none;
+    animation: iheart 8s linear var(--d) infinite;
+  }
+  @keyframes iheart {
+    0% { opacity: 0; transform: translateY(0) scale(.8); }
+    12% { opacity: .65; }
+    100% { opacity: 0; transform: translateY(-112vh) scale(1.3) rotate(14deg); }
   }
   #intro .intro-tap {
     color: rgba(255, 210, 233, .8);
@@ -314,7 +353,14 @@
 <div id="intro">
   <div class="big-heart">❤️</div>
   <div class="intro-title">Why I love you!</div>
+  <div class="intro-sub">A little universe, made just for you</div>
   <div class="intro-tap">Tap to start</div>
+  <span class="ih" style="--d:0s;   --x:12%">♥</span>
+  <span class="ih" style="--d:1.8s; --x:28%">♥</span>
+  <span class="ih" style="--d:3.4s; --x:50%">♥</span>
+  <span class="ih" style="--d:.9s;  --x:68%">♥</span>
+  <span class="ih" style="--d:2.6s; --x:85%">♥</span>
+  <span class="ih" style="--d:4.4s; --x:38%">♥</span>
 </div>
 
 <div id="cardOverlay">
@@ -471,6 +517,7 @@ function makeGalaxy() {
     if (r < 0.35) c = Math.random() < 0.6 ? PALETTE[4] : PALETTE[2];
     else if (r < 0.9) c = PALETTE[(Math.random() * 3) | 0];
     else c = Math.random() < 0.35 ? PALETTE[3] : PALETTE[1];
+    if (Math.random() < 0.07) c = [255, 205, 130];   // vereinzelte Goldsterne
     galaxy.push({
       r, angle, y,
       speed: 0.22 / (r + 0.25),
@@ -618,6 +665,38 @@ function spawnBurst(sx, sy) {
 }
 
 /* =====================================================================
+   Nebelwolken, Sternschnuppen und Glitzerfunken
+   ===================================================================== */
+function makeNebula(inner, mid) {
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const cx = c.getContext("2d");
+  const g = cx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  g.addColorStop(0, inner);
+  g.addColorStop(0.5, mid);
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  cx.fillStyle = g;
+  cx.fillRect(0, 0, 256, 256);
+  return c;
+}
+const nebulas = [
+  { img: makeNebula("rgba(255,45,149,.30)", "rgba(255,45,149,.09)"), ax: .22, ay: .32, amp: .05, sp: .05, ph: 0,   sc: 1.6 },
+  { img: makeNebula("rgba(150,60,255,.28)", "rgba(150,60,255,.08)"), ax: .78, ay: .55, amp: .06, sp: .04, ph: 2.1, sc: 1.9 },
+  { img: makeNebula("rgba(70,120,255,.18)", "rgba(70,120,255,.05)"), ax: .50, ay: .82, amp: .04, sp: .06, ph: 4.2, sc: 1.5 },
+];
+
+const shooting = [];
+let nextShoot = 5;
+
+const SPARK_COLORS = ["255,220,240", "255,200,120", "255,120,200"];
+const sparkles = [];
+function addSparkle(x, y, vx, vy, decay, size) {
+  if (sparkles.length > 220) return;
+  sparkles.push({ x, y, vx, vy, life: 1, decay, size,
+                  c: SPARK_COLORS[(Math.random() * SPARK_COLORS.length) | 0] });
+}
+
+/* =====================================================================
    Hintergrund-Sterne (statisch, 2D)
    ===================================================================== */
 let bgStars = [];
@@ -652,6 +731,16 @@ function drawFrame(dt) {
   // Hintergrund
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
+
+  // Nebelwolken, langsam treibend
+  ctx.globalCompositeOperation = "lighter";
+  for (const n of nebulas) {
+    const d = Math.min(W, H) * n.sc;
+    const nx = (n.ax + Math.sin(time * n.sp + n.ph) * n.amp) * W - d / 2;
+    const ny = (n.ay + Math.cos(time * n.sp * 1.3 + n.ph) * n.amp) * H - d / 2;
+    ctx.drawImage(n.img, nx, ny, d, d);
+  }
+  ctx.globalCompositeOperation = "source-over";
 
   // Sterne
   ctx.fillStyle = "#fff";
@@ -706,6 +795,24 @@ function drawFrame(dt) {
   }
 
   // ---------- Herz ----------
+  // Pulsierender Glüh-Halo hinter dem Herzen (Position vom letzten Frame)
+  if (heartHit.r > 0) {
+    const hr = heartHit.r * (1.7 + 0.18 * Math.sin(time * 5.5));
+    const hg = ctx.createRadialGradient(heartHit.x, heartHit.y, 0, heartHit.x, heartHit.y, hr);
+    hg.addColorStop(0, `rgba(255,90,180,${0.30 * f})`);
+    hg.addColorStop(0.6, `rgba(255,45,149,${0.12 * f})`);
+    hg.addColorStop(1, "rgba(255,45,149,0)");
+    ctx.fillStyle = hg;
+    ctx.beginPath(); ctx.arc(heartHit.x, heartHit.y, hr, 0, Math.PI * 2); ctx.fill();
+    // Funken, die vom Herzen aufsteigen
+    if (f > 0.95 && Math.random() < dt * 9) {
+      addSparkle(
+        heartHit.x + rand(-0.7, 0.7) * heartHit.r,
+        heartHit.y + rand(-0.6, 0.6) * heartHit.r,
+        rand(-10, 10), -rand(12, 38), rand(0.5, 0.9), rand(1.5, 3),
+      );
+    }
+  }
   const beatT = time % 1.15;
   const beat = 1 + 0.055 * (Math.exp(-beatT * 6) * Math.sin(beatT * 22)); // Herzschlag
   const heartSpin = time * 0.5;
@@ -769,6 +876,45 @@ function drawFrame(dt) {
       ctx.fillRect(b.x, b.y, b.size, b.size);
     }
   }
+
+  // ---------- Sternschnuppen ----------
+  if (f > 0.95 && time > nextShoot) {
+    shooting.push({
+      x: rand(0.1, 0.9) * W, y: rand(0.04, 0.28) * H,
+      vx: rand(260, 430) * (Math.random() < 0.5 ? -1 : 1),
+      vy: rand(80, 150),
+      life: 1,
+    });
+    nextShoot = time + rand(4, 9);
+  }
+  for (let i = shooting.length - 1; i >= 0; i--) {
+    const s = shooting[i];
+    s.life -= dt * 0.85;
+    if (s.life <= 0) { shooting.splice(i, 1); continue; }
+    s.x += s.vx * dt; s.y += s.vy * dt;
+    const tx = s.x - s.vx * 0.16, ty = s.y - s.vy * 0.16;
+    const g2 = ctx.createLinearGradient(s.x, s.y, tx, ty);
+    g2.addColorStop(0, `rgba(255,255,255,${0.9 * s.life})`);
+    g2.addColorStop(1, "rgba(255,120,200,0)");
+    ctx.strokeStyle = g2;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(tx, ty); ctx.stroke();
+  }
+
+  // ---------- Glitzerfunken (Herz + Fingerstaub) ----------
+  for (let i = sparkles.length - 1; i >= 0; i--) {
+    const s = sparkles[i];
+    s.life -= dt * s.decay;
+    if (s.life <= 0) { sparkles.splice(i, 1); continue; }
+    s.x += s.vx * dt; s.y += s.vy * dt;
+    const a = s.life;
+    const sz = s.size * (0.5 + 0.5 * s.life);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = `rgb(${s.c})`;
+    ctx.fillRect(s.x - sz, s.y - 0.5, sz * 2, 1);
+    ctx.fillRect(s.x - 0.5, s.y - sz, 1, sz * 2);
+  }
+  ctx.globalAlpha = 1;
 
   ctx.globalCompositeOperation = "source-over";
 
@@ -856,6 +1002,11 @@ canvas.addEventListener("pointermove", e => {
   if (pointers.size === 1) {
     cam.yaw += dx * 0.005;
     cam.pitch = Math.max(-1.25, Math.min(-0.08, cam.pitch - dy * 0.004));
+    // Sternenstaub am Finger
+    if (introT > INTRO_DUR && Math.abs(dx) + Math.abs(dy) > 2) {
+      addSparkle(e.clientX + rand(-4, 4), e.clientY + rand(-4, 4),
+                 rand(-18, 18), rand(-6, 26), rand(1.2, 2), rand(1, 2.5));
+    }
   }
   p.x = e.clientX; p.y = e.clientY;
   if (pointers.size === 2) {
