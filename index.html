@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#06010d">
+<title>Für Dich ❤️</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #06010d;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    touch-action: none;
+    overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none;
+  }
+  #scene {
+    position: fixed; inset: 0;
+    width: 100%; height: 100%;
+    display: block;
+  }
+  /* ---------- Titel oben ---------- */
+  #title {
+    position: fixed;
+    top: max(18px, env(safe-area-inset-top));
+    left: 0; right: 0;
+    text-align: center;
+    color: #ffd9ec;
+    font-size: clamp(15px, 4.5vw, 24px);
+    letter-spacing: .35em;
+    text-transform: uppercase;
+    text-shadow: 0 0 12px #ff2d95, 0 0 34px #ff2d95;
+    opacity: 0;
+    transition: opacity 2.5s ease;
+    pointer-events: none;
+    z-index: 5;
+  }
+  #hint {
+    position: fixed;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    left: 0; right: 0;
+    text-align: center;
+    color: rgba(255, 200, 228, .55);
+    font-size: clamp(11px, 3vw, 14px);
+    letter-spacing: .12em;
+    opacity: 0;
+    transition: opacity 2.5s ease 1s;
+    pointer-events: none;
+    z-index: 5;
+  }
+  /* ---------- Intro ---------- */
+  #intro {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 26px;
+    background: radial-gradient(ellipse at 50% 40%, #2b0524 0%, #12021c 55%, #06010d 100%);
+    z-index: 20;
+    cursor: pointer;
+    transition: opacity 1.2s ease;
+  }
+  #intro.hidden { opacity: 0; pointer-events: none; }
+  #intro .big-heart {
+    font-size: clamp(64px, 22vw, 120px);
+    filter: drop-shadow(0 0 25px #ff2d95) drop-shadow(0 0 60px #ff2d95);
+    animation: beat 1.15s ease-in-out infinite;
+  }
+  @keyframes beat {
+    0%, 100% { transform: scale(1); }
+    12% { transform: scale(1.16); }
+    24% { transform: scale(1.02); }
+    36% { transform: scale(1.12); }
+    50% { transform: scale(1); }
+  }
+  #intro .intro-title {
+    color: #ffe3f1;
+    font-size: clamp(22px, 7vw, 42px);
+    letter-spacing: .18em;
+    text-shadow: 0 0 18px #ff2d95;
+    text-align: center;
+    padding: 0 20px;
+  }
+  #intro .intro-tap {
+    color: rgba(255, 210, 233, .8);
+    font-size: clamp(13px, 4vw, 17px);
+    letter-spacing: .28em;
+    text-transform: uppercase;
+    border: 1px solid rgba(255, 90, 170, .55);
+    border-radius: 999px;
+    padding: 12px 30px;
+    box-shadow: 0 0 18px rgba(255, 45, 149, .35), inset 0 0 14px rgba(255, 45, 149, .18);
+    animation: pulseBtn 2s ease-in-out infinite;
+  }
+  @keyframes pulseBtn {
+    0%, 100% { box-shadow: 0 0 14px rgba(255,45,149,.3), inset 0 0 12px rgba(255,45,149,.15); }
+    50% { box-shadow: 0 0 30px rgba(255,45,149,.65), inset 0 0 20px rgba(255,45,149,.3); }
+  }
+  /* ---------- Nachrichten-Karte ---------- */
+  #cardOverlay {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(4, 0, 10, .72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .45s ease;
+    padding: 24px;
+  }
+  #cardOverlay.show { opacity: 1; pointer-events: auto; }
+  #card {
+    width: min(88vw, 380px);
+    background: linear-gradient(160deg, #1a0716 0%, #0d0212 100%);
+    border: 1px solid rgba(255, 80, 165, .35);
+    border-radius: 22px;
+    box-shadow: 0 0 45px rgba(255, 45, 149, .35), 0 20px 60px rgba(0,0,0,.6);
+    overflow: hidden;
+    transform: translateY(24px) scale(.96);
+    transition: transform .45s cubic-bezier(.2, .9, .3, 1.2);
+    text-align: center;
+  }
+  #cardOverlay.show #card { transform: translateY(0) scale(1); }
+  #card .photo {
+    height: 170px;
+    display: flex; align-items: center; justify-content: center;
+    background:
+      radial-gradient(circle at 30% 30%, rgba(255,45,149,.35), transparent 60%),
+      radial-gradient(circle at 70% 65%, rgba(150,40,255,.3), transparent 60%),
+      #150318;
+    font-size: 64px;
+    filter: drop-shadow(0 0 18px #ff2d95);
+  }
+  #card .photo span { animation: beat 1.15s ease-in-out infinite; }
+  #card h2 {
+    color: #ffd9ec;
+    font-size: clamp(20px, 6vw, 26px);
+    letter-spacing: .06em;
+    padding: 18px 22px 8px;
+    text-shadow: 0 0 14px #ff2d95;
+  }
+  #card p {
+    color: rgba(255, 216, 236, .75);
+    font-size: clamp(13px, 3.8vw, 15px);
+    line-height: 1.6;
+    padding: 0 26px;
+  }
+  #card button {
+    margin: 20px 0 24px;
+    background: linear-gradient(90deg, #ff2d95, #b326ff);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 11px 38px;
+    font-size: 13px;
+    letter-spacing: .28em;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 0 22px rgba(255, 45, 149, .5);
+  }
+  #card button:active { transform: scale(.95); }
+</style>
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+<div id="title">Für Dich&nbsp;&nbsp;❤</div>
+<div id="hint">Ziehen zum Drehen&nbsp;·&nbsp;Nachricht antippen</div>
+
+<div id="intro">
+  <div class="big-heart">❤️</div>
+  <div class="intro-title">Eine Galaxie voller Liebe</div>
+  <div class="intro-tap">Tippe, um zu starten</div>
+</div>
+
+<div id="cardOverlay">
+  <div id="card">
+    <div class="photo"><span>💞</span></div>
+    <h2 id="cardTitle">Ti amo</h2>
+    <p id="cardText">Platzhalter – hier kommt später deine persönliche Nachricht hin. 💌</p>
+    <button id="cardClose">Zurück&nbsp;❤</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =====================================================================
+   KONFIGURATION – hier einfach Texte anpassen
+   ===================================================================== */
+const MESSAGES = [
+  "Ti amo ∞",
+  "I Love You ∞",
+  "Ich liebe Dich ∞",
+  "Te amo ∞",
+  "Je t'aime ∞",
+  "Platzhalter 1 ♥",
+  "Platzhalter 2 ♥",
+  "Platzhalter 3 ♥",
+  "Platzhalter 4 ♥",
+  "Dein Text hier ♥",
+];
+
+const CARD_TEXT = "Platzhalter – hier kommt später deine persönliche Nachricht hin. 💌";
+
+/* =====================================================================
+   Setup
+   ===================================================================== */
+const canvas = document.getElementById("scene");
+const ctx = canvas.getContext("2d");
+let W = 0, H = 0, CX = 0, CY = 0, DPR = 1;
+let dprCap = 2;           // wird bei schwacher Leistung automatisch gesenkt
+let bgGrad = null;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, dprCap);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W * DPR; canvas.height = H * DPR;
+  canvas.style.width = W + "px"; canvas.style.height = H + "px";
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  CX = W / 2; CY = H * 0.52;
+  bgGrad = ctx.createRadialGradient(CX, CY, 0, CX, CY, Math.max(W, H) * 0.75);
+  bgGrad.addColorStop(0, "#170322");
+  bgGrad.addColorStop(0.55, "#0b0116");
+  bgGrad.addColorStop(1, "#04000a");
+}
+window.addEventListener("resize", resize);
+resize();
+
+const isSmall = Math.min(window.innerWidth, window.innerHeight) < 480;
+const rand = (a, b) => a + Math.random() * (b - a);
+
+/* =====================================================================
+   Kamera (Ziehen = drehen, Kneifen = zoomen)
+   ===================================================================== */
+const cam = {
+  yaw: 0.6,
+  pitch: -0.42,
+  dist: 3.1,
+  zoom: 1,
+  autoSpin: 0.055,
+};
+
+let sinYaw = 0, cosYaw = 1, sinPitch = 0, cosPitch = 1, focal = 1;
+
+function updateCamera(dt) {
+  cam.yaw += cam.autoSpin * dt;
+  sinYaw = Math.sin(cam.yaw); cosYaw = Math.cos(cam.yaw);
+  sinPitch = Math.sin(cam.pitch); cosPitch = Math.cos(cam.pitch);
+  focal = Math.min(W, H) * 1.35 * cam.zoom;
+}
+
+/* projiziert Weltkoordinaten -> Bildschirm. Gibt null zurück, wenn hinter der Kamera. */
+function project(x, y, z, out) {
+  const x1 = x * cosYaw - z * sinYaw;
+  const z1 = x * sinYaw + z * cosYaw;
+  const y1 = y * cosPitch - z1 * sinPitch;
+  const z2 = y * sinPitch + z1 * cosPitch;
+  const depth = z2 + cam.dist;
+  if (depth < 0.25) return null;
+  const s = focal / depth;
+  out.x = CX + x1 * s;
+  out.y = CY - y1 * s;
+  out.s = s / focal;              // relative Größe
+  out.persp = cam.dist / depth;   // 1 = Bildmitte, >1 = näher, <1 = weiter weg
+  out.depth = depth;
+  return out;
+}
+const P = { x: 0, y: 0, s: 0, persp: 1, depth: 0 };
+
+/* =====================================================================
+   Galaxie-Partikel
+   ===================================================================== */
+const GALAXY_COUNT = isSmall ? 4200 : 7000;
+const galaxy = [];
+
+const PALETTE = [
+  [255, 70, 160],   // pink
+  [255, 45, 149],   // magenta
+  [255, 120, 200],  // hellrosa
+  [190, 60, 255],   // violett
+  [255, 220, 240],  // fast weiß
+];
+
+function makeGalaxy() {
+  const arms = 3;
+  for (let i = 0; i < GALAXY_COUNT; i++) {
+    const r = Math.pow(Math.random(), 0.55) * 1.55 + 0.06;
+    const arm = i % arms;
+    const spread = Math.pow(Math.random(), 2.2) * 0.5 * (r * 0.8 + 0.2) * (Math.random() < 0.5 ? 1 : -1);
+    const angle = (arm / arms) * Math.PI * 2 + r * 2.6 + spread;
+    const y = (Math.random() - 0.5) * (Math.random() - 0.5) * 0.22 * (1.7 - r);
+    let c;
+    if (r < 0.35) c = Math.random() < 0.6 ? PALETTE[4] : PALETTE[2];
+    else if (r < 0.9) c = PALETTE[(Math.random() * 3) | 0];
+    else c = Math.random() < 0.35 ? PALETTE[3] : PALETTE[1];
+    galaxy.push({
+      r, angle, y,
+      speed: 0.22 / (r + 0.25),
+      size: rand(0.7, 2.1),
+      css: `rgb(${c[0]},${c[1]},${c[2]})`,
+      tw: rand(0, Math.PI * 2),
+      twS: rand(2, 6),
+      // Intro: Startposition weit draußen
+      ix: (Math.random() - 0.5) * 8,
+      iy: (Math.random() - 0.5) * 8,
+      iz: (Math.random() - 0.5) * 8,
+    });
+  }
+}
+makeGalaxy();
+
+/* =====================================================================
+   Partikel-Herz über dem Zentrum
+   ===================================================================== */
+const HEART_COUNT = isSmall ? 750 : 1100;
+const heart = [];
+
+function heartPoint(t, shrink) {
+  // klassische Herz-Parametrisierung, normiert auf ~1
+  const x = 16 * Math.pow(Math.sin(t), 3);
+  const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+  return { x: (x / 17) * shrink, y: (y / 17) * shrink };
+}
+
+function makeHeart() {
+  for (let i = 0; i < HEART_COUNT; i++) {
+    const t = Math.random() * Math.PI * 2;
+    const edge = Math.random() < 0.55;
+    const shrink = edge ? rand(0.94, 1.0) : Math.sqrt(Math.random());
+    const p = heartPoint(t, shrink);
+    const c = edge ? PALETTE[2] : PALETTE[(Math.random() * PALETTE.length) | 0];
+    heart.push({
+      x: p.x, y: p.y,
+      z: (Math.random() - 0.5) * 0.12,
+      size: edge ? rand(1.1, 2.4) : rand(0.6, 1.6),
+      css: `rgb(${c[0]},${c[1]},${c[2]})`,
+      tw: rand(0, Math.PI * 2),
+      twS: rand(3, 8),
+      ix: (Math.random() - 0.5) * 8,
+      iy: (Math.random() - 0.5) * 8,
+      iz: (Math.random() - 0.5) * 8,
+    });
+  }
+}
+makeHeart();
+
+const HEART_POS_Y = 1.06;  // Höhe über der Galaxie
+const HEART_SCALE = 0.42;
+
+/* =====================================================================
+   Schwebende Mini-Herzen
+   ===================================================================== */
+const MINI_COUNT = isSmall ? 26 : 40;
+const minis = [];
+for (let i = 0; i < MINI_COUNT; i++) {
+  minis.push({
+    r: rand(0.35, 1.7),
+    angle: rand(0, Math.PI * 2),
+    y: rand(0.02, 0.75),
+    speed: rand(0.05, 0.16),
+    rise: rand(0.008, 0.03),
+    size: rand(5, 11),
+    tw: rand(0, Math.PI * 2),
+  });
+}
+
+/* =====================================================================
+   Kreisende Botschaften
+   ===================================================================== */
+const texts = MESSAGES.map((msg, i) => ({
+  msg,
+  r: rand(0.55, 1.5),
+  angle: (i / MESSAGES.length) * Math.PI * 2 + rand(-0.3, 0.3),
+  y: rand(0.02, 0.14),
+  speed: rand(0.06, 0.14) * (Math.random() < 0.2 ? -1 : 1),
+  size: rand(0.85, 1.15),
+  // für Antippen (Bildschirm-Bounding-Box vom letzten Frame)
+  bx: -999, by: -999, bw: 0, bh: 0, visible: false,
+}));
+window.__texts = texts;
+
+/* Texte einmalig mit Glüh-Effekt vorrendern (viel schneller als shadowBlur pro Frame) */
+const SPRITE_FONT = 46;
+function makeTextSprite(msg) {
+  const c = document.createElement("canvas");
+  const cx = c.getContext("2d");
+  const font = `600 ${SPRITE_FONT}px "Segoe UI", system-ui, sans-serif`;
+  cx.font = font;
+  const w = Math.ceil(cx.measureText(msg).width);
+  const pad = Math.ceil(SPRITE_FONT * 0.8);
+  c.width = w + pad * 2;
+  c.height = SPRITE_FONT + pad * 2;
+  cx.font = font;
+  cx.textAlign = "center";
+  cx.textBaseline = "middle";
+  cx.shadowColor = "#ff2d95";
+  cx.shadowBlur = SPRITE_FONT * 0.5;
+  cx.fillStyle = "#ffd9ec";
+  cx.fillText(msg, c.width / 2, c.height / 2);
+  cx.fillText(msg, c.width / 2, c.height / 2); // doppelt = kräftigeres Glühen
+  return c;
+}
+for (const t of texts) t.sprite = makeTextSprite(t.msg);
+
+/* Herz-Glyphe vorrendern für Mini-Herzen und Feuerwerk */
+function makeHeartSprite(size, color) {
+  const c = document.createElement("canvas");
+  const cx = c.getContext("2d");
+  c.width = c.height = size * 2;
+  cx.font = `${size}px serif`;
+  cx.textAlign = "center";
+  cx.textBaseline = "middle";
+  cx.shadowColor = color;
+  cx.shadowBlur = size * 0.4;
+  cx.fillStyle = color;
+  cx.fillText("♥", size, size);
+  return c;
+}
+const HEART_SPRITE = makeHeartSprite(32, "#ff5aa8");
+
+/* =====================================================================
+   Herz-Feuerwerk beim Tippen
+   ===================================================================== */
+const bursts = [];
+function spawnBurst(sx, sy) {
+  for (let i = 0; i < 26; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const v = rand(30, 160);
+    bursts.push({
+      x: sx, y: sy,
+      vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40,
+      life: 1,
+      size: rand(2, 5),
+      heartChar: Math.random() < 0.25,
+      c: PALETTE[(Math.random() * PALETTE.length) | 0],
+    });
+  }
+}
+
+/* =====================================================================
+   Hintergrund-Sterne (statisch, 2D)
+   ===================================================================== */
+let bgStars = [];
+function makeBgStars() {
+  bgStars = [];
+  const n = isSmall ? 70 : 120;
+  for (let i = 0; i < n; i++) {
+    bgStars.push({
+      x: Math.random(), y: Math.random(),
+      size: rand(0.4, 1.4),
+      tw: rand(0, Math.PI * 2),
+      twS: rand(1, 3),
+    });
+  }
+}
+makeBgStars();
+
+/* =====================================================================
+   Zeichnen
+   ===================================================================== */
+let time = 0;
+let introT = -1;          // -1 = wartet, 0..1 = Formations-Animation, >1 fertig
+const INTRO_DUR = 3.2;
+const easeOut = t => 1 - Math.pow(1 - t, 3);
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function drawFrame(dt) {
+  time += dt;
+  updateCamera(dt);
+
+  // Hintergrund
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Sterne
+  ctx.fillStyle = "#fff";
+  for (const s of bgStars) {
+    const a = 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(time * s.twS + s.tw));
+    ctx.globalAlpha = a;
+    ctx.fillRect(s.x * W, s.y * H, s.size, s.size);
+  }
+  ctx.globalAlpha = 1;
+
+  const form = introT < 0 ? 0 : Math.min(introT / INTRO_DUR, 1);
+  const f = easeOut(form);
+
+  // ---------- Galaxie (additiv) ----------
+  ctx.globalCompositeOperation = "lighter";
+  for (let i = 0; i < galaxy.length; i += stride) {
+    const p = galaxy[i];
+    p.angle += p.speed * dt;
+    const tx = Math.cos(p.angle) * p.r;
+    const tz = Math.sin(p.angle) * p.r;
+    const x = lerp(p.ix, tx, f);
+    const y = lerp(p.iy, p.y, f);
+    const z = lerp(p.iz, tz, f);
+    if (!project(x, y, z, P)) continue;
+    if (P.x < -20 || P.x > W + 20 || P.y < -20 || P.y > H + 20) continue;
+    const tw = 0.55 + 0.45 * Math.sin(time * p.twS + p.tw);
+    const sz = Math.max(p.size * P.s * focal * 0.011, 0.5);
+    ctx.globalAlpha = Math.min(tw * f * Math.min(P.persp * 1.1, 1), 1);
+    ctx.fillStyle = p.css;
+    ctx.fillRect(P.x - sz / 2, P.y - sz / 2, sz, sz);
+  }
+
+  // ---------- Zentrum: Glühen + dunkles "schwarzes Loch" ----------
+  if (project(0, 0, 0, P)) {
+    const R = P.s * focal * 0.42;
+    const glow = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, R);
+    glow.addColorStop(0, `rgba(255,190,230,${0.95 * f})`);
+    glow.addColorStop(0.25, `rgba(255,90,180,${0.55 * f})`);
+    glow.addColorStop(0.6, `rgba(200,50,255,${0.22 * f})`);
+    glow.addColorStop(1, "rgba(255,45,149,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(P.x, P.y, R, 0, Math.PI * 2); ctx.fill();
+
+    ctx.globalCompositeOperation = "source-over";
+    const hole = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, R * 0.28);
+    hole.addColorStop(0, `rgba(2,0,6,${0.95 * f})`);
+    hole.addColorStop(0.8, `rgba(2,0,6,${0.85 * f})`);
+    hole.addColorStop(1, "rgba(2,0,6,0)");
+    ctx.fillStyle = hole;
+    ctx.beginPath(); ctx.arc(P.x, P.y, R * 0.28, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = "lighter";
+  }
+
+  // ---------- Herz ----------
+  const beatT = time % 1.15;
+  const beat = 1 + 0.055 * (Math.exp(-beatT * 6) * Math.sin(beatT * 22)); // Herzschlag
+  const heartSpin = time * 0.5;
+  const hs = Math.sin(heartSpin), hc = Math.cos(heartSpin);
+  const bob = Math.sin(time * 1.3) * 0.03;
+  for (const p of heart) {
+    const lx = p.x * HEART_SCALE * beat;
+    const ly = p.y * HEART_SCALE * beat;
+    const lz = p.z;
+    // Herz um eigene Y-Achse drehen
+    const rx = lx * hc - lz * hs;
+    const rz = lx * hs + lz * hc;
+    const tx = rx, ty = HEART_POS_Y + ly + bob, tz = rz;
+    const x = lerp(p.ix, tx, f);
+    const y = lerp(p.iy, ty, f);
+    const z = lerp(p.iz, tz, f);
+    if (!project(x, y, z, P)) continue;
+    const tw = 0.6 + 0.4 * Math.sin(time * p.twS + p.tw);
+    const sz = Math.max(p.size * P.s * focal * 0.012, 0.5);
+    ctx.globalAlpha = Math.min(tw * f, 1);
+    ctx.fillStyle = p.css;
+    ctx.fillRect(P.x - sz / 2, P.y - sz / 2, sz, sz);
+  }
+
+  // ---------- Mini-Herzen ----------
+  for (const m of minis) {
+    m.angle += m.speed * dt;
+    m.y += m.rise * dt;
+    if (m.y > 0.85) m.y = 0.02;
+    const x = Math.cos(m.angle) * m.r;
+    const z = Math.sin(m.angle) * m.r;
+    if (!project(x, m.y, z, P)) continue;
+    const a = (0.35 + 0.3 * Math.sin(time * 2 + m.tw)) * f * Math.min(1, (0.85 - m.y) * 4);
+    if (a <= 0) continue;
+    ctx.globalAlpha = a;
+    const d = Math.max(m.size * 1.6 * P.persp, 4);
+    ctx.drawImage(HEART_SPRITE, P.x - d / 2, P.y - d / 2, d, d);
+  }
+
+  // ---------- Feuerwerk-Bursts ----------
+  for (let i = bursts.length - 1; i >= 0; i--) {
+    const b = bursts[i];
+    b.life -= dt * 0.9;
+    if (b.life <= 0) { bursts.splice(i, 1); continue; }
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    b.vy += 60 * dt;
+    ctx.globalAlpha = Math.max(b.life, 0);
+    if (b.heartChar) {
+      const d = b.size * 4;
+      ctx.drawImage(HEART_SPRITE, b.x - d / 2, b.y - d / 2, d, d);
+    } else {
+      ctx.fillStyle = `rgb(${b.c[0]},${b.c[1]},${b.c[2]})`;
+      ctx.fillRect(b.x, b.y, b.size, b.size);
+    }
+  }
+
+  ctx.globalCompositeOperation = "source-over";
+
+  // ---------- Botschaften ----------
+  const textAppear = Math.max(0, Math.min((form - 0.75) * 4, 1));
+  if (textAppear > 0) {
+    const baseFont = Math.max(Math.min(W, H) * 0.042, 13);
+    for (const t of texts) {
+      t.angle += t.speed * dt;
+      const x = Math.cos(t.angle) * t.r;
+      const z = Math.sin(t.angle) * t.r;
+      t.visible = false;
+      if (!project(x, t.y, z, P)) continue;
+      const fs = Math.min(baseFont * t.size * P.persp, baseFont * 3.2);
+      if (fs < 6) continue;
+      const depthFade = Math.min(Math.max((P.persp - 0.45) * 1.7, 0.15), 1);
+      ctx.globalAlpha = textAppear * depthFade;
+      const scale = fs / SPRITE_FONT;
+      const dw = t.sprite.width * scale, dh = t.sprite.height * scale;
+      ctx.drawImage(t.sprite, P.x - dw / 2, P.y - dh / 2, dw, dh);
+      t.bx = P.x - dw / 2; t.by = P.y - dh / 2;
+      t.bw = dw; t.bh = dh;
+      t.visible = true;
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* =====================================================================
+   Haupt-Loop mit automatischer Qualitätsanpassung
+   ===================================================================== */
+let stride = 1;               // zeichnet jeden n-ten Galaxie-Partikel
+let qualityLevel = 0;
+let fpsFrames = 0, fpsStart = performance.now();
+
+function degradeQuality() {
+  qualityLevel++;
+  if (qualityLevel === 1) { dprCap = 1.25; resize(); }
+  else if (qualityLevel === 2) { stride = 2; }
+  else if (qualityLevel === 3) { dprCap = 1; stride = 3; resize(); }
+}
+
+let lastT = performance.now();
+function loop(now) {
+  const dt = Math.min((now - lastT) / 1000, 0.05);
+  lastT = now;
+  if (introT >= 0) introT += dt;
+  drawFrame(dt);
+
+  // FPS überwachen, nur während die Galaxie sichtbar ist
+  if (introT > 1) {
+    fpsFrames++;
+    const elapsed = now - fpsStart;
+    if (elapsed > 2000) {
+      const fps = fpsFrames / (elapsed / 1000);
+      if (fps < 27 && qualityLevel < 3) degradeQuality();
+      fpsFrames = 0; fpsStart = now;
+    }
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* =====================================================================
+   Eingabe: Drehen, Zoomen, Tippen
+   ===================================================================== */
+const pointers = new Map();
+let dragMoved = 0, downTime = 0, pinchDist = 0;
+
+canvas.addEventListener("pointerdown", e => {
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  dragMoved = 0; downTime = performance.now();
+  if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+  }
+  canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener("pointermove", e => {
+  const p = pointers.get(e.pointerId);
+  if (!p) return;
+  const dx = e.clientX - p.x, dy = e.clientY - p.y;
+  dragMoved += Math.abs(dx) + Math.abs(dy);
+  if (pointers.size === 1) {
+    cam.yaw += dx * 0.005;
+    cam.pitch = Math.max(-1.25, Math.min(-0.08, cam.pitch - dy * 0.004));
+  }
+  p.x = e.clientX; p.y = e.clientY;
+  if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (pinchDist > 0) {
+      cam.zoom = Math.max(0.55, Math.min(2.6, cam.zoom * (d / pinchDist)));
+    }
+    pinchDist = d;
+  }
+});
+
+function pointerEnd(e) {
+  pointers.delete(e.pointerId);
+  pinchDist = 0;
+  if (dragMoved < 10 && performance.now() - downTime < 500 && introT > INTRO_DUR) {
+    handleTap(e.clientX, e.clientY);
+  }
+}
+canvas.addEventListener("pointerup", pointerEnd);
+canvas.addEventListener("pointercancel", e => pointers.delete(e.pointerId));
+
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  cam.zoom = Math.max(0.55, Math.min(2.6, cam.zoom * (e.deltaY < 0 ? 1.1 : 0.9)));
+}, { passive: false });
+
+function handleTap(x, y) {
+  // trifft der Tipp eine Botschaft?
+  let hit = null;
+  for (const t of texts) {
+    if (t.visible && x >= t.bx && x <= t.bx + t.bw && y >= t.by && y <= t.by + t.bh) {
+      hit = t; break;
+    }
+  }
+  if (hit) {
+    document.getElementById("cardTitle").textContent = hit.msg.replace(/[∞♥]/g, "").trim() + " ❤️";
+    document.getElementById("cardText").textContent = CARD_TEXT;
+    document.getElementById("cardOverlay").classList.add("show");
+  } else {
+    spawnBurst(x, y);
+  }
+}
+
+document.getElementById("cardClose").addEventListener("click", () => {
+  document.getElementById("cardOverlay").classList.remove("show");
+});
+document.getElementById("cardOverlay").addEventListener("click", e => {
+  if (e.target.id === "cardOverlay") e.currentTarget.classList.remove("show");
+});
+
+/* ---------- Intro-Start ---------- */
+document.getElementById("intro").addEventListener("click", () => {
+  document.getElementById("intro").classList.add("hidden");
+  introT = 0;
+  setTimeout(() => {
+    document.getElementById("title").style.opacity = "1";
+    document.getElementById("hint").style.opacity = "1";
+  }, 1800);
+  setTimeout(() => {
+    document.getElementById("hint").style.opacity = "0";
+  }, 12000);
+});
+</script>
+</body>
+</html>
