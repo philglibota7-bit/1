@@ -461,7 +461,7 @@ const cam = {
   pitch: -0.42,
   dist: 3.1,
   zoom: 1,
-  autoSpin: 0.012,
+  autoSpin: 0.006,
 };
 
 let sinYaw = 0, cosYaw = 1, sinPitch = 0, cosPitch = 1, focal = 1;
@@ -472,7 +472,7 @@ function updateCamera(dt) {
   cam.yaw += cam.autoSpin * dt;
   if (pointers.size === 0) {
     cam.yaw += yawVel * dt;              // Trägheit nach dem Loslassen
-    yawVel *= Math.exp(-1.6 * dt);       // langsam ausrollen
+    yawVel *= Math.exp(-2.6 * dt);       // schnell wieder zur Ruhe kommen
     if (Math.abs(yawVel) < 0.01) yawVel = 0;
   }
   const target = Math.min(Math.abs(yawVel) / 1.6, 1);
@@ -1335,11 +1335,10 @@ canvas.addEventListener("pointermove", e => {
   const dx = e.clientX - p.x, dy = e.clientY - p.y;
   dragMoved += Math.abs(dx) + Math.abs(dy);
   if (pointers.size === 1) {
-    cam.yaw += dx * 0.005;
-    cam.pitch -= dy * 0.005;   // frei drehbar, volle 360° hoch/runter
-    // Schwung merken -> Galaxie dreht nach dem Loslassen weiter
-    yawVel = Math.max(-4, Math.min(4, yawVel * 0.55 + dx * 0.005 * 60 * 0.45));
-    pitchVel = Math.max(-4, Math.min(4, pitchVel * 0.55 - dy * 0.005 * 60 * 0.45));
+    cam.yaw += dx * 0.003;
+    cam.pitch = Math.max(-1.25, Math.min(-0.08, cam.pitch - dy * 0.003));
+    // nur ein ganz sanfter Nachlauf nach dem Loslassen
+    yawVel = Math.max(-0.5, Math.min(0.5, yawVel * 0.5 + dx * 0.003 * 60 * 0.2));
     // Sternenstaub am Finger
     if (introT > INTRO_DUR && Math.abs(dx) + Math.abs(dy) > 2) {
       addSparkle(e.clientX + rand(-4, 4), e.clientY + rand(-4, 4),
