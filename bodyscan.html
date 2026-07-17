@@ -271,6 +271,71 @@
   .size-chip .s-val { font-size: 1.6rem; font-weight: 800; margin-top: 2px; color: var(--accent); }
   .size-chip .s-sub { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
 
+  /* Passform-Auswahl */
+  .fit-chips { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .fit-chip {
+    padding: 12px 18px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-card2);
+    color: var(--text);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    user-select: none;
+    flex: 1 1 110px;
+  }
+  .fit-chip .f-name { font-weight: 700; font-size: 0.95rem; }
+  .fit-chip .f-desc { font-size: 0.7rem; color: var(--muted); margin-top: 3px; }
+  .fit-chip.selected {
+    border-color: var(--accent);
+    background: rgba(79,140,255,0.14);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .fit-chip.selected .f-name { color: var(--accent); }
+
+  /* Online-Suche */
+  .web-search-box {
+    background: linear-gradient(135deg, rgba(79,140,255,0.08), rgba(124,92,255,0.08));
+    border: 1px solid rgba(79,140,255,0.35);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 18px;
+  }
+  .web-search-box h2 { font-size: 1.1rem; margin-bottom: 6px; }
+  .web-query {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .web-query input { flex: 1 1 260px; }
+  .shop-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .shop-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text);
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 600;
+    transition: border-color 0.2s, transform 0.15s;
+  }
+  .shop-btn:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .p-shoplinks {
+    margin-top: 10px;
+    font-size: 0.76rem;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .p-shoplinks a { color: var(--accent); text-decoration: none; }
+  .p-shoplinks a:hover { text-decoration: underline; }
+
   /* Produkte */
   .filters {
     display: grid;
@@ -436,6 +501,17 @@
     <div class="card">
       <h2>Deine ermittelten Größen</h2>
       <div class="size-summary" id="size-summary"></div>
+    </div>
+    <div class="card">
+      <h2>Wie soll es sitzen? 👖</h2>
+      <p class="hint">Deine Wunsch-Passform beeinflusst die Größenempfehlung: Für Loose oder Baggy empfehlen wir bei normal geschnittenen Teilen automatisch 1–2 Nummern größer.</p>
+      <div class="fit-chips" id="fit-chips">
+        <div class="fit-chip" data-fit="slim"><div class="f-name">Slim</div><div class="f-desc">körpernah</div></div>
+        <div class="fit-chip selected" data-fit="regular"><div class="f-name">Regular</div><div class="f-desc">klassisch</div></div>
+        <div class="fit-chip" data-fit="loose"><div class="f-name">Loose</div><div class="f-desc">locker</div></div>
+        <div class="fit-chip" data-fit="baggy"><div class="f-name">Baggy</div><div class="f-desc">sehr weit</div></div>
+        <div class="fit-chip" data-fit="oversized"><div class="f-name">Oversized</div><div class="f-desc">bewusst groß</div></div>
+      </div>
       <div class="btn-row">
         <button class="btn btn-primary" id="btn-to-products">Passende Produkte finden →</button>
         <button class="btn btn-ghost" id="btn-rescan">Erneut scannen</button>
@@ -464,9 +540,11 @@
           <label>Passform</label>
           <select id="f-fit">
             <option value="">Egal</option>
-            <option value="slim">Slim Fit</option>
-            <option value="regular">Regular Fit</option>
-            <option value="oversized">Oversized / Relaxed</option>
+            <option value="slim">Slim (körpernah)</option>
+            <option value="regular">Regular (klassisch)</option>
+            <option value="loose">Loose (locker)</option>
+            <option value="baggy">Baggy (sehr weit)</option>
+            <option value="oversized">Oversized</option>
           </select>
         </div>
         <div>
@@ -495,6 +573,14 @@
           <input type="number" id="f-price" placeholder="z. B. 80" min="5">
         </div>
       </div>
+    </div>
+    <div class="web-search-box">
+      <h2>🌐 Im Internet suchen – mit deiner Größe</h2>
+      <p class="hint">Öffnet die Shop-Suche in einem neuen Tab, vorausgefüllt mit deiner Größe, Passform und deinen Filtern. Den Suchtext kannst du vorher anpassen.</p>
+      <div class="web-query">
+        <input type="text" id="web-query" placeholder="Suchtext …">
+      </div>
+      <div class="shop-btns" id="shop-btns"></div>
     </div>
     <div class="products" id="products"></div>
   </section>
@@ -541,6 +627,7 @@ const state = {
   gender: 'm',
   measurements: null,   // { key: {value, measured} }
   sizes: null,
+  desiredFit: 'regular', // slim | regular | loose | baggy | oversized
 };
 
 const MEASURE_DEFS = [
@@ -904,7 +991,21 @@ function computeSizes() {
     <div class="size-chip"><div class="s-cat">Jeans / Hosen</div><div class="s-val">${jeans}</div><div class="s-sub">Bund/Länge (Zoll)</div></div>`;
 }
 
-document.getElementById('btn-to-products').addEventListener('click', () => { goStep(4); renderProducts(); });
+// Wunsch-Passform-Auswahl (Schritt 3) – synchronisiert sich mit dem Filter in Schritt 4
+document.querySelectorAll('#fit-chips .fit-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('#fit-chips .fit-chip').forEach(c => c.classList.remove('selected'));
+    chip.classList.add('selected');
+    state.desiredFit = chip.dataset.fit;
+    document.getElementById('f-fit').value = state.desiredFit;
+  });
+});
+
+document.getElementById('btn-to-products').addEventListener('click', () => {
+  document.getElementById('f-fit').value = state.desiredFit;
+  goStep(4);
+  renderProducts();
+});
 document.getElementById('btn-rescan').addEventListener('click', () => goStep(2));
 
 // ---------- Produktkatalog (Demo) ----------
@@ -923,6 +1024,10 @@ const CATALOG = [
   { name:'Regular Jeans Classic',    cat:'hose',     fit:'regular',  style:'casual',   color:'blau',    price:54.99, sizes:['W30','W32','W34','W36','W38','W40'], sizeType:'jeans', icon:'👖', g:'u', grad:['#54759e','#2c4467'] },
   { name:'Chino Business Stretch',   cat:'hose',     fit:'slim',     style:'business', color:'beige',   price:49.99, sizes:['W29','W30','W31','W32','W33','W34','W36'], sizeType:'jeans', icon:'👖', g:'u', grad:['#cbb894','#96825c'] },
   { name:'Relaxed Cargo-Hose',       cat:'hose',     fit:'oversized',style:'casual',   color:'gruen',   price:44.99, sizes:['W30','W32','W34','W36'],     sizeType:'jeans', icon:'👖', g:'u', grad:['#5d7a52','#37502e'] },
+  { name:'Baggy Jeans Skate',        cat:'hose',     fit:'baggy',    style:'casual',   color:'blau',    price:69.99, sizes:['W30','W32','W34','W36','W38'], sizeType:'jeans', icon:'👖', g:'u', grad:['#6b83a8','#3a4f70'] },
+  { name:'Loose Fit Jeans 90s',      cat:'hose',     fit:'loose',    style:'casual',   color:'blau',    price:59.99, sizes:['W28','W30','W32','W34','W36'], sizeType:'jeans', icon:'👖', g:'u', grad:['#7d95b5','#46597a'] },
+  { name:'Baggy Cargo Streetwear',   cat:'hose',     fit:'baggy',    style:'casual',   color:'schwarz', price:64.99, sizes:['W30','W32','W34','W36'],     sizeType:'jeans', icon:'👖', g:'u', grad:['#3a3d44','#1a1c21'] },
+  { name:'Loose T-Shirt Drop-Shoulder', cat:'tshirt', fit:'loose',   style:'casual',   color:'weiss',   price:22.99, sizes:['S','M','L','XL','XXL'],      sizeType:'top', icon:'👕', g:'u', grad:['#e4e8ef','#b3bdcd'] },
   { name:'Jogginghose Performance',  cat:'hose',     fit:'regular',  style:'sport',    color:'schwarz', price:39.99, sizes:['XS','S','M','L','XL','XXL'], sizeType:'top', icon:'🩳', g:'u', grad:['#33383f','#181b20'] },
   { name:'High-Waist Jeans',         cat:'hose',     fit:'slim',     style:'casual',   color:'blau',    price:64.99, sizes:['W26','W27','W28','W29','W30','W31','W32'], sizeType:'jeans', icon:'👖', g:'f', grad:['#4a6a94','#274058'] },
   { name:'Bomberjacke Urban',        cat:'jacke',    fit:'regular',  style:'casual',   color:'schwarz', price:79.99, sizes:['S','M','L','XL'],            sizeType:'top', icon:'🧥', g:'u', grad:['#2c3038','#101318'] },
@@ -940,40 +1045,47 @@ const CATALOG = [
 
 const TOP_ORDER = ['XS','S','M','L','XL','XXL'];
 
-// Empfohlene Größe für ein Produkt (berücksichtigt Passform-Schnitt)
-function recommendSize(p) {
+// Wie viel „Weite" der Nutzer sich wünscht (in Größenschritten) …
+const DESIRED_SHIFT = { slim: 0, regular: 0, loose: 1, baggy: 2, oversized: 1 };
+// … und wie viel der Schnitt des Kleidungsstücks schon von sich aus mitbringt
+const CUT_PROVIDES  = { slim: 0, regular: 0, loose: 1, baggy: 2, oversized: 1 };
+
+// Empfohlene Größe: Körpermaß-Basisgröße + Wunsch-Weite − was der Schnitt schon liefert
+function recommendSize(p, desiredFit) {
   const s = state.sizes;
+  const desired = desiredFit || state.desiredFit || 'regular';
+  const shift = (DESIRED_SHIFT[desired] ?? 0) - (CUT_PROVIDES[p.fit] ?? 0);
   if (p.sizeType === 'jeans') {
-    const targetW = Math.round(s.waist / 2.54) + (p.fit === 'slim' ? 0 : p.fit === 'oversized' ? -1 : 0);
+    // 1 Größenschritt ≈ 2 Zoll Bundweite
+    const targetW = Math.round(s.waist / 2.54) + shift * 2;
     let best = null, bestDiff = Infinity;
     for (const size of p.sizes) {
       const w = +size.slice(1);
       const d = Math.abs(w - targetW);
       if (d < bestDiff) { bestDiff = d; best = size; }
     }
-    return { size: best, diff: bestDiff, perfect: bestDiff === 0, unit: 'Zoll' };
+    return { size: best, diff: Math.round(bestDiff / 2), perfect: bestDiff <= 1, shift };
   } else {
-    let idx = TOP_ORDER.indexOf(s.top);
-    // Oversized-Schnitte fallen groß aus → eine Größe kleiner wählen; Slim ggf. größer
-    if (p.fit === 'oversized') idx = Math.max(0, idx - 1);
+    const idx = clamp(TOP_ORDER.indexOf(s.top) + shift, 0, TOP_ORDER.length - 1);
     let best = null, bestDiff = Infinity;
     for (const size of p.sizes) {
       const d = Math.abs(TOP_ORDER.indexOf(size) - idx);
       if (d < bestDiff) { bestDiff = d; best = size; }
     }
-    return { size: best, diff: bestDiff, perfect: bestDiff === 0 };
+    return { size: best, diff: bestDiff, perfect: bestDiff === 0, shift };
   }
 }
 
 // Match-Score aus Größenverfügbarkeit + Präferenzen + Körperform
 function scoreProduct(p, prefs) {
-  const rec = recommendSize(p);
+  const desired = prefs.fit || state.desiredFit || 'regular';
+  const rec = recommendSize(p, desired);
   let score = 100;
   const why = [];
 
   // Größenpassung (wichtigster Faktor)
   if (rec.perfect) {
-    why.push(`Größe ${rec.size} passt exakt zu deinen Maßen`);
+    why.push(`Größe ${rec.size} passt zu deinen Maßen + ${fitLabel(desired)}-Look`);
   } else if (rec.diff <= 1) {
     score -= 18;
     why.push(`Nächstliegende Größe ${rec.size} (leichte Abweichung)`);
@@ -982,15 +1094,26 @@ function scoreProduct(p, prefs) {
     why.push(`Nur ${rec.size} verfügbar – weicht von deiner Größe ab`);
   }
 
-  // Passform-Präferenz
-  if (prefs.fit && p.fit !== prefs.fit) score -= 25;
-  else if (prefs.fit) why.push(`${fitLabel(p.fit)} wie gewünscht`);
+  // Passform: exakter Schnitt ist ideal, „verwandter" Schnitt fast gleichwertig,
+  // sonst wird über die Größenwahl kompensiert (kleinerer Abzug)
+  const wide = ['loose','baggy','oversized'];
+  if (prefs.fit) {
+    if (p.fit === prefs.fit) {
+      why.push(`${fitLabel(p.fit)}-Schnitt wie gewünscht`);
+    } else if (wide.includes(prefs.fit) && wide.includes(p.fit)) {
+      score -= 8;
+      why.push(`${fitLabel(p.fit)}-Schnitt kommt deinem ${fitLabel(prefs.fit)}-Wunsch nahe`);
+    } else {
+      score -= 20;
+      if (rec.shift > 0) why.push(`Für den ${fitLabel(prefs.fit)}-Look größer gewählt`);
+    }
+  }
 
-  // Körperform-Bonus: Slim bei schlanker Taille, Regular/Oversized sonst
+  // Körperform-Bonus: Slim bei schlanker Taille
   const s = state.sizes;
   const whr = s.waist / s.chest;
   if (p.fit === 'slim' && whr < 0.88) { score += 4; why.push('Slim Fit schmeichelt deiner Silhouette'); }
-  if (p.fit === 'oversized' && whr >= 0.95) { score += 3; }
+  if (wide.includes(p.fit) && whr >= 0.95) { score += 3; }
 
   // Stil & Farbe
   if (prefs.style && p.style !== prefs.style) score -= 20;
@@ -999,16 +1122,102 @@ function scoreProduct(p, prefs) {
   return { score: clamp(Math.round(score), 5, 100), rec, why };
 }
 
-function fitLabel(f) { return f === 'slim' ? 'Slim Fit' : f === 'oversized' ? 'Oversized' : 'Regular Fit'; }
+function fitLabel(f) {
+  return { slim:'Slim', regular:'Regular', loose:'Loose', baggy:'Baggy', oversized:'Oversized' }[f] || 'Regular';
+}
 
-function renderProducts() {
-  const prefs = {
+// ---------- Internet-Suche mit vorausgefüllter Größe ----------
+const SHOPS = [
+  { name: 'Zalando',         icon: '🛍️', url: q => 'https://www.zalando.de/katalog/?q=' + encodeURIComponent(q) },
+  { name: 'About You',       icon: '👟', url: q => 'https://www.aboutyou.de/suche?term=' + encodeURIComponent(q) },
+  { name: 'Amazon',          icon: '📦', url: q => 'https://www.amazon.de/s?k=' + encodeURIComponent(q) },
+  { name: 'Google Shopping', icon: '🔎', url: q => 'https://www.google.com/search?tbm=shop&q=' + encodeURIComponent(q) },
+];
+const CAT_WORDS = {
+  '':       f => 'Kleidung',
+  tshirt:   f => 'T-Shirt',
+  hemd:     f => f ? 'Bluse' : 'Hemd',
+  hose:     f => 'Jeans',
+  jacke:    f => 'Jacke',
+  kleid:    f => 'Kleid',
+  pullover: f => 'Pullover',
+};
+const COLOR_WORDS = { schwarz:'schwarz', weiss:'weiß', blau:'blau', beige:'beige', gruen:'grün', rot:'rot' };
+const FIT_WORDS = { slim:'Slim Fit', regular:'Regular Fit', loose:'Loose Fit', baggy:'Baggy', oversized:'Oversized' };
+
+// Größen-Token für die Suche: Hosen als W/L, alles andere XS–XXL (inkl. Wunsch-Weite)
+function sizeToken(cat, desired) {
+  const s = state.sizes;
+  const shift = DESIRED_SHIFT[desired] ?? 0;
+  if (cat === 'hose') {
+    const w = clamp(Math.round(s.waist / 2.54) + shift * 2, 24, 44);
+    const l = clamp(Math.round(s.inseam / 2.54), 28, 36);
+    return `W${w} L${l}`;
+  }
+  const idx = clamp(TOP_ORDER.indexOf(s.top) + shift, 0, TOP_ORDER.length - 1);
+  return 'Größe ' + TOP_ORDER[idx];
+}
+
+function buildWebQuery(prefs) {
+  const f = state.gender === 'f';
+  const desired = prefs.fit || state.desiredFit || 'regular';
+  const parts = [
+    f ? 'Damen' : 'Herren',
+    CAT_WORDS[prefs.cat || ''](f),
+    FIT_WORDS[desired],
+    prefs.color ? COLOR_WORDS[prefs.color] : '',
+    prefs.style === 'business' ? 'Business' : prefs.style === 'sport' ? 'Sport' : '',
+    sizeToken(prefs.cat, desired),
+  ];
+  return parts.filter(Boolean).join(' ');
+}
+
+function productWebQuery(p, rec) {
+  const f = state.gender === 'f';
+  const size = p.sizeType === 'jeans'
+    ? `${rec.size} L${clamp(Math.round(state.sizes.inseam / 2.54), 28, 36)}`
+    : 'Größe ' + rec.size;
+  return [f ? 'Damen' : 'Herren', p.name, COLOR_WORDS[p.color], size].filter(Boolean).join(' ');
+}
+
+function renderWebSearch(prefs) {
+  const inp = document.getElementById('web-query');
+  // Nutzer-editierten Text nicht überschreiben, solange die Filter gleich bleiben
+  const auto = buildWebQuery(prefs);
+  if (inp.dataset.auto !== auto) { inp.value = auto; inp.dataset.auto = auto; }
+  const btns = document.getElementById('shop-btns');
+  btns.innerHTML = '';
+  for (const shop of SHOPS) {
+    const a = document.createElement('a');
+    a.className = 'shop-btn';
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.href = shop.url(inp.value);
+    a.innerHTML = `${shop.icon} ${shop.name}`;
+    // Beim Klick den ggf. vom Nutzer angepassten Suchtext verwenden
+    a.addEventListener('click', () => { a.href = shop.url(document.getElementById('web-query').value); });
+    btns.appendChild(a);
+  }
+}
+document.getElementById('web-query').addEventListener('input', renderWebSearchLinksOnly);
+function renderWebSearchLinksOnly() {
+  const q = document.getElementById('web-query').value;
+  document.querySelectorAll('#shop-btns .shop-btn').forEach((a, i) => { a.href = SHOPS[i].url(q); });
+}
+
+function currentPrefs() {
+  return {
     cat:   document.getElementById('f-cat').value,
     fit:   document.getElementById('f-fit').value,
     style: document.getElementById('f-style').value,
     color: document.getElementById('f-color').value,
     price: +document.getElementById('f-price').value || Infinity,
   };
+}
+
+function renderProducts() {
+  const prefs = currentPrefs();
+  renderWebSearch(prefs);
   const wrap = document.getElementById('products');
   wrap.innerHTML = '';
 
@@ -1026,6 +1235,10 @@ function renderProducts() {
 
   for (const { p, score, rec, why } of items) {
     const cls = score >= 80 ? 'match-hi' : score >= 55 ? 'match-mid' : 'match-lo';
+    const q = productWebQuery(p, rec);
+    const links = SHOPS.slice(0, 3).map(s =>
+      `<a href="${s.url(q)}" target="_blank" rel="noopener">${s.name} ↗</a>`
+    ).join('');
     const card = document.createElement('div');
     card.className = 'product-card';
     card.innerHTML = `
@@ -1036,8 +1249,9 @@ function renderProducts() {
       <div class="product-body">
         <h3>${p.name}</h3>
         <div class="p-meta">${fitLabel(p.fit)} · ${p.style.charAt(0).toUpperCase()+p.style.slice(1)}</div>
-        <div class="p-size">Deine Größe: <b>${rec.size}</b>${rec.perfect ? ' ✓' : ''}</div>
+        <div class="p-size">Deine Größe: <b>${rec.size}</b>${rec.perfect ? ' ✓' : ''}${rec.shift > 0 ? ` <span style="color:var(--muted)">(+${rec.shift} für ${fitLabel(document.getElementById('f-fit').value || state.desiredFit)}-Look)</span>` : ''}</div>
         <div class="p-why">${why.slice(0, 2).join(' · ')}</div>
+        <div class="p-shoplinks">${links}</div>
         <div class="p-price">${p.price.toFixed(2).replace('.', ',')} €</div>
       </div>`;
     wrap.appendChild(card);
