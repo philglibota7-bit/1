@@ -360,13 +360,76 @@
   }
   .product-card:hover { transform: translateY(-4px); border-color: var(--accent); }
   .product-img {
-    height: 150px;
+    height: 230px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 3.2rem;
     position: relative;
+    background: var(--bg-card2);
+    overflow: hidden;
   }
+  .product-img img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .shop-badge {
+    position: absolute;
+    top: 10px; left: 10px;
+    background: rgba(13,17,23,0.85);
+    border-radius: 99px;
+    padding: 4px 11px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text);
+    z-index: 2;
+    letter-spacing: 0.5px;
+  }
+  .avail-ok { color: var(--green); font-weight: 700; }
+  .avail-no { color: #ff8a8a; }
+  .p-buy {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    padding: 9px 14px;
+    border-radius: 10px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 700;
+    justify-content: center;
+  }
+  .p-buy:hover { opacity: 0.9; }
+  .live-status {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 20px;
+    margin-bottom: 18px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .live-status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ff5a5a; margin-right: 7px; animation: pulse 1.2s infinite; }
+  .live-status .shop-ok { color: var(--green); }
+  .live-status .shop-fail { color: var(--muted); text-decoration: line-through; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: -2px;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .match-badge {
     position: absolute;
     top: 10px; right: 10px;
@@ -574,22 +637,25 @@
         </div>
       </div>
     </div>
-    <div class="web-search-box">
-      <h2>🌐 Im Internet suchen – mit deiner Größe</h2>
-      <p class="hint">Öffnet die Shop-Suche in einem neuen Tab, vorausgefüllt mit deiner Größe, Passform und deinen Filtern. Den Suchtext kannst du vorher anpassen.</p>
+    <div class="live-status" id="live-status"></div>
+    <div class="products" id="products"></div>
+    <div class="web-search-box" style="margin-top:18px">
+      <h2>🌐 In weiteren Shops suchen</h2>
+      <p class="hint">Öffnet die Suche bei Zalando, About You, Amazon oder Google Shopping in einem neuen Tab – vorausgefüllt mit deiner Größe, Passform und deinen Filtern.</p>
       <div class="web-query">
         <input type="text" id="web-query" placeholder="Suchtext …">
       </div>
       <div class="shop-btns" id="shop-btns"></div>
     </div>
-    <div class="products" id="products"></div>
   </section>
 
 </main>
 
 <p class="privacy-note">
   🔒 Datenschutz: Der gesamte Scan läuft <b>lokal in deinem Browser</b> (KI-Modell: MediaPipe Pose).
-  Es werden keine Bilder oder Maße an einen Server gesendet. · Demo-Produktkatalog zu Illustrationszwecken.
+  Es werden keine Bilder oder Maße an einen Server gesendet. · Die Live-Produktsuche fragt die
+  öffentlichen Produktdaten der Shops direkt aus deinem Browser ab; deine Maße werden dabei nicht übertragen.
+  Preise/Verfügbarkeit ohne Gewähr – maßgeblich ist die Shop-Seite.
 </p>
 
 <script type="module">
@@ -1215,12 +1281,223 @@ function currentPrefs() {
   };
 }
 
+// ---------- Live-Suche in echten Shops ----------
+// Diese Shops laufen auf Shopify und geben ihre Produktdaten öffentlich
+// mit CORS-Freigabe heraus – die Suche läuft komplett im Browser.
+const LIVE_SHOPS = [
+  { name: 'PEGADOR',     domain: 'pegador.com' },
+  { name: '6PM',         domain: '6pmseason.com' },
+  { name: 'Reternity',   domain: 'reternity.de' },
+  { name: '99BASED',     domain: '99based.com' },
+  { name: 'SNOCKS',      domain: 'snocks.com' },
+  { name: 'ARMEDANGELS', domain: 'armedangels.com' },
+  { name: 'Asphaltgold', domain: 'www.asphaltgold.com' },
+];
+let liveItems = [];
+let liveState = 'idle'; // idle | loading | done
+const shopStatus = {};
+
+const LIVE_CAT_WORDS = {
+  tshirt:   ['tee','t-shirt','tshirt','longsleeve','tank'],
+  hemd:     ['hemd','blouse','bluse','flannel','oxford','button'],
+  hose:     ['pants','jeans','hose','jogger','cargo','sweatpant','jorts','trouser','chino','shorts'],
+  jacke:    ['jacket','jacke','coat','puffer','windbreaker','mantel','vest','weste'],
+  kleid:    ['dress','kleid','skirt','rock'],
+  pullover: ['hoodie','sweater','pullover','sweatshirt','knit','crewneck','strick','cardigan','zipper'],
+};
+const LIVE_COLOR_WORDS = {
+  schwarz: ['black','schwarz'],
+  weiss:   ['white','weiß','weiss','cream','offwhite','off white','ecru'],
+  blau:    ['blue','navy','denim','indigo'],
+  beige:   ['beige','brown','sand','khaki','tan','camel','mocha','choco'],
+  gruen:   ['green','olive','grün','mint'],
+  rot:     ['red','pink','rosa','burgundy','bordeaux','rose'],
+};
+const LIVE_FIT_WORDS = {
+  slim: ['slim','skinny','fitted'], regular: [],
+  loose: ['loose','relaxed','boxy'],
+  baggy: ['baggy','wide leg','wide-leg','balloon','jorts'],
+  oversized: ['oversized','boxy','heavy'],
+};
+
+function hasAny(text, words) { return words.some(w => text.includes(w)); }
+function matchesCat(text, cat) {
+  if (hasAny(text, LIVE_CAT_WORDS[cat])) return true;
+  // „shirt" allein wäre mehrdeutig – T-Shirts/Sweatshirts nicht als Hemden zählen
+  if (cat === 'hemd') {
+    return /(^|\s)shirt/.test(text) && !text.includes('t-shirt') && !text.includes('tee') && !text.includes('sweatshirt');
+  }
+  return false;
+}
+function detectGender(text) {
+  if (/women|woman|damen|female|ladies/.test(text)) return 'f';
+  if (/\bmen\b|\bmens\b|herren|\bmale\b/.test(text)) return 'm';
+  return 'u';
+}
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function normalizeProduct(p, shop) {
+  if (!p.variants || !p.variants.length) return null;
+  const text = (p.title + ' ' + (p.product_type || '') + ' ' + (p.tags || []).join(' ')).toLowerCase();
+  const variants = p.variants.map(v => ({
+    s: String(v.title || '').trim(),
+    a: v.available !== false,
+  }));
+  const prices = p.variants.map(v => parseFloat(v.price)).filter(x => x > 0);
+  let img = p.images && p.images[0] ? p.images[0].src : '';
+  if (img) img += (img.includes('?') ? '&' : '?') + 'width=480';
+  return {
+    shop: shop.name,
+    url: `https://${shop.domain}/products/${p.handle}`,
+    title: p.title, text, g: detectGender(text), img,
+    price: prices.length ? Math.min(...prices) : 0,
+    variants,
+  };
+}
+
+async function loadLiveProducts() {
+  if (liveState !== 'idle') return;
+  liveState = 'loading';
+  // 30-Minuten-Cache, damit Filterwechsel und erneute Besuche sofort laden
+  try {
+    const c = JSON.parse(localStorage.getItem('fitscan-live-v2') || 'null');
+    if (c && Date.now() - c.ts < 30 * 60 * 1000 && c.items.length) {
+      liveItems = c.items;
+      LIVE_SHOPS.forEach(s => shopStatus[s.name] = 'ok');
+      liveState = 'done';
+      renderLiveStatus(); renderProducts();
+      return;
+    }
+  } catch (e) {}
+  LIVE_SHOPS.forEach(s => shopStatus[s.name] = 'loading');
+  renderLiveStatus();
+  await Promise.allSettled(LIVE_SHOPS.map(async shop => {
+    try {
+      const res = await fetch(`https://${shop.domain}/products.json?limit=250`);
+      if (!res.ok) throw new Error(res.status);
+      const data = await res.json();
+      for (const p of data.products) {
+        const n = normalizeProduct(p, shop);
+        if (n) liveItems.push(n);
+      }
+      shopStatus[shop.name] = 'ok';
+    } catch (e) {
+      shopStatus[shop.name] = 'fail';
+    }
+    renderLiveStatus(); renderProducts();
+  }));
+  liveState = 'done';
+  try { localStorage.setItem('fitscan-live-v2', JSON.stringify({ ts: Date.now(), items: liveItems })); } catch (e) {}
+  renderLiveStatus(); renderProducts();
+}
+
+function renderLiveStatus() {
+  const el = document.getElementById('live-status');
+  const parts = LIVE_SHOPS.map(s => {
+    const st = shopStatus[s.name];
+    if (st === 'ok') return `<span class="shop-ok">${s.name} ✓</span>`;
+    if (st === 'fail') return `<span class="shop-fail">${s.name}</span>`;
+    return `<span><span class="spinner"></span>${s.name}</span>`;
+  });
+  el.innerHTML = `<span class="dot"></span><b>Live-Suche in echten Shops</b> · ${liveItems.length} Produkte geladen<br>${parts.join(' &nbsp;·&nbsp; ')}`;
+}
+
+// Zielgröße inkl. Wunsch-Weite (Baggy → größer)
+function targetSizes(desired) {
+  const shift = DESIRED_SHIFT[desired] ?? 0;
+  const letter = TOP_ORDER[clamp(TOP_ORDER.indexOf(state.sizes.top) + shift, 0, TOP_ORDER.length - 1)];
+  const w = clamp(Math.round(state.sizes.waist / 2.54) + shift * 2, 24, 46);
+  return { letter, w };
+}
+function variantSizeMatch(vs, t, isBottoms) {
+  const o = vs.toUpperCase().replace(/\s+/g, '');
+  if (o === t.letter || o.startsWith(t.letter + '/')) return true;
+  if (isBottoms) {
+    if (o === 'W' + t.w || o === String(t.w) || o.startsWith(t.w + '/') || o.startsWith('W' + t.w + '/') || o.startsWith('W' + t.w + 'L')) return true;
+  }
+  return false;
+}
+
+function scoreLive(it, prefs) {
+  const desired = prefs.fit || state.desiredFit || 'regular';
+  if (prefs.cat && !matchesCat(it.text, prefs.cat)) return null;
+  if (it.g !== 'u' && it.g !== state.gender) return null;
+  if (prefs.color && !hasAny(it.text, LIVE_COLOR_WORDS[prefs.color])) return null;
+  if (it.price > prefs.price) return null;
+  const isBottoms = matchesCat(it.text, 'hose');
+  const t = targetSizes(desired);
+  let match = null, sizeStr = '';
+  for (const v of it.variants) {
+    if (variantSizeMatch(v.s, t, isBottoms)) {
+      sizeStr = v.s;
+      if (v.a) { match = 'avail'; break; } else match = 'soldout';
+    }
+  }
+  let score = 50;
+  if (match === 'avail') score += 40;
+  else if (match === 'soldout') score -= 10;
+  else score -= 25;
+  if (desired !== 'regular' && hasAny(it.text, LIVE_FIT_WORDS[desired])) score += 10;
+  if (prefs.style === 'sport' && hasAny(it.text, ['sport','active','training','gym','running'])) score += 5;
+  if (prefs.style === 'business' && hasAny(it.text, ['business','formal','anzug','sakko','blazer'])) score += 5;
+  return { score: clamp(score, 5, 100), match, sizeStr, t };
+}
+
 function renderProducts() {
   const prefs = currentPrefs();
   renderWebSearch(prefs);
+  if (liveState === 'idle') loadLiveProducts();
   const wrap = document.getElementById('products');
   wrap.innerHTML = '';
 
+  const scored = [];
+  for (const it of liveItems) {
+    const r = scoreLive(it, prefs);
+    if (r) scored.push({ it, ...r });
+  }
+  scored.sort((a, b) => b.score - a.score || a.it.price - b.it.price);
+  const show = scored.slice(0, 48);
+
+  if (!show.length) {
+    if (liveState === 'loading') {
+      wrap.innerHTML = '<div class="no-results"><span class="spinner"></span> Echte Shops werden durchsucht …</div>';
+    } else if (!liveItems.length) {
+      renderDemoProducts(prefs, wrap); // Alle Shops offline → Demo-Fallback
+    } else {
+      wrap.innerHTML = '<div class="no-results">Keine Treffer – lockere die Filter etwas. 🙂</div>';
+    }
+    return;
+  }
+
+  for (const { it, score, match, sizeStr, t } of show) {
+    const cls = score >= 80 ? 'match-hi' : score >= 55 ? 'match-mid' : 'match-lo';
+    const sizeLine = match === 'avail'
+      ? `<span class="avail-ok">✓ Größe ${escapeHtml(sizeStr)} verfügbar</span>`
+      : match === 'soldout'
+        ? `<span class="avail-no">Größe ${escapeHtml(sizeStr)} ausverkauft</span>`
+        : `<span class="avail-no">Deine Größe (${t.letter}) nicht gelistet</span>`;
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    card.innerHTML = `
+      <a class="product-img" href="${it.url}" target="_blank" rel="noopener">
+        ${it.img ? `<img src="${it.img}" alt="${escapeHtml(it.title)}" loading="lazy">` : '🛍️'}
+        <span class="shop-badge">${it.shop}</span>
+        <span class="match-badge ${cls}">${score}%</span>
+      </a>
+      <div class="product-body">
+        <h3>${escapeHtml(it.title)}</h3>
+        <div class="p-size">${sizeLine}</div>
+        <div class="p-price">${it.price.toFixed(2).replace('.', ',')} €</div>
+        <a class="p-buy" href="${it.url}" target="_blank" rel="noopener">Bei ${it.shop} kaufen ↗</a>
+      </div>`;
+    wrap.appendChild(card);
+  }
+}
+
+// ---------- Demo-Fallback (nur wenn kein Shop erreichbar ist) ----------
+function renderDemoProducts(prefs, wrap) {
   const items = CATALOG
     .filter(p => p.g === 'u' || p.g === state.gender)
     .filter(p => !prefs.cat || p.cat === prefs.cat)
