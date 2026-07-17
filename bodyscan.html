@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FitScan – Körperscan &amp; perfekt passende Kleidung</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-card: #161b27;
+    --bg-card2: #1c2333;
+    --accent: #4f8cff;
+    --accent2: #7c5cff;
+    --green: #2ecc8f;
+    --amber: #f5a623;
+    --text: #e8ecf4;
+    --muted: #98a2b8;
+    --border: #2a3247;
+    --radius: 16px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+  }
+  header {
+    padding: 28px 20px 10px;
+    text-align: center;
+  }
+  header h1 {
+    font-size: 2rem;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    letter-spacing: 0.5px;
+  }
+  header p { color: var(--muted); margin-top: 6px; font-size: 0.95rem; }
+
+  .steps {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 22px auto 8px;
+    flex-wrap: wrap;
+    padding: 0 12px;
+  }
+  .step-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.25s;
+    user-select: none;
+  }
+  .step-pill .num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700;
+  }
+  .step-pill.active {
+    border-color: var(--accent);
+    color: var(--text);
+    background: rgba(79,140,255,0.1);
+  }
+  .step-pill.active .num { background: var(--accent); color: #fff; }
+  .step-pill.done { color: var(--green); border-color: rgba(46,204,143,0.4); }
+  .step-pill.done .num { background: var(--green); color: #06281c; }
+
+  main { max-width: 1060px; margin: 0 auto; padding: 18px 16px 80px; }
+  section.panel { display: none; animation: fadeIn 0.35s ease; }
+  section.panel.visible { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: none;} }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 18px;
+  }
+  .card h2 { font-size: 1.2rem; margin-bottom: 14px; }
+  .card p.hint { color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
+
+  label { display: block; font-size: 0.85rem; color: var(--muted); margin: 14px 0 6px; }
+  input[type="number"], select, input[type="text"] {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-card2);
+    color: var(--text);
+    font-size: 1rem;
+    outline: none;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 680px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 13px 26px;
+    border-radius: 12px;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary {
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    color: #fff;
+    box-shadow: 0 4px 18px rgba(79,140,255,0.35);
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-row { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+
+  /* Kamera */
+  .cam-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: #000;
+    aspect-ratio: 3/4;
+  }
+  .cam-wrap video, .cam-wrap canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1); /* Spiegelbild */
+  }
+  .cam-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+    background: rgba(13,17,23,0.55);
+    z-index: 5;
+  }
+  .cam-overlay.hidden { display: none; }
+  .countdown {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 7rem;
+    font-weight: 800;
+    color: #fff;
+    text-shadow: 0 0 30px rgba(79,140,255,0.9);
+    z-index: 6;
+  }
+  .cam-status {
+    position: absolute;
+    bottom: 0;
+    left: 0; right: 0;
+    padding: 12px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.75));
+    color: #fff;
+    font-size: 0.88rem;
+    text-align: center;
+    z-index: 4;
+  }
+  .cam-status .ok { color: var(--green); }
+  .cam-status .warn { color: var(--amber); }
+
+  .scan-progress {
+    height: 8px;
+    background: var(--bg-card2);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-top: 14px;
+    max-width: 560px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .scan-progress > div {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    transition: width 0.2s;
+  }
+
+  /* Maße */
+  .measure-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .measure-item {
+    background: var(--bg-card2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .measure-item .m-label { font-size: 0.8rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .measure-item .m-val {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .measure-item input {
+    width: 90px;
+    padding: 6px 10px;
+    font-size: 1.3rem;
+    font-weight: 700;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: var(--text);
+  }
+  .measure-item input:hover, .measure-item input:focus { border-color: var(--border); background: var(--bg-card); }
+  .measure-item .unit { color: var(--muted); font-size: 0.85rem; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+  }
+  .badge.est { background: rgba(245,166,35,0.15); color: var(--amber); }
+  .badge.meas { background: rgba(46,204,143,0.15); color: var(--green); }
+
+  .size-summary {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .size-chip {
+    background: linear-gradient(135deg, rgba(79,140,255,0.12), rgba(124,92,255,0.12));
+    border: 1px solid rgba(79,140,255,0.4);
+    border-radius: 14px;
+    padding: 14px 22px;
+    text-align: center;
+    min-width: 130px;
+  }
+  .size-chip .s-cat { font-size: 0.75rem; color: var(--muted); }
+  .size-chip .s-val { font-size: 1.6rem; font-weight: 800; margin-top: 2px; color: var(--accent); }
+  .size-chip .s-sub { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+
+  /* Produkte */
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+  .products {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .product-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: transform 0.2s, border-color 0.2s;
+    display: flex;
+    flex-direction: column;
+  }
+  .product-card:hover { transform: translateY(-4px); border-color: var(--accent); }
+  .product-img {
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3.2rem;
+    position: relative;
+  }
+  .match-badge {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: rgba(13,17,23,0.85);
+    border-radius: 99px;
+    padding: 4px 11px;
+    font-size: 0.78rem;
+    font-weight: 800;
+  }
+  .match-hi { color: var(--green); }
+  .match-mid { color: var(--amber); }
+  .match-lo { color: #ff7b7b; }
+  .product-body { padding: 14px 16px 16px; flex: 1; display: flex; flex-direction: column; }
+  .product-body h3 { font-size: 0.98rem; }
+  .product-body .p-meta { color: var(--muted); font-size: 0.78rem; margin-top: 4px; }
+  .product-body .p-size {
+    margin-top: 8px;
+    font-size: 0.82rem;
+  }
+  .product-body .p-size b { color: var(--accent); }
+  .product-body .p-why { color: var(--muted); font-size: 0.75rem; margin-top: 6px; line-height: 1.4; flex: 1; }
+  .product-body .p-price { font-size: 1.15rem; font-weight: 800; margin-top: 10px; }
+  .no-results { text-align: center; color: var(--muted); padding: 40px 0; grid-column: 1/-1; }
+
+  .privacy-note {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 0 16px 30px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-align: center;
+    line-height: 1.5;
+  }
+  .error-box {
+    background: rgba(255,90,90,0.1);
+    border: 1px solid rgba(255,90,90,0.4);
+    color: #ffb0b0;
+    border-radius: 12px;
+    padding: 14px;
+    margin-top: 14px;
+    font-size: 0.88rem;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>👗 FitScan</h1>
+  <p>Kamera-Körperscan → deine Maße → perfekt passende Kleidung</p>
+</header>
+
+<div class="steps">
+  <div class="step-pill active" data-step="1"><span class="num">1</span> Angaben</div>
+  <div class="step-pill" data-step="2"><span class="num">2</span> Scan</div>
+  <div class="step-pill" data-step="3"><span class="num">3</span> Maße</div>
+  <div class="step-pill" data-step="4"><span class="num">4</span> Produkte</div>
+</div>
+
+<main>
+
+  <!-- ═══════ SCHRITT 1: Angaben ═══════ -->
+  <section class="panel visible" id="panel-1">
+    <div class="card">
+      <h2>Deine Angaben</h2>
+      <p class="hint">
+        Die Körpergröße dient als Referenzmaß, damit der Scan Pixel in Zentimeter umrechnen kann.
+        Das Geschlecht bestimmt, welche Größentabellen verwendet werden.
+      </p>
+      <div class="grid2">
+        <div>
+          <label for="inp-height">Körpergröße (cm) *</label>
+          <input type="number" id="inp-height" min="120" max="230" value="175" step="1">
+        </div>
+        <div>
+          <label for="inp-gender">Größentabelle</label>
+          <select id="inp-gender">
+            <option value="m">Herren</option>
+            <option value="f">Damen</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-to-scan">Weiter zum Kamera-Scan →</button>
+        <button class="btn btn-ghost" id="btn-manual">Maße lieber manuell eingeben</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>So funktioniert der Scan 📸</h2>
+      <p class="hint">
+        1. Stelle dein Gerät so auf, dass dein <b>ganzer Körper</b> (Kopf bis Füße) im Bild ist – ideal 2–3&nbsp;m Abstand.<br>
+        2. Trage möglichst <b>enganliegende Kleidung</b> für genauere Ergebnisse.<br>
+        3. Stehe <b>frontal zur Kamera</b>, aufrecht, Arme leicht vom Körper abgespreizt (ca. 20–30°).<br>
+        4. Der Scan erfasst ~40 Einzelbilder und mittelt sie für ein stabiles Ergebnis.<br><br>
+        ⚠️ <b>Hinweis zur Genauigkeit:</b> Längenmaße (Schulterbreite, Arm-/Beinlänge) sind recht präzise.
+        Umfänge (Brust, Taille, Hüfte) werden aus der 2D-Silhouette <i>geschätzt</i> (±3–5&nbsp;cm) –
+        du kannst alle Werte in Schritt 3 korrigieren.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══════ SCHRITT 2: Scan ═══════ -->
+  <section class="panel" id="panel-2">
+    <div class="card">
+      <h2>Kamera-Scan</h2>
+      <div class="cam-wrap">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="canvas"></canvas>
+        <div class="countdown" id="countdown">3</div>
+        <div class="cam-overlay" id="cam-overlay">
+          <p style="font-size:2.4rem">📷</p>
+          <p style="margin-top:10px">Kamera ist noch nicht gestartet.</p>
+          <button class="btn btn-primary" id="btn-start-cam" style="margin-top:16px">Kamera starten</button>
+        </div>
+        <div class="cam-status" id="cam-status"></div>
+      </div>
+      <div class="scan-progress"><div id="scan-bar"></div></div>
+      <div class="error-box" id="cam-error"></div>
+      <div class="btn-row" style="justify-content:center">
+        <button class="btn btn-primary" id="btn-scan" disabled>Scan starten (3-Sek-Countdown)</button>
+        <button class="btn btn-ghost" id="btn-skip-scan">Überspringen &amp; manuell eingeben</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ SCHRITT 3: Maße ═══════ -->
+  <section class="panel" id="panel-3">
+    <div class="card">
+      <h2>Deine Maße <span style="font-weight:400;font-size:0.8rem;color:var(--muted)">(zum Korrigieren anklicken)</span></h2>
+      <div class="measure-grid" id="measure-grid"></div>
+    </div>
+    <div class="card">
+      <h2>Deine ermittelten Größen</h2>
+      <div class="size-summary" id="size-summary"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-to-products">Passende Produkte finden →</button>
+        <button class="btn btn-ghost" id="btn-rescan">Erneut scannen</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ SCHRITT 4: Produkte ═══════ -->
+  <section class="panel" id="panel-4">
+    <div class="card">
+      <h2>Deine Präferenzen</h2>
+      <div class="filters">
+        <div>
+          <label>Kategorie</label>
+          <select id="f-cat">
+            <option value="">Alle</option>
+            <option value="tshirt">T-Shirts</option>
+            <option value="hemd">Hemden &amp; Blusen</option>
+            <option value="hose">Hosen &amp; Jeans</option>
+            <option value="jacke">Jacken</option>
+            <option value="kleid">Kleider</option>
+            <option value="pullover">Pullover</option>
+          </select>
+        </div>
+        <div>
+          <label>Passform</label>
+          <select id="f-fit">
+            <option value="">Egal</option>
+            <option value="slim">Slim Fit</option>
+            <option value="regular">Regular Fit</option>
+            <option value="oversized">Oversized / Relaxed</option>
+          </select>
+        </div>
+        <div>
+          <label>Stil</label>
+          <select id="f-style">
+            <option value="">Egal</option>
+            <option value="casual">Casual</option>
+            <option value="business">Business</option>
+            <option value="sport">Sport</option>
+          </select>
+        </div>
+        <div>
+          <label>Farbe</label>
+          <select id="f-color">
+            <option value="">Egal</option>
+            <option value="schwarz">Schwarz</option>
+            <option value="weiss">Weiß</option>
+            <option value="blau">Blau</option>
+            <option value="beige">Beige / Braun</option>
+            <option value="gruen">Grün</option>
+            <option value="rot">Rot / Rosa</option>
+          </select>
+        </div>
+        <div>
+          <label>Max. Preis (€)</label>
+          <input type="number" id="f-price" placeholder="z. B. 80" min="5">
+        </div>
+      </div>
+    </div>
+    <div class="products" id="products"></div>
+  </section>
+
+</main>
+
+<p class="privacy-note">
+  🔒 Datenschutz: Der gesamte Scan läuft <b>lokal in deinem Browser</b> (KI-Modell: MediaPipe Pose).
+  Es werden keine Bilder oder Maße an einen Server gesendet. · Demo-Produktkatalog zu Illustrationszwecken.
+</p>
+
+<script type="module">
+/* ═════════════════════════════════════════════════════════
+   FitScan – Körperscan, Maßableitung & Produkt-Matching
+   ═════════════════════════════════════════════════════════ */
+
+// ---------- Navigation ----------
+const panels = [1,2,3,4];
+let currentStep = 1;
+const stepsReached = new Set([1]);
+
+function goStep(n) {
+  currentStep = n;
+  stepsReached.add(n);
+  panels.forEach(p => {
+    document.getElementById('panel-'+p).classList.toggle('visible', p === n);
+    const pill = document.querySelector(`.step-pill[data-step="${p}"]`);
+    pill.classList.toggle('active', p === n);
+    pill.classList.toggle('done', p < n && stepsReached.has(p));
+  });
+  if (n !== 2) stopCameraLoop();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+document.querySelectorAll('.step-pill').forEach(p => {
+  p.addEventListener('click', () => {
+    const n = +p.dataset.step;
+    if (stepsReached.has(n)) goStep(n);
+  });
+});
+
+// ---------- Zustand ----------
+const state = {
+  heightCm: 175,
+  gender: 'm',
+  measurements: null,   // { key: {value, measured} }
+  sizes: null,
+};
+
+const MEASURE_DEFS = [
+  { key: 'height',   label: 'Körpergröße',     unit: 'cm', measured: true },
+  { key: 'shoulder', label: 'Schulterbreite',  unit: 'cm', measured: true },
+  { key: 'arm',      label: 'Armlänge',        unit: 'cm', measured: true },
+  { key: 'inseam',   label: 'Schrittlänge',    unit: 'cm', measured: true },
+  { key: 'torso',    label: 'Oberkörperlänge', unit: 'cm', measured: true },
+  { key: 'chest',    label: 'Brustumfang',     unit: 'cm', measured: false },
+  { key: 'waist',    label: 'Taillenumfang',   unit: 'cm', measured: false },
+  { key: 'hip',      label: 'Hüftumfang',      unit: 'cm', measured: false },
+];
+
+// ---------- Schritt 1 ----------
+document.getElementById('btn-to-scan').addEventListener('click', () => {
+  readBasics();
+  goStep(2);
+  initPose(); // Modell schon mal laden
+});
+document.getElementById('btn-manual').addEventListener('click', () => {
+  readBasics();
+  useDefaultMeasurements();
+  goStep(3);
+});
+document.getElementById('btn-skip-scan').addEventListener('click', () => {
+  useDefaultMeasurements();
+  goStep(3);
+});
+function readBasics() {
+  state.heightCm = Math.min(230, Math.max(120, +document.getElementById('inp-height').value || 175));
+  state.gender = document.getElementById('inp-gender').value;
+}
+
+// Anthropometrische Durchschnittswerte als Startpunkt für manuelle Eingabe
+function useDefaultMeasurements() {
+  const h = state.heightCm;
+  const f = state.gender === 'f';
+  state.measurements = {
+    height:   { value: h,                          measured: true },
+    shoulder: { value: r1(h * (f ? 0.235 : 0.253)), measured: false },
+    arm:      { value: r1(h * 0.34),               measured: false },
+    inseam:   { value: r1(h * 0.45),               measured: false },
+    torso:    { value: r1(h * 0.30),               measured: false },
+    chest:    { value: r1(h * (f ? 0.52 : 0.55)),  measured: false },
+    waist:    { value: r1(h * (f ? 0.42 : 0.47)),  measured: false },
+    hip:      { value: r1(h * (f ? 0.55 : 0.53)),  measured: false },
+  };
+  renderMeasurements();
+}
+
+// ---------- Pose / Kamera ----------
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const camStatus = document.getElementById('cam-status');
+const camError = document.getElementById('cam-error');
+const btnScan = document.getElementById('btn-scan');
+
+let poseLandmarker = null;
+let poseLoading = null;
+let camRunning = false;
+let rafId = null;
+let lastResult = null;
+let scanning = false;
+let scanFrames = [];
+
+const LM = { // BlazePose-Landmark-Indizes
+  NOSE:0, L_EAR:7, R_EAR:8, L_SHOULDER:11, R_SHOULDER:12, L_ELBOW:13, R_ELBOW:14,
+  L_WRIST:15, R_WRIST:16, L_HIP:23, R_HIP:24, L_KNEE:25, R_KNEE:26,
+  L_ANKLE:27, R_ANKLE:28, L_HEEL:29, R_HEEL:30, L_FOOT:31, R_FOOT:32
+};
+const SKELETON = [
+  [11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],
+  [23,25],[25,27],[24,26],[26,28],[27,29],[28,30],[29,31],[30,32]
+];
+
+async function initPose() {
+  if (poseLandmarker || poseLoading) return poseLoading;
+  camStatus.innerHTML = '⏳ KI-Modell wird geladen …';
+  poseLoading = (async () => {
+    try {
+      const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14');
+      const files = await vision.FilesetResolver.forVisionTasks(
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+      );
+      poseLandmarker = await vision.PoseLandmarker.createFromOptions(files, {
+        baseOptions: {
+          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+          delegate: 'GPU'
+        },
+        runningMode: 'VIDEO',
+        numPoses: 1
+      });
+      camStatus.innerHTML = '<span class="ok">✓ KI-Modell geladen</span>';
+    } catch (e) {
+      showCamError('KI-Modell konnte nicht geladen werden (Internetverbindung nötig): ' + e.message);
+      poseLoading = null;
+      throw e;
+    }
+  })();
+  return poseLoading;
+}
+
+document.getElementById('btn-start-cam').addEventListener('click', startCamera);
+
+async function startCamera() {
+  camError.style.display = 'none';
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 960 } },
+      audio: false
+    });
+    video.srcObject = stream;
+    await video.play();
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    document.getElementById('cam-overlay').classList.add('hidden');
+    camRunning = true;
+    await initPose();
+    loop();
+  } catch (e) {
+    showCamError(
+      e.name === 'NotAllowedError'
+        ? 'Kamerazugriff wurde verweigert. Bitte erlaube den Zugriff in den Browser-Einstellungen (Seite muss über HTTPS laufen).'
+        : 'Kamera konnte nicht gestartet werden: ' + e.message
+    );
+  }
+}
+
+function stopCameraLoop() {
+  camRunning = false;
+  if (rafId) cancelAnimationFrame(rafId);
+  if (video.srcObject) {
+    video.srcObject.getTracks().forEach(t => t.stop());
+    video.srcObject = null;
+    document.getElementById('cam-overlay').classList.remove('hidden');
+  }
+}
+
+function showCamError(msg) {
+  camError.textContent = '⚠️ ' + msg;
+  camError.style.display = 'block';
+}
+
+function loop() {
+  if (!camRunning) return;
+  if (poseLandmarker && video.readyState >= 2) {
+    const res = poseLandmarker.detectForVideo(video, performance.now());
+    lastResult = (res.landmarks && res.landmarks[0]) || null;
+    draw(lastResult);
+    updateReadiness(lastResult);
+    if (scanning && lastResult && bodyFullyVisible(lastResult)) {
+      scanFrames.push(lastResult.map(p => ({ x: p.x, y: p.y, v: p.visibility ?? 1 })));
+      document.getElementById('scan-bar').style.width = Math.min(100, scanFrames.length / 40 * 100) + '%';
+      if (scanFrames.length >= 40) finishScan();
+    }
+  }
+  rafId = requestAnimationFrame(loop);
+}
+
+function draw(lm) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!lm) return;
+  ctx.strokeStyle = scanning ? '#2ecc8f' : '#4f8cff';
+  ctx.lineWidth = 4;
+  for (const [a, b] of SKELETON) {
+    if ((lm[a].visibility ?? 1) < 0.4 || (lm[b].visibility ?? 1) < 0.4) continue;
+    ctx.beginPath();
+    ctx.moveTo(lm[a].x * canvas.width, lm[a].y * canvas.height);
+    ctx.lineTo(lm[b].x * canvas.width, lm[b].y * canvas.height);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#fff';
+  for (const p of lm) {
+    if ((p.visibility ?? 1) < 0.4) continue;
+    ctx.beginPath();
+    ctx.arc(p.x * canvas.width, p.y * canvas.height, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function bodyFullyVisible(lm) {
+  const need = [LM.NOSE, LM.L_SHOULDER, LM.R_SHOULDER, LM.L_HIP, LM.R_HIP,
+                LM.L_KNEE, LM.R_KNEE, LM.L_ANKLE, LM.R_ANKLE];
+  return need.every(i => (lm[i].visibility ?? 1) > 0.55 &&
+                         lm[i].x > 0.02 && lm[i].x < 0.98 &&
+                         lm[i].y > 0.02 && lm[i].y < 0.98);
+}
+
+function updateReadiness(lm) {
+  if (scanning) {
+    camStatus.innerHTML = '<span class="ok">● Scan läuft – bitte still stehen …</span>';
+    return;
+  }
+  if (!lm) {
+    camStatus.innerHTML = '<span class="warn">Keine Person erkannt – tritt weiter zurück.</span>';
+    btnScan.disabled = true;
+  } else if (!bodyFullyVisible(lm)) {
+    camStatus.innerHTML = '<span class="warn">⚠ Ganzer Körper (Kopf bis Füße) muss sichtbar sein.</span>';
+    btnScan.disabled = true;
+  } else {
+    camStatus.innerHTML = '<span class="ok">✓ Perfekt! Du kannst den Scan starten.</span>';
+    btnScan.disabled = false;
+  }
+}
+
+// Scan mit Countdown
+btnScan.addEventListener('click', async () => {
+  btnScan.disabled = true;
+  const cd = document.getElementById('countdown');
+  cd.style.display = 'flex';
+  for (let i = 3; i > 0; i--) {
+    cd.textContent = i;
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  cd.style.display = 'none';
+  scanFrames = [];
+  scanning = true;
+  document.getElementById('scan-bar').style.width = '0%';
+});
+
+function finishScan() {
+  scanning = false;
+  const avg = averageFrames(scanFrames);
+  computeMeasurements(avg);
+  stopCameraLoop();
+  goStep(3);
+}
+
+function averageFrames(frames) {
+  const n = frames[0].length;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    // Median ist robuster gegen Ausreißer als Mittelwert
+    const xs = frames.map(f => f[i].x).sort((a,b)=>a-b);
+    const ys = frames.map(f => f[i].y).sort((a,b)=>a-b);
+    const mid = Math.floor(frames.length / 2);
+    out.push({ x: xs[mid], y: ys[mid] });
+  }
+  return out;
+}
+
+// ---------- Maßberechnung ----------
+function computeMeasurements(lm) {
+  const W = canvas.width, H = canvas.height;
+  const px = (a, b) => Math.hypot((lm[a].x-lm[b].x)*W, (lm[a].y-lm[b].y)*H);
+  const mid = (a, b) => ({ x: (lm[a].x+lm[b].x)/2*W, y: (lm[a].y+lm[b].y)/2*H });
+
+  // Kalibrierung: Pixel-Körpergröße (Scheitel ≈ etwas über der Nase, bis Ferse)
+  const heelY = Math.max(lm[LM.L_HEEL].y, lm[LM.R_HEEL].y) * H;
+  const earMidY = (lm[LM.L_EAR].y + lm[LM.R_EAR].y) / 2 * H;
+  const headTopY = earMidY - px(LM.L_EAR, LM.R_EAR) * 0.9; // Scheitel oberhalb der Ohren
+  const pxHeight = heelY - headTopY;
+  if (pxHeight < 50) { useDefaultMeasurements(); return; }
+  const scale = state.heightCm / pxHeight; // cm pro Pixel
+
+  // Längenmaße (direkt gemessen)
+  const shoulderPx = px(LM.L_SHOULDER, LM.R_SHOULDER);
+  const shoulder = shoulderPx * scale * 1.11; // Gelenkzentren → äußere Schulterkante
+  const armL = (px(LM.L_SHOULDER, LM.L_ELBOW) + px(LM.L_ELBOW, LM.L_WRIST)) * scale;
+  const armR = (px(LM.R_SHOULDER, LM.R_ELBOW) + px(LM.R_ELBOW, LM.R_WRIST)) * scale;
+  const arm = (armL + armR) / 2;
+  const legL = (px(LM.L_HIP, LM.L_KNEE) + px(LM.L_KNEE, LM.L_ANKLE)) * scale;
+  const legR = (px(LM.R_HIP, LM.R_KNEE) + px(LM.R_KNEE, LM.R_ANKLE)) * scale;
+  const inseam = ((legL + legR) / 2) * 0.96; // Hüftgelenk liegt etwas über dem Schritt
+  const shoulderMid = mid(LM.L_SHOULDER, LM.R_SHOULDER);
+  const hipMid = mid(LM.L_HIP, LM.R_HIP);
+  const torso = Math.hypot(shoulderMid.x-hipMid.x, shoulderMid.y-hipMid.y) * scale;
+
+  // Umfänge: Breite aus Landmarks + Ellipsen-Näherung (Tiefe = Breite × Faktor)
+  const f = state.gender === 'f';
+  const hipPx = px(LM.L_HIP, LM.R_HIP);
+  const chestW = shoulderPx * scale * 0.92;          // Brustbreite ≈ knapp unter Schulterbreite
+  const hipW = hipPx * scale * (f ? 1.62 : 1.52);    // Gelenkabstand → äußere Hüftbreite
+  const waistW = (chestW * 0.5 + hipW * 0.5) * (f ? 0.82 : 0.90);
+  const chest = ellipseCirc(chestW / 2, chestW * (f ? 0.36 : 0.37));
+  const waist = ellipseCirc(waistW / 2, waistW * 0.42);
+  const hip   = ellipseCirc(hipW / 2, hipW * 0.40);
+
+  state.measurements = {
+    height:   { value: r1(state.heightCm), measured: true },
+    shoulder: { value: r1(shoulder), measured: true },
+    arm:      { value: r1(arm), measured: true },
+    inseam:   { value: r1(inseam), measured: true },
+    torso:    { value: r1(torso), measured: true },
+    chest:    { value: r1(clamp(chest, 70, 160)), measured: false },
+    waist:    { value: r1(clamp(waist, 55, 150)), measured: false },
+    hip:      { value: r1(clamp(hip, 70, 160)), measured: false },
+  };
+  renderMeasurements();
+}
+
+// Ramanujan-Näherung für Ellipsenumfang (a, b = Halbachsen)
+function ellipseCirc(a, b) {
+  return Math.PI * (3*(a+b) - Math.sqrt((3*a+b)*(a+3*b)));
+}
+function r1(x) { return Math.round(x * 10) / 10; }
+function clamp(x, lo, hi) { return Math.min(hi, Math.max(lo, x)); }
+
+// ---------- Schritt 3: Anzeige & Größen ----------
+function renderMeasurements() {
+  const grid = document.getElementById('measure-grid');
+  grid.innerHTML = '';
+  for (const def of MEASURE_DEFS) {
+    const m = state.measurements[def.key];
+    const div = document.createElement('div');
+    div.className = 'measure-item';
+    div.innerHTML = `
+      <div class="m-label">${def.label}
+        <span class="badge ${m.measured ? 'meas' : 'est'}">${m.measured ? 'gemessen' : 'geschätzt'}</span>
+      </div>
+      <div class="m-val">
+        <input type="number" step="0.5" value="${m.value}" data-key="${def.key}">
+        <span class="unit">${def.unit}</span>
+      </div>`;
+    grid.appendChild(div);
+  }
+  grid.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('change', () => {
+      state.measurements[inp.dataset.key].value = +inp.value || state.measurements[inp.dataset.key].value;
+      computeSizes();
+    });
+  });
+  computeSizes();
+}
+
+// Größentabellen (DE)
+function computeSizes() {
+  const m = state.measurements;
+  const f = state.gender === 'f';
+  const chest = m.chest.value, waist = m.waist.value, hip = m.hip.value, inseam = m.inseam.value;
+
+  // Oberteile international
+  let top;
+  if (f) {
+    top = chest < 82 ? 'XS' : chest < 88 ? 'S' : chest < 94 ? 'M' : chest < 102 ? 'L' : chest < 110 ? 'XL' : 'XXL';
+  } else {
+    top = chest < 88 ? 'XS' : chest < 96 ? 'S' : chest < 104 ? 'M' : chest < 112 ? 'L' : chest < 120 ? 'XL' : 'XXL';
+  }
+
+  // DE-Konfektionsgröße
+  let de;
+  if (f) {
+    const base = Math.round((chest - 76) / 4) * 2 + 34;
+    de = clamp(base, 32, 54);
+  } else {
+    de = clamp(Math.round(chest / 2), 42, 62);
+  }
+
+  // Hosen (W/L in Zoll)
+  const w = Math.round(waist / 2.54);
+  const l = Math.round(inseam / 2.54);
+  const jeans = `W${clamp(w,24,44)}/L${clamp(l,28,36)}`;
+
+  state.sizes = { top, de, jeans, chest, waist, hip, inseam };
+
+  const box = document.getElementById('size-summary');
+  box.innerHTML = `
+    <div class="size-chip"><div class="s-cat">Oberteile</div><div class="s-val">${top}</div><div class="s-sub">international</div></div>
+    <div class="size-chip"><div class="s-cat">Konfektion</div><div class="s-val">${de}</div><div class="s-sub">DE ${f ? 'Damen' : 'Herren'}</div></div>
+    <div class="size-chip"><div class="s-cat">Jeans / Hosen</div><div class="s-val">${jeans}</div><div class="s-sub">Bund/Länge (Zoll)</div></div>`;
+}
+
+document.getElementById('btn-to-products').addEventListener('click', () => { goStep(4); renderProducts(); });
+document.getElementById('btn-rescan').addEventListener('click', () => goStep(2));
+
+// ---------- Produktkatalog (Demo) ----------
+// sizes: verfügbare Größen; sizeType: 'top' (XS–XXL) oder 'jeans' (W-Zoll)
+const CATALOG = [
+  { name:'Basic T-Shirt Premium',    cat:'tshirt',   fit:'regular',  style:'casual',   color:'weiss',   price:19.99, sizes:['XS','S','M','L','XL','XXL'], sizeType:'top', icon:'👕', g:'u', grad:['#e8ecf4','#b8c4d8'] },
+  { name:'Slim T-Shirt Stretch',     cat:'tshirt',   fit:'slim',     style:'casual',   color:'schwarz', price:24.99, sizes:['S','M','L','XL'],            sizeType:'top', icon:'👕', g:'u', grad:['#30363f','#14181f'] },
+  { name:'Oversized Heavy Tee',      cat:'tshirt',   fit:'oversized',style:'casual',   color:'beige',   price:29.99, sizes:['M','L','XL','XXL'],          sizeType:'top', icon:'👕', g:'u', grad:['#d9c7a7','#a98f68'] },
+  { name:'Sport-Funktionsshirt',     cat:'tshirt',   fit:'slim',     style:'sport',    color:'blau',    price:27.99, sizes:['XS','S','M','L','XL'],       sizeType:'top', icon:'🎽', g:'u', grad:['#2e5fb8','#173a75'] },
+  { name:'Business-Hemd bügelfrei',  cat:'hemd',     fit:'slim',     style:'business', color:'weiss',   price:49.99, sizes:['S','M','L','XL','XXL'],      sizeType:'top', icon:'👔', g:'m', grad:['#eef1f7','#c2cadd'] },
+  { name:'Oxford-Hemd Classic',      cat:'hemd',     fit:'regular',  style:'business', color:'blau',    price:44.99, sizes:['S','M','L','XL'],            sizeType:'top', icon:'👔', g:'m', grad:['#6f93d4','#3b5c9e'] },
+  { name:'Leinenhemd Sommer',        cat:'hemd',     fit:'regular',  style:'casual',   color:'beige',   price:39.99, sizes:['M','L','XL'],                sizeType:'top', icon:'👔', g:'m', grad:['#e3d3b5','#b39a72'] },
+  { name:'Satin-Bluse Elegant',      cat:'hemd',     fit:'regular',  style:'business', color:'weiss',   price:42.99, sizes:['XS','S','M','L'],            sizeType:'top', icon:'👚', g:'f', grad:['#f2e9ef','#cbb6c6'] },
+  { name:'Chiffon-Bluse',            cat:'hemd',     fit:'oversized',style:'casual',   color:'rot',     price:36.99, sizes:['XS','S','M','L','XL'],       sizeType:'top', icon:'👚', g:'f', grad:['#e08a9b','#a94b60'] },
+  { name:'Slim Jeans Dark Denim',    cat:'hose',     fit:'slim',     style:'casual',   color:'blau',    price:59.99, sizes:['W28','W30','W32','W34','W36'],sizeType:'jeans', icon:'👖', g:'u', grad:['#3b5578','#1e2f47'] },
+  { name:'Regular Jeans Classic',    cat:'hose',     fit:'regular',  style:'casual',   color:'blau',    price:54.99, sizes:['W30','W32','W34','W36','W38','W40'], sizeType:'jeans', icon:'👖', g:'u', grad:['#54759e','#2c4467'] },
+  { name:'Chino Business Stretch',   cat:'hose',     fit:'slim',     style:'business', color:'beige',   price:49.99, sizes:['W29','W30','W31','W32','W33','W34','W36'], sizeType:'jeans', icon:'👖', g:'u', grad:['#cbb894','#96825c'] },
+  { name:'Relaxed Cargo-Hose',       cat:'hose',     fit:'oversized',style:'casual',   color:'gruen',   price:44.99, sizes:['W30','W32','W34','W36'],     sizeType:'jeans', icon:'👖', g:'u', grad:['#5d7a52','#37502e'] },
+  { name:'Jogginghose Performance',  cat:'hose',     fit:'regular',  style:'sport',    color:'schwarz', price:39.99, sizes:['XS','S','M','L','XL','XXL'], sizeType:'top', icon:'🩳', g:'u', grad:['#33383f','#181b20'] },
+  { name:'High-Waist Jeans',         cat:'hose',     fit:'slim',     style:'casual',   color:'blau',    price:64.99, sizes:['W26','W27','W28','W29','W30','W31','W32'], sizeType:'jeans', icon:'👖', g:'f', grad:['#4a6a94','#274058'] },
+  { name:'Bomberjacke Urban',        cat:'jacke',    fit:'regular',  style:'casual',   color:'schwarz', price:79.99, sizes:['S','M','L','XL'],            sizeType:'top', icon:'🧥', g:'u', grad:['#2c3038','#101318'] },
+  { name:'Sakko Slim Modern',        cat:'jacke',    fit:'slim',     style:'business', color:'blau',    price:129.99,sizes:['S','M','L','XL','XXL'],      sizeType:'top', icon:'🧥', g:'m', grad:['#31456e','#1a2740'] },
+  { name:'Softshell Outdoorjacke',   cat:'jacke',    fit:'regular',  style:'sport',    color:'gruen',   price:89.99, sizes:['XS','S','M','L','XL','XXL'], sizeType:'top', icon:'🧥', g:'u', grad:['#4a7a52','#274a2e'] },
+  { name:'Oversized Puffer',         cat:'jacke',    fit:'oversized',style:'casual',   color:'beige',   price:99.99, sizes:['M','L','XL'],                sizeType:'top', icon:'🧥', g:'u', grad:['#d6c3a3','#a08a63'] },
+  { name:'Sommerkleid Floral',       cat:'kleid',    fit:'regular',  style:'casual',   color:'rot',     price:49.99, sizes:['XS','S','M','L','XL'],       sizeType:'top', icon:'👗', g:'f', grad:['#d97f92','#a04358'] },
+  { name:'Etuikleid Business',       cat:'kleid',    fit:'slim',     style:'business', color:'schwarz', price:79.99, sizes:['XS','S','M','L'],            sizeType:'top', icon:'👗', g:'f', grad:['#2e3138','#131519'] },
+  { name:'Maxikleid Boho',           cat:'kleid',    fit:'oversized',style:'casual',   color:'gruen',   price:59.99, sizes:['S','M','L','XL'],            sizeType:'top', icon:'👗', g:'f', grad:['#5f8a5c','#365436'] },
+  { name:'Strickpullover Merino',    cat:'pullover', fit:'regular',  style:'casual',   color:'beige',   price:69.99, sizes:['S','M','L','XL','XXL'],      sizeType:'top', icon:'🧶', g:'u', grad:['#d1bd9c','#9c855f'] },
+  { name:'Hoodie Oversized',         cat:'pullover', fit:'oversized',style:'casual',   color:'schwarz', price:44.99, sizes:['S','M','L','XL','XXL'],      sizeType:'top', icon:'🧥', g:'u', grad:['#33363d','#16181d'] },
+  { name:'Rollkragen Feinstrick',    cat:'pullover', fit:'slim',     style:'business', color:'rot',     price:54.99, sizes:['XS','S','M','L','XL'],       sizeType:'top', icon:'🧶', g:'u', grad:['#a34b57','#6e2a34'] },
+  { name:'Trainings-Sweater',        cat:'pullover', fit:'regular',  style:'sport',    color:'blau',    price:39.99, sizes:['S','M','L','XL'],            sizeType:'top', icon:'🎽', g:'u', grad:['#3a62a8','#204072'] },
+];
+
+const TOP_ORDER = ['XS','S','M','L','XL','XXL'];
+
+// Empfohlene Größe für ein Produkt (berücksichtigt Passform-Schnitt)
+function recommendSize(p) {
+  const s = state.sizes;
+  if (p.sizeType === 'jeans') {
+    const targetW = Math.round(s.waist / 2.54) + (p.fit === 'slim' ? 0 : p.fit === 'oversized' ? -1 : 0);
+    let best = null, bestDiff = Infinity;
+    for (const size of p.sizes) {
+      const w = +size.slice(1);
+      const d = Math.abs(w - targetW);
+      if (d < bestDiff) { bestDiff = d; best = size; }
+    }
+    return { size: best, diff: bestDiff, perfect: bestDiff === 0, unit: 'Zoll' };
+  } else {
+    let idx = TOP_ORDER.indexOf(s.top);
+    // Oversized-Schnitte fallen groß aus → eine Größe kleiner wählen; Slim ggf. größer
+    if (p.fit === 'oversized') idx = Math.max(0, idx - 1);
+    let best = null, bestDiff = Infinity;
+    for (const size of p.sizes) {
+      const d = Math.abs(TOP_ORDER.indexOf(size) - idx);
+      if (d < bestDiff) { bestDiff = d; best = size; }
+    }
+    return { size: best, diff: bestDiff, perfect: bestDiff === 0 };
+  }
+}
+
+// Match-Score aus Größenverfügbarkeit + Präferenzen + Körperform
+function scoreProduct(p, prefs) {
+  const rec = recommendSize(p);
+  let score = 100;
+  const why = [];
+
+  // Größenpassung (wichtigster Faktor)
+  if (rec.perfect) {
+    why.push(`Größe ${rec.size} passt exakt zu deinen Maßen`);
+  } else if (rec.diff <= 1) {
+    score -= 18;
+    why.push(`Nächstliegende Größe ${rec.size} (leichte Abweichung)`);
+  } else {
+    score -= 45;
+    why.push(`Nur ${rec.size} verfügbar – weicht von deiner Größe ab`);
+  }
+
+  // Passform-Präferenz
+  if (prefs.fit && p.fit !== prefs.fit) score -= 25;
+  else if (prefs.fit) why.push(`${fitLabel(p.fit)} wie gewünscht`);
+
+  // Körperform-Bonus: Slim bei schlanker Taille, Regular/Oversized sonst
+  const s = state.sizes;
+  const whr = s.waist / s.chest;
+  if (p.fit === 'slim' && whr < 0.88) { score += 4; why.push('Slim Fit schmeichelt deiner Silhouette'); }
+  if (p.fit === 'oversized' && whr >= 0.95) { score += 3; }
+
+  // Stil & Farbe
+  if (prefs.style && p.style !== prefs.style) score -= 20;
+  if (prefs.color && p.color !== prefs.color) score -= 15;
+
+  return { score: clamp(Math.round(score), 5, 100), rec, why };
+}
+
+function fitLabel(f) { return f === 'slim' ? 'Slim Fit' : f === 'oversized' ? 'Oversized' : 'Regular Fit'; }
+
+function renderProducts() {
+  const prefs = {
+    cat:   document.getElementById('f-cat').value,
+    fit:   document.getElementById('f-fit').value,
+    style: document.getElementById('f-style').value,
+    color: document.getElementById('f-color').value,
+    price: +document.getElementById('f-price').value || Infinity,
+  };
+  const wrap = document.getElementById('products');
+  wrap.innerHTML = '';
+
+  const items = CATALOG
+    .filter(p => p.g === 'u' || p.g === state.gender)
+    .filter(p => !prefs.cat || p.cat === prefs.cat)
+    .filter(p => p.price <= prefs.price)
+    .map(p => ({ p, ...scoreProduct(p, prefs) }))
+    .sort((a, b) => b.score - a.score);
+
+  if (!items.length) {
+    wrap.innerHTML = '<div class="no-results">Keine Produkte gefunden – lockere die Filter etwas. 🙂</div>';
+    return;
+  }
+
+  for (const { p, score, rec, why } of items) {
+    const cls = score >= 80 ? 'match-hi' : score >= 55 ? 'match-mid' : 'match-lo';
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    card.innerHTML = `
+      <div class="product-img" style="background:linear-gradient(135deg,${p.grad[0]},${p.grad[1]})">
+        ${p.icon}
+        <span class="match-badge ${cls}">${score}% Match</span>
+      </div>
+      <div class="product-body">
+        <h3>${p.name}</h3>
+        <div class="p-meta">${fitLabel(p.fit)} · ${p.style.charAt(0).toUpperCase()+p.style.slice(1)}</div>
+        <div class="p-size">Deine Größe: <b>${rec.size}</b>${rec.perfect ? ' ✓' : ''}</div>
+        <div class="p-why">${why.slice(0, 2).join(' · ')}</div>
+        <div class="p-price">${p.price.toFixed(2).replace('.', ',')} €</div>
+      </div>`;
+    wrap.appendChild(card);
+  }
+}
+
+['f-cat','f-fit','f-style','f-color','f-price'].forEach(id =>
+  document.getElementById(id).addEventListener('input', renderProducts)
+);
+</script>
+</body>
+</html>
