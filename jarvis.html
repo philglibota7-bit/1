@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>J.A.R.V.I.S. — Persönlicher KI-Assistent</title>
+<style>
+  :root{
+    --bg:#04070d;
+    --panel:#0a1220;
+    --panel2:#0d1728;
+    --line:#12395c;
+    --cyan:#28d7ff;
+    --cyan-dim:#0e7ea3;
+    --glow:0 0 12px rgba(40,215,255,.55);
+    --text:#cfeaf5;
+    --muted:#5b8aa3;
+    --danger:#ff5470;
+    --ok:#39e6a3;
+    --radius:14px;
+    font-size:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(1200px 700px at 50% -10%, #0a1e33 0%, var(--bg) 60%);
+    color:var(--text);
+    font-family:"Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    display:flex;flex-direction:column;height:100dvh;overflow:hidden;
+  }
+  /* ---------- Kopfzeile ---------- */
+  header{
+    display:flex;align-items:center;gap:14px;
+    padding:12px 18px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(14,30,50,.9), rgba(8,16,28,.75));
+    backdrop-filter:blur(6px);
+  }
+  .reactor{
+    width:44px;height:44px;border-radius:50%;position:relative;flex:0 0 auto;
+    background:radial-gradient(circle at 50% 50%, #bff4ff 0%, var(--cyan) 28%, #063a52 65%, transparent 70%);
+    box-shadow:0 0 18px rgba(40,215,255,.8), inset 0 0 8px rgba(255,255,255,.6);
+    animation:pulse 3s ease-in-out infinite;
+  }
+  .reactor::before, .reactor::after{
+    content:"";position:absolute;inset:-6px;border-radius:50%;
+    border:1px solid rgba(40,215,255,.45);
+    animation:spin 9s linear infinite;
+  }
+  .reactor::after{
+    inset:-12px;border-style:dashed;border-color:rgba(40,215,255,.25);
+    animation-duration:16s;animation-direction:reverse;
+  }
+  @keyframes pulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.35)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .title h1{
+    font-size:1.15rem;letter-spacing:.35em;color:var(--cyan);
+    text-shadow:var(--glow);font-weight:600;
+  }
+  .title small{color:var(--muted);letter-spacing:.15em;font-size:.68rem}
+  .head-spacer{flex:1}
+  .status-chip{
+    display:flex;align-items:center;gap:8px;font-size:.75rem;color:var(--muted);
+    border:1px solid var(--line);border-radius:999px;padding:6px 12px;white-space:nowrap;
+  }
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--danger);box-shadow:0 0 8px currentColor}
+  .dot.online{background:var(--ok)}
+  .iconbtn{
+    background:var(--panel2);border:1px solid var(--line);color:var(--cyan);
+    border-radius:10px;width:42px;height:42px;font-size:1.15rem;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:.2s;flex:0 0 auto;
+  }
+  .iconbtn:hover{box-shadow:var(--glow);border-color:var(--cyan-dim)}
+  .iconbtn.active{background:var(--cyan);color:#03222f;box-shadow:var(--glow)}
+
+  /* ---------- Chat ---------- */
+  main{flex:1;overflow-y:auto;padding:18px clamp(10px,4vw,80px);scroll-behavior:smooth}
+  .msg{display:flex;margin:10px 0;animation:fadein .25s ease}
+  @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .bubble{
+    max-width:min(680px,88%);padding:12px 16px;border-radius:var(--radius);
+    line-height:1.5;font-size:.95rem;white-space:pre-wrap;word-wrap:break-word;
+    border:1px solid var(--line);
+  }
+  .msg.user{justify-content:flex-end}
+  .msg.user .bubble{
+    background:linear-gradient(160deg,#0d3350,#0a2338);
+    border-color:#155a82;border-bottom-right-radius:4px;
+  }
+  .msg.jarvis .bubble{
+    background:linear-gradient(160deg,var(--panel2),var(--panel));
+    border-bottom-left-radius:4px;
+  }
+  .msg.jarvis .bubble.error{border-color:var(--danger);color:#ffb9c6}
+  .msg .who{
+    font-size:.65rem;letter-spacing:.2em;color:var(--cyan-dim);
+    margin-bottom:4px;text-transform:uppercase;
+  }
+  .bubble code{
+    background:#04121e;border:1px solid var(--line);border-radius:6px;
+    padding:1px 5px;font-family:Consolas,monospace;font-size:.85em;color:#8fe8ff;
+  }
+  .bubble pre{
+    background:#04121e;border:1px solid var(--line);border-radius:10px;
+    padding:10px;overflow-x:auto;margin:8px 0;
+  }
+  .bubble pre code{background:none;border:none;padding:0}
+  .typing{display:inline-flex;gap:5px;align-items:center;height:1em}
+  .typing i{
+    width:6px;height:6px;border-radius:50%;background:var(--cyan);opacity:.4;
+    animation:blink 1.2s infinite;
+  }
+  .typing i:nth-child(2){animation-delay:.2s}
+  .typing i:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+
+  /* ---------- Eingabezeile ---------- */
+  footer{
+    padding:12px 14px calc(12px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--line);
+    background:linear-gradient(0deg, rgba(14,30,50,.92), rgba(8,16,28,.8));
+    display:flex;gap:10px;align-items:flex-end;
+  }
+  #input{
+    flex:1;resize:none;max-height:140px;min-height:46px;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    color:var(--text);padding:12px 14px;font-size:1rem;font-family:inherit;outline:none;
+  }
+  #input:focus{border-color:var(--cyan-dim);box-shadow:0 0 0 2px rgba(40,215,255,.15)}
+  #sendBtn{width:52px;height:46px;font-size:1.25rem}
+  #micBtn.listening{background:var(--danger);color:#fff;border-color:var(--danger);animation:pulse 1s infinite}
+
+  /* ---------- Einstellungen (Modal) ---------- */
+  .overlay{
+    position:fixed;inset:0;background:rgba(2,6,12,.7);backdrop-filter:blur(4px);
+    display:none;align-items:center;justify-content:center;z-index:50;padding:14px;
+  }
+  .overlay.open{display:flex}
+  .modal{
+    width:min(560px,100%);max-height:92dvh;overflow-y:auto;
+    background:linear-gradient(170deg,#0c1a2c,#081120);
+    border:1px solid var(--line);border-radius:16px;padding:22px;
+    box-shadow:0 0 40px rgba(40,215,255,.12);
+  }
+  .modal h2{
+    color:var(--cyan);letter-spacing:.2em;font-size:1rem;margin-bottom:4px;
+    text-shadow:var(--glow);
+  }
+  .modal p.hint{color:var(--muted);font-size:.78rem;margin-bottom:16px;line-height:1.4}
+  .field{margin-bottom:14px}
+  .field label{
+    display:block;font-size:.72rem;letter-spacing:.12em;color:var(--cyan-dim);
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .field input[type=text],.field input[type=password],.field input[type=url],
+  .field select,.field textarea{
+    width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    color:var(--text);padding:10px 12px;font-size:.92rem;font-family:inherit;outline:none;
+  }
+  .field textarea{resize:vertical;min-height:64px}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--cyan-dim)}
+  .field .sub{font-size:.72rem;color:var(--muted);margin-top:4px;line-height:1.35}
+  .keyrow{display:flex;gap:8px}
+  .keyrow input{flex:1}
+  .keyrow button{
+    background:var(--panel2);border:1px solid var(--line);color:var(--cyan);
+    border-radius:10px;padding:0 14px;cursor:pointer;font-size:.85rem;
+  }
+  .btnrow{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+  .btn{
+    border:none;border-radius:10px;padding:11px 18px;font-size:.9rem;cursor:pointer;
+    letter-spacing:.05em;font-family:inherit;transition:.2s;
+  }
+  .btn.primary{background:var(--cyan);color:#032430;font-weight:600}
+  .btn.primary:hover{box-shadow:var(--glow)}
+  .btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}
+  .btn.ghost:hover{color:var(--text)}
+  .btn.warn{background:transparent;color:var(--danger);border:1px solid var(--danger)}
+  #testResult{font-size:.8rem;margin-top:10px;min-height:1.2em}
+  #testResult.ok{color:var(--ok)}
+  #testResult.err{color:var(--danger)}
+  ::-webkit-scrollbar{width:9px}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="reactor" aria-hidden="true"></div>
+  <div class="title">
+    <h1>J.A.R.V.I.S.</h1>
+    <small>Just A Rather Very Intelligent System</small>
+  </div>
+  <div class="head-spacer"></div>
+  <div class="status-chip"><span class="dot" id="statusDot"></span><span id="statusText">Nicht konfiguriert</span></div>
+  <button class="iconbtn" id="speakToggle" title="Sprachausgabe an/aus">🔊</button>
+  <button class="iconbtn" id="settingsBtn" title="Einstellungen">⚙️</button>
+</header>
+
+<main id="chat"></main>
+
+<footer>
+  <button class="iconbtn" id="micBtn" title="Spracheingabe">🎤</button>
+  <textarea id="input" rows="1" placeholder="Frag mich etwas, Sir…" autocomplete="off"></textarea>
+  <button class="iconbtn" id="sendBtn" title="Senden">➤</button>
+</footer>
+
+<!-- ===================== Einstellungen ===================== -->
+<div class="overlay" id="settingsOverlay">
+  <div class="modal">
+    <h2>⚙️ SYSTEM-KONFIGURATION</h2>
+    <p class="hint">Hier kannst du deinen eigenen API-Server und API-Key eintragen. Alle Daten
+    werden nur lokal in deinem Browser gespeichert (localStorage) und niemals an Dritte gesendet.</p>
+
+    <div class="field">
+      <label for="provider">API-Anbieter / Protokoll</label>
+      <select id="provider">
+        <option value="anthropic">Anthropic (Claude)</option>
+        <option value="openai">OpenAI-kompatibel (ChatGPT, Ollama, LM Studio, eigener Server)</option>
+      </select>
+      <div class="sub">Bestimmt, in welchem Format Jarvis mit dem Server spricht.</div>
+    </div>
+
+    <div class="field">
+      <label for="serverUrl">API-Server-Adresse (Link / Basis-URL)</label>
+      <input type="url" id="serverUrl" placeholder="z. B. https://api.anthropic.com" spellcheck="false">
+      <div class="sub">
+        Standard-Adressen: Anthropic → <code>https://api.anthropic.com</code> ·
+        OpenAI → <code>https://api.openai.com</code> ·
+        Ollama lokal → <code>http://localhost:11434</code>.
+        Du kannst hier auch jede eigene Server-Adresse eingeben.
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="apiKey">API-Key</label>
+      <div class="keyrow">
+        <input type="password" id="apiKey" placeholder="sk-…" spellcheck="false" autocomplete="off">
+        <button type="button" id="toggleKey">👁</button>
+      </div>
+      <div class="sub">Dein persönlicher Schlüssel. Bei lokalen Servern (z. B. Ollama) kann das Feld leer bleiben.</div>
+    </div>
+
+    <div class="field">
+      <label for="model">Modell</label>
+      <input type="text" id="model" placeholder="z. B. claude-opus-4-8" spellcheck="false">
+      <div class="sub">Beispiele: <code>claude-opus-4-8</code>, <code>claude-haiku-4-5</code>, <code>gpt-4o-mini</code>, <code>llama3</code></div>
+    </div>
+
+    <div class="field">
+      <label for="systemPrompt">Persönlichkeit (System-Prompt)</label>
+      <textarea id="systemPrompt" spellcheck="false"></textarea>
+      <div class="sub">Bestimmt, wie Jarvis antwortet. Kannst du frei anpassen.</div>
+    </div>
+
+    <div class="btnrow">
+      <button class="btn primary" id="saveBtn">💾 Speichern</button>
+      <button class="btn ghost" id="testBtn">📡 Verbindung testen</button>
+      <button class="btn ghost" id="closeBtn">Schließen</button>
+      <button class="btn warn" id="clearChatBtn">🗑 Verlauf löschen</button>
+    </div>
+    <div id="testResult"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ===================== Konfiguration ===================== */
+const DEFAULTS = {
+  provider: "anthropic",
+  serverUrl: "https://api.anthropic.com",
+  apiKey: "",
+  model: "claude-opus-4-8",
+  systemPrompt: "Du bist J.A.R.V.I.S., der persönliche KI-Assistent aus Iron Man. " +
+    "Du sprichst Deutsch, bist höflich, präzise, leicht ironisch und nennst den Nutzer gelegentlich 'Sir'. " +
+    "Antworte hilfreich und kompakt.",
+  speak: false,
+};
+
+const PROVIDER_DEFAULT_URL = {
+  anthropic: "https://api.anthropic.com",
+  openai: "https://api.openai.com",
+};
+const PROVIDER_DEFAULT_MODEL = {
+  anthropic: "claude-opus-4-8",
+  openai: "gpt-4o-mini",
+};
+
+let cfg = loadConfig();
+let history = loadHistory();   // [{role:"user"|"assistant", content:"..."}]
+let busy = false;
+
+function loadConfig(){
+  try{ return { ...DEFAULTS, ...JSON.parse(localStorage.getItem("jarvis_cfg") || "{}") }; }
+  catch(e){ return { ...DEFAULTS }; }
+}
+function saveConfig(){ localStorage.setItem("jarvis_cfg", JSON.stringify(cfg)); }
+function loadHistory(){
+  try{ return JSON.parse(localStorage.getItem("jarvis_history") || "[]"); }
+  catch(e){ return []; }
+}
+function saveHistory(){
+  localStorage.setItem("jarvis_history", JSON.stringify(history.slice(-40)));
+}
+
+/* ===================== DOM ===================== */
+const $ = (id) => document.getElementById(id);
+const chatEl = $("chat"), inputEl = $("input");
+
+function updateStatus(){
+  const configured = !!cfg.serverUrl && (!!cfg.apiKey || !isCloudUrl(cfg.serverUrl));
+  $("statusDot").classList.toggle("online", configured);
+  $("statusText").textContent = configured
+    ? `Bereit · ${cfg.model}`
+    : "Nicht konfiguriert — ⚙️ öffnen";
+}
+function isCloudUrl(url){
+  return /api\.anthropic\.com|api\.openai\.com/.test(url || "");
+}
+
+/* ===================== Chat-Darstellung ===================== */
+function escapeHtml(s){
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+function renderMarkdown(s){
+  let h = escapeHtml(s);
+  h = h.replace(/```([\s\S]*?)```/g, (_, code) => "<pre><code>" + code.replace(/^\w+\n/, "") + "</code></pre>");
+  h = h.replace(/`([^`\n]+)`/g, "<code>$1</code>");
+  h = h.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+  return h;
+}
+function addMsg(role, text, opts = {}){
+  const wrap = document.createElement("div");
+  wrap.className = "msg " + (role === "user" ? "user" : "jarvis");
+  const bubble = document.createElement("div");
+  bubble.className = "bubble" + (opts.error ? " error" : "");
+  const who = document.createElement("div");
+  who.className = "who";
+  who.textContent = role === "user" ? "Du" : "Jarvis";
+  bubble.appendChild(who);
+  const body = document.createElement("div");
+  body.className = "body";
+  body.innerHTML = renderMarkdown(text);
+  bubble.appendChild(body);
+  wrap.appendChild(bubble);
+  chatEl.appendChild(wrap);
+  chatEl.scrollTop = chatEl.scrollHeight;
+  return body;
+}
+function addTyping(){
+  const body = addMsg("assistant", "");
+  body.innerHTML = '<span class="typing"><i></i><i></i><i></i></span>';
+  return body;
+}
+
+/* ===================== API-Aufrufe ===================== */
+function baseUrl(){ return (cfg.serverUrl || "").replace(/\/+$/, ""); }
+
+async function callAnthropic(messages, onDelta){
+  const res = await fetch(baseUrl() + "/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": cfg.apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model: cfg.model,
+      max_tokens: 2048,
+      stream: true,
+      system: cfg.systemPrompt,
+      messages,
+    }),
+  });
+  if(!res.ok) throw new Error(await apiError(res));
+  let full = "";
+  await readSSE(res, (data) => {
+    if(data.type === "content_block_delta" && data.delta && data.delta.type === "text_delta"){
+      full += data.delta.text;
+      onDelta(full);
+    }
+  });
+  return full;
+}
+
+async function callOpenAI(messages, onDelta){
+  const msgs = [{ role: "system", content: cfg.systemPrompt }, ...messages];
+  const headers = { "content-type": "application/json" };
+  if(cfg.apiKey) headers["authorization"] = "Bearer " + cfg.apiKey;
+  const res = await fetch(baseUrl() + "/v1/chat/completions", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ model: cfg.model, stream: true, messages: msgs }),
+  });
+  if(!res.ok) throw new Error(await apiError(res));
+  let full = "";
+  await readSSE(res, (data) => {
+    const delta = data.choices && data.choices[0] && data.choices[0].delta;
+    if(delta && delta.content){
+      full += delta.content;
+      onDelta(full);
+    }
+  });
+  return full;
+}
+
+async function apiError(res){
+  let detail = "";
+  try{
+    const j = await res.json();
+    detail = (j.error && (j.error.message || j.error.type)) || JSON.stringify(j);
+  }catch(e){ detail = res.statusText; }
+  return `Server-Fehler ${res.status}: ${detail}`;
+}
+
+async function readSSE(res, onData){
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  for(;;){
+    const { done, value } = await reader.read();
+    if(done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split("\n");
+    buf = lines.pop();
+    for(const line of lines){
+      const t = line.trim();
+      if(!t.startsWith("data:")) continue;
+      const payload = t.slice(5).trim();
+      if(payload === "[DONE]") return;
+      try{ onData(JSON.parse(payload)); }catch(e){ /* unvollständige Zeile ignorieren */ }
+    }
+  }
+}
+
+async function askJarvis(userText){
+  const messages = [...history, { role: "user", content: userText }].slice(-20);
+  const body = addTyping();
+  const onDelta = (text) => {
+    body.innerHTML = renderMarkdown(text);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  };
+  const answer = cfg.provider === "anthropic"
+    ? await callAnthropic(messages, onDelta)
+    : await callOpenAI(messages, onDelta);
+  body.innerHTML = renderMarkdown(answer || "…");
+  return answer;
+}
+
+/* ===================== Lokale Kommandos ===================== */
+function localCommand(text){
+  const t = text.toLowerCase().trim();
+  const now = new Date();
+  if(/^(wie spät|uhrzeit|wie viel uhr)/.test(t))
+    return "Es ist " + now.toLocaleTimeString("de-DE", {hour:"2-digit", minute:"2-digit"}) + " Uhr, Sir.";
+  if(/^(welches datum|welcher tag|datum heute)/.test(t))
+    return "Heute ist " + now.toLocaleDateString("de-DE", {weekday:"long", day:"numeric", month:"long", year:"numeric"}) + ".";
+  if(/^(verlauf löschen|lösche den verlauf|neustart)$/.test(t)){
+    clearChat();
+    return "Verlauf gelöscht. Alle Systeme neu initialisiert, Sir.";
+  }
+  return null;
+}
+
+/* ===================== Senden ===================== */
+async function send(){
+  const text = inputEl.value.trim();
+  if(!text || busy) return;
+  inputEl.value = "";
+  inputEl.style.height = "auto";
+  addMsg("user", text);
+
+  const local = localCommand(text);
+  if(local !== null){
+    addMsg("assistant", local);
+    speak(local);
+    return;
+  }
+
+  if(!cfg.serverUrl || (isCloudUrl(cfg.serverUrl) && !cfg.apiKey)){
+    addMsg("assistant", "Bitte zuerst API-Server und API-Key in den Einstellungen (⚙️) eintragen, Sir.", { error: true });
+    openSettings();
+    return;
+  }
+
+  busy = true;
+  try{
+    const answer = await askJarvis(text);
+    history.push({ role: "user", content: text }, { role: "assistant", content: answer });
+    saveHistory();
+    speak(answer);
+  }catch(err){
+    const last = chatEl.querySelector(".msg:last-child .bubble");
+    if(last && last.querySelector(".typing")) last.parentElement.remove();
+    addMsg("assistant", "⚠️ " + err.message +
+      "\n\nPrüfe bitte Server-Adresse, API-Key und Modellnamen in den Einstellungen (⚙️).", { error: true });
+  }finally{
+    busy = false;
+  }
+}
+
+/* ===================== Sprachausgabe ===================== */
+function speak(text){
+  if(!cfg.speak || !("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  const clean = text.replace(/```[\s\S]*?```/g, " Codeblock. ").replace(/[*_`#>]/g, "");
+  const u = new SpeechSynthesisUtterance(clean.slice(0, 600));
+  u.lang = "de-DE";
+  const voice = speechSynthesis.getVoices().find(v => v.lang.startsWith("de"));
+  if(voice) u.voice = voice;
+  speechSynthesis.speak(u);
+}
+
+/* ===================== Spracheingabe ===================== */
+let recognition = null, listening = false;
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if(SR){
+  recognition = new SR();
+  recognition.lang = "de-DE";
+  recognition.interimResults = true;
+  recognition.onresult = (e) => {
+    let text = "";
+    for(const r of e.results) text += r[0].transcript;
+    inputEl.value = text;
+    if(e.results[e.results.length - 1].isFinal){
+      stopListening();
+      send();
+    }
+  };
+  recognition.onend = stopListening;
+  recognition.onerror = stopListening;
+}
+function startListening(){
+  if(!recognition){ addMsg("assistant", "Spracheingabe wird von diesem Browser leider nicht unterstützt, Sir.", {error:true}); return; }
+  listening = true;
+  $("micBtn").classList.add("listening");
+  recognition.start();
+}
+function stopListening(){
+  listening = false;
+  $("micBtn").classList.remove("listening");
+  try{ recognition && recognition.stop(); }catch(e){}
+}
+
+/* ===================== Einstellungen ===================== */
+function openSettings(){
+  $("provider").value = cfg.provider;
+  $("serverUrl").value = cfg.serverUrl;
+  $("apiKey").value = cfg.apiKey;
+  $("model").value = cfg.model;
+  $("systemPrompt").value = cfg.systemPrompt;
+  $("testResult").textContent = "";
+  $("testResult").className = "";
+  $("settingsOverlay").classList.add("open");
+}
+function closeSettings(){ $("settingsOverlay").classList.remove("open"); }
+
+function readSettingsForm(){
+  return {
+    ...cfg,
+    provider: $("provider").value,
+    serverUrl: $("serverUrl").value.trim(),
+    apiKey: $("apiKey").value.trim(),
+    model: $("model").value.trim() || PROVIDER_DEFAULT_MODEL[$("provider").value],
+    systemPrompt: $("systemPrompt").value.trim() || DEFAULTS.systemPrompt,
+  };
+}
+
+$("provider").addEventListener("change", () => {
+  const p = $("provider").value;
+  const cur = $("serverUrl").value.trim();
+  if(!cur || Object.values(PROVIDER_DEFAULT_URL).includes(cur))
+    $("serverUrl").value = PROVIDER_DEFAULT_URL[p];
+  const curModel = $("model").value.trim();
+  if(!curModel || Object.values(PROVIDER_DEFAULT_MODEL).includes(curModel))
+    $("model").value = PROVIDER_DEFAULT_MODEL[p];
+});
+
+$("saveBtn").addEventListener("click", () => {
+  cfg = readSettingsForm();
+  saveConfig();
+  updateStatus();
+  closeSettings();
+  addMsg("assistant", "Konfiguration gespeichert. Systeme online, Sir. ✅");
+});
+
+$("testBtn").addEventListener("click", async () => {
+  const testCfg = readSettingsForm();
+  const el = $("testResult");
+  el.className = ""; el.textContent = "Teste Verbindung…";
+  const backup = cfg;
+  cfg = testCfg;
+  try{
+    const messages = [{ role: "user", content: "Antworte nur mit: OK" }];
+    const reply = testCfg.provider === "anthropic"
+      ? await callAnthropic(messages, () => {})
+      : await callOpenAI(messages, () => {});
+    el.className = "ok";
+    el.textContent = "✅ Verbindung erfolgreich! Antwort: " + reply.slice(0, 60);
+  }catch(err){
+    el.className = "err";
+    el.textContent = "❌ " + err.message;
+  }finally{
+    cfg = backup;
+  }
+});
+
+$("toggleKey").addEventListener("click", () => {
+  const f = $("apiKey");
+  f.type = f.type === "password" ? "text" : "password";
+});
+
+function clearChat(){
+  history = [];
+  saveHistory();
+  chatEl.innerHTML = "";
+  greet();
+}
+$("clearChatBtn").addEventListener("click", () => { clearChat(); closeSettings(); });
+$("closeBtn").addEventListener("click", closeSettings);
+$("settingsBtn").addEventListener("click", openSettings);
+$("settingsOverlay").addEventListener("click", (e) => { if(e.target === e.currentTarget) closeSettings(); });
+
+$("speakToggle").addEventListener("click", () => {
+  cfg.speak = !cfg.speak;
+  saveConfig();
+  $("speakToggle").classList.toggle("active", cfg.speak);
+  if(!cfg.speak) speechSynthesis.cancel();
+});
+
+/* ===================== Eingabe-Events ===================== */
+$("sendBtn").addEventListener("click", send);
+$("micBtn").addEventListener("click", () => listening ? stopListening() : startListening());
+inputEl.addEventListener("keydown", (e) => {
+  if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); send(); }
+});
+inputEl.addEventListener("input", () => {
+  inputEl.style.height = "auto";
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + "px";
+});
+
+/* ===================== Start ===================== */
+function greet(){
+  const h = new Date().getHours();
+  const time = h < 11 ? "Guten Morgen" : h < 18 ? "Guten Tag" : "Guten Abend";
+  addMsg("assistant",
+    `${time}, Sir. Alle Systeme sind online. ` +
+    (cfg.apiKey || !isCloudUrl(cfg.serverUrl)
+      ? "Wie kann ich behilflich sein?"
+      : "Bitte trage zuerst deinen API-Server und API-Key in den Einstellungen (⚙️) ein."));
+}
+
+for(const m of history) addMsg(m.role, m.content);
+if(history.length === 0) greet();
+$("speakToggle").classList.toggle("active", cfg.speak);
+updateStatus();
+</script>
+</body>
+</html>
