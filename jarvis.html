@@ -180,6 +180,39 @@
   #testResult.err{color:var(--danger)}
   ::-webkit-scrollbar{width:9px}
   ::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
+
+  /* ---------- Weltkarte / Globus ---------- */
+  .globe-overlay{
+    position:fixed;inset:0;z-index:60;display:none;
+    background:radial-gradient(circle at 50% 40%, #10203a 0%, #04070d 70%);
+  }
+  .globe-overlay.open{display:block}
+  #globeViz{position:absolute;inset:0}
+  #globeViz canvas{display:block}
+  .globe-topbar{
+    position:absolute;top:0;left:0;right:0;z-index:2;
+    display:flex;gap:8px;align-items:center;padding:12px;
+    padding-top:calc(12px + env(safe-area-inset-top));
+  }
+  .globe-search{
+    flex:1;display:flex;gap:6px;max-width:520px;
+    background:rgba(20,12,5,.85);border:1px solid var(--line);border-radius:12px;
+    padding:4px;backdrop-filter:blur(8px);box-shadow:0 4px 20px rgba(0,0,0,.4);
+  }
+  .globe-search input{
+    flex:1;background:transparent;border:none;outline:none;color:var(--text);
+    font-size:1rem;padding:8px 10px;font-family:inherit;
+  }
+  .globe-search button{
+    background:var(--cyan);color:#2f1c03;border:none;border-radius:9px;
+    width:40px;font-size:1.1rem;cursor:pointer;
+  }
+  .globe-info{
+    position:absolute;bottom:16px;left:50%;transform:translateX(-50%);z-index:2;
+    background:rgba(20,12,5,.85);border:1px solid var(--line);border-radius:999px;
+    padding:8px 18px;font-size:.85rem;color:var(--text);backdrop-filter:blur(8px);
+    max-width:90%;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.4);
+  }
 </style>
 </head>
 <body>
@@ -192,6 +225,7 @@
   </div>
   <div class="head-spacer"></div>
   <div class="status-chip"><span class="dot" id="statusDot"></span><span id="statusText">Nicht konfiguriert</span></div>
+  <button class="iconbtn" id="globeBtn" title="Weltkarte / Globus">🌍</button>
   <button class="iconbtn" id="speakToggle" title="Sprachausgabe an/aus">🔊</button>
   <button class="iconbtn" id="settingsBtn" title="Einstellungen">⚙️</button>
 </header>
@@ -203,6 +237,21 @@
   <textarea id="input" rows="1" placeholder="Frag mich etwas, Sir…" autocomplete="off"></textarea>
   <button class="iconbtn" id="sendBtn" title="Senden">➤</button>
 </footer>
+
+<!-- ===================== Weltkarte / Globus ===================== -->
+<div class="globe-overlay" id="globeOverlay">
+  <div id="globeViz"></div>
+  <div class="globe-topbar">
+    <div class="globe-search">
+      <input type="text" id="globeSearch" placeholder="🔎 Ort suchen (z. B. Tokio, Eiffelturm)…" spellcheck="false" autocomplete="off">
+      <button id="globeGo" title="Suchen">➤</button>
+    </div>
+    <button class="iconbtn" id="globeLocate" title="Mein Standort">📍</button>
+    <button class="iconbtn" id="globeRotate" title="Auto-Rotation an/aus">⟳</button>
+    <button class="iconbtn" id="globeClose" title="Schließen">✕</button>
+  </div>
+  <div class="globe-info" id="globeInfo">🌍 Erde wird geladen…</div>
+</div>
 
 <!-- ===================== Einstellungen ===================== -->
 <div class="overlay" id="settingsOverlay">
@@ -460,6 +509,17 @@ function localCommand(text){
     clearChat();
     return "Verlauf gelöscht. Alle Systeme neu initialisiert, Sir.";
   }
+  // Globus / Weltkarte
+  if(/^(weltkarte|globus|zeig(e)? mir die (welt|karte|erde)|karte öffnen|erde)$/.test(t)){
+    openGlobe();
+    return "Öffne die Weltkarte, Sir. 🌍";
+  }
+  const geo = text.trim().match(/^(?:zeige? mir|zeig|fliege? (?:nach|zu)|wo (?:ist|liegt)|navigiere (?:nach|zu)|karte von)\s+(.+?)[?.!]*$/i);
+  if(geo && geo[1]){
+    const place = geo[1].trim();
+    openGlobe(place);
+    return "Ich fliege zu " + place + ", Sir. 🌍";
+  }
   return null;
 }
 
@@ -638,6 +698,121 @@ inputEl.addEventListener("keydown", (e) => {
 inputEl.addEventListener("input", () => {
   inputEl.style.height = "auto";
   inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + "px";
+});
+
+/* ===================== Weltkarte / Globus ===================== */
+let globe = null, globeLoaded = false, globeMarkers = [], autoRotate = true;
+
+function loadScript(src){
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src; s.async = true;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error("Konnte Globus-Bibliothek nicht laden: " + src));
+    document.head.appendChild(s);
+  });
+}
+
+async function initGlobe(){
+  if(globeLoaded) return;
+  const info = $("globeInfo");
+  try{
+    if(typeof Globe === "undefined")
+      await loadScript("https://unpkg.com/globe.gl");
+    const el = $("globeViz");
+    globe = Globe()(el)
+      .globeImageUrl("https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg")
+      .bumpImageUrl("https://unpkg.com/three-globe/example/img/earth-topology.png")
+      .backgroundImageUrl("https://unpkg.com/three-globe/example/img/night-sky.png")
+      .pointsData([])
+      .pointColor(() => "#ff8c1a")
+      .pointAltitude(0.02)
+      .pointRadius(0.5)
+      .labelsData([])
+      .labelText("name").labelLat("lat").labelLng("lng")
+      .labelColor(() => "#ffd9a6").labelSize(1.4).labelDotRadius(0.4)
+      .labelResolution(2);
+    // Größe & Steuerung
+    const resize = () => globe.width(el.clientWidth).height(el.clientHeight);
+    resize(); window.addEventListener("resize", resize);
+    globe.controls().autoRotate = autoRotate;
+    globe.controls().autoRotateSpeed = 0.6;
+    globe.controls().enableDamping = true;
+    // Klick auf Globus → Marker setzen
+    globe.onGlobeClick(({ lat, lng }) => dropMarker(lat, lng, "Markierung"));
+    globeLoaded = true;
+    info.textContent = "🌍 Ziehen zum Drehen · Scrollen/Zwei-Finger zum Zoomen · Ort suchen oben";
+  }catch(err){
+    info.textContent = "⚠️ " + err.message + " — Internetverbindung prüfen.";
+  }
+}
+
+function dropMarker(lat, lng, name){
+  if(!globe) return;
+  globeMarkers = [{ lat, lng, name }];
+  globe.pointsData(globeMarkers).labelsData(globeMarkers);
+}
+
+function flyTo(lat, lng, name, altitude = 0.8){
+  if(!globe) return;
+  dropMarker(lat, lng, name || "Ziel");
+  globe.controls().autoRotate = false; autoRotate = false;
+  $("globeRotate").classList.remove("active");
+  globe.pointOfView({ lat, lng, altitude }, 1400);
+}
+
+async function geocode(query){
+  const url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + encodeURIComponent(query);
+  const res = await fetch(url, { headers: { "Accept": "application/json" } });
+  if(!res.ok) throw new Error("Suche fehlgeschlagen");
+  const arr = await res.json();
+  if(!arr.length) return null;
+  return { lat: parseFloat(arr[0].lat), lng: parseFloat(arr[0].lon), name: arr[0].display_name.split(",")[0] };
+}
+
+async function openGlobe(query){
+  $("globeOverlay").classList.add("open");
+  await initGlobe();
+  if(!globe) return;
+  setTimeout(() => globe.width($("globeViz").clientWidth).height($("globeViz").clientHeight), 60);
+  if(query){
+    $("globeInfo").textContent = "🔎 Suche „" + query + "“…";
+    try{
+      const hit = await geocode(query);
+      if(hit){ flyTo(hit.lat, hit.lng, hit.name); $("globeInfo").textContent = "📍 " + hit.name; }
+      else $("globeInfo").textContent = "Kein Ort für „" + query + "“ gefunden.";
+    }catch(e){ $("globeInfo").textContent = "⚠️ " + e.message; }
+  }
+}
+function closeGlobe(){ $("globeOverlay").classList.remove("open"); }
+
+async function globeSearchAction(){
+  const q = $("globeSearch").value.trim();
+  if(!q) return;
+  $("globeInfo").textContent = "🔎 Suche „" + q + "“…";
+  try{
+    const hit = await geocode(q);
+    if(hit){ flyTo(hit.lat, hit.lng, hit.name); $("globeInfo").textContent = "📍 " + hit.name; }
+    else $("globeInfo").textContent = "Kein Ort für „" + q + "“ gefunden.";
+  }catch(e){ $("globeInfo").textContent = "⚠️ " + e.message; }
+}
+
+$("globeBtn").addEventListener("click", () => openGlobe());
+$("globeClose").addEventListener("click", closeGlobe);
+$("globeGo").addEventListener("click", globeSearchAction);
+$("globeSearch").addEventListener("keydown", (e) => { if(e.key === "Enter") globeSearchAction(); });
+$("globeRotate").addEventListener("click", () => {
+  autoRotate = !autoRotate;
+  if(globe) globe.controls().autoRotate = autoRotate;
+  $("globeRotate").classList.toggle("active", autoRotate);
+});
+$("globeLocate").addEventListener("click", () => {
+  if(!navigator.geolocation){ $("globeInfo").textContent = "Standort wird nicht unterstützt."; return; }
+  $("globeInfo").textContent = "📍 Ermittle Standort…";
+  navigator.geolocation.getCurrentPosition(
+    (pos) => { flyTo(pos.coords.latitude, pos.coords.longitude, "Mein Standort", 0.5); $("globeInfo").textContent = "📍 Dein Standort"; },
+    () => { $("globeInfo").textContent = "Standort nicht verfügbar (Berechtigung?)."; }
+  );
 });
 
 /* ===================== Start ===================== */
