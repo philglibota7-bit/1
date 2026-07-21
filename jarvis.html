@@ -73,7 +73,7 @@
   .iconbtn.active{background:var(--cyan);color:#2f1c03;box-shadow:var(--glow)}
 
   /* ---------- Chat ---------- */
-  main{flex:1;overflow-y:auto;padding:18px clamp(10px,4vw,80px);scroll-behavior:smooth}
+  main{flex:1;overflow-y:auto;padding:18px clamp(10px,4vw,80px) 150px;scroll-behavior:smooth}
   .msg{display:flex;margin:10px 0;animation:fadein .25s ease}
   @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   .bubble{
@@ -213,6 +213,50 @@
     padding:8px 18px;font-size:.85rem;color:var(--text);backdrop-filter:blur(8px);
     max-width:90%;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.4);
   }
+  /* Routenplaner-Panel */
+  .route-panel{
+    position:absolute;top:70px;left:12px;z-index:3;width:min(320px,calc(100% - 24px));
+    background:rgba(20,12,5,.9);border:1px solid var(--line);border-radius:14px;
+    padding:14px;backdrop-filter:blur(10px);box-shadow:0 8px 30px rgba(0,0,0,.5);
+    display:none;
+  }
+  .route-panel.open{display:block;animation:fadein .2s ease}
+  .route-head{color:var(--cyan);font-size:.8rem;letter-spacing:.15em;margin-bottom:10px;text-transform:uppercase}
+  .route-fields{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+  .route-fields input{
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    color:var(--text);padding:10px 12px;font-size:.9rem;font-family:inherit;outline:none;
+  }
+  .route-fields input:focus{border-color:var(--cyan-dim)}
+  .route-modes{display:flex;gap:6px;margin-bottom:10px}
+  .route-modes button{
+    flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:9px 0;font-size:1.2rem;cursor:pointer;transition:.15s;
+  }
+  .route-modes button:hover{border-color:var(--cyan-dim)}
+  .route-modes button.active{background:var(--cyan);box-shadow:var(--glow);border-color:var(--cyan)}
+  .route-go{
+    width:100%;background:var(--cyan);color:#2f1c03;border:none;border-radius:10px;
+    padding:11px;font-size:.92rem;font-weight:600;cursor:pointer;font-family:inherit;
+  }
+  .route-go:hover{box-shadow:var(--glow)}
+  .route-result{margin-top:12px;font-size:.86rem;line-height:1.5;color:var(--text)}
+  .route-result .big{font-size:1.05rem;font-weight:600;color:var(--cyan)}
+  .route-result .alt{
+    display:flex;justify-content:space-between;gap:8px;
+    padding:5px 0;border-top:1px solid var(--line);color:var(--muted);cursor:pointer;
+  }
+  .route-result .alt:hover{color:var(--text)}
+  .route-result .alt.sel{color:var(--cyan)}
+
+  /* ---------- Jarvis-Sprachkugel ---------- */
+  #orbWrap{
+    position:fixed;left:50%;bottom:78px;transform:translateX(-50%);
+    width:120px;height:120px;z-index:20;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:bottom .3s ease;
+  }
+  #orbCanvas{width:100%;height:100%;display:block;filter:drop-shadow(0 0 18px rgba(255,140,26,.55))}
 </style>
 </head>
 <body>
@@ -232,6 +276,8 @@
 
 <main id="chat"></main>
 
+<div id="orbWrap" title="Tippen zum Sprechen"><canvas id="orbCanvas"></canvas></div>
+
 <footer>
   <button class="iconbtn" id="micBtn" title="Spracheingabe">🎤</button>
   <textarea id="input" rows="1" placeholder="Frag mich etwas, Sir…" autocomplete="off"></textarea>
@@ -246,10 +292,28 @@
       <input type="text" id="globeSearch" placeholder="🔎 Ort suchen (z. B. Tokio, Eiffelturm)…" spellcheck="false" autocomplete="off">
       <button id="globeGo" title="Suchen">➤</button>
     </div>
+    <button class="iconbtn" id="routeToggle" title="Routenplaner">🧭</button>
     <button class="iconbtn" id="globeLocate" title="Mein Standort">📍</button>
     <button class="iconbtn" id="globeRotate" title="Auto-Rotation an/aus">⟳</button>
     <button class="iconbtn" id="globeClose" title="Schließen">✕</button>
   </div>
+
+  <div class="route-panel" id="routePanel">
+    <div class="route-head">🧭 Routenplaner</div>
+    <div class="route-fields">
+      <input type="text" id="routeFrom" placeholder="Von… (z. B. Berlin)" spellcheck="false" autocomplete="off">
+      <input type="text" id="routeTo" placeholder="Nach… (z. B. München)" spellcheck="false" autocomplete="off">
+    </div>
+    <div class="route-modes">
+      <button data-mode="walk"  title="Zu Fuß">🚶</button>
+      <button data-mode="car" class="active" title="Auto">🚗</button>
+      <button data-mode="train" title="Zug">🚆</button>
+      <button data-mode="plane" title="Flugzeug">✈️</button>
+    </div>
+    <button class="route-go" id="routeGo">Route berechnen</button>
+    <div class="route-result" id="routeResult"></div>
+  </div>
+
   <div class="globe-info" id="globeInfo">🌍 Erde wird geladen…</div>
 </div>
 
@@ -489,6 +553,7 @@ async function askJarvis(userText){
   const onDelta = (text) => {
     body.innerHTML = renderMarkdown(text);
     chatEl.scrollTop = chatEl.scrollHeight;
+    if(window.orbPulse) orbPulse(0.85);   // Kugel pulsiert während der Antwort
   };
   const answer = cfg.provider === "anthropic"
     ? await callAnthropic(messages, onDelta)
@@ -513,6 +578,17 @@ function localCommand(text){
   if(/^(weltkarte|globus|zeig(e)? mir die (welt|karte|erde)|karte öffnen|erde)$/.test(t)){
     openGlobe();
     return "Öffne die Weltkarte, Sir. 🌍";
+  }
+  // Routenplaner: "…von X nach Y…"
+  const rt = text.trim().match(/von\s+(.+?)\s+nach\s+(.+?)(?:\s+mit\s+.*| zu fuß| zu fuss| laufend| fliegend)?[?.!]*$/i);
+  if(rt && rt[1] && rt[2] && /weg|route|strecke|navig|komme ich|fahr|flieg|zug|bahn|auto|fuß|fuss|laufen|weg|wie/i.test(t)){
+    let mode = "car";
+    if(/flug|flieg|plane/i.test(t)) mode = "plane";
+    else if(/zug|bahn|train/i.test(t)) mode = "train";
+    else if(/fuß|fuss|laufen|zu fu|walk/i.test(t)) mode = "walk";
+    const from = rt[1].replace(/^(den |der |die )?weg /i,"").trim(), to = rt[2].trim();
+    openRoutePlanner(from, to, mode);
+    return "Ich plane die Route " + from + " → " + to + " (" + MODE_META[mode].name + "), Sir. 🧭";
   }
   const geo = text.trim().match(/^(?:zeige? mir|zeig|fliege? (?:nach|zu)|wo (?:ist|liegt)|navigiere (?:nach|zu)|karte von)\s+(.+?)[?.!]*$/i);
   if(geo && geo[1]){
@@ -569,6 +645,9 @@ function speak(text){
   u.lang = "de-DE";
   const voice = speechSynthesis.getVoices().find(v => v.lang.startsWith("de"));
   if(voice) u.voice = voice;
+  u.onstart = () => window.orbSetTalking && orbSetTalking(true);
+  u.onend   = () => window.orbSetTalking && orbSetTalking(false);
+  u.onboundary = () => window.orbPulse && orbPulse(0.95);   // pro Wort ein Impuls
   speechSynthesis.speak(u);
 }
 
@@ -595,11 +674,13 @@ function startListening(){
   if(!recognition){ addMsg("assistant", "Spracheingabe wird von diesem Browser leider nicht unterstützt, Sir.", {error:true}); return; }
   listening = true;
   $("micBtn").classList.add("listening");
-  recognition.start();
+  if(window.orbSetTalking) orbSetTalking(true);
+  try{ recognition.start(); }catch(e){}
 }
 function stopListening(){
   listening = false;
   $("micBtn").classList.remove("listening");
+  if(window.orbSetTalking) orbSetTalking(false);
   try{ recognition && recognition.stop(); }catch(e){}
 }
 
@@ -731,7 +812,18 @@ async function initGlobe(){
       .labelsData([])
       .labelText("name").labelLat("lat").labelLng("lng")
       .labelColor(() => "#ffd9a6").labelSize(1.4).labelDotRadius(0.4)
-      .labelResolution(2);
+      .labelResolution(2)
+      .pathsData([])
+      .pathPoints("pts").pathPointLat(p => p[0]).pathPointLng(p => p[1])
+      .pathPointAlt(0.006).pathColor(d => d.color).pathStroke(2.5)
+      .pathDashLength(0.4).pathDashGap(0.15).pathDashAnimateTime(6000)
+      .pathTransitionDuration(600)
+      .arcsData([])
+      .arcStartLat(d => d.s[0]).arcStartLng(d => d.s[1])
+      .arcEndLat(d => d.e[0]).arcEndLng(d => d.e[1])
+      .arcColor(d => d.color).arcAltitude(d => d.alt).arcStroke(1.6)
+      .arcDashLength(0.5).arcDashGap(0.15).arcDashAnimateTime(3000)
+      .arcsTransitionDuration(600);
     // Größe & Steuerung
     const resize = () => globe.width(el.clientWidth).height(el.clientHeight);
     resize(); window.addEventListener("resize", resize);
@@ -814,6 +906,277 @@ $("globeLocate").addEventListener("click", () => {
     () => { $("globeInfo").textContent = "Standort nicht verfügbar (Berechtigung?)."; }
   );
 });
+
+/* ===================== Routenplaner ===================== */
+let curMode = "car", lastFrom = null, lastTo = null;
+const MODE_META = {
+  walk:  { icon:"🚶", name:"Zu Fuß",   color:"#e6a339", speed:5,   overhead:0,   arc:false },
+  car:   { icon:"🚗", name:"Auto",     color:"#ff8c1a", speed:90,  overhead:0,   arc:false },
+  train: { icon:"🚆", name:"Zug",      color:"#ffd166", speed:120, overhead:0.3, arc:false },
+  plane: { icon:"✈️", name:"Flugzeug", color:"#ff5470", speed:800, overhead:1.5, arc:true  },
+};
+
+function toRad(d){ return d * Math.PI / 180; }
+function haversineKm(a, b){
+  const R = 6371, dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
+  const s = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+function fmtDur(minutes){
+  minutes = Math.round(minutes);
+  if(minutes < 60) return minutes + " Min";
+  const h = Math.floor(minutes/60), m = minutes % 60;
+  if(h < 48) return h + " Std" + (m ? " " + m + " Min" : "");
+  return Math.round(h/24) + " Tage";
+}
+function fmtKm(km){ return km >= 100 ? Math.round(km) + " km" : km.toFixed(1) + " km"; }
+
+// Punkte entlang eines Großkreises (für Zug/Flug-Linien)
+function greatCirclePts(a, b, n = 64){
+  const pts = [], φ1 = toRad(a.lat), λ1 = toRad(a.lng), φ2 = toRad(b.lat), λ2 = toRad(b.lng);
+  const d = 2 * Math.asin(Math.sqrt(Math.sin((φ2-φ1)/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin((λ2-λ1)/2)**2));
+  if(d === 0) return [[a.lat, a.lng], [b.lat, b.lng]];
+  for(let i = 0; i <= n; i++){
+    const f = i/n;
+    const A = Math.sin((1-f)*d)/Math.sin(d), B = Math.sin(f*d)/Math.sin(d);
+    const x = A*Math.cos(φ1)*Math.cos(λ1) + B*Math.cos(φ2)*Math.cos(λ2);
+    const y = A*Math.cos(φ1)*Math.sin(λ1) + B*Math.cos(φ2)*Math.sin(λ2);
+    const z = A*Math.sin(φ1) + B*Math.sin(φ2);
+    pts.push([Math.atan2(z, Math.sqrt(x*x+y*y))*180/Math.PI, Math.atan2(y, x)*180/Math.PI]);
+  }
+  return pts;
+}
+
+async function routeOSRM(profile, a, b){
+  const url = "https://router.project-osrm.org/route/v1/" + profile +
+    "/" + a.lng + "," + a.lat + ";" + b.lng + "," + b.lat + "?overview=full&geometries=geojson";
+  const res = await fetch(url);
+  if(!res.ok) throw new Error("Routing-Dienst nicht erreichbar");
+  const j = await res.json();
+  if(j.code !== "Ok" || !j.routes || !j.routes.length) throw new Error("Keine Straßenroute gefunden");
+  const r = j.routes[0];
+  return { km: r.distance/1000, min: r.duration/60, pts: r.geometry.coordinates.map(c => [c[1], c[0]]) };
+}
+
+function fitRoute(a, b){
+  const mid = { lat:(a.lat+b.lat)/2, lng:(a.lng+b.lng)/2 };
+  const km = haversineKm(a, b);
+  const alt = Math.min(Math.max(km/9000, 0.35), 2.6);
+  globe.controls().autoRotate = false; autoRotate = false; $("globeRotate").classList.remove("active");
+  globe.pointOfView({ lat:mid.lat, lng:mid.lng, altitude:alt }, 1400);
+}
+
+function drawRoute(mode, a, b, pts){
+  const m = MODE_META[mode];
+  if(m.arc){
+    globe.pathsData([]);
+    globe.arcsData([{ s:[a.lat,a.lng], e:[b.lat,b.lng], color:m.color, alt:Math.min(haversineKm(a,b)/12000+0.15,0.55) }]);
+  }else{
+    globe.arcsData([]);
+    globe.pathsData([{ pts, color:m.color }]);
+  }
+  globe.pointsData([{lat:a.lat,lng:a.lng,name:a.name},{lat:b.lat,lng:b.lng,name:b.name}])
+       .labelsData([{lat:a.lat,lng:a.lng,name:a.name},{lat:b.lat,lng:b.lng,name:b.name}]);
+}
+
+async function computeMode(mode, a, b){
+  const m = MODE_META[mode];
+  if(mode === "car" || mode === "walk"){
+    try{
+      const r = await routeOSRM(mode === "car" ? "driving" : "walking", a, b);
+      return { km:r.km, min:r.min, pts:r.pts, exact:true };
+    }catch(e){
+      const km = haversineKm(a, b) * 1.3;
+      return { km, min:(km/m.speed)*60 + m.overhead*60, pts:greatCirclePts(a,b), exact:false };
+    }
+  }
+  const factor = mode === "train" ? 1.15 : 1.0;
+  const km = haversineKm(a, b) * factor;
+  return { km, min:(km/m.speed)*60 + m.overhead*60, pts:greatCirclePts(a,b), exact:true };
+}
+
+async function planRoute(){
+  const fromQ = $("routeFrom").value.trim(), toQ = $("routeTo").value.trim();
+  if(!fromQ || !toQ){ $("routeResult").textContent = "Bitte Start und Ziel eingeben."; return; }
+  $("routeResult").innerHTML = "🔎 Berechne Route…";
+  try{
+    const a = await geocode(fromQ), b = await geocode(toQ);
+    if(!a || !b){ $("routeResult").textContent = "Start oder Ziel nicht gefunden."; return; }
+    lastFrom = a; lastFrom.name = fromQ; lastTo = b; lastTo.name = toQ;
+    const sel = await computeMode(curMode, a, b);
+    drawRoute(curMode, a, b, sel.pts);
+    fitRoute(a, b);
+    // Vergleich aller Modi (Distanz aus gewählter Route)
+    const baseKm = haversineKm(a, b);
+    let html = '<div class="big">' + MODE_META[curMode].icon + " " + MODE_META[curMode].name +
+      " · " + fmtKm(sel.km) + " · " + fmtDur(sel.min) + (sel.exact ? "" : " (ca.)") + "</div>";
+    for(const key of ["walk","car","train","plane"]){
+      if(key === curMode) continue;
+      const mm = MODE_META[key];
+      const f = key === "walk" ? 1.35 : key === "car" ? 1.3 : key === "train" ? 1.15 : 1.0;
+      const km = baseKm * f, min = (km/mm.speed)*60 + mm.overhead*60;
+      html += '<div class="alt" data-mode="' + key + '"><span>' + mm.icon + " " + mm.name +
+        "</span><span>" + fmtDur(min) + "</span></div>";
+    }
+    $("routeResult").innerHTML = html;
+    $("routeResult").querySelectorAll(".alt").forEach(el =>
+      el.addEventListener("click", () => selectMode(el.dataset.mode)));
+    $("globeInfo").textContent = "🧭 " + fromQ + " → " + toQ;
+  }catch(e){
+    $("routeResult").textContent = "⚠️ " + e.message;
+  }
+}
+
+function selectMode(mode){
+  curMode = mode;
+  document.querySelectorAll(".route-modes button").forEach(b =>
+    b.classList.toggle("active", b.dataset.mode === mode));
+  if(lastFrom && lastTo) planRoute();
+}
+
+$("routeToggle").addEventListener("click", () => $("routePanel").classList.toggle("open"));
+$("routeGo").addEventListener("click", planRoute);
+$("routeTo").addEventListener("keydown", e => { if(e.key === "Enter") planRoute(); });
+$("routeFrom").addEventListener("keydown", e => { if(e.key === "Enter") $("routeTo").focus(); });
+document.querySelectorAll(".route-modes button").forEach(b =>
+  b.addEventListener("click", () => selectMode(b.dataset.mode)));
+
+async function openRoutePlanner(from, to, mode){
+  $("globeOverlay").classList.add("open");
+  await initGlobe();
+  if(!globe) return;
+  setTimeout(() => globe.width($("globeViz").clientWidth).height($("globeViz").clientHeight), 60);
+  $("routePanel").classList.add("open");
+  $("routeFrom").value = from || ""; $("routeTo").value = to || "";
+  if(mode) selectMode(mode); else document.querySelectorAll(".route-modes button").forEach(b => b.classList.toggle("active", b.dataset.mode === curMode));
+  if(from && to) planRoute();
+}
+
+/* ===================== Jarvis-Sprachkugel ===================== */
+(function(){
+  const cv = $("orbCanvas"), ctx = cv.getContext("2d");
+  let W = 0, H = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  function resize(){
+    const r = cv.getBoundingClientRect();
+    W = r.width; H = r.height;
+    cv.width = W*dpr; cv.height = H*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  resize(); window.addEventListener("resize", resize);
+
+  let energy = 0, targetEnergy = 0;      // 0..1  Sprech-/Aktivitäts-Energie
+  let hover = 0;                          // 0..1  Maus-Nähe
+  const mouse = { x:0, y:0, inside:false };
+  const ripples = [];                     // Klick-Wellen
+  const N = 96;                           // Kontur-Punkte
+  const springs = new Array(N).fill(0).map(() => ({ v:0, x:0 })); // Deformations-Federn
+  let t = 0;
+
+  // Energie-Steuerung von außen
+  window.orbSetTalking = (on) => { targetEnergy = on ? 0.9 : 0; };
+  window.orbPulse = (v) => { targetEnergy = Math.max(targetEnergy, v); };
+
+  const wrap = $("orbWrap");
+  function pointer(e){
+    const r = cv.getBoundingClientRect();
+    const p = e.touches ? e.touches[0] : e;
+    mouse.x = p.clientX - (r.left + r.width/2);
+    mouse.y = p.clientY - (r.top + r.height/2);
+    mouse.inside = true;
+  }
+  wrap.addEventListener("mousemove", pointer);
+  wrap.addEventListener("mouseenter", () => mouse.inside = true);
+  wrap.addEventListener("mouseleave", () => { mouse.inside = false; });
+  wrap.addEventListener("touchmove", (e) => { pointer(e); }, {passive:true});
+  wrap.addEventListener("touchstart", (e) => { pointer(e); addRipple(); }, {passive:true});
+  wrap.addEventListener("click", () => {
+    addRipple();
+    // Kugel antippen → Spracheingabe starten/stoppen
+    if(typeof listening !== "undefined"){ listening ? stopListening() : startListening(); }
+  });
+  function addRipple(){ ripples.push({ r:0.35, a:0.8 }); orbPulse(0.7); }
+
+  function noise(a){ return Math.sin(a)*0.6 + Math.sin(a*2.3+1.7)*0.3 + Math.sin(a*4.1+0.5)*0.15; }
+
+  function frame(){
+    t += 0.016;
+    energy += (targetEnergy - energy) * 0.08;
+    targetEnergy *= 0.94;                       // klingt ab
+    hover += ((mouse.inside ? 1 : 0) - hover) * 0.1;
+
+    const cx = W/2, cy = H/2;
+    const base = Math.min(W, H) * 0.3;
+    ctx.clearRect(0, 0, W, H);
+
+    // Deformationsfedern (Maus drückt die nächste Kontur ein → realistisches Feedback)
+    const mAng = Math.atan2(mouse.y, mouse.x);
+    const mDist = Math.hypot(mouse.x, mouse.y);
+    const push = mouse.inside ? Math.max(0, 1 - mDist/(base*1.8)) : 0;
+    for(let i = 0; i < N; i++){
+      const ang = (i/N)*Math.PI*2;
+      let force = 0;
+      const da = Math.atan2(Math.sin(ang-mAng), Math.cos(ang-mAng));
+      if(push > 0) force = -Math.exp(-(da*da)/0.15) * push * base * 0.5; // Eindellung Richtung Maus
+      const s = springs[i];
+      s.v += (force - s.x) * 0.2; s.v *= 0.75; s.x += s.v;
+    }
+
+    // Glow-Halo
+    const glowR = base * (1.5 + energy*0.5 + hover*0.2);
+    const g0 = ctx.createRadialGradient(cx, cy, base*0.3, cx, cy, glowR);
+    g0.addColorStop(0, "rgba(255,150,40,"+(0.28+energy*0.35)+")");
+    g0.addColorStop(1, "rgba(255,120,20,0)");
+    ctx.fillStyle = g0; ctx.beginPath(); ctx.arc(cx, cy, glowR, 0, Math.PI*2); ctx.fill();
+
+    // Kontur der Kugel (wabernd, energie-moduliert)
+    ctx.beginPath();
+    for(let i = 0; i <= N; i++){
+      const ang = (i/N)*Math.PI*2;
+      const wob = noise(ang*2 + t*1.4) * (2 + energy*14 + hover*3);
+      const r = base + wob + (springs[i % N].x || 0);
+      const x = cx + Math.cos(ang)*r, y = cy + Math.sin(ang)*r;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    const gf = ctx.createRadialGradient(cx - base*0.3, cy - base*0.3, base*0.1, cx, cy, base*1.2);
+    gf.addColorStop(0, "#ffe0a3");
+    gf.addColorStop(0.4, "#ff9a1f");
+    gf.addColorStop(0.8, "#e8630c");
+    gf.addColorStop(1, "#7a2f04");
+    ctx.fillStyle = gf; ctx.fill();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(255,210,150,"+(0.5+energy*0.4)+")"; ctx.stroke();
+
+    // Innerer Kern (Arc-Reactor)
+    const coreR = base * (0.4 + energy*0.12 + Math.sin(t*3)*0.02);
+    const gc = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR);
+    gc.addColorStop(0, "rgba(255,255,240,0.95)");
+    gc.addColorStop(0.5, "rgba(255,200,120,0.7)");
+    gc.addColorStop(1, "rgba(255,150,50,0)");
+    ctx.fillStyle = gc; ctx.beginPath(); ctx.arc(cx, cy, coreR, 0, Math.PI*2); ctx.fill();
+
+    // rotierende Ringe
+    for(let k = 0; k < 2; k++){
+      ctx.beginPath();
+      const rr = base*(0.6 + k*0.18);
+      const off = t*(k ? -0.8 : 1.1);
+      ctx.arc(cx, cy, rr, off, off + Math.PI*1.3);
+      ctx.strokeStyle = "rgba(255,190,110,"+(0.25+energy*0.3)+")";
+      ctx.lineWidth = 2; ctx.stroke();
+    }
+
+    // Klick-Wellen
+    for(let i = ripples.length-1; i >= 0; i--){
+      const rp = ripples[i];
+      rp.r += 0.04; rp.a *= 0.93;
+      ctx.beginPath(); ctx.arc(cx, cy, base*(1 + rp.r*2), 0, Math.PI*2);
+      ctx.strokeStyle = "rgba(255,170,80,"+rp.a+")"; ctx.lineWidth = 2; ctx.stroke();
+      if(rp.a < 0.03) ripples.splice(i, 1);
+    }
+
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
 
 /* ===================== Start ===================== */
 function greet(){
