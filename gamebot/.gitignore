@@ -3,3 +3,4 @@ config.brawlstars.json
 __pycache__/
 *.pyc
 shot.png
+.live_*.png

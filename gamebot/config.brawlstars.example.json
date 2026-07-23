@@ -6,11 +6,35 @@
   "boot_wait": 25,
 
   "instances": [
-    { "name": "Account-1", "port": 5555, "ld_index": 0 },
-    { "name": "Account-2", "port": 5557, "ld_index": 1 },
-    { "name": "Account-3", "port": 5559, "ld_index": 2 },
-    { "name": "Account-4", "port": 5561, "ld_index": 3 }
+    { "name": "WIN-1",  "port": 5555, "ld_index": 0 },
+    { "name": "WIN-2",  "port": 5557, "ld_index": 1 },
+    { "name": "WIN-3",  "port": 5559, "ld_index": 2 },
+    { "name": "LOSE-1", "port": 5561, "ld_index": 3 },
+    { "name": "LOSE-2", "port": 5563, "ld_index": 4 },
+    { "name": "LOSE-3", "port": 5565, "ld_index": 5 }
   ],
+
+  "loop_delay": 1.0,
+
+  "groups": {
+    "WIN": {
+      "ports": [5555, 5557, 5559],
+      "tasks": [
+        { "type": "tap_template", "name": "Play",  "template": "play_button.png", "interval": 5, "threshold": 0.85 },
+        { "type": "tap_template", "name": "Weiter","template": "proceed.png",     "interval": 3, "threshold": 0.85 },
+        { "type": "swipe", "name": "vor",   "from": [220, 780], "to": [220, 650], "ms": 400, "interval": 1 },
+        { "type": "tap",   "name": "schuss","x": 1000, "y": 720, "interval": 1 }
+      ]
+    },
+    "LOSE": {
+      "ports": [5561, 5563, 5565],
+      "tasks": [
+        { "type": "tap_template", "name": "Play",  "template": "play_button.png", "interval": 5, "threshold": 0.85 },
+        { "type": "tap_template", "name": "Weiter","template": "proceed.png",     "interval": 3, "threshold": 0.85 },
+        { "type": "swipe", "name": "rueck", "from": [220, 780], "to": [220, 910], "ms": 400, "interval": 1 }
+      ]
+    }
+  },
 
   "queue_timeout": 90,
   "match_max_seconds": 180,

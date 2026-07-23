@@ -141,13 +141,36 @@ Einfach **Doppelklick auf `start.bat`**. Das Skript sucht die LDPlayer-adb,
 installiert die Abhaengigkeiten, legt die Config an, scannt die Instanz-Ports
 und oeffnet dann die Oberflaeche. Ideal fuer den taeglichen Start.
 
-### Start – grafische Oberflaeche (manuell)
+### Gruppen-Steuerpult (die Oberflaeche)
 ```bash
 python gui.py
 ```
-Fenster mit **Start/Stop pro Instanz**, **Alle starten/stoppen**,
-**Dry-Run-Schalter** und **Live-Status** (Verbindung, Zustand, Match-Zahl)
-plus Log. `tkinter` ist beim Windows-Python-Installer standardmaessig dabei.
+Zeigt die **Gruppen WIN und LOSE** nebeneinander. Pro Gruppe:
+- Liste der Instanzen mit Live-Status (verbunden · Zustand · Klicks)
+- **▶ Gruppe starten / ■ stoppen** – alle Instanzen der Gruppe laufen
+  **synchron mit derselben Aufgabenliste** (gleiche Bewegung, gleiche Klicks)
+- **Aufgabenliste** (zeitgesteuert): `🖼 Bild einfuegen` fuegt einen Button
+  hinzu, der automatisch erkannt und alle *N* Sekunden geklickt wird;
+  `↔ Bewegung` fuegt einen synchronen Swipe hinzu; `🗑 Entfernen` loescht.
+- **Fenster** je Instanz: oeffnet ein Live-Bild. Dort **2× klicken** = Button
+  ausschneiden und direkt als Bild-Aufgabe der Gruppe speichern.
+
+Oben: **Dry-Run** (nur testen, keine Eingaben) und **💾 Config speichern**
+(schreibt deine Aufgaben nach `config.brawlstars.json`).
+
+`tkinter` ist beim Windows-Python-Installer standardmaessig dabei.
+
+#### Gruppen anpassen (config.brawlstars.json)
+```json
+"groups": {
+  "WIN":  { "ports": [5555, 5557, 5559], "tasks": [ ... ] },
+  "LOSE": { "ports": [5561, 5563, 5565], "tasks": [ ... ] }
+}
+```
+`ports` = welche Instanzen zur Gruppe gehoeren (mit `python scan.py` ermitteln).
+`tasks` kannst du komplett ueber die Oberflaeche pflegen. Aufgabentypen:
+`tap_template` (Button per Bild, `interval` Sekunden), `swipe` (Bewegung),
+`tap` (feste Position).
 
 ### Start – Konsole
 ```bash
