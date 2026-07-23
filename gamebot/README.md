@@ -119,14 +119,22 @@ gewinnt nicht gezielt. Das ist eine technische Grenze, keine Faulheit.
    Ports/Namen der Instanzen eintragen. Fuer automatischen Fensterstart den
    Pfad zu `ldconsole.exe` unter `ldconsole` setzen (sonst leer lassen und
    Fenster manuell starten).
-3. **Templates aufnehmen** (Pflicht – fertige gibt es nicht, die Oberflaeche
-   haengt von Version/Sprache/Aufloesung ab). Screenshot machen, Buttons
-   ausschneiden, unter den in der Config genannten Namen in `templates/`
-   ablegen: `play_button.png`, `in_match.png`, `proceed.png`, `reward.png`,
-   `victory.png`, `defeat.png` usw. Fuer den Account-Wechsel zusaetzlich die
-   Menue-Schritte (`settings_button.png`, `supercell_id.png`, …).
-4. `joystick` (Mittelpunkt + Radius des Bewegungs-Sticks) und `attack`
-   (Tap-Position zum Schiessen) an deine Aufloesung anpassen.
+3. **Templates aufnehmen + Koordinaten finden** – dafuer gibt es den
+   Aufnahme-Helfer (Pflichtschritt, fertige Templates gibt es nicht):
+   ```bash
+   python capture.py --port 5555
+   ```
+   Im Bildfenster: **Linksklick** zeigt die Koordinate (fuer `joystick` /
+   `attack`), Taste **c** zieht ein Rechteck auf und speichert es nach
+   Namenseingabe als Template in `templates/` (z. B. `play_button`,
+   `in_match`, `proceed`, `reward`, `victory`, `defeat`; fuer den
+   Account-Wechsel zusaetzlich `settings_button`, `supercell_id`, …).
+   Taste **r** holt einen neuen Screenshot (z. B. nach Menuewechsel),
+   **q** beendet.
+4. In `config.brawlstars.json` die abgelesenen Werte eintragen:
+   `joystick` = Mittelpunkt (cx, cy) + Radius des Bewegungs-Sticks,
+   `attack` = Tap-Position zum Schiessen. Die Template-Namen muessen zu den
+   gespeicherten Dateien passen.
 
 ### Ein-Klick-Start (Windows)
 Einfach **Doppelklick auf `start.bat`**. Das Skript sucht die LDPlayer-adb,
