@@ -24,6 +24,7 @@ Nutzungsbedingungen und fuehrt zu Sperren. Nur mit Wegwerf-Accounts nutzen.
 
 from __future__ import annotations
 
+import json
 import queue
 import shutil
 import threading
@@ -148,6 +149,76 @@ class InstanceWindow:
         self.win.destroy()
 
 
+class ConfigEditor:
+    """Eigenes Fenster zum Bearbeiten und Speichern der kompletten Config."""
+
+    def __init__(self, app: "BotGUI"):
+        self.app = app
+        self.win = tk.Toplevel(app.root)
+        self.win.title("Config bearbeiten – config.brawlstars.json")
+        self.win.geometry("640x600")
+
+        top = ttk.Frame(self.win, padding=6)
+        top.pack(fill="x")
+        ttk.Label(top, text="Konfiguration (JSON). Aendern und speichern:"
+                  ).pack(side="left")
+
+        self.text = tk.Text(self.win, wrap="none", undo=True,
+                            font=("Consolas", 10))
+        self.text.pack(fill="both", expand=True, padx=6, pady=6)
+        yscroll = ttk.Scrollbar(self.win, orient="vertical",
+                                command=self.text.yview)
+        self.text.configure(yscrollcommand=yscroll.set)
+
+        self.status = ttk.Label(self.win, text="", padding=6, foreground="#080")
+        self.status.pack(fill="x")
+
+        btns = ttk.Frame(self.win, padding=6)
+        btns.pack(fill="x")
+        ttk.Button(btns, text="💾 Speichern",
+                   command=self.save).pack(side="left")
+        ttk.Button(btns, text="↻ Neu laden",
+                   command=self.reload).pack(side="left", padx=6)
+        ttk.Button(btns, text="Schliessen",
+                   command=self.win.destroy).pack(side="right")
+
+        self.reload()
+
+    def reload(self) -> None:
+        self.text.delete("1.0", "end")
+        self.text.insert("1.0", json.dumps(self.app.cfg, indent=2,
+                                           ensure_ascii=False))
+        self.status.config(text="Aktuelle Config geladen.", foreground="#080")
+
+    def save(self) -> None:
+        raw = self.text.get("1.0", "end")
+        try:
+            new_cfg = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            self.status.config(
+                text=f"❌ JSON-Fehler (Zeile {exc.lineno}): {exc.msg}",
+                foreground="#b00")
+            return
+        # Inhalt der bestehenden Config ersetzen (Referenz bleibt erhalten)
+        self.app.cfg.clear()
+        self.app.cfg.update(new_cfg)
+        try:
+            save_config(self.app.cfg)
+        except Exception as exc:  # noqa: BLE001
+            self.status.config(text=f"❌ Speichern fehlgeschlagen: {exc}",
+                               foreground="#b00")
+            return
+        self.status.config(text="✅ Gespeichert. Hinweis: Aenderungen an Ports/"
+                                "Gruppen wirken erst nach Neustart der Oberflaeche.",
+                           foreground="#080")
+        # Aufgabenlisten sofort aktualisieren
+        for gname in self.app.group_widgets:
+            try:
+                self.app._refresh_task_list(gname)
+            except Exception:  # noqa: BLE001
+                pass
+
+
 class BotGUI:
     def __init__(self, root: tk.Tk):
         self.root = root
@@ -182,6 +253,8 @@ class BotGUI:
                         variable=self.dry_run).pack(side="left")
         ttk.Button(bar, text="💾 Config speichern",
                    command=self.save).pack(side="right")
+        ttk.Button(bar, text="⚙ Config bearbeiten",
+                   command=self.open_config_editor).pack(side="right", padx=6)
         ttk.Label(self.root, foreground="#b00", padding=(8, 0),
                   text="⚠ Brawl-Stars-Botting verstoesst gegen Supercells "
                        "Nutzungsbedingungen – nur Wegwerf-Accounts, Sperr-Risiko!"
@@ -253,6 +326,9 @@ class BotGUI:
         self.log.pack(fill="both", expand=True)
 
     # ---- Aktionen -------------------------------------------------------
+    def open_config_editor(self) -> None:
+        ConfigEditor(self)
+
     def open_instance(self, port: int, group: str) -> None:
         if port in self.inst_windows:
             self.inst_windows[port].win.lift()
