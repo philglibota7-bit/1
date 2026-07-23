@@ -120,12 +120,27 @@ gewinnt nicht gezielt. Das ist eine technische Grenze, keine Faulheit.
 4. `joystick` (Mittelpunkt + Radius des Bewegungs-Sticks) und `attack`
    (Tap-Position zum Schiessen) an deine Aufloesung anpassen.
 
-### Start
+### Start – grafische Oberflaeche (empfohlen)
+```bash
+python gui.py
+```
+Fenster mit **Start/Stop pro Instanz**, **Alle starten/stoppen**,
+**Dry-Run-Schalter** und **Live-Status** (Verbindung, Zustand, Match-Zahl)
+plus Log. `tkinter` ist beim Windows-Python-Installer standardmaessig dabei.
+
+### Start – Konsole
 ```bash
 python multi.py                     # alle Instanzen aus der Config
+python multi.py --dry-run           # nur erkennen, keine Eingaben
 ```
-Erst mit **einer** Instanz und dem generischen `bot.py --dry-run` die
-Templates/Positionen testen, dann auf mehrere Fenster hochskalieren.
+Erst mit **einer** Instanz und **Dry-Run** die Templates/Positionen testen,
+dann auf mehrere Fenster hochskalieren.
+
+### Aufbau (fuer Brawl Stars)
+- `gui.py` – grafische Startflaeche (tkinter)
+- `controller.py` – verwaltet die Instanz-Threads, Status, Start/Stop, Reconnect
+- `brawl.py` – Ablauflogik pro Instanz (Stop-Signal, Status-/Log-Callbacks, Dry-Run)
+- `multi.py` – Konsolen-Starter (nutzt denselben Controller)
 
 `matches_per_account` in der Config: `0` = nie wechseln; `>0` = nach so vielen
 Matches den Account-Wechsel ausfuehren.
