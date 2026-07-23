@@ -128,7 +128,12 @@ gewinnt nicht gezielt. Das ist eine technische Grenze, keine Faulheit.
 4. `joystick` (Mittelpunkt + Radius des Bewegungs-Sticks) und `attack`
    (Tap-Position zum Schiessen) an deine Aufloesung anpassen.
 
-### Start – grafische Oberflaeche (empfohlen)
+### Ein-Klick-Start (Windows)
+Einfach **Doppelklick auf `start.bat`**. Das Skript sucht die LDPlayer-adb,
+installiert die Abhaengigkeiten, legt die Config an, scannt die Instanz-Ports
+und oeffnet dann die Oberflaeche. Ideal fuer den taeglichen Start.
+
+### Start – grafische Oberflaeche (manuell)
 ```bash
 python gui.py
 ```
