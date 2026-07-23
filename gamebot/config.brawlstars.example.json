@@ -15,7 +15,7 @@
   "queue_timeout": 90,
   "match_max_seconds": 180,
   "between_matches": 2.0,
-  "matches_per_account": 0,
+  "matches_per_account": 10,
 
   "joystick": { "cx": 220, "cy": 780, "radius": 120 },
   "attack":   { "x": 1000, "y": 720 },
@@ -32,13 +32,21 @@
     "close":       "close.png"
   },
 
+  "accounts": [
+    { "name": "Account-A", "slot": [640, 300], "wait": 2.5 },
+    { "name": "Account-B", "slot": [640, 430], "wait": 2.5 },
+    { "name": "Account-C", "slot": [640, 560], "wait": 2.5 }
+  ],
+
   "account_switch": {
     "steps": [
-      { "template": "menu_button.png",     "delay": 1.5, "timeout": 15 },
-      { "template": "settings_button.png", "delay": 1.5, "timeout": 15 },
-      { "template": "supercell_id.png",    "delay": 1.5, "timeout": 15 },
-      { "template": "load_account.png",    "delay": 2.5, "timeout": 15 },
-      { "template": "confirm.png",         "delay": 3.0, "timeout": 15 }
+      { "type": "tap_template", "template": "menu_button.png",     "timeout": 15, "wait": 1.5 },
+      { "type": "tap_template", "template": "settings_button.png", "timeout": 10, "wait": 1.5 },
+      { "type": "tap_template", "template": "supercell_id.png",    "timeout": 10, "wait": 2.0 },
+      { "type": "tap_template", "template": "switch_account.png",  "timeout": 10, "wait": 2.0 },
+      { "type": "select_account",                                                 "wait": 2.0 },
+      { "type": "tap_template", "template": "confirm.png",         "timeout": 10, "wait": 3.0 },
+      { "type": "wait",                                                           "wait": 3.0 }
     ]
   }
 }

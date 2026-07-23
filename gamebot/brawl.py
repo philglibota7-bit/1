@@ -179,26 +179,82 @@ class BrawlBot:
                 self._key("KEYCODE_BACK")
                 self.sleep(1.0)
 
-    # ---- Account-Wechsel ------------------------------------------------
-    def switch_account(self) -> None:
-        acc = self.cfg.get("accounts", [])
-        seq = self.cfg.get("account_switch", {}).get("steps", [])
-        if not seq:
-            self.log("Kein Account-Wechsel konfiguriert -> uebersprungen.")
-            return
-        self.set_state("SWITCH")
-        self.account_index = (self.account_index + 1) % max(len(acc), 1)
-        self.log(f"Wechsle Account -> Index {self.account_index}.")
-        for step in seq:
-            if self.stopping():
-                return
+    # ---- Account-Wechsel (fest definierter Ablauf) ----------------------
+    def _run_step(self, step: dict) -> bool:
+        """
+        Fuehrt EINEN Schritt eines festgelegten Ablaufs aus.
+        Unterstuetzte 'type'-Werte:
+          tap_template : Button per Bild erkennen und antippen (braucht Template)
+          tap          : feste Koordinate antippen        -> "x","y"
+          swipe        : wischen                           -> "from":[x,y],"to":[x,y],"ms"
+          key          : Hardware-Taste                    -> "code" (z. B. KEYCODE_BACK)
+          wait         : nur warten
+          select_account: naechsten Account aus "accounts" waehlen
+        Jeder Schritt kann "wait"/"delay" (Sekunden Pause danach) setzen.
+        """
+        typ = step.get("type", "tap_template")
+        wait = step.get("wait", step.get("delay", 1.5))
+
+        if typ == "tap_template":
             tmpl = step["template"]
             if not self._wait_for(tmpl, step.get("timeout", 15)):
-                self.log(f"Schritt '{tmpl}' nicht gefunden -> Wechsel abgebrochen.")
-                return
+                self.log(f"Schritt-Bild '{tmpl}' nicht gefunden.")
+                return False
             self._tap_if(tmpl)
-            self.sleep(step.get("delay", 1.5))
-        self.log("Account gewechselt.")
+        elif typ == "tap":
+            self.log(f"tap ({step['x']}, {step['y']})")
+            self._tap(int(step["x"]), int(step["y"]))
+        elif typ == "swipe":
+            f, t = step["from"], step["to"]
+            self._swipe(int(f[0]), int(f[1]), int(t[0]), int(t[1]),
+                        int(step.get("ms", 300)))
+        elif typ == "key":
+            self._key(step["code"])
+        elif typ == "wait":
+            pass
+        elif typ == "select_account":
+            if not self._select_account():
+                return False
+        else:
+            self.log(f"Unbekannter Schritt-Typ: {typ}")
+            return False
+
+        self.sleep(wait)
+        return True
+
+    def _select_account(self) -> bool:
+        """Waehlt reihum den naechsten Account aus cfg['accounts']."""
+        accounts = self.cfg.get("accounts", [])
+        if not accounts:
+            return True
+        self.account_index = (self.account_index + 1) % len(accounts)
+        acc = accounts[self.account_index]
+        self.log(f"Waehle Account: {acc.get('name', self.account_index)}")
+        if "template" in acc:
+            if not self._wait_for(acc["template"], 15):
+                self.log("Account-Bild nicht gefunden.")
+                return False
+            self._tap_if(acc["template"])
+        elif "slot" in acc:
+            self._tap(int(acc["slot"][0]), int(acc["slot"][1]))
+        self.sleep(acc.get("wait", 2.0))
+        return True
+
+    def switch_account(self) -> None:
+        steps = self.cfg.get("account_switch", {}).get("steps", [])
+        if not steps:
+            self.log("Kein Account-Wechsel-Ablauf konfiguriert -> uebersprungen.")
+            return
+        self.set_state("SWITCH")
+        self.log("Starte festgelegten Account-Wechsel-Ablauf ...")
+        for i, step in enumerate(steps, 1):
+            if self.stopping():
+                return
+            self.log(f"  Schritt {i}/{len(steps)}: {step.get('type', 'tap_template')}")
+            if not self._run_step(step):
+                self.log("Account-Wechsel abgebrochen (Schritt fehlgeschlagen).")
+                return
+        self.log("Account-Wechsel abgeschlossen.")
 
     # ---- Hauptschleife --------------------------------------------------
     def run(self) -> None:

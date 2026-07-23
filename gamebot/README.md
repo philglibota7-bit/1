@@ -166,6 +166,47 @@ dann auf mehrere Fenster hochskalieren.
 `matches_per_account` in der Config: `0` = nie wechseln; `>0` = nach so vielen
 Matches den Account-Wechsel ausfuehren.
 
+### Account-Wechsel: fest definierter Ablauf
+Der Wechsel ist ein **von dir festgelegter Ablauf** aus einzelnen Schritten
+(`account_switch.steps`). Jeder Schritt hat einen `type`:
+
+| `type`           | Bedeutung                          | Felder                              |
+|------------------|------------------------------------|-------------------------------------|
+| `tap_template`   | Button per Bild erkennen + tippen  | `template`, `timeout`               |
+| `tap`            | **feste Koordinate** antippen      | `x`, `y`                            |
+| `swipe`          | wischen                            | `from:[x,y]`, `to:[x,y]`, `ms`      |
+| `key`            | Hardware-Taste                     | `code` (z. B. `KEYCODE_BACK`)       |
+| `wait`           | nur warten                         | –                                   |
+| `select_account` | naechsten Account aus `accounts` waehlen | –                             |
+
+Jeder Schritt kann `wait` (Sekunden Pause danach) setzen. Die Schritte werden
+**strikt der Reihe nach** abgearbeitet – genau dein festgelegter Ablauf.
+
+`accounts` ist die Liste, durch die `select_account` **reihum** schaltet. Ein
+Eintrag waehlt den Account entweder ueber eine **feste Position**
+(`"slot": [x, y]`, z. B. der Kontoeintrag in der Supercell-ID-Liste) oder ueber
+ein Bild (`"template": "..."`).
+
+Zwei Betriebsarten – frei kombinierbar:
+- **Rein koordinatenbasiert** (keine Templates noetig): alles mit `tap`/`swipe`/
+  `wait`. Robust, solange die Menues immer an derselben Stelle sind. Koordinaten
+  mit `python capture.py --port ...` per Linksklick ablesen.
+- **Bildbasiert** (`tap_template`): unempfindlicher gegen kleine Layout-
+  verschiebungen, braucht aber die Templates.
+
+Beispiel eines koordinatenbasierten Ablaufs (ohne Templates):
+```json
+"account_switch": {
+  "steps": [
+    { "type": "tap",  "x": 40,  "y": 40,  "wait": 1.5 },
+    { "type": "tap",  "x": 900, "y": 120, "wait": 1.5 },
+    { "type": "tap",  "x": 640, "y": 500, "wait": 2.0 },
+    { "type": "select_account",           "wait": 2.0 },
+    { "type": "tap",  "x": 640, "y": 620, "wait": 3.0 }
+  ]
+}
+```
+
 ## Anbindung an Jarvis (optional)
 
 Die Jarvis-Web-App (`jarvis.html`) laeuft im Browser und kann aus der Sandbox
