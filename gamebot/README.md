@@ -79,6 +79,57 @@ zutreffende Regel wird ausgefuehrt.
 - `config.example.json` – Beispiel-Konfiguration
 - `templates/` – deine Referenzbilder
 
+## Brawl Stars – Multi-Instanz-Bot
+
+> 🚫 **Sehr wichtig:** Brawl Stars gehoert **Supercell**. Bots verstossen gegen
+> deren Nutzungsbedingungen. Supercell erkennt Emulator-Botting aktiv und
+> **sperrt Accounts dauerhaft** (oft die ganze Supercell-ID). **Nur mit
+> Wegwerf-Accounts nutzen – niemals mit deinem Hauptaccount.** Verwendung auf
+> eigenes Risiko.
+
+Dateien:
+- `brawl.py` – Ablauflogik pro Instanz: Play druecken → Match abwarten →
+  einfache Spiel-Routine (laufen + schiessen) → Ende wegtippen →
+  **automatisch wieder anstellen**. Optional **Account-Wechsel** nach N Matches.
+- `multi.py` – startet **mehrere LDPlayer-Fenster gleichzeitig** (ein Thread
+  pro Instanz).
+
+### Realistische Grenzen
+Der Bot bedient **Menues zuverlaessig** (anstellen, bestaetigen, Account
+wechseln). Das **eigentliche Spielen im Match** ist bewusst simpel
+(zufaellig laufen + schiessen) – ein Screenshot-Bot spielt nicht clever und
+gewinnt nicht gezielt. Das ist eine technische Grenze, keine Faulheit.
+
+### Einrichtung
+1. Mehrere LDPlayer-Instanzen anlegen (LDPlayer Multi-Player-Manager) und in
+   **jeder** Brawl Stars installieren + einloggen. ADB-Ports: `5555`, `5557`,
+   `5559`, `5561` … (pro Instanz +2).
+2. Config anlegen:
+   ```bash
+   copy config.brawlstars.example.json config.brawlstars.json
+   ```
+   Ports/Namen der Instanzen eintragen. Fuer automatischen Fensterstart den
+   Pfad zu `ldconsole.exe` unter `ldconsole` setzen (sonst leer lassen und
+   Fenster manuell starten).
+3. **Templates aufnehmen** (Pflicht – fertige gibt es nicht, die Oberflaeche
+   haengt von Version/Sprache/Aufloesung ab). Screenshot machen, Buttons
+   ausschneiden, unter den in der Config genannten Namen in `templates/`
+   ablegen: `play_button.png`, `in_match.png`, `proceed.png`, `reward.png`,
+   `victory.png`, `defeat.png` usw. Fuer den Account-Wechsel zusaetzlich die
+   Menue-Schritte (`settings_button.png`, `supercell_id.png`, …).
+4. `joystick` (Mittelpunkt + Radius des Bewegungs-Sticks) und `attack`
+   (Tap-Position zum Schiessen) an deine Aufloesung anpassen.
+
+### Start
+```bash
+python multi.py                     # alle Instanzen aus der Config
+```
+Erst mit **einer** Instanz und dem generischen `bot.py --dry-run` die
+Templates/Positionen testen, dann auf mehrere Fenster hochskalieren.
+
+`matches_per_account` in der Config: `0` = nie wechseln; `>0` = nach so vielen
+Matches den Account-Wechsel ausfuehren.
+
 ## Anbindung an Jarvis (optional)
 
 Die Jarvis-Web-App (`jarvis.html`) laeuft im Browser und kann aus der Sandbox
