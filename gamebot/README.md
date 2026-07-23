@@ -102,8 +102,16 @@ gewinnt nicht gezielt. Das ist eine technische Grenze, keine Faulheit.
 
 ### Einrichtung
 1. Mehrere LDPlayer-Instanzen anlegen (LDPlayer Multi-Player-Manager) und in
-   **jeder** Brawl Stars installieren + einloggen. ADB-Ports: `5555`, `5557`,
-   `5559`, `5561` … (pro Instanz +2).
+   **jeder** Brawl Stars installieren + **je einen anderen Account** einloggen.
+   In **jeder** Instanz ADB-Debugging aktivieren. ADB-Ports: `5555`, `5557`,
+   `5559`, `5561` … (pro Instanz +2) – die genauen Ports mit dem Scanner
+   ermitteln:
+   ```bash
+   python scan.py
+   ```
+   Der Scanner listet alle erreichbaren Instanzen mit Port und gibt einen
+   fertigen `"instances"`-Block zum Einfuegen in die Config aus. So verbindest
+   du jeden Account/jedes Fenster mit dem Bot.
 2. Config anlegen:
    ```bash
    copy config.brawlstars.example.json config.brawlstars.json
