@@ -696,6 +696,10 @@ class BotGUI:
                    command=lambda g=gname: self.add_move_task(g)).pack(side="left", padx=4)
         ttk.Button(tb, text="🗑 Entfernen",
                    command=lambda g=gname: self.remove_task(g)).pack(side="left")
+        kind = "loose" if "LOOSE" in gname.upper() else "win"
+        ttk.Button(tb, text=f"🎮 Verhalten ({kind})",
+                   command=lambda g=gname, k=kind: self.apply_preset(g, k)
+                   ).pack(side="left", padx=4)
 
         self.group_widgets[gname] = {"rows": rows, "list": listbox}
         self._refresh_task_list(gname)
@@ -1012,8 +1016,30 @@ class BotGUI:
             "capture": lambda: self._chat_capture(gname),
             "switch": lambda: self.switch_accounts(gname),
             "team": lambda: self.form_team(gname),
+            "preset": lambda kind: self.apply_preset(gname, kind),
             "save": lambda: save_config(self.cfg),
         }
+
+    def apply_preset(self, gname: str, kind: str) -> None:
+        """Fuellt die Aufgaben der Gruppe mit fertigem Spiel-Verhalten.
+        win = bewegen + schiessen, loose = nur bewegen."""
+        joy = self.cfg.get("joystick") or {"cx": 220, "cy": 780, "radius": 120}
+        atk = self.cfg.get("attack") or {"x": 1000, "y": 720}
+        cx, cy, r = joy["cx"], joy["cy"], joy["radius"]
+        tasks = [
+            {"type": "swipe", "name": "vor", "from": [cx, cy],
+             "to": [cx, cy - r], "ms": 400, "interval": 1},
+            {"type": "swipe", "name": "zurueck", "from": [cx, cy],
+             "to": [cx, cy + r], "ms": 400, "interval": 2},
+        ]
+        if kind == "win":
+            tasks.append({"type": "tap", "name": "schuss",
+                          "x": atk["x"], "y": atk["y"], "interval": 1,
+                          "w": 30, "h": 30})
+        self.controller.group_tasks(gname)[:] = tasks
+        self._refresh_task_list(gname)
+        self.log_queue.put(f"[{gname}] Verhalten '{kind}' gesetzt "
+                           f"({len(tasks)} Aufgaben).")
 
     def _chat_capture(self, gname: str) -> None:
         ports = self.controller.group_ports(gname)

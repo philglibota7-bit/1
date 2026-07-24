@@ -44,6 +44,10 @@ HELP_TEXT = (
     "  • 'entferne play' – Aufgabe loeschen\n"
     "  • 'account wechseln' – jede Instanz wechselt zu einem anderen Account\n"
     "  • 'team bilden' – Host erstellt Lobby, andere treten per Code bei\n"
+    "Einfache Steuerung (ohne Koordinaten):\n"
+    "  • 'lauf vor' / 'lauf zurueck' / 'lauf links' / 'lauf rechts'\n"
+    "  • 'schiesse' – feuert in Angriffsrichtung\n"
+    "  • 'verhalten win' / 'verhalten loose' – fertiges Spiel-Verhalten setzen\n"
     "Beibringen:  lerne \"deine worte\" = STARTE\n"
     "Vergessen:   vergiss deine worte"
 )
@@ -156,11 +160,21 @@ class Brain:
                 self.a["team"]()
                 return ("🏁 Team-Lobby wird gebildet: der Host erstellt die "
                         "Lobby, liest den Code, die anderen treten bei.")
+            if op == "PRESET":
+                kind = parts[1].lower() if len(parts) > 1 else "win"
+                self.a["preset"](kind)
+                return (f"🎮 Verhalten '{kind}' gesetzt "
+                        f"({'bewegen + schiessen' if kind == 'win' else 'nur bewegen'}).")
         except Exception as exc:  # noqa: BLE001
             return f"Fehler beim Ausfuehren von '{cmd}': {exc}"
         return f"Unbekannter Befehl: {cmd}"
 
     # ---- Sprache -> Befehl (Regeln) ------------------------------------
+    def _controls(self):
+        joy = self.cfg.get("joystick") or {"cx": 220, "cy": 780, "radius": 120}
+        atk = self.cfg.get("attack") or {"x": 1000, "y": 720}
+        return joy, atk
+
     def _rules_to_canon(self, low: str) -> Optional[str]:
         if re.search(r"\b(start\w*|los|leg los|mach an|spiel\w*|beginn\w*)\b", low):
             return "START"
@@ -185,6 +199,32 @@ class Brain:
             return "TEAM"
 
         iv = re.search(r"alle\s+([0-9]+(?:[.,][0-9]+)?)\s*(sek\w*|s)\b", low)
+
+        # ---- einfache Steuerung (ohne Koordinaten) ----
+        if re.search(r"(preset|verhalten|voreinstell)", low):
+            loose = re.search(r"loose|lose|verlier|werf", low)
+            return "PRESET loose" if loose else "PRESET win"
+
+        joy, atk = self._controls()
+        cx, cy, r = joy["cx"], joy["cy"], joy["radius"]
+        mv = re.search(r"(lauf\w*|geh\w*|beweg\w*|move\w*|renn\w*|fahr\w*)\s*"
+                       r"(vor\w*|nach vorne|hoch|zur[uü]ck\w*|runter|links|rechts)",
+                       low)
+        if mv:
+            d = mv.group(2)
+            if "vor" in d or "hoch" in d:
+                tx, ty = cx, cy - r
+            elif "ruck" in d or "rück" in d or "runter" in d:
+                tx, ty = cx, cy + r
+            elif "links" in d:
+                tx, ty = cx - r, cy
+            else:
+                tx, ty = cx + r, cy
+            sec = iv.group(1) if iv else "1"
+            return f"MOVE {cx} {cy} {tx} {ty} {sec}"
+        if re.search(r"schie[sß]\w*|feuer|baller\w*|angriff|attack|schuss", low):
+            sec = iv.group(1) if iv else "1"
+            return f"TAP {atk['x']} {atk['y']} {sec} 30 30"
 
         # Bewegung zuerst (4 Zahlen) – vor Positions-Tap (2 Zahlen)
         m = re.search(r"beweg\w*\s+([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)", low)

@@ -285,6 +285,12 @@ was die Gruppe tun soll:
 - `bewege 220,780,220,650 alle 1 sekunde` – **Bewegung** (von→nach, wie)
 - `entferne play` – Aufgabe loeschen
 - `nimm den play knopf auf` – oeffnet das Instanz-Fenster zum Ausschneiden
+- **Einfache Steuerung (ohne Koordinaten):** `lauf vor` / `lauf zurueck` /
+  `lauf links` / `lauf rechts`, `schiesse` – nutzt die `joystick`/`attack`-
+  Angaben aus der Config, du musst nichts ausrechnen.
+- **Verhalten-Preset:** `verhalten win` (bewegen + schiessen) bzw.
+  `verhalten loose` (nur bewegen) – fuellt die Aufgaben der Gruppe automatisch.
+  Auch als Knopf **🎮 Verhalten** je Gruppe (WIN bekommt Schuss, LOOSE nicht).
 - `status` / `hilfe`
 
 **Dazulernen:** `lerne "deine worte" = STARTE` merkt sich deine Formulierung
