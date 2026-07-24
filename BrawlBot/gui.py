@@ -1020,11 +1020,43 @@ class BotGUI:
             "save": lambda: save_config(self.cfg),
         }
 
+    def _detect_resolution(self):
+        """Aufloesung einer erreichbaren Instanz ermitteln (Fallback 1280x720)."""
+        for grp in self.controller.groups().values():
+            for p in grp.get("ports", []):
+                try:
+                    ld = LDPlayer(host=self.cfg.get("host", "127.0.0.1"), port=p,
+                                  adb_path=self.cfg.get("adb_path", "adb"))
+                    ld.connect()
+                    img = ld.screenshot()
+                    return img.shape[1], img.shape[0]
+                except Exception:  # noqa: BLE001
+                    continue
+        return 1280, 720
+
+    def _controls_px(self):
+        """Liefert Joystick/Angriff in Pixeln – aus relativen 'controls'
+        (auflösungs-unabhaengig) oder absoluten Werten als Fallback."""
+        frac = self.cfg.get("controls")
+        if frac:
+            w, h = self._detect_resolution()
+            j, a = frac.get("joystick", {}), frac.get("attack", {})
+            joy = {"cx": int(j.get("cx", 0.16) * w),
+                   "cy": int(j.get("cy", 0.78) * h),
+                   "radius": int(j.get("radius", 0.13) * h)}
+            atk = {"x": int(a.get("x", 0.88) * w), "y": int(a.get("y", 0.80) * h)}
+            return joy, atk
+        joy = self.cfg.get("joystick") or {"cx": 205, "cy": 560, "radius": 95}
+        atk = self.cfg.get("attack") or {"x": 1120, "y": 575}
+        return joy, atk
+
     def apply_preset(self, gname: str, kind: str) -> None:
         """Fuellt die Aufgaben der Gruppe mit fertigem Spiel-Verhalten.
-        win = bewegen + schiessen, loose = nur bewegen."""
-        joy = self.cfg.get("joystick") or {"cx": 220, "cy": 780, "radius": 120}
-        atk = self.cfg.get("attack") or {"x": 1000, "y": 720}
+        win = bewegen + schiessen, loose = nur bewegen. Koordinaten werden
+        automatisch aus der Aufloesung berechnet."""
+        joy, atk = self._controls_px()
+        self.cfg["joystick"] = joy       # damit auch Chat-Bewegung/Schuss passt
+        self.cfg["attack"] = atk
         cx, cy, r = joy["cx"], joy["cy"], joy["radius"]
         tasks = [
             {"type": "swipe", "name": "vor", "from": [cx, cy],

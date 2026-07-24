@@ -197,6 +197,27 @@ Beispiel-Config) automatisch als Profil `standard` uebernommen.
 - **Als .exe bauen** – `build_exe.bat` doppelklicken → `dist\BrawlBot.exe`
   (Start ohne Python-Installation).
 
+#### Brawl-Stars-Steuerung (Standard, auflösungs-unabhängig)
+Brawl Stars laeuft **quer** (Landscape). Standard-Layout:
+- **Bewegung**: virtueller Joystick **unten links**
+- **Angriff/Schuss**: Button **unten rechts** (Auto-Ziel per Tap)
+- **Super**: Button knapp **ueber dem Angriff**
+
+Diese Positionen sind in der Config als **relative Werte** hinterlegt
+(`controls`, Anteile 0–1 der Fenstergroesse), Standard:
+```json
+"controls": {
+  "joystick": { "cx": 0.16, "cy": 0.78, "radius": 0.13 },
+  "attack":   { "x": 0.88, "y": 0.80 },
+  "super":    { "x": 0.88, "y": 0.60 }
+}
+```
+Beim Setzen eines **🎮 Verhalten**-Presets liest der Bot die **echte
+Aufloesung** deiner Instanz aus und rechnet die Pixel automatisch aus – egal ob
+1280×720, 960×540 usw. Du musst also **nichts ausmessen**. Nur wenn dein Layout
+stark abweicht, passt du die Anteile oder die absoluten `joystick`/`attack`-
+Werte an.
+
 #### 🔁 Vollautomatik (kompletter Zyklus)
 Der Knopf **🔁 Vollautomatik (Zyklus)** oben startet den ganzen Ablauf
 selbststaendig und in Schleife (`cycle` in der Config):

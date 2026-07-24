@@ -53,6 +53,11 @@
   "tesseract_cmd": "",
   "stuck_seconds": 90,
   "sync_attempts": 3,
+  "controls": {
+    "joystick": { "cx": 0.16, "cy": 0.78, "radius": 0.13 },
+    "attack":   { "x": 0.88, "y": 0.80 },
+    "super":    { "x": 0.88, "y": 0.60 }
+  },
   "cycle": {
     "win_group": "WIN",
     "loose_group": "LOOSE",
@@ -442,13 +447,13 @@
   "between_matches": 2.0,
   "matches_per_account": 10,
   "joystick": {
-    "cx": 220,
-    "cy": 780,
-    "radius": 120
+    "cx": 205,
+    "cy": 560,
+    "radius": 95
   },
   "attack": {
-    "x": 1000,
-    "y": 720
+    "x": 1120,
+    "y": 575
   },
   "templates": {
     "play_button": "play_button.png",
