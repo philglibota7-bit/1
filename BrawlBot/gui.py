@@ -36,7 +36,9 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 import cv2
 
 from brain import Brain
-from controller import BotController, load_config, save_config
+from controller import (BotController, ensure_configs, list_configs,
+                        load_config, load_named_config, save_config,
+                        save_named_config)
 from ldplayer import LDPlayer
 
 HERE = Path(__file__).parent
@@ -329,13 +331,14 @@ class ConfigEditor:
         self.app.cfg.clear()
         self.app.cfg.update(new_cfg)
         try:
-            save_config(self.app.cfg)
+            save_named_config(self.app.cfg, self.app.config_name)
         except Exception as exc:  # noqa: BLE001
             self.status.config(text=f"❌ Speichern fehlgeschlagen: {exc}",
                                foreground="#b00")
             return
-        self.status.config(text="✅ Gespeichert. Ports/Gruppen wirken nach "
-                                "Neustart der Oberflaeche.", foreground="#080")
+        self.status.config(text=f"✅ Profil '{self.app.config_name}' gespeichert. "
+                                "Ports/Gruppen wirken nach Neustart.",
+                           foreground="#080")
         self.app.render_groups()
 
 
@@ -347,9 +350,17 @@ class BotGUI:
         self.log_queue: "queue.Queue[str]" = queue.Queue()
         self.inst_windows: dict[int, InstanceWindow] = {}
 
+        names = ensure_configs()
+        if not names:
+            messagebox.showerror("Konfiguration fehlt",
+                                 "Keine Config gefunden. Lege configs/standard.json "
+                                 "an oder nutze config.brawlstars.example.json.")
+            root.destroy()
+            return
+        self.config_name = names[0]
         try:
-            self.cfg = load_config()
-        except FileNotFoundError as exc:
+            self.cfg = load_named_config(self.config_name)
+        except Exception as exc:  # noqa: BLE001
             messagebox.showerror("Konfiguration fehlt", str(exc))
             root.destroy()
             return
@@ -371,9 +382,22 @@ class BotGUI:
     def _build_header(self) -> None:
         bar = ttk.Frame(self.root, padding=8)
         bar.pack(fill="x")
-        ttk.Checkbutton(bar, text="Dry-Run (nur testen, keine Eingaben)",
-                        variable=self.dry_run).pack(side="left")
-        ttk.Button(bar, text="💾 Config speichern",
+
+        ttk.Label(bar, text="Profil:").pack(side="left")
+        self.config_var = tk.StringVar(value=self.config_name)
+        self.config_combo = ttk.Combobox(bar, textvariable=self.config_var,
+                                         values=list_configs(), width=18,
+                                         state="readonly")
+        self.config_combo.pack(side="left", padx=4)
+        self.config_combo.bind("<<ComboboxSelected>>",
+                               lambda e: self.switch_config(self.config_var.get()))
+        ttk.Button(bar, text="＋ Neu", command=self.new_config).pack(side="left")
+        ttk.Button(bar, text="✎ Umbenennen",
+                   command=self.rename_config).pack(side="left", padx=4)
+
+        ttk.Checkbutton(bar, text="Dry-Run (nur testen)",
+                        variable=self.dry_run).pack(side="left", padx=(12, 0))
+        ttk.Button(bar, text="💾 Profil speichern",
                    command=self.save).pack(side="right")
         ttk.Button(bar, text="⚙ Config bearbeiten",
                    command=lambda: ConfigEditor(self)).pack(side="right", padx=6)
@@ -551,10 +575,88 @@ class BotGUI:
 
     def save(self) -> None:
         try:
-            save_config(self.cfg)
-            messagebox.showinfo("Gespeichert", "config.brawlstars.json gespeichert.")
+            save_named_config(self.cfg, self.config_name)
+            messagebox.showinfo("Gespeichert",
+                                f"Profil '{self.config_name}' gespeichert.")
         except Exception as exc:  # noqa: BLE001
             messagebox.showerror("Fehler", str(exc))
+
+    # ---- Profile (mehrere Configs) -------------------------------------
+    def switch_config(self, name: str) -> None:
+        if name == self.config_name:
+            return
+        if self.controller.any_running():
+            if not messagebox.askyesno("Profil wechseln?",
+                                       "Es laufen noch Instanzen. Stoppen und "
+                                       "Profil wechseln?"):
+                self.config_var.set(self.config_name)
+                return
+            self.controller.stop_all()
+            self.controller.join_all(timeout=8)
+        # offene Instanz-Fenster schliessen
+        for w in list(self.inst_windows.values()):
+            try:
+                w.win.destroy()
+            except Exception:  # noqa: BLE001
+                pass
+        self.inst_windows.clear()
+        try:
+            self.cfg = load_named_config(name)
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showerror("Fehler", f"Profil '{name}' laedt nicht: {exc}")
+            self.config_var.set(self.config_name)
+            return
+        self.config_name = name
+        self.config_var.set(name)
+        self.controller = BotController(self.cfg, on_log=self.log_queue.put)
+        self.render_groups()
+        self.log_queue.put(f"Profil gewechselt: {name}")
+
+    def new_config(self) -> None:
+        name = simpledialog.askstring("Neues Profil",
+                                      "Name des neuen Profils (z. B. config2):",
+                                      parent=self.root)
+        if not name:
+            return
+        name = name.strip().replace(" ", "_")
+        if name in list_configs():
+            messagebox.showerror("Vorhanden", f"Profil '{name}' gibt es schon.")
+            return
+        base = "leeres Profil" if not messagebox.askyesno(
+            "Kopieren?", "Aktuelles Profil als Vorlage kopieren?\n"
+            "(Nein = leeres Profil mit denselben Gruppen)") else None
+        if base is None:
+            new_cfg = json.loads(json.dumps(self.cfg))   # tiefe Kopie
+        else:
+            new_cfg = json.loads(json.dumps(self.cfg))
+            for g in new_cfg.get("groups", {}).values():
+                g["tasks"] = []
+                g["learned"] = {}
+        save_named_config(new_cfg, name)
+        self.config_combo["values"] = list_configs()
+        self.switch_config(name)
+
+    def rename_config(self) -> None:
+        new = simpledialog.askstring("Profil umbenennen",
+                                     f"Neuer Name fuer '{self.config_name}':",
+                                     parent=self.root)
+        if not new:
+            return
+        new = new.strip().replace(" ", "_")
+        if new in list_configs():
+            messagebox.showerror("Vorhanden", f"Profil '{new}' gibt es schon.")
+            return
+        from controller import configs_dir
+        old_path = configs_dir() / f"{self.config_name}.json"
+        save_named_config(self.cfg, new)
+        try:
+            old_path.unlink(missing_ok=True)
+        except Exception:  # noqa: BLE001
+            pass
+        self.config_name = new
+        self.config_combo["values"] = list_configs()
+        self.config_var.set(new)
+        self.log_queue.put(f"Profil umbenannt zu: {new}")
 
     # ---- Chat-Aktionen (vom Brain aufgerufen) --------------------------
     def chat_actions(self, gname: str) -> dict:

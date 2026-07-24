@@ -36,6 +36,40 @@ def save_config(cfg: dict, name: str = "config.brawlstars.json") -> None:
                     encoding="utf-8")
 
 
+# ---- Mehrere Config-Profile (configs/<name>.json) ----------------------
+CONFIGS_DIR = HERE / "configs"
+
+
+def configs_dir() -> Path:
+    CONFIGS_DIR.mkdir(exist_ok=True)
+    return CONFIGS_DIR
+
+
+def list_configs() -> list:
+    return sorted(p.stem for p in configs_dir().glob("*.json"))
+
+
+def load_named_config(name: str) -> dict:
+    return json.loads((configs_dir() / f"{name}.json").read_text(encoding="utf-8"))
+
+
+def save_named_config(cfg: dict, name: str) -> None:
+    (configs_dir() / f"{name}.json").write_text(
+        json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def ensure_configs() -> list:
+    """Sorgt dafuer, dass mindestens ein Profil existiert (Migration)."""
+    if not list_configs():
+        legacy = HERE / "config.brawlstars.json"
+        example = HERE / "config.brawlstars.example.json"
+        src = legacy if legacy.exists() else example
+        if src.exists():
+            save_named_config(json.loads(src.read_text(encoding="utf-8")),
+                              "standard")
+    return list_configs()
+
+
 @dataclass
 class InstanceStatus:
     name: str

@@ -1,5 +1,6 @@
 config.json
 config.brawlstars.json
+configs/
 __pycache__/
 *.pyc
 shot.png

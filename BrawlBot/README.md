@@ -155,8 +155,20 @@ Zeigt die **Gruppen WIN und LOSE** nebeneinander. Pro Gruppe:
 - **Fenster** je Instanz: oeffnet ein Live-Bild. Dort **2× klicken** = Button
   ausschneiden und direkt als Bild-Aufgabe der Gruppe speichern.
 
-Oben: **Dry-Run** (nur testen, keine Eingaben) und **💾 Config speichern**
-(schreibt deine Aufgaben nach `config.brawlstars.json`).
+Oben: **Profil-Auswahl**, **Dry-Run** (nur testen) und **💾 Profil speichern**.
+
+#### Mehrere Configs (Profile)
+Oben links waehlst du im **Profil**-Feld, welche Config gerade aktiv ist.
+Jedes Profil ist eine eigene Datei in `configs/<name>.json` mit eigenen
+Gruppen, Ports, Buttons und Aufgaben.
+- **Profil-Dropdown**: zwischen `config1`, `config2`, … umschalten (laufende
+  Instanzen werden vorher gestoppt).
+- **＋ Neu**: neues Profil anlegen (aktuelles als Vorlage kopieren oder leer).
+- **✎ Umbenennen**: aktuelles Profil umbenennen.
+- **💾 Profil speichern**: aktuelles Profil sichern.
+
+Beim ersten Start wird eine vorhandene `config.brawlstars.json` (bzw. die
+Beispiel-Config) automatisch als Profil `standard` uebernommen.
 
 #### Chat pro Gruppe (💬) – in normaler Sprache steuern + lernen
 Jede Gruppe hat einen **💬 Chat**-Knopf. Dort sagst du in normaler Sprache,
