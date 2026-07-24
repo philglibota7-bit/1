@@ -19,6 +19,7 @@ Befehls-Sprache (das, was am Ende ausgefuehrt wird):
     START | STOP | STATUS | HELP
     INTERVAL <sek>                     alle Klick-Intervalle setzen
     CLICK <bild.png> <sek>             Button-Bild alle N s klicken
+    TAP <x> <y> <sek>                  feste Position alle N s klicken
     MOVE <x1> <y1> <x2> <y2> <sek>     Bewegung (Swipe)
     REMOVE <name>                      Aufgabe entfernen
 """
@@ -34,9 +35,10 @@ HELP_TEXT = (
     "Ich verstehe u. a.:\n"
     "  • 'starte' / 'stopp' – Gruppe starten/stoppen\n"
     "  • 'status' – was gerade eingestellt ist\n"
-    "  • 'klicke play alle 5 sekunden' – Button-Bild automatisch klicken\n"
+    "  • 'klicke play alle 5 sekunden' – Button-BILD automatisch klicken\n"
+    "  • 'klicke bei 500,700 alle 3 sekunden' – feste POSITION klicken\n"
     "  • 'alle 3 sekunden' – alle Klick-Intervalle setzen\n"
-    "  • 'bewege 220,780,220,650 alle 1 sekunde' – Bewegung\n"
+    "  • 'bewege 220,780,220,650 alle 1 sekunde' – Bewegung (von→nach)\n"
     "  • 'entferne play' – Aufgabe loeschen\n"
     "Beibringen:  lerne \"deine worte\" = STARTE\n"
     "Vergessen:   vergiss deine worte"
@@ -118,6 +120,11 @@ class Brain:
                 tmpl = parts[1]
                 sec = float(parts[2].replace(",", ".")) if len(parts) > 2 else 5.0
                 return self.a["add_click"](tmpl, sec)
+            if op == "TAP":
+                x, y = int(parts[1]), int(parts[2])
+                sec = float(parts[3].replace(",", ".")) if len(parts) > 3 else 2.0
+                self.a["add_tap"](x, y, sec)
+                return f"👆 Tippt Position {x},{y} alle {sec}s."
             if op == "MOVE":
                 nums = [int(p) for p in parts[1:5]]
                 sec = float(parts[5].replace(",", ".")) if len(parts) > 5 else 1.0
@@ -142,6 +149,20 @@ class Brain:
 
         iv = re.search(r"alle\s+([0-9]+(?:[.,][0-9]+)?)\s*(sek\w*|s)\b", low)
 
+        # Bewegung zuerst (4 Zahlen) – vor Positions-Tap (2 Zahlen)
+        m = re.search(r"beweg\w*\s+([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)", low)
+        if m:
+            sec = iv.group(1) if iv else "1"
+            return f"MOVE {m.group(1)} {m.group(2)} {m.group(3)} {m.group(4)} {sec}"
+
+        # feste Position klicken: "klicke bei 500,700" / "tippe auf 500 700"
+        m = re.search(r"(klick\w*|dr[uü]ck\w*|tipp\w*|tap\w*)\s+"
+                      r"(?:bei|auf|an|pos\w*)?\s*\(?\s*([0-9]{1,4})\s*[,\s]\s*([0-9]{1,4})", low)
+        if m:
+            sec = iv.group(1) if iv else "2"
+            return f"TAP {m.group(2)} {m.group(3)} {sec}"
+
+        # Button-Bild klicken: "klicke play"
         m = re.search(r"(klick\w*|dr[uü]ck\w*|tipp\w*)\s+([a-z0-9_.]+)", low)
         if m:
             tmpl = m.group(2)
@@ -149,11 +170,6 @@ class Brain:
                 tmpl += ".png"
             sec = iv.group(1) if iv else "5"
             return f"CLICK {tmpl} {sec}"
-
-        m = re.search(r"beweg\w*\s+([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)", low)
-        if m:
-            sec = iv.group(1) if iv else "1"
-            return f"MOVE {m.group(1)} {m.group(2)} {m.group(3)} {m.group(4)} {sec}"
 
         m = re.search(r"(entfern\w*|l[oö]sch\w*|weg mit)\s+([a-z0-9_.]+)", low)
         if m:
@@ -175,8 +191,9 @@ class Brain:
             "Du wandelst eine Nutzer-Anweisung in GENAU EINEN Befehl aus dieser "
             "Liste um und antwortest NUR mit dem Befehl, ohne Erklaerung:\n"
             "START | STOP | STATUS | HELP | INTERVAL <sek> | "
-            "CLICK <bild.png> <sek> | MOVE <x1> <y1> <x2> <y2> <sek> | "
-            "REMOVE <name>\nWenn nichts passt: NONE"
+            "CLICK <bild.png> <sek> | TAP <x> <y> <sek> | "
+            "MOVE <x1> <y1> <x2> <y2> <sek> | REMOVE <name>\n"
+            "Wenn nichts passt: NONE"
         )
         try:
             body = json.dumps({

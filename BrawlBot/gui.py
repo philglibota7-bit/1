@@ -564,6 +564,7 @@ class BotGUI:
             "status": lambda: self._chat_status(gname),
             "set_interval": lambda sec: self._chat_set_interval(gname, sec),
             "add_click": lambda tmpl, sec: self._chat_add_click(gname, tmpl, sec),
+            "add_tap": lambda x, y, sec: self._chat_add_tap(gname, x, y, sec),
             "add_move": lambda nums, sec: self._chat_add_move(gname, nums, sec),
             "remove": lambda name: self._chat_remove(gname, name),
             "save": lambda: save_config(self.cfg),
@@ -593,6 +594,10 @@ class BotGUI:
         self.add_task(gname, {"type": "tap_template", "name": tmpl.replace(".png", ""),
                               "template": tmpl, "interval": sec, "threshold": 0.85})
         return f"🖼 '{tmpl}' wird jetzt alle {sec}s geklickt."
+
+    def _chat_add_tap(self, gname: str, x: int, y: int, sec: float) -> None:
+        self.add_task(gname, {"type": "tap", "name": f"tap_{x}_{y}",
+                              "x": x, "y": y, "interval": sec})
 
     def _chat_add_move(self, gname: str, nums: list, sec: float) -> None:
         self.add_task(gname, {"type": "swipe", "name": "bewegung",

@@ -162,9 +162,10 @@ Oben: **Dry-Run** (nur testen, keine Eingaben) und **💾 Config speichern**
 Jede Gruppe hat einen **💬 Chat**-Knopf. Dort sagst du in normaler Sprache,
 was die Gruppe tun soll:
 - `starte` / `stopp` – Gruppe starten/stoppen
-- `klicke play alle 5 sekunden` – Button-Bild automatisch klicken
+- `klicke play alle 5 sekunden` – Button-**Bild** automatisch klicken
+- `klicke bei 500,700 alle 3 sekunden` – feste **Position** klicken (wo)
 - `alle 3 sekunden` – alle Klick-Intervalle setzen
-- `bewege 220,780,220,650 alle 1 sekunde` – Bewegung
+- `bewege 220,780,220,650 alle 1 sekunde` – **Bewegung** (von→nach, wie)
 - `entferne play` – Aufgabe loeschen
 - `status` / `hilfe`
 
