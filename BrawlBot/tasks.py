@@ -81,6 +81,8 @@ class TaskRunner:
         self.ready_event = threading.Event()
         self.job: Optional[dict] = None      # {"kind": "switch"/"create"/"join", ...}
         self.result_code: str = ""           # vom Host gelesener Team-Code
+        self.watch_template: str = ""        # nebenbei auf dieses Bild achten
+        self.watch_event = threading.Event() # gesetzt, sobald es erkannt wurde
 
     # ---- Rueckmeldung ---------------------------------------------------
     def log(self, msg: str) -> None:
@@ -131,6 +133,14 @@ class TaskRunner:
 
     def pause(self) -> None:
         self.pause_event.set()
+
+    def watch_for(self, template: str) -> None:
+        """Nebenbei (waehrend des Spielens) auf ein Bild achten (z. B. Endscreen)."""
+        self.watch_template = template
+        self.watch_event.clear()
+
+    def stop_watch(self) -> None:
+        self.watch_template = ""
 
     # ---- Wahrnehmung / Watchdog ----------------------------------------
     def _grab(self):
@@ -316,9 +326,15 @@ class TaskRunner:
                 # 3) normale Aufgaben
                 self.status("RUN")
                 now = time.time()
-                need_shot = any(t.type == "tap_template" and now >= t.next_due
-                                for t in self.tasks)
+                need_shot = bool(self.watch_template) or any(
+                    t.type == "tap_template" and now >= t.next_due
+                    for t in self.tasks)
                 screen = self._grab() if need_shot else None
+                # nebenbei auf Endscreen o. Ae. achten
+                if self.watch_template and screen is not None:
+                    if vision.find(screen, self.watch_template, 0.8,
+                                   self.scales).found:
+                        self.watch_event.set()
                 for t in self.tasks:
                     if self.stop_event.is_set() or self.pause_event.is_set():
                         break

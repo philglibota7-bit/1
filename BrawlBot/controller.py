@@ -318,6 +318,29 @@ class BotController:
         for r in runners:
             r.resume()
 
+    def _wait_match_end(self, group_name: str, template: str,
+                        timeout: float, stop) -> None:
+        """Wartet, bis der Endscreen erkannt wird (oder Timeout).
+        Nutzt den Host, der waehrend des Spielens nebenbei darauf achtet."""
+        runners = self._group_runners(group_name)
+        if not runners:
+            stop.wait(timeout)
+            return
+        hi = min(int(self.groups().get(group_name, {}).get("team", {})
+                     .get("host_index", 0)), len(runners) - 1)
+        host = runners[hi]
+        host.watch_for(template)
+        end = time.time() + timeout
+        while not stop.is_set() and time.time() < end:
+            if host.watch_event.is_set():
+                self.on_log(f"[{group_name}] Endscreen erkannt – Runde vorbei.")
+                break
+            stop.wait(1.0)
+        else:
+            if not stop.is_set():
+                self.on_log(f"[{group_name}] Kein Endscreen erkannt (Timeout).")
+        host.stop_watch()
+
     def start_cycle(self) -> None:
         if self._cycle_thread and self._cycle_thread.is_alive():
             return
@@ -369,8 +392,15 @@ class BotController:
             self.on_log(f"[{loose}] startet die Runde.")
             self._host_steps(loose, start_steps)
             # 5) Spielphase (WIN spielt+schiesst, LOOSE bewegt sich nur)
-            self.on_log(f"Spielphase ~{match_dur:.0f}s ...")
-            stop.wait(match_dur)
+            end_tmpl = cyc.get("match_end_template", "")
+            if end_tmpl:
+                mt = float(cyc.get("match_timeout", max(match_dur * 2, 300)))
+                self.on_log(f"Spielphase – warte auf Endscreen "
+                            f"'{end_tmpl}' (max {mt:.0f}s) ...")
+                self._wait_match_end(win, end_tmpl, mt, stop)
+            else:
+                self.on_log(f"Spielphase ~{match_dur:.0f}s ...")
+                stop.wait(match_dur)
             if stop.is_set():
                 break
             # 6) Team verlassen (alle) -> naechste Runde

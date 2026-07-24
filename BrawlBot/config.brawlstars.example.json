@@ -25,6 +25,8 @@
     "loose_group": "LOOSE",
     "loose_delay": 35,
     "match_duration": 150,
+    "match_end_template": "match_end.png",
+    "match_timeout": 300,
     "rounds": 0,
     "switch_accounts": true,
     "start_match_steps": [

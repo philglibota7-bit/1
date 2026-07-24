@@ -190,9 +190,11 @@ selbststaendig und in Schleife (`cycle` in der Config):
    anderen treten per Team-Code bei.
 3. **WIN geht in die Runde**, **LOOSE wartet `loose_delay` Sekunden** (Standard
    35) und geht dann auch rein (Timing, damit beide im selben Match landen).
-4. **Spielphase** `match_duration` Sekunden: WIN spielt + schiesst, LOOSE
-   bewegt sich nur (die Aufgabenlisten der Gruppen sind entsprechend
-   verschieden – LOOSE hat keinen „schuss").
+4. **Spielphase**: WIN spielt + schiesst, LOOSE bewegt sich nur. Das Ende wird
+   am **Endscreen erkannt** (`match_end_template`, z. B. `match_end.png`) –
+   der Host achtet waehrend des Spielens nebenbei darauf. Kommt kein Endscreen,
+   greift `match_timeout`. Ohne `match_end_template` wird stattdessen fest
+   `match_duration` Sekunden gewartet.
 5. **Team verlassen** → zurueck zu Schritt 1.
 
 `rounds: 0` = endlos; `>0` = so viele Runden. **■ Stop Automatik** beendet den
