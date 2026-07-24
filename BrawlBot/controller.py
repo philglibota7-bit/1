@@ -76,6 +76,11 @@ class BotController:
     def groups(self) -> dict:
         return self.cfg.get("groups", {})
 
+    def ensure_port(self, port: int, name: Optional[str] = None) -> None:
+        """Legt einen Status-Eintrag fuer einen (neu gesetzten) Port an."""
+        if port not in self.status:
+            self.status[port] = InstanceStatus(name=name or str(port), port=port)
+
     def is_running(self, port: int) -> bool:
         th = self._threads.get(port)
         return bool(th and th.is_alive())
@@ -112,7 +117,7 @@ class BotController:
         for ev in self._stops.values():
             ev.set()
 
-    # ---- Gruppen (WIN / LOSE): synchron dieselben Aufgaben --------------
+    # ---- Gruppen (LOOSE / WIN): synchron dieselben Aufgaben -------------
     def group_ports(self, group_name: str) -> List[int]:
         return self.groups().get(group_name, {}).get("ports", [])
 

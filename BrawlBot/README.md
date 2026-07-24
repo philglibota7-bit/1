@@ -1,6 +1,6 @@
-# LDPlayer Game-Bot
+# BrawlBot
 
-Ein Python-Grundgeruest, das den **LDPlayer**-Emulator ueber **ADB** steuert:
+Ein Python-Projekt, das den **LDPlayer**-Emulator ueber **ADB** steuert:
 Screenshot holen → Bild-Elemente per OpenCV erkennen → tippen / wischen /
 Tasten senden. Spiel-unabhaengig, ueber `config.json` erweiterbar.
 
@@ -28,7 +28,7 @@ Tasten senden. Spiel-unabhaengig, ueber `config.json` erweiterbar.
 ## 3. Installation
 
 ```bash
-cd gamebot
+cd BrawlBot
 pip install -r requirements.txt
 cp config.example.json config.json      # Windows: copy config.example.json config.json
 ```

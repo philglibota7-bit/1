@@ -9,7 +9,7 @@ cd /d "%~dp0"
 title LDPlayer Bot - Start
 
 echo ==========================================================
-echo    LDPlayer / Brawl Stars Bot
+echo    BrawlBot - LDPlayer Steuerung
 echo ==========================================================
 echo.
 echo  Hinweis: Botting verstoesst gegen Supercells Nutzungs-
