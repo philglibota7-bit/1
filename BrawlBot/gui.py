@@ -35,6 +35,7 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 
 import cv2
 
+from brain import Brain
 from controller import BotController, load_config, save_config
 from ldplayer import LDPlayer
 
@@ -241,6 +242,57 @@ class GroupHelpWindow:
         self.render_legend()
 
 
+class ChatWindow:
+    """Chat pro Gruppe: in normaler Sprache steuern; der Bot lernt dazu."""
+
+    def __init__(self, app: "BotGUI", gname: str):
+        self.app = app
+        self.gname = gname
+        self.brain = Brain(app.cfg, gname, app.chat_actions(gname))
+
+        self.win = tk.Toplevel(app.root)
+        self.win.title(f"Chat – Gruppe {gname}")
+        self.win.geometry("440x520")
+
+        ttk.Label(self.win, padding=6, wraplength=420, justify="left",
+                  text=(f"Sag mir, was Gruppe {gname} tun soll (z. B. "
+                        "'starte', 'klicke play alle 5 sekunden', 'status'). "
+                        "Ich lerne dazu: lerne \"deine worte\" = STARTE")
+                  ).pack(fill="x")
+
+        self.log = tk.Text(self.win, wrap="word", state="disabled",
+                           background="#0d1117", foreground="#e6e6e6")
+        self.log.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+
+        row = ttk.Frame(self.win, padding=6)
+        row.pack(fill="x")
+        self.entry = ttk.Entry(row)
+        self.entry.pack(side="left", fill="x", expand=True)
+        self.entry.bind("<Return>", lambda e: self.send())
+        ttk.Button(row, text="Senden", command=self.send).pack(side="left", padx=4)
+
+        self._say("Bot", "Bereit. Tippe 'hilfe' fuer Beispiele.")
+        self.entry.focus_set()
+
+    def _say(self, who: str, text: str) -> None:
+        self.log.configure(state="normal")
+        self.log.insert("end", f"{who}: {text}\n")
+        self.log.see("end")
+        self.log.configure(state="disabled")
+
+    def send(self) -> None:
+        msg = self.entry.get().strip()
+        if not msg:
+            return
+        self.entry.delete(0, "end")
+        self._say("Du", msg)
+        try:
+            reply = self.brain.interpret(msg)
+        except Exception as exc:  # noqa: BLE001
+            reply = f"Fehler: {exc}"
+        self._say("Bot", reply or "(nichts)")
+
+
 class ConfigEditor:
     """Fenster zum Bearbeiten und Speichern der kompletten Config (JSON)."""
 
@@ -379,6 +431,8 @@ class BotGUI:
                    command=lambda g=gname: self.apply_ports(g)).pack(side="left")
         ttk.Button(top, text="❔ Erklaerung",
                    command=lambda g=gname: GroupHelpWindow(self, g)).pack(side="left", padx=4)
+        ttk.Button(top, text="💬 Chat",
+                   command=lambda g=gname: ChatWindow(self, g)).pack(side="left")
 
         ctrl = ttk.Frame(box)
         ctrl.pack(fill="x", pady=(2, 4))
@@ -501,6 +555,60 @@ class BotGUI:
             messagebox.showinfo("Gespeichert", "config.brawlstars.json gespeichert.")
         except Exception as exc:  # noqa: BLE001
             messagebox.showerror("Fehler", str(exc))
+
+    # ---- Chat-Aktionen (vom Brain aufgerufen) --------------------------
+    def chat_actions(self, gname: str) -> dict:
+        return {
+            "start": lambda: self.start_group(gname),
+            "stop": lambda: self.controller.stop_group(gname),
+            "status": lambda: self._chat_status(gname),
+            "set_interval": lambda sec: self._chat_set_interval(gname, sec),
+            "add_click": lambda tmpl, sec: self._chat_add_click(gname, tmpl, sec),
+            "add_move": lambda nums, sec: self._chat_add_move(gname, nums, sec),
+            "remove": lambda name: self._chat_remove(gname, name),
+            "save": lambda: save_config(self.cfg),
+        }
+
+    def _chat_status(self, gname: str) -> str:
+        running = self.controller.group_running(gname)
+        tasks = self.controller.group_tasks(gname)
+        lines = [f"Gruppe {gname}: {'laeuft' if running else 'gestoppt'}, "
+                 f"{len(tasks)} Aufgabe(n):"]
+        for t in tasks:
+            lines.append(f"  • {t.get('name')} ({t.get('type')}, "
+                         f"alle {t.get('interval')}s)")
+        return "\n".join(lines)
+
+    def _chat_set_interval(self, gname: str, sec: float) -> None:
+        for t in self.controller.group_tasks(gname):
+            if t.get("type") == "tap_template":
+                t["interval"] = sec
+        self._refresh_task_list(gname)
+
+    def _chat_add_click(self, gname: str, tmpl: str, sec: float) -> str:
+        if not (TEMPLATE_DIR / tmpl).exists():
+            return (f"Das Bild '{tmpl}' gibt es noch nicht in templates/. "
+                    f"Nimm es zuerst im Instanz-Fenster auf oder fuege es per "
+                    f"'Bild einfuegen' hinzu.")
+        self.add_task(gname, {"type": "tap_template", "name": tmpl.replace(".png", ""),
+                              "template": tmpl, "interval": sec, "threshold": 0.85})
+        return f"🖼 '{tmpl}' wird jetzt alle {sec}s geklickt."
+
+    def _chat_add_move(self, gname: str, nums: list, sec: float) -> None:
+        self.add_task(gname, {"type": "swipe", "name": "bewegung",
+                              "from": [nums[0], nums[1]], "to": [nums[2], nums[3]],
+                              "ms": 400, "interval": sec})
+
+    def _chat_remove(self, gname: str, name: str) -> str:
+        name = name.strip().replace(".png", "")
+        tasks = self.controller.group_tasks(gname)
+        for i, t in enumerate(tasks):
+            if (t.get("name", "").lower() == name.lower() or
+                    (t.get("template", "").replace(".png", "").lower() == name.lower())):
+                tasks.pop(i)
+                self._refresh_task_list(gname)
+                return f"🗑 Aufgabe '{name}' entfernt."
+        return f"Keine Aufgabe '{name}' gefunden."
 
     # ---- Anzeige --------------------------------------------------------
     def _refresh_task_list(self, gname: str) -> None:

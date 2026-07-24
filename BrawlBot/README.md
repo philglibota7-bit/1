@@ -158,6 +158,32 @@ Zeigt die **Gruppen WIN und LOSE** nebeneinander. Pro Gruppe:
 Oben: **Dry-Run** (nur testen, keine Eingaben) und **💾 Config speichern**
 (schreibt deine Aufgaben nach `config.brawlstars.json`).
 
+#### Chat pro Gruppe (💬) – in normaler Sprache steuern + lernen
+Jede Gruppe hat einen **💬 Chat**-Knopf. Dort sagst du in normaler Sprache,
+was die Gruppe tun soll:
+- `starte` / `stopp` – Gruppe starten/stoppen
+- `klicke play alle 5 sekunden` – Button-Bild automatisch klicken
+- `alle 3 sekunden` – alle Klick-Intervalle setzen
+- `bewege 220,780,220,650 alle 1 sekunde` – Bewegung
+- `entferne play` – Aufgabe loeschen
+- `status` / `hilfe`
+
+**Dazulernen:** `lerne "deine worte" = STARTE` merkt sich deine Formulierung
+(gespeichert unter `groups.<Gruppe>.learned`). `vergiss deine worte` loescht sie.
+
+**Optionale echte KI:** Hinterlegst du in der Config einen OpenAI-kompatiblen
+Server, versteht der Chat auch freie Saetze – und **lernt** erfolgreiche
+Uebersetzungen automatisch (danach ohne KI):
+```json
+"ai": {
+  "server_url": "https://api.openai.com",
+  "api_key": "sk-...",
+  "model": "gpt-4o-mini"
+}
+```
+(Funktioniert mit jedem OpenAI-kompatiblen Endpunkt – auch eigener/lokaler
+Server wie Ollama/LM Studio.)
+
 `tkinter` ist beim Windows-Python-Installer standardmaessig dabei.
 
 #### Gruppen anpassen (config.brawlstars.json)
