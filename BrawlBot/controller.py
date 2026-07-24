@@ -90,6 +90,7 @@ class BotController:
         self._threads: Dict[int, threading.Thread] = {}
         self._stops: Dict[int, threading.Event] = {}
         self._bots: Dict[int, BrawlBot] = {}
+        self._runners: Dict[int, object] = {}   # port -> TaskRunner
         self.status: Dict[int, InstanceStatus] = {}
         self._lock = threading.Lock()
         for inst in cfg.get("instances", []):
@@ -185,6 +186,109 @@ class BotController:
     def group_running(self, group_name: str) -> bool:
         return any(self.is_running(p) for p in self.group_ports(group_name))
 
+    # ---- koordinierter Account-Wechsel ----------------------------------
+    def _pick_accounts(self, group_name: str, n: int) -> list:
+        """Waehlt n unterschiedliche, noch nicht benutzte Accounts.
+        Merkt sich benutzte (used) und setzt zurueck, wenn zu wenige uebrig."""
+        grp = self.groups().get(group_name, {})
+        accs = grp.get("accounts", [])
+        if not accs:
+            return []
+        unused = [a for a in accs if not a.get("used")]
+        if len(unused) < n:
+            for a in accs:
+                a["used"] = False
+            unused = list(accs)
+        chosen = unused[:n]
+        for a in chosen:
+            a["used"] = True
+        return chosen
+
+    def reset_accounts(self, group_name: str) -> None:
+        for a in self.groups().get(group_name, {}).get("accounts", []):
+            a["used"] = False
+        self.on_log(f"[{group_name}] Benutzt-Markierungen zurueckgesetzt.")
+
+    def switch_group_accounts(self, group_name: str) -> None:
+        """Pausiert die Gruppe, jede Instanz waehlt EINEN anderen Account,
+        wartet bis ALLE in der Lobby sind, dann laeuft die Steuerung weiter.
+        Blockiert -> aus der Oberflaeche in einem Thread aufrufen."""
+        grp = self.groups().get(group_name, {})
+        ports = [p for p in grp.get("ports", []) if self.is_running(p)]
+        runners = [self._runners.get(p) for p in ports]
+        runners = [r for r in runners if r]
+        if not runners:
+            self.on_log(f"[{group_name}] Keine laufende Instanz -> Wechsel "
+                        f"nicht moeglich (Gruppe zuerst starten).")
+            return
+        accounts = self._pick_accounts(group_name, len(runners))
+        if not accounts:
+            self.on_log(f"[{group_name}] Keine Accounts hinterlegt "
+                        f"(im Accounts-Fenster anlegen).")
+            return
+        flow = grp.get("switch_flow", {})
+        self.on_log(f"[{group_name}] Account-Wechsel gestartet: "
+                    f"{[a.get('name') for a in accounts]}")
+        for r, acc in zip(runners, accounts):
+            r.request_switch(acc, flow)
+        # warten bis alle in der Lobby sind (oder Timeout)
+        timeout = flow.get("all_ready_timeout", 150)
+        end = time.time() + timeout
+        for r in runners:
+            r.ready_event.wait(max(0.0, end - time.time()))
+        for r in runners:
+            r.resume()
+        ready = sum(1 for r in runners if r.ready_event.is_set())
+        self.on_log(f"[{group_name}] Wechsel fertig ({ready}/{len(runners)} "
+                    f"in Lobby). Steuerung laeuft synchron weiter.")
+
+    # ---- Team-Lobby: Host erstellt, Gaeste treten per Code bei ---------
+    def form_team(self, group_name: str) -> None:
+        """Eine Instanz (Host) erstellt eine Lobby, liest den Team-Code (OCR),
+        die anderen tippen ihn ein und treten bei. Danach laeuft alles weiter.
+        Blockiert -> aus der Oberflaeche in einem Thread aufrufen."""
+        grp = self.groups().get(group_name, {})
+        flow = grp.get("team", {})
+        if not flow:
+            self.on_log(f"[{group_name}] Kein 'team'-Ablauf konfiguriert "
+                        f"(in Config bearbeiten anlegen).")
+            return
+        ports = [p for p in grp.get("ports", []) if self.is_running(p)]
+        ordered = [self._runners.get(p) for p in ports]
+        ordered = [r for r in ordered if r]
+        if len(ordered) < 2:
+            self.on_log(f"[{group_name}] Mindestens 2 laufende Instanzen noetig "
+                        f"(1 Host + Gaeste).")
+            return
+        host_index = min(int(flow.get("host_index", 0)), len(ordered) - 1)
+        host = ordered[host_index]
+        guests = [r for i, r in enumerate(ordered) if i != host_index]
+
+        for r in ordered:            # alle pausieren
+            r.pause()
+        timeout = flow.get("timeout", 120)
+
+        self.on_log(f"[{group_name}] Host erstellt Lobby ...")
+        host.request_create(flow)
+        host.ready_event.wait(timeout)
+        code = host.result_code
+        if not code:
+            self.on_log(f"[{group_name}] Kein Team-Code gelesen. "
+                        f"Ist Tesseract-OCR installiert und 'code_region' "
+                        f"gesetzt? Beitritt abgebrochen.")
+            for r in ordered:
+                r.resume()
+            return
+        self.on_log(f"[{group_name}] Team-Code '{code}' -> Gaeste treten bei ...")
+        for g in guests:
+            g.request_join(flow, code)
+        end = time.time() + timeout
+        for g in guests:
+            g.ready_event.wait(max(0.0, end - time.time()))
+        for r in ordered:
+            r.resume()
+        self.on_log(f"[{group_name}] Team gebildet. Steuerung laeuft weiter.")
+
     def join_all(self, timeout: float = 10.0) -> None:
         end = time.time() + timeout
         for th in self._threads.values():
@@ -261,10 +365,12 @@ class BotController:
             self._set(port, state=state, matches=runner.clicks)
 
         runner = TaskRunner(
-            ld, tasks, stop_event=stop, on_log=log, on_status=status,
+            ld, tasks, self.cfg, stop_event=stop, on_log=log, on_status=status,
             dry_run=dry_run, loop_delay=self.cfg.get("loop_delay", 1.0), tag=tag,
         )
+        self._runners[port] = runner
         try:
             runner.run()
         finally:
+            self._runners.pop(port, None)
             self._set(port, running=False, state="STOPPED", matches=runner.clicks)

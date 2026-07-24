@@ -16,6 +16,10 @@
 
   "loop_delay": 1.0,
 
+  "humanize": { "pos_jitter": 6, "interval_jitter": 0.15 },
+  "detection": { "multi_scale": true, "scales": [0.9, 0.95, 1.0, 1.05, 1.1] },
+  "tesseract_cmd": "",
+
   "groups": {
     "WIN": {
       "ports": [5555, 5557, 5559],
@@ -24,7 +28,45 @@
         { "type": "tap_template", "name": "Weiter","template": "proceed.png",     "interval": 3, "threshold": 0.85 },
         { "type": "swipe", "name": "vor",   "from": [220, 780], "to": [220, 650], "ms": 400, "interval": 1 },
         { "type": "tap",   "name": "schuss","x": 1000, "y": 720, "interval": 1 }
-      ]
+      ],
+      "accounts": [
+        { "name": "WIN-Acc-1", "slot": [640, 300], "used": false },
+        { "name": "WIN-Acc-2", "slot": [640, 430], "used": false },
+        { "name": "WIN-Acc-3", "slot": [640, 560], "used": false }
+      ],
+      "switch_flow": {
+        "open_steps": [
+          { "type": "tap_template", "template": "menu_button.png",     "timeout": 15, "wait": 1.5 },
+          { "type": "tap_template", "template": "settings_button.png", "timeout": 10, "wait": 1.5 },
+          { "type": "tap_template", "template": "supercell_id.png",    "timeout": 10, "wait": 2.0 },
+          { "type": "tap_template", "template": "switch_account.png",  "timeout": 10, "wait": 2.0 }
+        ],
+        "confirm_steps": [
+          { "type": "tap_template", "template": "confirm.png", "timeout": 10, "wait": 3.0 }
+        ],
+        "lobby_template": "play_button.png",
+        "lobby_timeout": 60
+      },
+      "team": {
+        "host_index": 0,
+        "timeout": 120,
+        "create_steps": [
+          { "type": "tap_template", "template": "friends_button.png", "timeout": 15, "wait": 1.5 },
+          { "type": "tap_template", "template": "team_button.png",    "timeout": 10, "wait": 1.5 },
+          { "type": "tap_template", "template": "invite_code.png",    "timeout": 10, "wait": 1.5 }
+        ],
+        "code_region": [820, 40, 240, 60],
+        "ready_template": "team_lobby.png",
+        "ready_timeout": 60,
+        "join_steps_before": [
+          { "type": "tap_template", "template": "friends_button.png", "timeout": 15, "wait": 1.5 },
+          { "type": "tap_template", "template": "join_by_code.png",   "timeout": 10, "wait": 1.5 }
+        ],
+        "code_field": [640, 400],
+        "join_steps_after": [
+          { "type": "tap_template", "template": "join_confirm.png", "timeout": 10, "wait": 2.0 }
+        ]
+      }
     },
     "LOOSE": {
       "ports": [5561, 5563, 5565],
@@ -32,7 +74,45 @@
         { "type": "tap_template", "name": "Play",  "template": "play_button.png", "interval": 5, "threshold": 0.85 },
         { "type": "tap_template", "name": "Weiter","template": "proceed.png",     "interval": 3, "threshold": 0.85 },
         { "type": "swipe", "name": "rueck", "from": [220, 780], "to": [220, 910], "ms": 400, "interval": 1 }
-      ]
+      ],
+      "accounts": [
+        { "name": "LOOSE-Acc-1", "slot": [640, 300], "used": false },
+        { "name": "LOOSE-Acc-2", "slot": [640, 430], "used": false },
+        { "name": "LOOSE-Acc-3", "slot": [640, 560], "used": false }
+      ],
+      "switch_flow": {
+        "open_steps": [
+          { "type": "tap_template", "template": "menu_button.png",     "timeout": 15, "wait": 1.5 },
+          { "type": "tap_template", "template": "settings_button.png", "timeout": 10, "wait": 1.5 },
+          { "type": "tap_template", "template": "supercell_id.png",    "timeout": 10, "wait": 2.0 },
+          { "type": "tap_template", "template": "switch_account.png",  "timeout": 10, "wait": 2.0 }
+        ],
+        "confirm_steps": [
+          { "type": "tap_template", "template": "confirm.png", "timeout": 10, "wait": 3.0 }
+        ],
+        "lobby_template": "play_button.png",
+        "lobby_timeout": 60
+      },
+      "team": {
+        "host_index": 0,
+        "timeout": 120,
+        "create_steps": [
+          { "type": "tap_template", "template": "friends_button.png", "timeout": 15, "wait": 1.5 },
+          { "type": "tap_template", "template": "team_button.png",    "timeout": 10, "wait": 1.5 },
+          { "type": "tap_template", "template": "invite_code.png",    "timeout": 10, "wait": 1.5 }
+        ],
+        "code_region": [820, 40, 240, 60],
+        "ready_template": "team_lobby.png",
+        "ready_timeout": 60,
+        "join_steps_before": [
+          { "type": "tap_template", "template": "friends_button.png", "timeout": 15, "wait": 1.5 },
+          { "type": "tap_template", "template": "join_by_code.png",   "timeout": 10, "wait": 1.5 }
+        ],
+        "code_field": [640, 400],
+        "join_steps_after": [
+          { "type": "tap_template", "template": "join_confirm.png", "timeout": 10, "wait": 2.0 }
+        ]
+      }
     }
   },
 

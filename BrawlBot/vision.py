@@ -36,12 +36,55 @@ def load_template(name: str) -> np.ndarray:
     return tmpl
 
 
-def find(screen: np.ndarray, template_name: str, threshold: float = 0.85) -> Match:
-    """Sucht ein Template im Screenshot. Gibt den besten Treffer zurueck."""
+def find(screen: np.ndarray, template_name: str, threshold: float = 0.85,
+         scales=None) -> Match:
+    """
+    Sucht ein Template im Screenshot; gibt den besten Treffer zurueck.
+    Mit 'scales' (Liste von Faktoren) wird das Template in mehreren Groessen
+    probiert -> robuster, wenn die Aufloesung leicht abweicht (Multi-Scale).
+    """
     tmpl = load_template(template_name)
-    result = cv2.matchTemplate(screen, tmpl, cv2.TM_CCOEFF_NORMED)
-    _, max_val, _, max_loc = cv2.minMaxLoc(result)
-    h, w = tmpl.shape[:2]
-    cx = int(max_loc[0] + w / 2)
-    cy = int(max_loc[1] + h / 2)
-    return Match(found=max_val >= threshold, x=cx, y=cy, score=float(max_val))
+    sh, sw = screen.shape[:2]
+    best = Match(found=False, x=0, y=0, score=0.0)
+    for s in (scales or [1.0]):
+        if s == 1.0:
+            t = tmpl
+        else:
+            th, tw = tmpl.shape[:2]
+            t = cv2.resize(tmpl, (max(1, int(tw * s)), max(1, int(th * s))))
+        h, w = t.shape[:2]
+        if h > sh or w > sw:
+            continue
+        result = cv2.matchTemplate(screen, t, cv2.TM_CCOEFF_NORMED)
+        _, max_val, _, max_loc = cv2.minMaxLoc(result)
+        if max_val > best.score:
+            best = Match(found=False, x=int(max_loc[0] + w / 2),
+                         y=int(max_loc[1] + h / 2), score=float(max_val))
+    best.found = best.score >= threshold
+    return best
+
+
+def read_text(screen: np.ndarray, region, tesseract_cmd: str = "") -> str:
+    """
+    Liest Text aus einem Bildbereich (z. B. den Team-Code) per OCR.
+    Benoetigt 'pytesseract' + installiertes Tesseract-OCR. Ist es nicht
+    vorhanden, wird "" zurueckgegeben (Feature einfach nicht verfuegbar).
+    region = [x, y, w, h].
+    """
+    try:
+        import pytesseract
+    except ImportError:
+        return ""
+    if tesseract_cmd:
+        pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+    x, y, w, h = region
+    crop = screen[y:y + h, x:x + w]
+    if crop.size == 0:
+        return ""
+    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+    gray = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+    try:
+        text = pytesseract.image_to_string(gray, config="--psm 7")
+    except Exception:  # noqa: BLE001
+        return ""
+    return text.strip()

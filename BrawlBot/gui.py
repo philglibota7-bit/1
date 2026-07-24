@@ -307,6 +307,76 @@ class ChatWindow:
         self._say("Bot", reply or "(nichts)")
 
 
+class AccountsWindow:
+    """Verwaltung der Account-Liste einer Gruppe (Name + Position 'slot')."""
+
+    def __init__(self, app: "BotGUI", gname: str):
+        self.app = app
+        self.gname = gname
+        grp = app.controller.groups().setdefault(gname, {})
+        self.accounts = grp.setdefault("accounts", [])
+
+        self.win = tk.Toplevel(app.root)
+        self.win.title(f"Accounts – Gruppe {gname}")
+        self.win.geometry("420x460")
+
+        ttk.Label(self.win, padding=6, wraplength=400, justify="left",
+                  text=("Hinterlege die Accounts. Jede Instanz waehlt beim "
+                        "Wechsel einen ANDEREN (der Bot merkt sich benutzte). "
+                        "'Position' = wohin im Konto-Menue getippt wird "
+                        "(Koordinate aus dem Instanz-Fenster ablesen).")
+                  ).pack(fill="x")
+
+        self.listbox = tk.Listbox(self.win)
+        self.listbox.pack(fill="both", expand=True, padx=6, pady=6)
+
+        row = ttk.Frame(self.win, padding=6)
+        row.pack(fill="x")
+        ttk.Button(row, text="＋ Account", command=self.add).pack(side="left")
+        ttk.Button(row, text="🗑 Entfernen", command=self.remove).pack(side="left", padx=4)
+        ttk.Button(row, text="↺ Benutzt zuruecksetzen",
+                   command=self.reset).pack(side="left")
+        ttk.Button(row, text="💾 Speichern",
+                   command=self.app.save).pack(side="right")
+
+        self.refresh()
+
+    def refresh(self) -> None:
+        self.listbox.delete(0, "end")
+        for a in self.accounts:
+            used = "  ✓benutzt" if a.get("used") else ""
+            pos = a.get("slot") or a.get("template") or "-"
+            self.listbox.insert("end", f"{a.get('name', '?')}  @ {pos}{used}")
+
+    def add(self) -> None:
+        name = simpledialog.askstring("Account", "Account-Name:", parent=self.win)
+        if not name:
+            return
+        s = simpledialog.askstring(
+            "Position", "Position im Konto-Menue x,y (z. B. 640,300):",
+            parent=self.win)
+        acc = {"name": name, "used": False}
+        if s:
+            try:
+                x, y = [int(v.strip()) for v in s.split(",")]
+                acc["slot"] = [x, y]
+            except Exception:  # noqa: BLE001
+                messagebox.showerror("Ungueltig", "Format: x,y")
+                return
+        self.accounts.append(acc)
+        self.refresh()
+
+    def remove(self) -> None:
+        sel = self.listbox.curselection()
+        if sel and 0 <= sel[0] < len(self.accounts):
+            self.accounts.pop(sel[0])
+            self.refresh()
+
+    def reset(self) -> None:
+        self.app.controller.reset_accounts(self.gname)
+        self.refresh()
+
+
 class ConfigEditor:
     """Fenster zum Bearbeiten und Speichern der kompletten Config (JSON)."""
 
@@ -482,12 +552,21 @@ class BotGUI:
                    command=lambda g=gname: ChatWindow(self, g)).pack(side="left")
 
         ctrl = ttk.Frame(box)
-        ctrl.pack(fill="x", pady=(2, 4))
+        ctrl.pack(fill="x", pady=(2, 2))
         ttk.Button(ctrl, text="▶ Gruppe starten",
                    command=lambda g=gname: self.start_group(g)).pack(side="left")
         ttk.Button(ctrl, text="■ Gruppe stoppen",
                    command=lambda g=gname: self.controller.stop_group(g)
                    ).pack(side="left", padx=6)
+
+        accrow = ttk.Frame(box)
+        accrow.pack(fill="x", pady=(0, 4))
+        ttk.Button(accrow, text="👥 Accounts",
+                   command=lambda g=gname: AccountsWindow(self, g)).pack(side="left")
+        ttk.Button(accrow, text="🔀 Accounts wechseln",
+                   command=lambda g=gname: self.switch_accounts(g)).pack(side="left", padx=4)
+        ttk.Button(accrow, text="🏁 Team-Lobby",
+                   command=lambda g=gname: self.form_team(g)).pack(side="left")
 
         ttk.Label(box, text="Aufgaben (zeitgesteuert · Doppelklick = bearbeiten):"
                   ).pack(anchor="w")
@@ -548,6 +627,24 @@ class BotGUI:
     # ---- Gruppe / Aufgaben ---------------------------------------------
     def start_group(self, gname: str) -> None:
         self.controller.start_group(gname, dry_run=self.dry_run.get())
+
+    def switch_accounts(self, gname: str) -> None:
+        if not self.controller.group_running(gname):
+            messagebox.showinfo("Nicht gestartet",
+                                f"Starte Gruppe {gname} zuerst – der Wechsel "
+                                f"pausiert die laufende Steuerung.")
+            return
+        threading.Thread(target=self.controller.switch_group_accounts,
+                         args=(gname,), daemon=True).start()
+
+    def form_team(self, gname: str) -> None:
+        if not self.controller.group_running(gname):
+            messagebox.showinfo("Nicht gestartet",
+                                f"Starte Gruppe {gname} zuerst (mind. 2 "
+                                f"Instanzen: 1 Host + Gaeste).")
+            return
+        threading.Thread(target=self.controller.form_team,
+                         args=(gname,), daemon=True).start()
 
     def add_task(self, gname: str, task: dict) -> None:
         self.controller.group_tasks(gname).append(task)
@@ -767,8 +864,14 @@ class BotGUI:
             "add_tap": lambda x, y, sec: self._chat_add_tap(gname, x, y, sec),
             "add_move": lambda nums, sec: self._chat_add_move(gname, nums, sec),
             "remove": lambda name: self._chat_remove(gname, name),
+            "capture": lambda: self._chat_capture(gname),
             "save": lambda: save_config(self.cfg),
         }
+
+    def _chat_capture(self, gname: str) -> None:
+        ports = self.controller.group_ports(gname)
+        if ports:
+            self.root.after(0, lambda: self.open_instance_slot(gname, 0))
 
     def _chat_status(self, gname: str) -> str:
         running = self.controller.group_running(gname)

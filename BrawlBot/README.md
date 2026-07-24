@@ -181,6 +181,37 @@ Beispiel-Config) automatisch als Profil `standard` uebernommen.
 - **Log: Leeren / Speichern** – Log-Fenster leeren oder als Textdatei sichern.
 - **Instanz-Fenster: 💾 Screenshot** – aktuelles Emulatorbild als PNG speichern.
 
+#### Account-Manager & Team-Lobby (👥 / 🔀 / 🏁)
+- **👥 Accounts** – Liste der Accounts einer Gruppe pflegen (Name + Position
+  im Konto-Menue). Der Bot **merkt sich benutzte** Accounts und waehlt beim
+  Wechsel fuer **jede Instanz einen anderen**.
+- **🔀 Accounts wechseln** – pausiert die Gruppe, jede Instanz wechselt ihren
+  Account (fester Ablauf `switch_flow`) und die Steuerung laeuft weiter, sobald
+  **alle** wieder in der Lobby sind.
+- **🏁 Team-Lobby** – eine Instanz (Host, `team.host_index`) **erstellt eine
+  Lobby**, der **Team-Code wird per OCR gelesen** (`team.code_region`) und an
+  die anderen verteilt; die tippen ihn ein und **treten bei**. Erst wenn alle
+  in der Lobby sind, laeuft die synchrone Steuerung weiter.
+  - Braucht **Tesseract-OCR** (Windows-Installer von
+    github.com/UB-Mannheim/tesseract). Pfad ggf. in der Config unter
+    `tesseract_cmd` angeben, z. B.
+    `C:\\Program Files\\Tesseract-OCR\\tesseract.exe`.
+  - `code_region` = `[x, y, breite, hoehe]` des Bereichs, in dem der Code
+    steht (im Instanz-Fenster ablesen).
+
+Alle noetigen Buttons (Menue, Team, Beitreten, Bestaetigen …) nimmst du einmal
+per Instanz-Fenster auf; die Ablaeufe stehen in der Config unter `switch_flow`
+und `team` und lassen sich frei anpassen.
+
+#### Menschlicheres Verhalten & Robustheit
+- `humanize`: `pos_jitter` (zufaellige Klick-Abweichung in Pixeln),
+  `interval_jitter` (zufaellige +/-% beim Timing) – damit die Instanzen nicht
+  exakt gleich/gleichzeitig klicken.
+- `detection.multi_scale`: erkennt Buttons auch bei leicht abweichender
+  Aufloesung.
+- **Auto-Reconnect (Watchdog)**: haengt/abgebrochen? Der Bot verbindet neu und
+  macht weiter.
+
 #### Chat pro Gruppe (💬) – in normaler Sprache steuern + lernen
 Jede Gruppe hat einen **💬 Chat**-Knopf. Dort sagst du in normaler Sprache,
 was die Gruppe tun soll:
@@ -190,6 +221,7 @@ was die Gruppe tun soll:
 - `alle 3 sekunden` – alle Klick-Intervalle setzen
 - `bewege 220,780,220,650 alle 1 sekunde` – **Bewegung** (von→nach, wie)
 - `entferne play` – Aufgabe loeschen
+- `nimm den play knopf auf` – oeffnet das Instanz-Fenster zum Ausschneiden
 - `status` / `hilfe`
 
 **Dazulernen:** `lerne "deine worte" = STARTE` merkt sich deine Formulierung

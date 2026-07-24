@@ -132,6 +132,10 @@ class Brain:
                 return "↔ Bewegung hinzugefuegt."
             if op == "REMOVE":
                 return self.a["remove"](" ".join(parts[1:]))
+            if op == "CAPTURE":
+                self.a["capture"]()
+                return ("📸 Instanz-Fenster geoeffnet – ziehe dort per 2 Klicks "
+                        "einen Button aus, um ihn aufzunehmen.")
         except Exception as exc:  # noqa: BLE001
             return f"Fehler beim Ausfuehren von '{cmd}': {exc}"
         return f"Unbekannter Befehl: {cmd}"
@@ -146,6 +150,9 @@ class Brain:
             return "STATUS"
         if re.search(r"\b(hilfe|help|befehle|kommandos)\b", low):
             return "HELP"
+        if re.search(r"(nimm|aufnehm\w*|ausschneid\w*|screenshot)"
+                     r".*(auf|button|knopf|bild)", low):
+            return "CAPTURE"
 
         iv = re.search(r"alle\s+([0-9]+(?:[.,][0-9]+)?)\s*(sek\w*|s)\b", low)
 

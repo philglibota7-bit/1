@@ -64,6 +64,19 @@ class LDPlayer:
             f"LDPlayer aktiviert und die Instanz gestartet?"
         )
 
+    def reconnect(self) -> bool:
+        """Versucht die Verbindung neu aufzubauen (fuer den Watchdog)."""
+        try:
+            subprocess.run([self.adb_path, "disconnect", self.serial],
+                           capture_output=True)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            self.connect()
+            return True
+        except Exception:  # noqa: BLE001
+            return False
+
     # ---- Wahrnehmung ----------------------------------------------------
     def screenshot(self) -> np.ndarray:
         """Aktuelles Bild als BGR-Numpy-Array (fuer OpenCV)."""
