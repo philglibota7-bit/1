@@ -35,8 +35,10 @@ HELP_TEXT = (
     "Ich verstehe u. a.:\n"
     "  • 'starte' / 'stopp' – Gruppe starten/stoppen\n"
     "  • 'status' – was gerade eingestellt ist\n"
+    "  • 'bild einfuegen' – Button-Bild per Datei auswaehlen und als Aufgabe\n"
     "  • 'klicke play alle 5 sekunden' – Button-BILD automatisch klicken\n"
     "  • 'klicke bei 500,700 alle 3 sekunden' – feste POSITION klicken\n"
+    "  • 'klicke bei 500,700 groesse 60x40 alle 3 sekunden' – KLICKFLAECHE\n"
     "  • 'alle 3 sekunden' – alle Klick-Intervalle setzen\n"
     "  • 'bewege 220,780,220,650 alle 1 sekunde' – Bewegung (von→nach)\n"
     "  • 'entferne play' – Aufgabe loeschen\n"
@@ -123,8 +125,15 @@ class Brain:
             if op == "TAP":
                 x, y = int(parts[1]), int(parts[2])
                 sec = float(parts[3].replace(",", ".")) if len(parts) > 3 else 2.0
-                self.a["add_tap"](x, y, sec)
-                return f"👆 Tippt Position {x},{y} alle {sec}s."
+                w = int(parts[4]) if len(parts) > 4 else 0
+                h = int(parts[5]) if len(parts) > 5 else 0
+                self.a["add_tap"](x, y, sec, w, h)
+                area = f" (Flaeche {w}x{h})" if w and h else ""
+                return f"👆 Tippt Position {x},{y}{area} alle {sec}s."
+            if op == "IMAGE":
+                self.a["add_image"]()
+                return ("🖼 Datei-Auswahl geoeffnet – waehle ein Button-Bild und "
+                        "gib das Intervall an.")
             if op == "MOVE":
                 nums = [int(p) for p in parts[1:5]]
                 sec = float(parts[5].replace(",", ".")) if len(parts) > 5 else 1.0
@@ -153,6 +162,9 @@ class Brain:
         if re.search(r"(nimm|aufnehm\w*|ausschneid\w*|screenshot)"
                      r".*(auf|button|knopf|bild)", low):
             return "CAPTURE"
+        if re.search(r"bild.*(einf|hinzu|lad|w[aä]hl)", low) or \
+           re.search(r"(f[uü]ge?)\s+.*bild", low):
+            return "IMAGE"
 
         iv = re.search(r"alle\s+([0-9]+(?:[.,][0-9]+)?)\s*(sek\w*|s)\b", low)
 
@@ -167,6 +179,11 @@ class Brain:
                       r"(?:bei|auf|an|pos\w*)?\s*\(?\s*([0-9]{1,4})\s*[,\s]\s*([0-9]{1,4})", low)
         if m:
             sec = iv.group(1) if iv else "2"
+            # Groessenangabe wie "60x40" (auch mit Wort davor: groesse/size/…)
+            size = re.search(r"([0-9]{1,4})\s*[x×*]\s*([0-9]{1,4})", low)
+            if size:
+                return f"TAP {m.group(2)} {m.group(3)} {sec} " \
+                       f"{size.group(1)} {size.group(2)}"
             return f"TAP {m.group(2)} {m.group(3)} {sec}"
 
         # Button-Bild klicken: "klicke play"

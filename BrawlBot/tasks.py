@@ -41,6 +41,8 @@ class Task:
         self.interval: float = float(d.get("interval", 5.0))
         self.x = d.get("x")
         self.y = d.get("y")
+        self.w = int(d.get("w", 0) or 0)     # Klickflaeche Breite (0 = Punkt)
+        self.h = int(d.get("h", 0) or 0)     # Klickflaeche Hoehe
         self.frm = d.get("from")
         self.to = d.get("to")
         self.ms = int(d.get("ms", 300))
@@ -199,7 +201,11 @@ class TaskRunner:
             self.last_action = now
             t.next_due = now + self._jinterval(t.interval)
         elif t.type == "tap":
-            x, y = self._jpos(int(t.x), int(t.y))
+            bx, by = int(t.x), int(t.y)
+            if t.w > 0 and t.h > 0:          # innerhalb der Klickflaeche zufaellig
+                bx += random.randint(-t.w // 2, t.w // 2)
+                by += random.randint(-t.h // 2, t.h // 2)
+            x, y = self._jpos(bx, by)
             if not self.dry_run:
                 self.ld.tap(x, y)
             self.last_action = now

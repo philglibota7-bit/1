@@ -1004,7 +1004,9 @@ class BotGUI:
             "status": lambda: self._chat_status(gname),
             "set_interval": lambda sec: self._chat_set_interval(gname, sec),
             "add_click": lambda tmpl, sec: self._chat_add_click(gname, tmpl, sec),
-            "add_tap": lambda x, y, sec: self._chat_add_tap(gname, x, y, sec),
+            "add_tap": lambda x, y, sec, w=0, h=0: self._chat_add_tap(
+                gname, x, y, sec, w, h),
+            "add_image": lambda: self.add_image_task(gname),
             "add_move": lambda nums, sec: self._chat_add_move(gname, nums, sec),
             "remove": lambda name: self._chat_remove(gname, name),
             "capture": lambda: self._chat_capture(gname),
@@ -1041,9 +1043,13 @@ class BotGUI:
                               "template": tmpl, "interval": sec, "threshold": 0.85})
         return f"🖼 '{tmpl}' wird jetzt alle {sec}s geklickt."
 
-    def _chat_add_tap(self, gname: str, x: int, y: int, sec: float) -> None:
-        self.add_task(gname, {"type": "tap", "name": f"tap_{x}_{y}",
-                              "x": x, "y": y, "interval": sec})
+    def _chat_add_tap(self, gname: str, x: int, y: int, sec: float,
+                      w: int = 0, h: int = 0) -> None:
+        task = {"type": "tap", "name": f"tap_{x}_{y}", "x": x, "y": y,
+                "interval": sec}
+        if w and h:
+            task["w"], task["h"] = int(w), int(h)
+        self.add_task(gname, task)
 
     def _chat_add_move(self, gname: str, nums: list, sec: float) -> None:
         self.add_task(gname, {"type": "swipe", "name": "bewegung",
@@ -1072,6 +1078,11 @@ class BotGUI:
                 lb.insert("end", f"🖼 {t.get('name')}  ({t.get('template')}, alle {iv}s)")
             elif typ == "swipe":
                 lb.insert("end", f"↔ {t.get('name')}  ({t.get('from')}→{t.get('to')}, alle {iv}s)")
+            elif typ == "tap":
+                area = (f" · Flaeche {t['w']}x{t['h']}"
+                        if t.get("w") and t.get("h") else "")
+                lb.insert("end", f"👆 {t.get('name')}  ({t.get('x')},{t.get('y')}"
+                                 f"{area}, alle {iv}s)")
             else:
                 lb.insert("end", f"• {t.get('name')}  ({typ}, alle {iv}s)")
 

@@ -278,7 +278,9 @@ Jede Gruppe hat einen **💬 Chat**-Knopf. Dort sagst du in normaler Sprache,
 was die Gruppe tun soll:
 - `starte` / `stopp` – Gruppe starten/stoppen
 - `klicke play alle 5 sekunden` – Button-**Bild** automatisch klicken
+- `bild einfügen` – Button-Bild per **Datei-Auswahl** hinzufügen (Bild-Eingabe im Chat)
 - `klicke bei 500,700 alle 3 sekunden` – feste **Position** klicken (wo)
+- `klicke bei 500,700 groesse 60x40 alle 3 sekunden` – **Klickfläche** (Größe): tippt zufällig innerhalb 60×40 um den Punkt (menschlicher/robuster)
 - `alle 3 sekunden` – alle Klick-Intervalle setzen
 - `bewege 220,780,220,650 alle 1 sekunde` – **Bewegung** (von→nach, wie)
 - `entferne play` – Aufgabe loeschen
