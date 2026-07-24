@@ -95,7 +95,7 @@
     "start_match_steps": [
       {
         "type": "tap_template",
-        "template": "team_play.png",
+        "template": "losspielen.png",
         "timeout": 15,
         "wait": 2
       }
@@ -103,13 +103,13 @@
     "leave_steps": [
       {
         "type": "tap_template",
-        "template": "leave_team.png",
+        "template": "team_verlassen.png",
         "timeout": 15,
         "wait": 2
       },
       {
         "type": "tap_template",
-        "template": "leave_confirm.png",
+        "template": "verlassen_bestaetigen.png",
         "timeout": 10,
         "wait": 2
       }
@@ -229,19 +229,19 @@
         "create_steps": [
           {
             "type": "tap_template",
-            "template": "friends_button.png",
+            "template": "team_menu.png",
             "timeout": 15,
             "wait": 1.5
           },
           {
             "type": "tap_template",
-            "template": "team_button.png",
+            "template": "team_erstellen.png",
             "timeout": 10,
             "wait": 1.5
           },
           {
             "type": "tap_template",
-            "template": "invite_code.png",
+            "template": "team_teilen.png",
             "timeout": 10,
             "wait": 1.5
           }
@@ -252,18 +252,18 @@
           240,
           60
         ],
-        "ready_template": "team_lobby.png",
+        "ready_template": "team_raum.png",
         "ready_timeout": 60,
         "join_steps_before": [
           {
             "type": "tap_template",
-            "template": "friends_button.png",
+            "template": "team_menu.png",
             "timeout": 15,
             "wait": 1.5
           },
           {
             "type": "tap_template",
-            "template": "join_by_code.png",
+            "template": "team_beitreten.png",
             "timeout": 10,
             "wait": 1.5
           }
@@ -275,7 +275,7 @@
         "join_steps_after": [
           {
             "type": "tap_template",
-            "template": "join_confirm.png",
+            "template": "code_bestaetigen.png",
             "timeout": 10,
             "wait": 2.0
           }
@@ -388,19 +388,19 @@
         "create_steps": [
           {
             "type": "tap_template",
-            "template": "friends_button.png",
+            "template": "team_menu.png",
             "timeout": 15,
             "wait": 1.5
           },
           {
             "type": "tap_template",
-            "template": "team_button.png",
+            "template": "team_erstellen.png",
             "timeout": 10,
             "wait": 1.5
           },
           {
             "type": "tap_template",
-            "template": "invite_code.png",
+            "template": "team_teilen.png",
             "timeout": 10,
             "wait": 1.5
           }
@@ -411,18 +411,18 @@
           240,
           60
         ],
-        "ready_template": "team_lobby.png",
+        "ready_template": "team_raum.png",
         "ready_timeout": 60,
         "join_steps_before": [
           {
             "type": "tap_template",
-            "template": "friends_button.png",
+            "template": "team_menu.png",
             "timeout": 15,
             "wait": 1.5
           },
           {
             "type": "tap_template",
-            "template": "join_by_code.png",
+            "template": "team_beitreten.png",
             "timeout": 10,
             "wait": 1.5
           }
@@ -434,7 +434,7 @@
         "join_steps_after": [
           {
             "type": "tap_template",
-            "template": "join_confirm.png",
+            "template": "code_bestaetigen.png",
             "timeout": 10,
             "wait": 2.0
           }

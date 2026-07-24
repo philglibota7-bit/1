@@ -197,6 +197,31 @@ Beispiel-Config) automatisch als Profil `standard` uebernommen.
 - **Als .exe bauen** – `build_exe.bat` doppelklicken → `dist\BrawlBot.exe`
   (Start ohne Python-Installation).
 
+#### Buttons aufnehmen – Checkliste (deutsches Menü)
+Nimm diese Buttons einmal per Instanz-Fenster (2-Klick-Ausschnitt) auf und
+speichere sie unter genau diesem Namen in `templates/`:
+
+| Datei | Button im Spiel |
+|-------|-----------------|
+| `play_button.png` | Großer **SPIELEN**-Knopf im Hauptmenü |
+| `team_menu.png` | Umschalter **„IM TEAM SPIELEN"** (Team-Symbol neben Play) |
+| `team_erstellen.png` | **ERSTELLEN** (unten links im Team-Menü) |
+| `team_teilen.png` | **TEILEN** (zeigt den Team-Code an) |
+| `team_beitreten.png` | **BEITRETEN** (unten) |
+| `team_raum.png` | Anzeige, dass man **im Team-Raum** ist (z. B. „Team erstellt!") |
+| `code_bestaetigen.png` | Bestätigen nach Code-Eingabe |
+| `losspielen.png` | **LOSSPIELEN / SPIELEN** im Team (Match starten) |
+| `team_verlassen.png` | rotes **X** oben im Team-Menü bzw. **Verlassen** |
+| `verlassen_bestaetigen.png` | Bestätigung beim Verlassen |
+| `match_end.png` | markanter Teil vom **Endscreen** (z. B. „SIEG"/„NIEDERLAGE") |
+| `victory.png` | nur der **SIEG**-Schriftzug (fürs Ergebnis) |
+
+Für das **Beitreten per Code**: nach **BEITRETEN** erscheint das Popup mit
+**„TEAMCODE"** – dort tippt der Bot ins Feld (`code_field`) und gibt den Code
+ein. Stelle `code_field` und `code_region` (wo der Code steht) im
+Instanz-Fenster per Linksklick ein. Für den **Account-Wechsel** zusätzlich die
+Menü-Schritte (Zahnrad → Supercell ID → Konto wechseln) aufnehmen.
+
 #### Brawl-Stars-Steuerung (Standard, auflösungs-unabhängig)
 Brawl Stars laeuft **quer** (Landscape). Standard-Layout:
 - **Bewegung**: virtueller Joystick **unten links**
