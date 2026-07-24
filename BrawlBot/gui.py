@@ -30,6 +30,7 @@ import json
 import queue
 import shutil
 import threading
+import time
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
@@ -307,6 +308,104 @@ class ChatWindow:
         self._say("Bot", reply or "(nichts)")
 
 
+class DashboardWindow:
+    """Live-Miniaturbilder aller Instanzen auf einen Blick."""
+
+    THUMB_W = 210
+
+    def __init__(self, app: "BotGUI"):
+        self.app = app
+        self.win = tk.Toplevel(app.root)
+        self.win.title("Dashboard – alle Instanzen")
+        self.alive = True
+        self._photos: dict = {}
+
+        ports = []
+        for grp in app.controller.groups().values():
+            ports.extend(grp.get("ports", []))
+        # doppelte raus, Reihenfolge behalten
+        seen = set()
+        self.ports = [p for p in ports if not (p in seen or seen.add(p))]
+
+        grid = ttk.Frame(self.win, padding=6)
+        grid.pack(fill="both", expand=True)
+        self.labels = {}
+        cols = 3
+        for i, port in enumerate(self.ports):
+            cell = ttk.LabelFrame(grid, text=f"Port {port}")
+            cell.grid(row=i // cols, column=i % cols, padx=4, pady=4)
+            lbl = ttk.Label(cell, text="…", width=28, anchor="center")
+            lbl.pack()
+            self.labels[port] = lbl
+
+        self.win.protocol("WM_DELETE_WINDOW", self.close)
+        threading.Thread(target=self._worker, daemon=True).start()
+
+    def _worker(self) -> None:
+        while self.alive:
+            for port in self.ports:
+                if not self.alive:
+                    return
+                try:
+                    ld = LDPlayer(host=self.app.cfg.get("host", "127.0.0.1"),
+                                  port=port,
+                                  adb_path=self.app.cfg.get("adb_path", "adb"))
+                    ld.connect()
+                    img = ld.screenshot()
+                    photo = png_photo(img, self.THUMB_W)
+                    self.win.after(0, self._set, port, photo)
+                except Exception:  # noqa: BLE001
+                    self.win.after(0, self._set_text, port, "kein Bild")
+            time.sleep(3.0)
+
+    def _set(self, port, photo) -> None:
+        if not self.alive:
+            return
+        self._photos[port] = photo
+        lbl = self.labels.get(port)
+        if lbl:
+            lbl.configure(image=photo, text="")
+
+    def _set_text(self, port, text) -> None:
+        lbl = self.labels.get(port)
+        if lbl:
+            lbl.configure(text=text)
+
+    def close(self) -> None:
+        self.alive = False
+        self.win.destroy()
+
+
+class StatsWindow:
+    """Statistik/Trophaeen pro Account anzeigen."""
+
+    def __init__(self, app: "BotGUI"):
+        self.app = app
+        self.win = tk.Toplevel(app.root)
+        self.win.title("Statistik – Siege & Trophaeen")
+        self.win.geometry("520x420")
+        self.text = tk.Text(self.win, wrap="word", state="disabled",
+                            font=("Consolas", 11))
+        self.text.pack(fill="both", expand=True, padx=6, pady=6)
+        row = ttk.Frame(self.win, padding=6)
+        row.pack(fill="x")
+        ttk.Button(row, text="↻ Aktualisieren", command=self.refresh).pack(side="left")
+        ttk.Button(row, text="🗑 Zuruecksetzen", command=self.reset).pack(side="left", padx=6)
+        ttk.Button(row, text="Schliessen", command=self.win.destroy).pack(side="right")
+        self.refresh()
+
+    def refresh(self) -> None:
+        self.text.configure(state="normal")
+        self.text.delete("1.0", "end")
+        self.text.insert("1.0", self.app.controller.stats.summary())
+        self.text.configure(state="disabled")
+
+    def reset(self) -> None:
+        if messagebox.askyesno("Zuruecksetzen?", "Alle Statistiken loeschen?"):
+            self.app.controller.stats.reset()
+            self.refresh()
+
+
 class AccountsWindow:
     """Verwaltung der Account-Liste einer Gruppe (Name + Position 'slot')."""
 
@@ -494,10 +593,21 @@ class BotGUI:
                    command=self.scan_ports).pack(side="left")
         ttk.Checkbutton(bar2, text="Dry-Run (nur testen)",
                         variable=self.dry_run).pack(side="left", padx=(12, 0))
+        ttk.Button(bar2, text="🖥 Dashboard",
+                   command=self.open_dashboard).pack(side="left", padx=(12, 0))
+        ttk.Button(bar2, text="📊 Statistik",
+                   command=lambda: StatsWindow(self)).pack(side="left", padx=4)
         ttk.Button(bar2, text="■ Stop Automatik",
                    command=self.stop_cycle).pack(side="right")
         ttk.Button(bar2, text="🔁 Vollautomatik (Zyklus)",
                    command=self.start_cycle).pack(side="right", padx=6)
+
+        # Zeile 3: Zyklus-Status
+        bar3 = ttk.Frame(self.root, padding=(8, 0, 8, 4))
+        bar3.pack(fill="x")
+        self.cycle_status = tk.StringVar(value="Zyklus: gestoppt")
+        ttk.Label(bar3, textvariable=self.cycle_status,
+                  foreground="#06c").pack(side="left")
         ttk.Label(self.root, foreground="#b00", padding=(8, 0),
                   text="⚠ Brawl-Stars-Botting verstoesst gegen Supercells "
                        "Nutzungsbedingungen – nur Wegwerf-Accounts, Sperr-Risiko!"
@@ -816,10 +926,22 @@ class BotGUI:
         self.controller.stop_all()
         self.log_queue.put("NOT-AUS: alle Instanzen gestoppt.")
 
+    def open_dashboard(self) -> None:
+        DashboardWindow(self)
+
     def start_cycle(self) -> None:
         if self.controller.cycle_running():
             messagebox.showinfo("Laeuft", "Die Vollautomatik laeuft bereits.")
             return
+        problems = self.controller.check_setup()
+        if problems:
+            msg = ("Setup-Check hat Probleme gefunden:\n\n"
+                   + "\n".join("• " + p for p in problems[:15]))
+            if len(problems) > 15:
+                msg += f"\n… und {len(problems) - 15} weitere."
+            msg += "\n\nTrotzdem starten?"
+            if not messagebox.askyesno("Setup-Check", msg):
+                return
         if not messagebox.askyesno(
             "Vollautomatik starten?",
             "Startet beide Gruppen und den kompletten Zyklus (Accounts wechseln "
@@ -962,6 +1084,13 @@ class BotGUI:
                 break
             self._append_log(line)
             drained += 1
+
+        info = self.controller.cycle_info
+        if self.controller.cycle_running():
+            self.cycle_status.set(f"Zyklus: Runde {info.get('round', 0)} · "
+                                  f"{info.get('phase', '-')}")
+        else:
+            self.cycle_status.set("Zyklus: gestoppt")
 
         for gname, w in self.group_widgets.items():
             for r in w["rows"]:

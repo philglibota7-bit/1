@@ -83,6 +83,8 @@ class TaskRunner:
         self.result_code: str = ""           # vom Host gelesener Team-Code
         self.watch_template: str = ""        # nebenbei auf dieses Bild achten
         self.watch_event = threading.Event() # gesetzt, sobald es erkannt wurde
+        self.result_trophies = None          # nach dem Match gelesene Trophaeen
+        self.result_win = False              # Sieg erkannt?
 
     # ---- Rueckmeldung ---------------------------------------------------
     def log(self, msg: str) -> None:
@@ -127,6 +129,13 @@ class TaskRunner:
         """Fuehrt eine beliebige Schrittfolge aus (fuer die Zyklus-Automatik)."""
         self._request({"kind": "steps", "steps": steps or [],
                        "ready_template": ready_template})
+
+    def request_read(self, trophy_region, win_template: str = "") -> None:
+        """Liest nach dem Match Trophaeen (OCR) und ob ein Sieg vorliegt."""
+        self.result_trophies = None
+        self.result_win = False
+        self._request({"kind": "read", "region": trophy_region,
+                       "win_template": win_template})
 
     def resume(self) -> None:
         self.pause_event.clear()
@@ -287,6 +296,24 @@ class TaskRunner:
             ok = self._wait_for(rt, flow.get("ready_timeout", 60))
             self.log("In der Lobby." if ok else "Beitritt-Timeout.")
 
+    def _run_read(self, job: dict) -> None:
+        screen = self._grab()
+        region = job.get("region")
+        if region:
+            tcmd = self.cfg.get("tesseract_cmd", "")
+            raw = vision.read_text(screen, region, tcmd)
+            digits = "".join(ch for ch in raw if ch.isdigit())
+            self.result_trophies = int(digits) if digits else None
+        win_tmpl = job.get("win_template")
+        if win_tmpl:
+            try:
+                self.result_win = vision.find(screen, win_tmpl, 0.8,
+                                              self.scales).found
+            except Exception:  # noqa: BLE001
+                self.result_win = False
+        self.log(f"Ergebnis: Trophaeen={self.result_trophies} "
+                 f"Sieg={self.result_win}")
+
     def _run_steps(self, job: dict) -> None:
         for step in job.get("steps", []):
             if self.stop_event.is_set():
@@ -315,6 +342,8 @@ class TaskRunner:
                         self._run_join(job)
                     elif kind == "steps":
                         self._run_steps(job)
+                    elif kind == "read":
+                        self._run_read(job)
                     self.job = None
                     self.ready_event.set()      # dem Controller melden
                     continue

@@ -27,8 +27,16 @@
     "match_duration": 150,
     "match_end_template": "match_end.png",
     "match_timeout": 300,
+    "trophy_region": [470, 60, 160, 60],
+    "victory_template": "victory.png",
     "rounds": 0,
+    "retries": 2,
     "switch_accounts": true,
+    "recover_steps": [
+      { "type": "key", "code": "KEYCODE_BACK", "wait": 1.0 },
+      { "type": "key", "code": "KEYCODE_BACK", "wait": 1.0 },
+      { "type": "key", "code": "KEYCODE_BACK", "wait": 1.0 }
+    ],
     "start_match_steps": [
       { "type": "tap_template", "template": "team_play.png", "timeout": 15, "wait": 2 }
     ],

@@ -16,6 +16,7 @@ from typing import Callable, Dict, List, Optional
 
 from brawl import BrawlBot
 from ldplayer import LDPlayer
+from stats import Stats
 
 HERE = Path(__file__).parent
 
@@ -93,6 +94,9 @@ class BotController:
         self._runners: Dict[int, object] = {}   # port -> TaskRunner
         self._cycle_stop = threading.Event()
         self._cycle_thread: Optional[threading.Thread] = None
+        self._current_account: Dict[int, str] = {}   # port -> Account-Name
+        self.stats = Stats()
+        self.cycle_info = {"round": 0, "phase": "-"}
         self.status: Dict[int, InstanceStatus] = {}
         self._lock = threading.Lock()
         for inst in cfg.get("instances", []):
@@ -216,22 +220,23 @@ class BotController:
         wartet bis ALLE in der Lobby sind, dann laeuft die Steuerung weiter.
         Blockiert -> aus der Oberflaeche in einem Thread aufrufen."""
         grp = self.groups().get(group_name, {})
-        ports = [p for p in grp.get("ports", []) if self.is_running(p)]
-        runners = [self._runners.get(p) for p in ports]
-        runners = [r for r in runners if r]
-        if not runners:
+        pairs = [(p, self._runners[p]) for p in grp.get("ports", [])
+                 if self.is_running(p) and p in self._runners]
+        if not pairs:
             self.on_log(f"[{group_name}] Keine laufende Instanz -> Wechsel "
                         f"nicht moeglich (Gruppe zuerst starten).")
             return
-        accounts = self._pick_accounts(group_name, len(runners))
+        accounts = self._pick_accounts(group_name, len(pairs))
         if not accounts:
             self.on_log(f"[{group_name}] Keine Accounts hinterlegt "
                         f"(im Accounts-Fenster anlegen).")
             return
+        runners = [r for _, r in pairs]
         flow = grp.get("switch_flow", {})
         self.on_log(f"[{group_name}] Account-Wechsel gestartet: "
                     f"{[a.get('name') for a in accounts]}")
-        for r, acc in zip(runners, accounts):
+        for (port, r), acc in zip(pairs, accounts):
+            self._current_account[port] = acc.get("name", str(port))
             r.request_switch(acc, flow)
         # warten bis alle in der Lobby sind (oder Timeout)
         timeout = flow.get("all_ready_timeout", 150)
@@ -245,23 +250,23 @@ class BotController:
                     f"in Lobby). Steuerung laeuft synchron weiter.")
 
     # ---- Team-Lobby: Host erstellt, Gaeste treten per Code bei ---------
-    def form_team(self, group_name: str) -> None:
+    def form_team(self, group_name: str) -> bool:
         """Eine Instanz (Host) erstellt eine Lobby, liest den Team-Code (OCR),
-        die anderen tippen ihn ein und treten bei. Danach laeuft alles weiter.
+        die anderen tippen ihn ein und treten bei. Gibt True bei Erfolg zurueck.
         Blockiert -> aus der Oberflaeche in einem Thread aufrufen."""
         grp = self.groups().get(group_name, {})
         flow = grp.get("team", {})
         if not flow:
             self.on_log(f"[{group_name}] Kein 'team'-Ablauf konfiguriert "
                         f"(in Config bearbeiten anlegen).")
-            return
+            return False
         ports = [p for p in grp.get("ports", []) if self.is_running(p)]
         ordered = [self._runners.get(p) for p in ports]
         ordered = [r for r in ordered if r]
         if len(ordered) < 2:
             self.on_log(f"[{group_name}] Mindestens 2 laufende Instanzen noetig "
                         f"(1 Host + Gaeste).")
-            return
+            return False
         host_index = min(int(flow.get("host_index", 0)), len(ordered) - 1)
         host = ordered[host_index]
         guests = [r for i, r in enumerate(ordered) if i != host_index]
@@ -275,21 +280,23 @@ class BotController:
         host.ready_event.wait(timeout)
         code = host.result_code
         if not code:
-            self.on_log(f"[{group_name}] Kein Team-Code gelesen. "
-                        f"Ist Tesseract-OCR installiert und 'code_region' "
-                        f"gesetzt? Beitritt abgebrochen.")
+            self.on_log(f"[{group_name}] Kein Team-Code gelesen "
+                        f"(Tesseract/'code_region' pruefen).")
             for r in ordered:
                 r.resume()
-            return
+            return False
         self.on_log(f"[{group_name}] Team-Code '{code}' -> Gaeste treten bei ...")
         for g in guests:
             g.request_join(flow, code)
         end = time.time() + timeout
         for g in guests:
             g.ready_event.wait(max(0.0, end - time.time()))
+        ok = all(g.ready_event.is_set() for g in guests)
         for r in ordered:
             r.resume()
-        self.on_log(f"[{group_name}] Team gebildet. Steuerung laeuft weiter.")
+        self.on_log(f"[{group_name}] Team gebildet "
+                    f"({'ok' if ok else 'unvollstaendig'}).")
+        return ok
 
     # ---- Vollautomatik: kompletter Zyklus ------------------------------
     def _group_runners(self, group_name: str) -> list:
@@ -341,6 +348,74 @@ class BotController:
                 self.on_log(f"[{group_name}] Kein Endscreen erkannt (Timeout).")
         host.stop_watch()
 
+    def _collect_results(self, group_name: str, cyc: dict, expect_win: bool) -> None:
+        """Liest nach dem Match Trophaeen/Sieg pro Instanz und schreibt Stats."""
+        region = cyc.get("trophy_region")
+        win_tmpl = cyc.get("victory_template", "")
+        if not region and not win_tmpl:
+            return
+        pairs = [(p, self._runners[p]) for p in self.group_ports(group_name)
+                 if self.is_running(p) and p in self._runners]
+        for _, r in pairs:
+            r.request_read(region, win_tmpl)
+        for _, r in pairs:
+            r.ready_event.wait(30)
+        for port, r in pairs:
+            name = self._current_account.get(port, f"{group_name}:{port}")
+            win = r.result_win if win_tmpl else expect_win
+            self.stats.record_game(name, win=win, trophies=r.result_trophies)
+            self.on_log(f"[{group_name}] {name}: "
+                        f"{'Sieg' if win else 'kein Sieg'}, "
+                        f"Trophaeen {r.result_trophies}")
+        for _, r in pairs:
+            r.resume()
+
+    def _recover(self, group_name: str, cyc: dict) -> None:
+        steps = cyc.get("recover_steps") or [
+            {"type": "key", "code": "KEYCODE_BACK", "wait": 1.0},
+            {"type": "key", "code": "KEYCODE_BACK", "wait": 1.0},
+            {"type": "key", "code": "KEYCODE_BACK", "wait": 1.0},
+        ]
+        self.on_log(f"[{group_name}] Recovery (zurueck ins Menue) ...")
+        self._all_steps(group_name, steps)
+
+    def check_setup(self) -> list:
+        """Prueft vor dem Start, was noch fehlt (Templates, Ports, Accounts)."""
+        problems = []
+        tdir = HERE / "templates"
+
+        def need(tmpl):
+            if tmpl and not (tdir / tmpl).exists():
+                problems.append(f"Template fehlt: templates/{tmpl}")
+
+        for gname, grp in self.groups().items():
+            if not grp.get("ports"):
+                problems.append(f"Gruppe {gname}: keine Ports gesetzt")
+            for t in grp.get("tasks", []):
+                if t.get("type") == "tap_template":
+                    need(t.get("template"))
+            for key in ("switch_flow", "team"):
+                flow = grp.get(key, {})
+                for lst in ("open_steps", "confirm_steps", "create_steps",
+                            "join_steps_before", "join_steps_after"):
+                    for st in flow.get(lst, []):
+                        if st.get("type") == "tap_template":
+                            need(st.get("template"))
+        cyc = self.cfg.get("cycle", {})
+        for lst in ("start_match_steps", "leave_steps", "recover_steps"):
+            for st in cyc.get(lst, []):
+                if st.get("type") == "tap_template":
+                    need(st.get("template"))
+        need(cyc.get("match_end_template"))
+        need(cyc.get("victory_template"))
+        if cyc.get("match_end_template") and not self.cfg.get("tesseract_cmd"):
+            pass  # OCR-Pfad optional (falls im PATH)
+        # doppelte entfernen, Reihenfolge egal
+        return sorted(set(problems))
+
+    def _set_phase(self, rnd: int, phase: str) -> None:
+        self.cycle_info = {"round": rnd, "phase": phase}
+
     def start_cycle(self) -> None:
         if self._cycle_thread and self._cycle_thread.is_alive():
             return
@@ -364,6 +439,7 @@ class BotController:
         do_switch = cyc.get("switch_accounts", True)
         start_steps = cyc.get("start_match_steps", [])
         leave_steps = cyc.get("leave_steps", [])
+        retries = int(cyc.get("retries", 2))
         stop = self._cycle_stop
         n = 0
         self.on_log("▶ Vollautomatik gestartet.")
@@ -371,27 +447,37 @@ class BotController:
             n += 1
             self.on_log(f"═══ Runde {n} ═══")
             # 1) Accounts wechseln (jede Instanz ein anderer, nach Name)
+            self._set_phase(n, "Accounts wechseln")
             if do_switch:
                 self.switch_group_accounts(win)
                 self.switch_group_accounts(loose)
                 if stop.is_set():
                     break
-            # 2) Beide Teams bilden (Host erstellt, Gaeste joinen per Code)
-            self.form_team(win)
-            self.form_team(loose)
+            # 2) Beide Teams bilden – mit Pruefung + Wiederholung
+            self._set_phase(n, "Teams bilden")
+            if not self._form_team_retry(win, retries, stop) or \
+               not self._form_team_retry(loose, retries, stop):
+                self.on_log("Teambildung fehlgeschlagen -> Recovery, neue Runde.")
+                self._recover(win, cyc)
+                self._recover(loose, cyc)
+                continue
             if stop.is_set():
                 break
             # 3) WIN geht in die Runde
+            self._set_phase(n, f"{win} startet")
             self.on_log(f"[{win}] startet die Runde.")
             self._host_steps(win, start_steps)
             # 4) LOOSE wartet und geht dann rein
+            self._set_phase(n, f"{loose} wartet {loose_delay:.0f}s")
             self.on_log(f"[{loose}] wartet {loose_delay:.0f}s ...")
             stop.wait(loose_delay)
             if stop.is_set():
                 break
+            self._set_phase(n, f"{loose} startet")
             self.on_log(f"[{loose}] startet die Runde.")
             self._host_steps(loose, start_steps)
-            # 5) Spielphase (WIN spielt+schiesst, LOOSE bewegt sich nur)
+            # 5) Spielphase – Ende am Endscreen erkennen
+            self._set_phase(n, "Spielphase")
             end_tmpl = cyc.get("match_end_template", "")
             if end_tmpl:
                 mt = float(cyc.get("match_timeout", max(match_dur * 2, 300)))
@@ -403,13 +489,29 @@ class BotController:
                 stop.wait(match_dur)
             if stop.is_set():
                 break
-            # 6) Team verlassen (alle) -> naechste Runde
+            # 6) Ergebnis erfassen (Trophaeen/Sieg) + Team verlassen
+            self._set_phase(n, "Ergebnis + verlassen")
+            self._collect_results(win, cyc, expect_win=True)
+            self._collect_results(loose, cyc, expect_win=False)
             self._all_steps(win, leave_steps)
             self._all_steps(loose, leave_steps)
+            self.stats.round_done()
             if rounds and n >= rounds:
                 self.on_log(f"Zyklus fertig nach {n} Runden.")
                 break
+        self._set_phase(0, "-")
         self.on_log("■ Vollautomatik beendet.")
+
+    def _form_team_retry(self, group_name: str, retries: int, stop) -> bool:
+        for attempt in range(1, retries + 1):
+            if stop.is_set():
+                return False
+            if self.form_team(group_name):
+                return True
+            self.on_log(f"[{group_name}] Teambildung Versuch {attempt} "
+                        f"fehlgeschlagen.")
+            self._recover(group_name, self.cfg.get("cycle", {}))
+        return False
 
     def join_all(self, timeout: float = 10.0) -> None:
         end = time.time() + timeout

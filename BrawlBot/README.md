@@ -181,6 +181,22 @@ Beispiel-Config) automatisch als Profil `standard` uebernommen.
 - **Log: Leeren / Speichern** – Log-Fenster leeren oder als Textdatei sichern.
 - **Instanz-Fenster: 💾 Screenshot** – aktuelles Emulatorbild als PNG speichern.
 
+#### Weitere Komfort-/Kontroll-Funktionen
+- **🖥 Dashboard** – Live-Miniaturbilder aller Instanzen auf einen Blick
+  (aktualisiert alle paar Sekunden).
+- **📊 Statistik** – Spiele, Siege (%) und **Trophäen pro Account** inkl.
+  Veraenderung (Δ). Wird nach jedem Match automatisch per Screen-Erkennung
+  aktualisiert (`cycle.trophy_region` = Bereich der Trophaeenzahl,
+  `cycle.victory_template` = Sieg-Bild). Gespeichert in `stats.json`.
+- **Zyklus-Status** (Zeile 3) – zeigt aktuelle Runde und Phase.
+- **Setup-Check** – vor dem Start der Vollautomatik wird geprueft, welche
+  Templates/Ports/Accounts noch fehlen.
+- **Phasen-Pruefung + Retry** – klappt die Teambildung nicht, wird es
+  `cycle.retries`-mal wiederholt; danach **Recovery** (`recover_steps`,
+  standardmaessig mehrmals „Zurueck") und neue Runde.
+- **Als .exe bauen** – `build_exe.bat` doppelklicken → `dist\BrawlBot.exe`
+  (Start ohne Python-Installation).
+
 #### 🔁 Vollautomatik (kompletter Zyklus)
 Der Knopf **🔁 Vollautomatik (Zyklus)** oben startet den ganzen Ablauf
 selbststaendig und in Schleife (`cycle` in der Config):
