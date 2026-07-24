@@ -121,6 +121,11 @@ class TaskRunner:
     def request_join(self, flow: dict, code: str) -> None:
         self._request({"kind": "join", "flow": flow or {}, "code": code})
 
+    def request_steps(self, steps: list, ready_template: str = "") -> None:
+        """Fuehrt eine beliebige Schrittfolge aus (fuer die Zyklus-Automatik)."""
+        self._request({"kind": "steps", "steps": steps or [],
+                       "ready_template": ready_template})
+
     def resume(self) -> None:
         self.pause_event.clear()
 
@@ -272,6 +277,15 @@ class TaskRunner:
             ok = self._wait_for(rt, flow.get("ready_timeout", 60))
             self.log("In der Lobby." if ok else "Beitritt-Timeout.")
 
+    def _run_steps(self, job: dict) -> None:
+        for step in job.get("steps", []):
+            if self.stop_event.is_set():
+                return
+            self._do_step(step)
+        rt = job.get("ready_template")
+        if rt:
+            self._wait_for(rt, 30)
+
     # ---- Hauptschleife --------------------------------------------------
     def run(self) -> None:
         self.status("RUN")
@@ -289,6 +303,8 @@ class TaskRunner:
                         self._run_create(job)
                     elif kind == "join":
                         self._run_join(job)
+                    elif kind == "steps":
+                        self._run_steps(job)
                     self.job = None
                     self.ready_event.set()      # dem Controller melden
                     continue

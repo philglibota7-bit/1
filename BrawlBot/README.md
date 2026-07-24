@@ -181,6 +181,32 @@ Beispiel-Config) automatisch als Profil `standard` uebernommen.
 - **Log: Leeren / Speichern** – Log-Fenster leeren oder als Textdatei sichern.
 - **Instanz-Fenster: 💾 Screenshot** – aktuelles Emulatorbild als PNG speichern.
 
+#### 🔁 Vollautomatik (kompletter Zyklus)
+Der Knopf **🔁 Vollautomatik (Zyklus)** oben startet den ganzen Ablauf
+selbststaendig und in Schleife (`cycle` in der Config):
+1. **Accounts wechseln** – jede Instanz nimmt einen anderen, noch nicht
+   benutzten Account (nach Name).
+2. **Teams bilden** – in WIN und LOOSE erstellt je ein Host eine Lobby, die
+   anderen treten per Team-Code bei.
+3. **WIN geht in die Runde**, **LOOSE wartet `loose_delay` Sekunden** (Standard
+   35) und geht dann auch rein (Timing, damit beide im selben Match landen).
+4. **Spielphase** `match_duration` Sekunden: WIN spielt + schiesst, LOOSE
+   bewegt sich nur (die Aufgabenlisten der Gruppen sind entsprechend
+   verschieden – LOOSE hat keinen „schuss").
+5. **Team verlassen** → zurueck zu Schritt 1.
+
+`rounds: 0` = endlos; `>0` = so viele Runden. **■ Stop Automatik** beendet den
+Zyklus. Fuer diesen Modus sollten die Gruppen-`tasks` nur das **In-Match-
+Verhalten** enthalten (WIN: bewegen+schiessen, LOOSE: nur bewegen) – die
+Menue-Schritte (Lobby erstellen, Runde starten, Team verlassen) macht der
+Zyklus ueber `start_match_steps` / `leave_steps` / `team`.
+
+> ⚠️ **Ehrlich:** Ob WIN und LOOSE wirklich im **selben** Match landen, haengt
+> an Supercells Matchmaking und am `loose_delay`-Timing – garantiert ist es
+> nicht. Und ob WIN „gewinnt", haengt davon ab, dass LOOSE nicht schiesst und
+> beide zusammen sind – der Bot spielt mechanisch, nicht clever. Sperr-Risiko
+> ist hoch; nur Wegwerf-Accounts.
+
 #### Account-Manager & Team-Lobby (👥 / 🔀 / 🏁)
 - **👥 Accounts** – Liste der Accounts einer Gruppe pflegen (Name + Position
   im Konto-Menue). Der Bot **merkt sich benutzte** Accounts und waehlt beim

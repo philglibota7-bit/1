@@ -20,6 +20,22 @@
   "detection": { "multi_scale": true, "scales": [0.9, 0.95, 1.0, 1.05, 1.1] },
   "tesseract_cmd": "",
 
+  "cycle": {
+    "win_group": "WIN",
+    "loose_group": "LOOSE",
+    "loose_delay": 35,
+    "match_duration": 150,
+    "rounds": 0,
+    "switch_accounts": true,
+    "start_match_steps": [
+      { "type": "tap_template", "template": "team_play.png", "timeout": 15, "wait": 2 }
+    ],
+    "leave_steps": [
+      { "type": "tap_template", "template": "leave_team.png",    "timeout": 15, "wait": 2 },
+      { "type": "tap_template", "template": "leave_confirm.png", "timeout": 10, "wait": 2 }
+    ]
+  },
+
   "groups": {
     "WIN": {
       "ports": [5555, 5557, 5559],

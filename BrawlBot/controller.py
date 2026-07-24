@@ -91,6 +91,8 @@ class BotController:
         self._stops: Dict[int, threading.Event] = {}
         self._bots: Dict[int, BrawlBot] = {}
         self._runners: Dict[int, object] = {}   # port -> TaskRunner
+        self._cycle_stop = threading.Event()
+        self._cycle_thread: Optional[threading.Thread] = None
         self.status: Dict[int, InstanceStatus] = {}
         self._lock = threading.Lock()
         for inst in cfg.get("instances", []):
@@ -288,6 +290,96 @@ class BotController:
         for r in ordered:
             r.resume()
         self.on_log(f"[{group_name}] Team gebildet. Steuerung laeuft weiter.")
+
+    # ---- Vollautomatik: kompletter Zyklus ------------------------------
+    def _group_runners(self, group_name: str) -> list:
+        ports = [p for p in self.group_ports(group_name) if self.is_running(p)]
+        return [self._runners[p] for p in ports if p in self._runners]
+
+    def _host_steps(self, group_name: str, steps: list) -> None:
+        runners = self._group_runners(group_name)
+        if not runners or not steps:
+            return
+        hi = min(int(self.groups().get(group_name, {}).get("team", {})
+                     .get("host_index", 0)), len(runners) - 1)
+        host = runners[hi]
+        host.request_steps(steps)
+        host.ready_event.wait(60)
+        host.resume()
+
+    def _all_steps(self, group_name: str, steps: list) -> None:
+        runners = self._group_runners(group_name)
+        if not runners or not steps:
+            return
+        for r in runners:
+            r.request_steps(steps)
+        for r in runners:
+            r.ready_event.wait(60)
+        for r in runners:
+            r.resume()
+
+    def start_cycle(self) -> None:
+        if self._cycle_thread and self._cycle_thread.is_alive():
+            return
+        self._cycle_stop = threading.Event()
+        self._cycle_thread = threading.Thread(target=self._run_cycle, daemon=True)
+        self._cycle_thread.start()
+
+    def stop_cycle(self) -> None:
+        self._cycle_stop.set()
+
+    def cycle_running(self) -> bool:
+        return bool(self._cycle_thread and self._cycle_thread.is_alive())
+
+    def _run_cycle(self) -> None:
+        cyc = self.cfg.get("cycle", {})
+        win = cyc.get("win_group", "WIN")
+        loose = cyc.get("loose_group", "LOOSE")
+        loose_delay = float(cyc.get("loose_delay", 35))
+        match_dur = float(cyc.get("match_duration", 150))
+        rounds = int(cyc.get("rounds", 0))
+        do_switch = cyc.get("switch_accounts", True)
+        start_steps = cyc.get("start_match_steps", [])
+        leave_steps = cyc.get("leave_steps", [])
+        stop = self._cycle_stop
+        n = 0
+        self.on_log("▶ Vollautomatik gestartet.")
+        while not stop.is_set():
+            n += 1
+            self.on_log(f"═══ Runde {n} ═══")
+            # 1) Accounts wechseln (jede Instanz ein anderer, nach Name)
+            if do_switch:
+                self.switch_group_accounts(win)
+                self.switch_group_accounts(loose)
+                if stop.is_set():
+                    break
+            # 2) Beide Teams bilden (Host erstellt, Gaeste joinen per Code)
+            self.form_team(win)
+            self.form_team(loose)
+            if stop.is_set():
+                break
+            # 3) WIN geht in die Runde
+            self.on_log(f"[{win}] startet die Runde.")
+            self._host_steps(win, start_steps)
+            # 4) LOOSE wartet und geht dann rein
+            self.on_log(f"[{loose}] wartet {loose_delay:.0f}s ...")
+            stop.wait(loose_delay)
+            if stop.is_set():
+                break
+            self.on_log(f"[{loose}] startet die Runde.")
+            self._host_steps(loose, start_steps)
+            # 5) Spielphase (WIN spielt+schiesst, LOOSE bewegt sich nur)
+            self.on_log(f"Spielphase ~{match_dur:.0f}s ...")
+            stop.wait(match_dur)
+            if stop.is_set():
+                break
+            # 6) Team verlassen (alle) -> naechste Runde
+            self._all_steps(win, leave_steps)
+            self._all_steps(loose, leave_steps)
+            if rounds and n >= rounds:
+                self.on_log(f"Zyklus fertig nach {n} Runden.")
+                break
+        self.on_log("■ Vollautomatik beendet.")
 
     def join_all(self, timeout: float = 10.0) -> None:
         end = time.time() + timeout

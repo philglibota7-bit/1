@@ -494,6 +494,10 @@ class BotGUI:
                    command=self.scan_ports).pack(side="left")
         ttk.Checkbutton(bar2, text="Dry-Run (nur testen)",
                         variable=self.dry_run).pack(side="left", padx=(12, 0))
+        ttk.Button(bar2, text="■ Stop Automatik",
+                   command=self.stop_cycle).pack(side="right")
+        ttk.Button(bar2, text="🔁 Vollautomatik (Zyklus)",
+                   command=self.start_cycle).pack(side="right", padx=6)
         ttk.Label(self.root, foreground="#b00", padding=(8, 0),
                   text="⚠ Brawl-Stars-Botting verstoesst gegen Supercells "
                        "Nutzungsbedingungen – nur Wegwerf-Accounts, Sperr-Risiko!"
@@ -811,6 +815,23 @@ class BotGUI:
     def stop_all(self) -> None:
         self.controller.stop_all()
         self.log_queue.put("NOT-AUS: alle Instanzen gestoppt.")
+
+    def start_cycle(self) -> None:
+        if self.controller.cycle_running():
+            messagebox.showinfo("Laeuft", "Die Vollautomatik laeuft bereits.")
+            return
+        if not messagebox.askyesno(
+            "Vollautomatik starten?",
+            "Startet beide Gruppen und den kompletten Zyklus (Accounts wechseln "
+            "→ Teams bilden → WIN spielt, LOOSE wirft → Team verlassen → wieder "
+            "von vorn).\n\nNur mit Wegwerf-Accounts! Fortfahren?"):
+            return
+        for g in self.controller.groups():
+            self.controller.start_group(g, dry_run=self.dry_run.get())
+        self.controller.start_cycle()
+
+    def stop_cycle(self) -> None:
+        self.controller.stop_cycle()
 
     def scan_ports(self) -> None:
         self.log_queue.put("🔍 Suche laufende LDPlayer-Instanzen ...")
