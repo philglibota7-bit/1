@@ -348,6 +348,14 @@ class BotController:
         host.ready_event.wait(60)
         host.resume()
 
+    def pause_group(self, group_name: str) -> None:
+        for r in self._group_runners(group_name):
+            r.pause()
+
+    def resume_group(self, group_name: str) -> None:
+        for r in self._group_runners(group_name):
+            r.resume()
+
     def _all_steps(self, group_name: str, steps: list) -> None:
         runners = self._group_runners(group_name)
         if not runners or not steps:
@@ -446,9 +454,25 @@ class BotController:
                     need(st.get("template"))
         need(cyc.get("match_end_template"))
         need(cyc.get("victory_template"))
-        if cyc.get("match_end_template") and not self.cfg.get("tesseract_cmd"):
-            pass  # OCR-Pfad optional (falls im PATH)
-        # doppelte entfernen, Reihenfolge egal
+
+        # Accounts + Code-Regionen + OCR pruefen
+        for gname, grp in self.groups().items():
+            if cyc.get("switch_accounts", True) and not grp.get("accounts"):
+                problems.append(f"Gruppe {gname}: keine Accounts hinterlegt "
+                                f"(fuer Account-Wechsel)")
+            if grp.get("team") and not grp["team"].get("code_region"):
+                problems.append(f"Gruppe {gname}: team.code_region fehlt "
+                                f"(Team-Code kann nicht gelesen werden)")
+        try:
+            import pytesseract  # noqa: F401
+            ocr = True
+        except ImportError:
+            ocr = False
+        needs_ocr = any(g.get("team") for g in self.groups().values()) or \
+            cyc.get("trophy_region")
+        if needs_ocr and not ocr:
+            problems.append("Tesseract-OCR/pytesseract nicht installiert – "
+                            "Team-Code und Trophaeen koennen nicht gelesen werden")
         return sorted(set(problems))
 
     def _set_phase(self, rnd: int, phase: str) -> None:
@@ -479,6 +503,16 @@ class BotController:
         leave_steps = cyc.get("leave_steps", [])
         retries = int(cyc.get("retries", 2))
         stop = self._cycle_stop
+        # auf Instanzen warten (Gruppen werden beim Start erst verbunden)
+        wait_end = time.time() + 20
+        while time.time() < wait_end and not stop.is_set():
+            if self._group_runners(win) and self._group_runners(loose):
+                break
+            stop.wait(1.0)
+        if not (self._group_runners(win) and self._group_runners(loose)):
+            self.on_log("Vollautomatik: Instanzen nicht bereit "
+                        "(Gruppen verbunden?). Abbruch.")
+            return
         n = 0
         self.on_log("▶ Vollautomatik gestartet.")
         while not stop.is_set():
@@ -502,11 +536,15 @@ class BotController:
                 continue
             if stop.is_set():
                 break
-            # 3) WIN geht in die Runde
+            # Im Menue NICHT spielen: Gruppen ruhig halten, bis das Match laeuft
+            self.pause_group(win)
+            self.pause_group(loose)
+            # 3) WIN geht in die Runde -> dann darf WIN spielen
             self._set_phase(n, f"{win} startet")
             self.on_log(f"[{win}] startet die Runde.")
             self._host_steps(win, start_steps)
-            # 4) LOOSE wartet und geht dann rein
+            self.resume_group(win)
+            # 4) LOOSE wartet und geht dann rein -> dann darf LOOSE (nur) bewegen
             self._set_phase(n, f"{loose} wartet {loose_delay:.0f}s")
             self.on_log(f"[{loose}] wartet {loose_delay:.0f}s ...")
             stop.wait(loose_delay)
@@ -515,6 +553,7 @@ class BotController:
             self._set_phase(n, f"{loose} startet")
             self.on_log(f"[{loose}] startet die Runde.")
             self._host_steps(loose, start_steps)
+            self.resume_group(loose)
             # 5) Spielphase – Ende am Endscreen erkennen
             self._set_phase(n, "Spielphase")
             end_tmpl = cyc.get("match_end_template", "")
@@ -528,6 +567,10 @@ class BotController:
                 stop.wait(match_dur)
             if stop.is_set():
                 break
+            # Nach dem Match ruhig halten, kurz setzen lassen
+            self.pause_group(win)
+            self.pause_group(loose)
+            stop.wait(float(cyc.get("result_delay", 3)))
             # 6) Ergebnis erfassen (Trophaeen/Sieg) + Team verlassen
             self._set_phase(n, "Ergebnis + verlassen")
             self._collect_results(win, cyc, expect_win=True)

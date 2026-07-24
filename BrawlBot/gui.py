@@ -1017,7 +1017,7 @@ class BotGUI:
             "switch": lambda: self.switch_accounts(gname),
             "team": lambda: self.form_team(gname),
             "preset": lambda kind: self.apply_preset(gname, kind),
-            "save": lambda: save_config(self.cfg),
+            "save": lambda: save_named_config(self.cfg, self.config_name),
         }
 
     def _detect_resolution(self):
