@@ -19,6 +19,7 @@
   "humanize": { "pos_jitter": 6, "interval_jitter": 0.15 },
   "detection": { "multi_scale": true, "scales": [0.9, 0.95, 1.0, 1.05, 1.1] },
   "tesseract_cmd": "",
+  "stuck_seconds": 90,
 
   "cycle": {
     "win_group": "WIN",

@@ -85,6 +85,8 @@ class TaskRunner:
         self.watch_event = threading.Event() # gesetzt, sobald es erkannt wurde
         self.result_trophies = None          # nach dem Match gelesene Trophaeen
         self.result_win = False              # Sieg erkannt?
+        self.stuck_seconds = float(cfg.get("stuck_seconds", 0) or 0)
+        self.last_action = 0.0               # wann zuletzt etwas geklickt wurde
 
     # ---- Rueckmeldung ---------------------------------------------------
     def log(self, msg: str) -> None:
@@ -184,6 +186,7 @@ class TaskRunner:
                 if not self.dry_run:
                     self.ld.tap(x, y)
                 self.clicks += 1
+                self.last_action = now
                 self.log(f"{t.name}: getippt [{m.score:.2f}]"
                          + (" (dry-run)" if self.dry_run else ""))
                 t.next_due = now + self._jinterval(t.interval)
@@ -192,11 +195,13 @@ class TaskRunner:
             if not self.dry_run:
                 self.ld.swipe(int(t.frm[0]), int(t.frm[1]),
                               int(t.to[0]), int(t.to[1]), t.ms)
+            self.last_action = now
             t.next_due = now + self._jinterval(t.interval)
         elif t.type == "tap":
             x, y = self._jpos(int(t.x), int(t.y))
             if not self.dry_run:
                 self.ld.tap(x, y)
+            self.last_action = now
             t.next_due = now + self._jinterval(t.interval)
 
     # ---- Account-Wechsel-Ablauf ----------------------------------------
@@ -323,9 +328,28 @@ class TaskRunner:
         if rt:
             self._wait_for(rt, 30)
 
+    def _recover_steps(self) -> list:
+        return self.cfg.get("cycle", {}).get("recover_steps") or [
+            {"type": "key", "code": "KEYCODE_BACK", "wait": 1.0},
+            {"type": "key", "code": "KEYCODE_BACK", "wait": 1.0},
+            {"type": "key", "code": "KEYCODE_BACK", "wait": 1.0},
+        ]
+
+    def _self_heal(self) -> None:
+        """Eine haengende Instanz bringt sich selbst zurueck ins Menue.
+        Beim naechsten Team-Aufbau wird sie dann wieder eingegliedert."""
+        self.status("RECOVER")
+        self.log("Haenger erkannt -> Selbstheilung (zurueck ins Menue).")
+        for step in self._recover_steps():
+            if self.stop_event.is_set() or self.pause_event.is_set():
+                break
+            self._do_step(step)
+        self.last_action = time.time()
+
     # ---- Hauptschleife --------------------------------------------------
     def run(self) -> None:
         self.status("RUN")
+        self.last_action = time.time()
         self.log("Aufgaben-Motor laeuft" + (" (DRY-RUN)" if self.dry_run else ""))
         while not self.stop_event.is_set():
             try:
@@ -350,6 +374,7 @@ class TaskRunner:
                 # 2) pausiert (wartet auf resume des Controllers)?
                 if self.pause_event.is_set():
                     self.status("PAUSE")
+                    self.last_action = time.time()   # Timer nicht in Pause zaehlen
                     self.sleep(0.4)
                     continue
                 # 3) normale Aufgaben
@@ -370,6 +395,10 @@ class TaskRunner:
                     if now < t.next_due:
                         continue
                     self._do(t, screen, now)
+                # Selbstheilung: lange nichts geklickt -> haengt vermutlich
+                if self.stuck_seconds and self.last_action and \
+                        (time.time() - self.last_action) > self.stuck_seconds:
+                    self._self_heal()
                 self.sleep(self.loop_delay)
             except Exception as exc:  # noqa: BLE001
                 self.log(f"Fehler: {exc} -> Watchdog, weiter in 3 s.")

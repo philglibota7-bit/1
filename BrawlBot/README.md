@@ -255,6 +255,15 @@ und `team` und lassen sich frei anpassen.
   Aufloesung.
 - **Auto-Reconnect (Watchdog)**: haengt/abgebrochen? Der Bot verbindet neu und
   macht weiter.
+- **Selbstheilung pro Instanz** (`stuck_seconds`, Standard 90): Wird eine
+  Instanz laenger nicht mehr aktiv (nichts geklickt, haengt auf einem Screen),
+  bringt sie sich **selbststaendig** ueber `recover_steps` (mehrmals „Zurueck")
+  zurueck ins Menue. Beim naechsten Team-Aufbau wird sie automatisch wieder
+  eingegliedert (Mid-Match-Rejoin geht in Brawl Stars nicht – die Resync
+  passiert an der Rundengrenze). `stuck_seconds: 0` schaltet es ab.
+- **Gast-weiser Wiederbeitritt**: Schafft es beim Team-Aufbau nur ein Gast
+  nicht in die Lobby, versucht **nur dieser** erneut beizutreten – die anderen
+  bleiben unberuehrt.
 
 #### Chat pro Gruppe (💬) – in normaler Sprache steuern + lernen
 Jede Gruppe hat einen **💬 Chat**-Knopf. Dort sagst du in normaler Sprache,

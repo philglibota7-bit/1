@@ -291,6 +291,18 @@ class BotController:
         end = time.time() + timeout
         for g in guests:
             g.ready_event.wait(max(0.0, end - time.time()))
+        # Gast-weiser Wiederbeitritt: nur die, die es nicht geschafft haben
+        for attempt in range(2):
+            missing = [g for g in guests if not g.ready_event.is_set()]
+            if not missing:
+                break
+            self.on_log(f"[{group_name}] {len(missing)} Gast/Gaeste nicht "
+                        f"beigetreten -> erneuter Versuch {attempt + 1} ...")
+            for g in missing:
+                g.request_join(flow, code)
+            end = time.time() + timeout
+            for g in missing:
+                g.ready_event.wait(max(0.0, end - time.time()))
         ok = all(g.ready_event.is_set() for g in guests)
         for r in ordered:
             r.resume()
