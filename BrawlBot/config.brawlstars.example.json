@@ -54,9 +54,19 @@
   "stuck_seconds": 90,
   "sync_attempts": 3,
   "controls": {
-    "joystick": { "cx": 0.16, "cy": 0.78, "radius": 0.13 },
-    "attack":   { "x": 0.88, "y": 0.80 },
-    "super":    { "x": 0.88, "y": 0.60 }
+    "joystick": {
+      "cx": 0.16,
+      "cy": 0.78,
+      "radius": 0.13
+    },
+    "attack": {
+      "x": 0.88,
+      "y": 0.8
+    },
+    "super": {
+      "x": 0.88,
+      "y": 0.6
+    }
   },
   "cycle": {
     "win_group": "WIN",
@@ -266,6 +276,12 @@
             "template": "team_beitreten.png",
             "timeout": 10,
             "wait": 1.5
+          },
+          {
+            "type": "tap_template",
+            "template": "teamcode_eingeben.png",
+            "timeout": 10,
+            "wait": 1.5
           }
         ],
         "code_field": [
@@ -423,6 +439,12 @@
           {
             "type": "tap_template",
             "template": "team_beitreten.png",
+            "timeout": 10,
+            "wait": 1.5
+          },
+          {
+            "type": "tap_template",
+            "template": "teamcode_eingeben.png",
             "timeout": 10,
             "wait": 1.5
           }

@@ -208,6 +208,7 @@ speichere sie unter genau diesem Namen in `templates/`:
 | `team_erstellen.png` | **ERSTELLEN** (unten links im Team-Menü) |
 | `team_teilen.png` | **TEILEN** (zeigt den Team-Code an) |
 | `team_beitreten.png` | **BEITRETEN** (unten) |
+| `teamcode_eingeben.png` | **TEAMCODE** (Knopf im Beitreten-Popup) |
 | `team_raum.png` | Anzeige, dass man **im Team-Raum** ist (z. B. „Team erstellt!") |
 | `code_bestaetigen.png` | Bestätigen nach Code-Eingabe |
 | `losspielen.png` | **LOSSPIELEN / SPIELEN** im Team (Match starten) |
