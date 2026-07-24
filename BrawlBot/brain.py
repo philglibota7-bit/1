@@ -42,6 +42,8 @@ HELP_TEXT = (
     "  • 'alle 3 sekunden' – alle Klick-Intervalle setzen\n"
     "  • 'bewege 220,780,220,650 alle 1 sekunde' – Bewegung (von→nach)\n"
     "  • 'entferne play' – Aufgabe loeschen\n"
+    "  • 'account wechseln' – jede Instanz wechselt zu einem anderen Account\n"
+    "  • 'team bilden' – Host erstellt Lobby, andere treten per Code bei\n"
     "Beibringen:  lerne \"deine worte\" = STARTE\n"
     "Vergessen:   vergiss deine worte"
 )
@@ -145,6 +147,15 @@ class Brain:
                 self.a["capture"]()
                 return ("📸 Instanz-Fenster geoeffnet – ziehe dort per 2 Klicks "
                         "einen Button aus, um ihn aufzunehmen.")
+            if op == "SWITCH":
+                self.a["switch"]()
+                return ("🔀 Account-Wechsel gestartet: die Gruppe pausiert, jede "
+                        "Instanz waehlt einen anderen Account, weiter wenn alle "
+                        "in der Lobby sind.")
+            if op == "TEAM":
+                self.a["team"]()
+                return ("🏁 Team-Lobby wird gebildet: der Host erstellt die "
+                        "Lobby, liest den Code, die anderen treten bei.")
         except Exception as exc:  # noqa: BLE001
             return f"Fehler beim Ausfuehren von '{cmd}': {exc}"
         return f"Unbekannter Befehl: {cmd}"
@@ -165,6 +176,13 @@ class Brain:
         if re.search(r"bild.*(einf|hinzu|lad|w[aä]hl)", low) or \
            re.search(r"(f[uü]ge?)\s+.*bild", low):
             return "IMAGE"
+        if re.search(r"(account|acc|konto)\w*\s*(wechsel|tausch|wechl|"
+                     r"aendern|wechsle)", low) or \
+           re.search(r"wechsle?\s+(account|acc|konto)", low):
+            return "SWITCH"
+        if re.search(r"team.*(bild|erstell|lobby|mach|form)", low) or \
+           re.search(r"(bild|erstell|mach)\w*\s+.*team", low):
+            return "TEAM"
 
         iv = re.search(r"alle\s+([0-9]+(?:[.,][0-9]+)?)\s*(sek\w*|s)\b", low)
 

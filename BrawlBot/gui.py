@@ -1010,6 +1010,8 @@ class BotGUI:
             "add_move": lambda nums, sec: self._chat_add_move(gname, nums, sec),
             "remove": lambda name: self._chat_remove(gname, name),
             "capture": lambda: self._chat_capture(gname),
+            "switch": lambda: self.switch_accounts(gname),
+            "team": lambda: self.form_team(gname),
             "save": lambda: save_config(self.cfg),
         }
 
