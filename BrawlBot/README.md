@@ -264,6 +264,14 @@ und `team` und lassen sich frei anpassen.
 - **Gast-weiser Wiederbeitritt**: Schafft es beim Team-Aufbau nur ein Gast
   nicht in die Lobby, versucht **nur dieser** erneut beizutreten – die anderen
   bleiben unberuehrt.
+- **Sync-Barrier (die anderen warten)**: Jeder koordinierte Schritt meldet
+  Erfolg/Misserfolg zurueck. Kommt eine Instanz beim Account-Wechsel nicht
+  hinterher oder hat Probleme, wird **nur sie** geheilt und erneut versucht
+  (`sync_attempts`, Standard 3) – **die anderen warten**, bis alle bereit sind,
+  bevor es weitergeht. Erst dann laeuft die Gruppe synchron weiter.
+- **„Bereits gespielt"-Erkennung**: Nach dem Match wird pro Account gewertet;
+  taucht ein Account in derselben Runde doppelt auf, warnt der Bot vor einem
+  moeglichen Desync.
 
 #### Chat pro Gruppe (💬) – in normaler Sprache steuern + lernen
 Jede Gruppe hat einen **💬 Chat**-Knopf. Dort sagst du in normaler Sprache,

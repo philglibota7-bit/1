@@ -87,6 +87,7 @@ class TaskRunner:
         self.result_win = False              # Sieg erkannt?
         self.stuck_seconds = float(cfg.get("stuck_seconds", 0) or 0)
         self.last_action = 0.0               # wann zuletzt etwas geklickt wurde
+        self.result_ok = True                # hat der letzte Job geklappt?
 
     # ---- Rueckmeldung ---------------------------------------------------
     def log(self, msg: str) -> None:
@@ -244,10 +245,12 @@ class TaskRunner:
             if self.stop_event.is_set():
                 return
             self._do_step(step)
+        ok = True
         lobby = flow.get("lobby_template")
         if lobby:
             ok = self._wait_for(lobby, flow.get("lobby_timeout", 60))
             self.log("In Lobby." if ok else "Lobby-Timeout.")
+        self.result_ok = ok
 
     # ---- Team-Lobby: Host erstellt + liest Code -------------------------
     def _run_create(self, job: dict) -> None:
@@ -272,9 +275,11 @@ class TaskRunner:
                 self.sleep(1.0)
         self.result_code = code
         self.log(f"Team-Code gelesen: '{code or '(leer)'}'")
+        ok = bool(code)
         rt = flow.get("ready_template")
         if rt:
-            self._wait_for(rt, flow.get("ready_timeout", 60))
+            ok = self._wait_for(rt, flow.get("ready_timeout", 60)) and ok
+        self.result_ok = ok
 
     # ---- Team-Lobby: Gast tritt per Code bei ---------------------------
     def _run_join(self, job: dict) -> None:
@@ -296,10 +301,12 @@ class TaskRunner:
             if self.stop_event.is_set():
                 return
             self._do_step(step)
+        ok = True
         rt = flow.get("ready_template")
         if rt:
             ok = self._wait_for(rt, flow.get("ready_timeout", 60))
             self.log("In der Lobby." if ok else "Beitritt-Timeout.")
+        self.result_ok = ok
 
     def _run_read(self, job: dict) -> None:
         screen = self._grab()
@@ -320,13 +327,15 @@ class TaskRunner:
                  f"Sieg={self.result_win}")
 
     def _run_steps(self, job: dict) -> None:
+        ok = True
         for step in job.get("steps", []):
             if self.stop_event.is_set():
                 return
             self._do_step(step)
         rt = job.get("ready_template")
         if rt:
-            self._wait_for(rt, 30)
+            ok = self._wait_for(rt, 30)
+        self.result_ok = ok
 
     def _recover_steps(self) -> list:
         return self.cfg.get("cycle", {}).get("recover_steps") or [

@@ -95,6 +95,7 @@ class BotController:
         self._cycle_stop = threading.Event()
         self._cycle_thread: Optional[threading.Thread] = None
         self._current_account: Dict[int, str] = {}   # port -> Account-Name
+        self._played_round: set = set()               # Accounts, die diese Runde spielten
         self.stats = Stats()
         self.cycle_info = {"round": 0, "phase": "-"}
         self.status: Dict[int, InstanceStatus] = {}
@@ -231,23 +232,44 @@ class BotController:
             self.on_log(f"[{group_name}] Keine Accounts hinterlegt "
                         f"(im Accounts-Fenster anlegen).")
             return
-        runners = [r for _, r in pairs]
         flow = grp.get("switch_flow", {})
-        self.on_log(f"[{group_name}] Account-Wechsel gestartet: "
-                    f"{[a.get('name') for a in accounts]}")
+        recover = self.cfg.get("cycle", {}).get("recover_steps") or [
+            {"type": "key", "code": "KEYCODE_BACK", "wait": 1.0}] * 3
+        timeout = flow.get("all_ready_timeout", 150)
+        max_attempts = int(self.cfg.get("sync_attempts", 3))
+
+        assign = {}
         for (port, r), acc in zip(pairs, accounts):
             self._current_account[port] = acc.get("name", str(port))
-            r.request_switch(acc, flow)
-        # warten bis alle in der Lobby sind (oder Timeout)
-        timeout = flow.get("all_ready_timeout", 150)
-        end = time.time() + timeout
-        for r in runners:
-            r.ready_event.wait(max(0.0, end - time.time()))
-        for r in runners:
+            assign[r] = acc
+        self.on_log(f"[{group_name}] Account-Wechsel gestartet: "
+                    f"{[a.get('name') for a in accounts]}")
+
+        # Barrier: wiederholen, bis ALLE bereit sind; Haenger heilen & erneut
+        todo = [r for _, r in pairs]
+        for attempt in range(1, max_attempts + 1):
+            for r in todo:
+                r.request_switch(assign[r], flow)
+            end = time.time() + timeout
+            for r in todo:
+                r.ready_event.wait(max(0.0, end - time.time()))
+            failed = [r for r in todo if not r.result_ok]
+            if not failed:
+                break
+            self.on_log(f"[{group_name}] {len(failed)} Instanz(en) haengen beim "
+                        f"Wechsel -> Selbstheilung & erneut (Versuch {attempt}); "
+                        f"die anderen warten.")
+            for r in failed:
+                r.request_steps(recover)
+            for r in failed:
+                r.ready_event.wait(30)
+            todo = failed
+        ok = all(r.result_ok for _, r in pairs)
+        for _, r in pairs:
             r.resume()
-        ready = sum(1 for r in runners if r.ready_event.is_set())
-        self.on_log(f"[{group_name}] Wechsel fertig ({ready}/{len(runners)} "
-                    f"in Lobby). Steuerung laeuft synchron weiter.")
+        self.on_log(f"[{group_name}] Wechsel fertig "
+                    f"({'alle bereit' if ok else 'mit Problemen'}). "
+                    f"Steuerung laeuft synchron weiter.")
 
     # ---- Team-Lobby: Host erstellt, Gaeste treten per Code bei ---------
     def form_team(self, group_name: str) -> bool:
@@ -376,6 +398,10 @@ class BotController:
             name = self._current_account.get(port, f"{group_name}:{port}")
             win = r.result_win if win_tmpl else expect_win
             self.stats.record_game(name, win=win, trophies=r.result_trophies)
+            if name in self._played_round:
+                self.on_log(f"[{group_name}] Warnung: {name} wurde diese Runde "
+                            f"schon gewertet (moeglicher Desync).")
+            self._played_round.add(name)
             self.on_log(f"[{group_name}] {name}: "
                         f"{'Sieg' if win else 'kein Sieg'}, "
                         f"Trophaeen {r.result_trophies}")
@@ -457,6 +483,7 @@ class BotController:
         self.on_log("▶ Vollautomatik gestartet.")
         while not stop.is_set():
             n += 1
+            self._played_round = set()
             self.on_log(f"═══ Runde {n} ═══")
             # 1) Accounts wechseln (jede Instanz ein anderer, nach Name)
             self._set_phase(n, "Accounts wechseln")
