@@ -29,6 +29,7 @@ import base64
 import json
 import queue
 import shutil
+import threading
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
@@ -73,6 +74,7 @@ class InstanceWindow:
         top = ttk.Frame(self.win, padding=6)
         top.pack(fill="x")
         ttk.Button(top, text="🔄 Aktualisieren", command=self.refresh).pack(side="left")
+        ttk.Button(top, text="💾 Screenshot", command=self.save_shot).pack(side="left", padx=4)
         ttk.Label(top, text="  2× klicken = Button ausschneiden").pack(side="left")
 
         self.canvas = tk.Canvas(self.win, width=DISPLAY_W, height=DISPLAY_W,
@@ -140,6 +142,16 @@ class InstanceWindow:
             self.app.add_task(self.group, {
                 "type": "tap_template", "name": name.replace(".png", ""),
                 "template": name, "interval": iv or 5.0, "threshold": 0.85})
+
+    def save_shot(self) -> None:
+        if self.screen is None:
+            return
+        path = filedialog.asksaveasfilename(defaultextension=".png",
+                                            initialfile=f"shot_{self.port}.png",
+                                            filetypes=[("PNG", "*.png")])
+        if path:
+            cv2.imwrite(path, self.screen)
+            self.info.config(text=f"Screenshot gespeichert: {path}")
 
     def close(self) -> None:
         self.app.inst_windows.pop(self.port, None)
@@ -380,9 +392,9 @@ class BotGUI:
 
     # ---- Kopf -----------------------------------------------------------
     def _build_header(self) -> None:
-        bar = ttk.Frame(self.root, padding=8)
+        # Zeile 1: Profile
+        bar = ttk.Frame(self.root, padding=(8, 8, 8, 2))
         bar.pack(fill="x")
-
         ttk.Label(bar, text="Profil:").pack(side="left")
         self.config_var = tk.StringVar(value=self.config_name)
         self.config_combo = ttk.Combobox(bar, textvariable=self.config_var,
@@ -394,13 +406,24 @@ class BotGUI:
         ttk.Button(bar, text="＋ Neu", command=self.new_config).pack(side="left")
         ttk.Button(bar, text="✎ Umbenennen",
                    command=self.rename_config).pack(side="left", padx=4)
-
-        ttk.Checkbutton(bar, text="Dry-Run (nur testen)",
-                        variable=self.dry_run).pack(side="left", padx=(12, 0))
+        ttk.Button(bar, text="🗑 Loeschen",
+                   command=self.delete_config).pack(side="left")
         ttk.Button(bar, text="💾 Profil speichern",
                    command=self.save).pack(side="right")
         ttk.Button(bar, text="⚙ Config bearbeiten",
                    command=lambda: ConfigEditor(self)).pack(side="right", padx=6)
+
+        # Zeile 2: globale Steuerung
+        bar2 = ttk.Frame(self.root, padding=(8, 2, 8, 6))
+        bar2.pack(fill="x")
+        ttk.Button(bar2, text="▶▶ Alle Gruppen starten",
+                   command=self.start_all_groups).pack(side="left")
+        ttk.Button(bar2, text="■ NOT-AUS (alles stoppen)",
+                   command=self.stop_all).pack(side="left", padx=6)
+        ttk.Button(bar2, text="🔍 Ports scannen",
+                   command=self.scan_ports).pack(side="left")
+        ttk.Checkbutton(bar2, text="Dry-Run (nur testen)",
+                        variable=self.dry_run).pack(side="left", padx=(12, 0))
         ttk.Label(self.root, foreground="#b00", padding=(8, 0),
                   text="⚠ Brawl-Stars-Botting verstoesst gegen Supercells "
                        "Nutzungsbedingungen – nur Wegwerf-Accounts, Sperr-Risiko!"
@@ -466,9 +489,12 @@ class BotGUI:
                    command=lambda g=gname: self.controller.stop_group(g)
                    ).pack(side="left", padx=6)
 
-        ttk.Label(box, text="Aufgaben (zeitgesteuert):").pack(anchor="w")
+        ttk.Label(box, text="Aufgaben (zeitgesteuert · Doppelklick = bearbeiten):"
+                  ).pack(anchor="w")
         listbox = tk.Listbox(box, height=7)
         listbox.pack(fill="both", expand=True)
+        listbox.bind("<Double-Button-1>",
+                     lambda e, g=gname: self.edit_task(g))
         tb = ttk.Frame(box)
         tb.pack(fill="x", pady=4)
         ttk.Button(tb, text="🖼 Bild einfuegen",
@@ -573,6 +599,31 @@ class BotGUI:
             self._refresh_task_list(gname)
             self.log_queue.put(f"[{gname}] Aufgabe entfernt: {removed.get('name')}")
 
+    def edit_task(self, gname: str) -> None:
+        lb = self.group_widgets[gname]["list"]
+        sel = lb.curselection()
+        if not sel:
+            return
+        tasks = self.controller.group_tasks(gname)
+        idx = sel[0]
+        if not (0 <= idx < len(tasks)):
+            return
+        t = tasks[idx]
+        iv = simpledialog.askfloat("Intervall",
+                                   f"Intervall (Sekunden) fuer '{t.get('name')}':",
+                                   initialvalue=float(t.get("interval", 5.0)),
+                                   parent=self.root)
+        if iv is not None:
+            t["interval"] = iv
+        if t.get("type") == "tap_template":
+            th = simpledialog.askfloat("Erkennung",
+                                       "Erkennungs-Schwelle (0.5–1.0):",
+                                       initialvalue=float(t.get("threshold", 0.85)),
+                                       parent=self.root)
+            if th is not None:
+                t["threshold"] = th
+        self._refresh_task_list(gname)
+
     def save(self) -> None:
         try:
             save_named_config(self.cfg, self.config_name)
@@ -635,6 +686,53 @@ class BotGUI:
         save_named_config(new_cfg, name)
         self.config_combo["values"] = list_configs()
         self.switch_config(name)
+
+    def delete_config(self) -> None:
+        names = list_configs()
+        if len(names) <= 1:
+            messagebox.showinfo("Nicht moeglich",
+                                "Es muss mindestens ein Profil geben.")
+            return
+        if not messagebox.askyesno("Loeschen?",
+                                   f"Profil '{self.config_name}' wirklich loeschen?"):
+            return
+        if self.controller.any_running():
+            self.controller.stop_all()
+            self.controller.join_all(timeout=8)
+        from controller import configs_dir
+        (configs_dir() / f"{self.config_name}.json").unlink(missing_ok=True)
+        remaining = list_configs()
+        self.config_combo["values"] = remaining
+        self.config_name = ""            # Wechsel erzwingen
+        self.switch_config(remaining[0])
+
+    # ---- globale Steuerung ---------------------------------------------
+    def start_all_groups(self) -> None:
+        for g in self.controller.groups():
+            self.start_group(g)
+
+    def stop_all(self) -> None:
+        self.controller.stop_all()
+        self.log_queue.put("NOT-AUS: alle Instanzen gestoppt.")
+
+    def scan_ports(self) -> None:
+        self.log_queue.put("🔍 Suche laufende LDPlayer-Instanzen ...")
+        threading.Thread(target=self._scan_worker, daemon=True).start()
+
+    def _scan_worker(self) -> None:
+        start = int(self.cfg.get("scan_start", 5555))
+        found = []
+        for i in range(16):
+            port = start + i * 2
+            try:
+                ld = LDPlayer(host=self.cfg.get("host", "127.0.0.1"), port=port,
+                              adb_path=self.cfg.get("adb_path", "adb"))
+                ld.connect()
+                found.append(port)
+                self.log_queue.put(f"  ✓ Instanz auf Port {port}")
+            except Exception:  # noqa: BLE001
+                pass
+        self.log_queue.put(f"🔍 Scan fertig. Gefunden: {found or 'keine'}")
 
     def rename_config(self) -> None:
         new = simpledialog.askstring("Profil umbenennen",
@@ -767,10 +865,26 @@ class BotGUI:
     def _build_log(self) -> None:
         frame = ttk.Frame(self.root, padding=8)
         frame.pack(fill="both", expand=True)
-        ttk.Label(frame, text="Log:").pack(anchor="w")
+        head = ttk.Frame(frame)
+        head.pack(fill="x")
+        ttk.Label(head, text="Log:").pack(side="left")
+        ttk.Button(head, text="Speichern", command=self.save_log).pack(side="right")
+        ttk.Button(head, text="Leeren", command=self.clear_log).pack(side="right", padx=4)
         self.log = tk.Text(frame, height=8, wrap="word", state="disabled",
                            background="#111", foreground="#ddd")
         self.log.pack(fill="both", expand=True)
+
+    def clear_log(self) -> None:
+        self.log.configure(state="normal")
+        self.log.delete("1.0", "end")
+        self.log.configure(state="disabled")
+
+    def save_log(self) -> None:
+        path = filedialog.asksaveasfilename(defaultextension=".txt",
+                                            initialfile="brawlbot_log.txt",
+                                            filetypes=[("Text", "*.txt")])
+        if path:
+            Path(path).write_text(self.log.get("1.0", "end"), encoding="utf-8")
 
     def _on_close(self) -> None:
         if self.controller.any_running():

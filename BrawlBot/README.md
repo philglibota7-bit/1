@@ -169,6 +169,17 @@ Gruppen, Ports, Buttons und Aufgaben.
 
 Beim ersten Start wird eine vorhandene `config.brawlstars.json` (bzw. die
 Beispiel-Config) automatisch als Profil `standard` uebernommen.
+**🗑 Loeschen** entfernt das aktuelle Profil (mindestens eins bleibt bestehen).
+
+#### Weitere Bedien-Optionen
+- **▶▶ Alle Gruppen starten** / **■ NOT-AUS** – alle Gruppen auf einmal
+  starten bzw. sofort alles stoppen.
+- **🔍 Ports scannen** – zeigt im Log, welche LDPlayer-Instanzen erreichbar
+  sind (welche Ports du eintragen kannst).
+- **Aufgabe bearbeiten** – Doppelklick auf eine Aufgabe: Intervall (und bei
+  Bild-Aufgaben die Erkennungs-Schwelle) aendern.
+- **Log: Leeren / Speichern** – Log-Fenster leeren oder als Textdatei sichern.
+- **Instanz-Fenster: 💾 Screenshot** – aktuelles Emulatorbild als PNG speichern.
 
 #### Chat pro Gruppe (💬) – in normaler Sprache steuern + lernen
 Jede Gruppe hat einen **💬 Chat**-Knopf. Dort sagst du in normaler Sprache,
