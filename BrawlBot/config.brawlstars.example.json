@@ -51,6 +51,7 @@
     ]
   },
   "tesseract_cmd": "",
+  "code_replacements": { "O": "0", "I": "1" },
   "stuck_seconds": 90,
   "sync_attempts": 3,
   "controls": {

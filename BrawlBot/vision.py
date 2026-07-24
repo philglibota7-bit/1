@@ -64,7 +64,8 @@ def find(screen: np.ndarray, template_name: str, threshold: float = 0.85,
     return best
 
 
-def read_text(screen: np.ndarray, region, tesseract_cmd: str = "") -> str:
+def read_text(screen: np.ndarray, region, tesseract_cmd: str = "",
+              whitelist: str = "") -> str:
     """
     Liest Text aus einem Bildbereich (z. B. den Team-Code) per OCR.
     Benoetigt 'pytesseract' + installiertes Tesseract-OCR. Ist es nicht
@@ -83,8 +84,11 @@ def read_text(screen: np.ndarray, region, tesseract_cmd: str = "") -> str:
         return ""
     gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
     gray = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+    config = "--psm 7"
+    if whitelist:
+        config += f" -c tessedit_char_whitelist={whitelist}"
     try:
-        text = pytesseract.image_to_string(gray, config="--psm 7")
+        text = pytesseract.image_to_string(gray, config=config)
     except Exception:  # noqa: BLE001
         return ""
     return text.strip()

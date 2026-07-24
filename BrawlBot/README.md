@@ -217,6 +217,11 @@ speichere sie unter genau diesem Namen in `templates/`:
 | `match_end.png` | markanter Teil vom **Endscreen** (z. B. „SIEG"/„NIEDERLAGE") |
 | `victory.png` | nur der **SIEG**-Schriftzug (fürs Ergebnis) |
 
+**Code-Erkennung robust:** Der Team-Code wird nur aus Grossbuchstaben+Ziffern
+gelesen und typische OCR-Verwechslungen automatisch korrigiert – Standard
+`"O": "0"` und `"I": "1"` (Codes haben kein O, immer die Null). Anpassbar in
+der Config unter `code_replacements`.
+
 Für das **Beitreten per Code**: nach **BEITRETEN** erscheint das Popup mit
 **„TEAMCODE"** – dort tippt der Bot ins Feld (`code_field`) und gibt den Code
 ein. Stelle `code_field` und `code_region` (wo der Code steht) im

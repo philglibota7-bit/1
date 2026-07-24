@@ -271,11 +271,16 @@ class TaskRunner:
         code = ""
         if region:
             tcmd = self.cfg.get("tesseract_cmd", "")
+            wl = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+            # Zeichen-Korrekturen (Team-Codes haben kein O -> immer 0 usw.)
+            repl = self.cfg.get("code_replacements", {"O": "0", "I": "1"})
             for _ in range(6):                       # ein paar Versuche
                 if self.stop_event.is_set():
                     break
-                code = vision.read_text(self._grab(), region, tcmd)
-                code = "".join(ch for ch in code if ch.isalnum()).upper()
+                raw = vision.read_text(self._grab(), region, tcmd, whitelist=wl)
+                code = "".join(ch for ch in raw if ch.isalnum()).upper()
+                for a, b in repl.items():
+                    code = code.replace(a.upper(), b)
                 if len(code) >= 3:
                     break
                 self.sleep(1.0)
@@ -319,7 +324,7 @@ class TaskRunner:
         region = job.get("region")
         if region:
             tcmd = self.cfg.get("tesseract_cmd", "")
-            raw = vision.read_text(screen, region, tcmd)
+            raw = vision.read_text(screen, region, tcmd, whitelist="0123456789")
             digits = "".join(ch for ch in raw if ch.isdigit())
             self.result_trophies = int(digits) if digits else None
         win_tmpl = job.get("win_template")
