@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="Primus Oberflächentechnik GmbH & Co. KG – Oberflächen in Vollendung! Eloxal, Hart-Eloxal, Chemisch Nickel und mechanische Vorbehandlung aus Schwäbisch Hall.">
+<meta name="theme-color" content="#070b12">
+<title>Primus Oberflächentechnik – Oberflächen in Vollendung</title>
+<style>
+/* ============================================================
+   PRIMUS OBERFLÄCHENTECHNIK — Redesign 2026
+   Dark industrial · anodized gradients · fully interactive
+   ============================================================ */
+:root{
+  --bg:#070b12;
+  --bg-2:#0b111c;
+  --bg-3:#101827;
+  --card:#111a2b;
+  --card-2:#152034;
+  --line:rgba(148,183,255,.14);
+  --line-2:rgba(148,183,255,.26);
+  --txt:#e8eef9;
+  --txt-2:#9fb0c9;
+  --txt-3:#6d7f9b;
+  --accent:#38bdf8;
+  --accent-2:#818cf8;
+  --accent-3:#22d3ee;
+  --gold:#f5c66a;
+  --ok:#34d399;
+  --good:#a3e635;
+  --mid:#fbbf24;
+  --bad:#f87171;
+  --grad:linear-gradient(100deg,#38bdf8 0%,#818cf8 55%,#c084fc 100%);
+  --grad-soft:linear-gradient(100deg,rgba(56,189,248,.16),rgba(129,140,248,.16));
+  --metal:linear-gradient(160deg,#2a3850 0%,#151f31 45%,#1d2a41 100%);
+  --r:18px;
+  --shadow:0 24px 60px -24px rgba(2,8,20,.85);
+  --nav-h:74px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:calc(var(--nav-h) + 14px)}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:'Inter','Segoe UI',system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif;
+  font-size:16px;line-height:1.65;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:rgba(56,189,248,.35)}
+img{max-width:100%}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+h1,h2,h3,h4{font-family:'Sora','Inter','Segoe UI',system-ui,sans-serif;line-height:1.18;letter-spacing:-.015em}
+button{font-family:inherit;cursor:pointer}
+
+/* ---------- scroll progress ---------- */
+#progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--grad);z-index:1200;box-shadow:0 0 14px rgba(56,189,248,.8)}
+
+/* ---------- nav ---------- */
+nav{
+  position:fixed;inset:0 0 auto 0;height:var(--nav-h);z-index:1000;
+  display:flex;align-items:center;
+  padding:0 clamp(16px,4vw,44px);
+  transition:background .35s,border-color .35s,backdrop-filter .35s;
+  border-bottom:1px solid transparent;
+}
+nav.scrolled{background:rgba(7,11,18,.82);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom-color:var(--line)}
+.nav-inner{width:100%;max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:26px}
+.logo{display:flex;align-items:center;gap:12px;font-family:'Sora',sans-serif;font-weight:800;font-size:1.12rem;color:var(--txt);letter-spacing:-.01em;white-space:nowrap}
+.logo:hover{text-decoration:none}
+.logo-mark{width:40px;height:40px;border-radius:11px;background:var(--grad);display:grid;place-items:center;font-size:1.05rem;font-weight:800;color:#071018;box-shadow:0 6px 20px -6px rgba(86,140,255,.7);flex:none}
+.logo small{display:block;font-family:'Inter',sans-serif;font-weight:500;font-size:.62rem;letter-spacing:.24em;text-transform:uppercase;color:var(--txt-3)}
+.nav-links{display:flex;align-items:center;gap:4px;margin-left:auto;list-style:none}
+.nav-links>li{position:relative}
+.nav-links a.nl{display:flex;align-items:center;gap:6px;padding:9px 14px;border-radius:10px;color:var(--txt-2);font-size:.93rem;font-weight:500;transition:.2s}
+.nav-links a.nl:hover,.nav-links a.nl.active{color:var(--txt);background:rgba(148,183,255,.08);text-decoration:none}
+.nav-links a.nl .car{transition:transform .25s;font-size:.6rem;opacity:.7}
+.nav-links li:hover .car{transform:rotate(180deg)}
+.dropdown{
+  position:absolute;top:calc(100% + 10px);left:0;min-width:300px;
+  background:rgba(13,20,33,.97);border:1px solid var(--line-2);border-radius:16px;
+  padding:8px;box-shadow:var(--shadow);
+  opacity:0;visibility:hidden;transform:translateY(10px);transition:.25s;
+}
+.nav-links li:hover .dropdown,.nav-links li:focus-within .dropdown{opacity:1;visibility:visible;transform:translateY(0)}
+.dropdown a{display:flex;gap:12px;align-items:center;padding:11px 12px;border-radius:11px;color:var(--txt-2);font-size:.92rem;transition:.18s}
+.dropdown a:hover{background:rgba(148,183,255,.09);color:var(--txt);text-decoration:none;transform:translateX(3px)}
+.dropdown .di{width:34px;height:34px;flex:none;border-radius:9px;background:var(--grad-soft);border:1px solid var(--line);display:grid;place-items:center;font-size:1rem}
+.nav-cta{margin-left:10px;padding:10px 20px;border-radius:12px;background:var(--grad);color:#071018;font-weight:700;font-size:.9rem;border:0;box-shadow:0 8px 24px -8px rgba(86,140,255,.75);transition:.25s;white-space:nowrap}
+.nav-cta:hover{transform:translateY(-2px);box-shadow:0 14px 30px -8px rgba(86,140,255,.9)}
+#burger{display:none;margin-left:auto;background:none;border:0;width:44px;height:44px;position:relative;z-index:1101}
+#burger span{position:absolute;left:10px;right:10px;height:2px;background:var(--txt);border-radius:2px;transition:.3s}
+#burger span:nth-child(1){top:15px}#burger span:nth-child(2){top:22px}#burger span:nth-child(3){top:29px}
+#burger.open span:nth-child(1){top:22px;transform:rotate(45deg)}
+#burger.open span:nth-child(2){opacity:0}
+#burger.open span:nth-child(3){top:22px;transform:rotate(-45deg)}
+#mobileMenu{
+  position:fixed;inset:0;background:rgba(7,11,18,.97);backdrop-filter:blur(20px);z-index:1050;
+  display:flex;flex-direction:column;justify-content:center;padding:90px 34px 40px;gap:4px;
+  opacity:0;visibility:hidden;transition:.3s;overflow-y:auto;
+}
+#mobileMenu.open{opacity:1;visibility:visible}
+#mobileMenu a{font-family:'Sora',sans-serif;font-size:1.35rem;font-weight:600;color:var(--txt);padding:11px 0;border-bottom:1px solid var(--line);transition:.2s}
+#mobileMenu a:hover{color:var(--accent);padding-left:8px;text-decoration:none}
+#mobileMenu a.sub{font-family:'Inter',sans-serif;font-size:1rem;font-weight:400;color:var(--txt-2);padding-left:18px}
+
+/* ---------- hero ---------- */
+header.hero{position:relative;min-height:100svh;display:flex;align-items:center;overflow:hidden;background:radial-gradient(1100px 600px at 75% -10%,rgba(56,120,248,.16),transparent 60%),radial-gradient(900px 500px at 10% 110%,rgba(129,140,248,.12),transparent 60%),var(--bg)}
+#heroCanvas{position:absolute;inset:0;width:100%;height:100%}
+.hero-wrap{position:relative;z-index:2;max-width:1280px;margin:0 auto;padding:130px clamp(16px,4vw,44px) 90px;width:100%}
+.hero-badge{display:inline-flex;align-items:center;gap:9px;padding:8px 16px;border-radius:999px;border:1px solid var(--line-2);background:rgba(15,23,40,.6);backdrop-filter:blur(8px);font-size:.82rem;color:var(--txt-2);margin-bottom:26px;animation:fadeUp .8s .1s both}
+.hero-badge .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok);animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.4}}
+.hero h1{font-size:clamp(2.5rem,6.4vw,4.9rem);font-weight:800;max-width:14ch;animation:fadeUp .8s .22s both}
+.hero h1 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p.lead{margin:24px 0 36px;max-width:56ch;font-size:clamp(1.02rem,1.6vw,1.2rem);color:var(--txt-2);animation:fadeUp .8s .34s both}
+.hero-ctas{display:flex;flex-wrap:wrap;gap:14px;animation:fadeUp .8s .46s both}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:15px 30px;border-radius:14px;font-weight:700;font-size:.98rem;border:0;transition:.25s}
+.btn-p{background:var(--grad);color:#071018;box-shadow:0 10px 30px -8px rgba(86,140,255,.8)}
+.btn-p:hover{transform:translateY(-3px);box-shadow:0 18px 40px -10px rgba(86,140,255,.95);text-decoration:none}
+.btn-g{background:rgba(15,23,40,.55);color:var(--txt);border:1px solid var(--line-2);backdrop-filter:blur(8px)}
+.btn-g:hover{border-color:var(--accent);transform:translateY(-3px);text-decoration:none}
+.hero-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:74px;animation:fadeUp .8s .6s both}
+.hstat{padding:20px 22px;border-radius:var(--r);border:1px solid var(--line);background:rgba(15,23,40,.5);backdrop-filter:blur(10px);transition:.3s}
+.hstat:hover{border-color:var(--line-2);transform:translateY(-4px)}
+.hstat b{display:block;font-family:'Sora',sans-serif;font-size:1.75rem;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hstat span{font-size:.82rem;color:var(--txt-3)}
+.scroll-hint{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);z-index:2;color:var(--txt-3);font-size:.72rem;letter-spacing:.28em;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:8px;animation:fadeUp 1s 1.1s both}
+.scroll-hint::after{content:"";width:1px;height:42px;background:linear-gradient(var(--accent),transparent);animation:drop 1.8s infinite}
+@keyframes drop{0%{transform:scaleY(0);transform-origin:top}45%{transform:scaleY(1);transform-origin:top}55%{transform:scaleY(1);transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+
+/* ---------- generic sections ---------- */
+section{position:relative;padding:clamp(72px,9vw,120px) clamp(16px,4vw,44px)}
+.wrap{max-width:1280px;margin:0 auto}
+.kicker{display:inline-flex;align-items:center;gap:10px;font-size:.78rem;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:var(--accent);margin-bottom:16px}
+.kicker::before{content:"";width:28px;height:2px;background:var(--grad);border-radius:2px}
+h2.title{font-size:clamp(1.85rem,3.8vw,2.9rem);font-weight:800;max-width:24ch}
+p.sub{margin-top:16px;color:var(--txt-2);max-width:66ch;font-size:1.03rem}
+.sec-alt{background:linear-gradient(var(--bg-2),var(--bg))}
+.reveal{opacity:0;transform:translateY(34px);transition:opacity .8s cubic-bezier(.2,.65,.3,1),transform .8s cubic-bezier(.2,.65,.3,1)}
+.reveal.vis{opacity:1;transform:none}
+
+/* ---------- intro / USP ---------- */
+.usp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:18px;margin-top:52px}
+.usp{padding:28px;border-radius:var(--r);background:var(--card);border:1px solid var(--line);transition:.35s;position:relative;overflow:hidden}
+.usp::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--grad);opacity:0;transition:.35s}
+.usp:hover{transform:translateY(-6px);border-color:var(--line-2);box-shadow:var(--shadow)}
+.usp:hover::before{opacity:1}
+.usp .ic{width:52px;height:52px;border-radius:14px;background:var(--grad-soft);border:1px solid var(--line);display:grid;place-items:center;font-size:1.5rem;margin-bottom:18px}
+.usp h3{font-size:1.12rem;margin-bottom:9px}
+.usp p{font-size:.92rem;color:var(--txt-2)}
+
+/* ---------- process line ---------- */
+.proc{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:56px;counter-reset:step}
+.pstep{position:relative;padding:26px 22px 22px;border-radius:var(--r);background:var(--card);border:1px solid var(--line);transition:.3s}
+.pstep:hover{border-color:var(--accent);transform:translateY(-4px)}
+.pstep::before{counter-increment:step;content:"0" counter(step);font-family:'Sora',sans-serif;font-size:.8rem;font-weight:800;color:#071018;background:var(--grad);width:34px;height:34px;border-radius:10px;display:grid;place-items:center;margin-bottom:14px}
+.pstep h4{font-size:1rem;margin-bottom:6px}
+.pstep p{font-size:.85rem;color:var(--txt-2)}
+
+/* ---------- Leistungen tabs ---------- */
+.svc-shell{display:grid;grid-template-columns:300px 1fr;gap:26px;margin-top:54px;align-items:start}
+.svc-nav{position:sticky;top:calc(var(--nav-h) + 20px);display:flex;flex-direction:column;gap:8px}
+.svc-tab{display:flex;align-items:center;gap:14px;text-align:left;padding:16px 18px;border-radius:14px;background:var(--card);border:1px solid var(--line);color:var(--txt-2);font-size:.95rem;font-weight:600;transition:.25s}
+.svc-tab .ti{width:40px;height:40px;flex:none;border-radius:11px;background:var(--grad-soft);border:1px solid var(--line);display:grid;place-items:center;font-size:1.15rem;transition:.25s}
+.svc-tab small{display:block;font-weight:400;font-size:.74rem;color:var(--txt-3)}
+.svc-tab:hover{border-color:var(--line-2);color:var(--txt);transform:translateX(4px)}
+.svc-tab.active{background:linear-gradient(120deg,rgba(56,189,248,.14),rgba(129,140,248,.14));border-color:var(--accent);color:var(--txt);box-shadow:0 12px 30px -14px rgba(56,140,255,.5)}
+.svc-tab.active .ti{background:var(--grad);color:#071018;border-color:transparent}
+.svc-panel{display:none;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:clamp(24px,3.4vw,44px);animation:panelIn .45s both}
+.svc-panel.active{display:block}
+@keyframes panelIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.svc-panel h3{font-size:clamp(1.4rem,2.4vw,1.9rem);margin-bottom:6px}
+.svc-panel .tagline{color:var(--accent);font-weight:600;font-size:.92rem;margin-bottom:20px}
+.svc-panel p{color:var(--txt-2);font-size:.97rem;margin-bottom:15px}
+.svc-panel p strong,.svc-panel li strong{color:var(--txt)}
+.chipline{display:flex;flex-wrap:wrap;gap:9px;margin:18px 0 6px}
+.chip{padding:7px 14px;border-radius:999px;border:1px solid var(--line-2);background:rgba(56,189,248,.07);font-size:.8rem;color:var(--txt-2)}
+.chip b{color:var(--accent);font-weight:700}
+.svc-cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin:22px 0}
+.svc-box{padding:22px;border-radius:16px;background:var(--bg-2);border:1px solid var(--line)}
+.svc-box h4{font-size:1rem;margin-bottom:12px;display:flex;align-items:center;gap:9px}
+.svc-box ul{list-style:none;display:flex;flex-direction:column;gap:9px}
+.svc-box li{font-size:.9rem;color:var(--txt-2);padding-left:24px;position:relative}
+.svc-box li::before{content:"✦";position:absolute;left:2px;color:var(--accent);font-size:.8rem}
+.maxsize{display:flex;align-items:center;gap:16px;margin-top:22px;padding:18px 22px;border-radius:16px;background:var(--grad-soft);border:1px solid var(--line-2)}
+.maxsize .mi{font-size:1.7rem}
+.maxsize b{font-family:'Sora',sans-serif;font-size:1.05rem}
+.maxsize span{display:block;font-size:.82rem;color:var(--txt-2)}
+
+/* ---------- alloy table ---------- */
+.tbl-tools{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:26px 0 14px}
+.tbl-tools h4{font-size:1.02rem;margin-right:auto}
+.search{position:relative}
+.search input{padding:11px 16px 11px 40px;border-radius:12px;border:1px solid var(--line-2);background:var(--bg-2);color:var(--txt);font-size:.9rem;width:230px;outline:none;transition:.25s}
+.search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(56,189,248,.15)}
+.search::before{content:"🔍";position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:.85rem;opacity:.6}
+.tbl-wrap{overflow-x:auto;border-radius:16px;border:1px solid var(--line)}
+table.alloy{width:100%;border-collapse:collapse;font-size:.88rem;min-width:620px}
+table.alloy th{background:var(--bg-3);text-align:left;padding:13px 16px;font-family:'Sora',sans-serif;font-size:.76rem;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-2);white-space:nowrap}
+table.alloy td{padding:12px 16px;border-top:1px solid var(--line);color:var(--txt-2);white-space:nowrap}
+table.alloy tr{transition:background .2s}
+table.alloy tbody tr:hover{background:rgba(56,189,248,.05)}
+table.alloy td:first-child{color:var(--txt);font-weight:600}
+.badge{display:inline-block;padding:4px 12px;border-radius:999px;font-size:.74rem;font-weight:700}
+.b-exc{background:rgba(52,211,153,.14);color:var(--ok);border:1px solid rgba(52,211,153,.35)}
+.b-good{background:rgba(163,230,53,.12);color:var(--good);border:1px solid rgba(163,230,53,.3)}
+.b-ok{background:rgba(251,191,36,.12);color:var(--mid);border:1px solid rgba(251,191,36,.3)}
+.b-bad{background:rgba(248,113,113,.12);color:var(--bad);border:1px solid rgba(248,113,113,.3)}
+.no-result{padding:22px;text-align:center;color:var(--txt-3);font-size:.9rem;display:none}
+
+/* ---------- thickness selector ---------- */
+.thick{margin-top:26px;padding:24px;border-radius:16px;background:var(--bg-2);border:1px solid var(--line)}
+.thick h4{margin-bottom:16px;font-size:1.02rem}
+.thick-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px}
+.thick-opt{padding:13px 10px;text-align:center;border-radius:12px;border:1px solid var(--line-2);background:var(--card);color:var(--txt-2);font-size:.82rem;font-weight:600;transition:.22s}
+.thick-opt:hover{border-color:var(--accent)}
+.thick-opt.sel{background:var(--grad);color:#071018;border-color:transparent;box-shadow:0 8px 22px -8px rgba(86,140,255,.7)}
+.thick-out{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.thick-val{font-family:'Sora',sans-serif;font-size:2rem;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;min-width:200px}
+.thick-bar{flex:1;min-width:200px;height:14px;border-radius:99px;background:var(--bg-3);overflow:hidden;border:1px solid var(--line)}
+.thick-bar i{display:block;height:100%;width:10%;background:var(--grad);border-radius:99px;transition:width .6s cubic-bezier(.2,.65,.3,1)}
+
+/* ---------- Branchen ---------- */
+.branch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:12px;margin-top:52px}
+.branch{padding:22px 16px;border-radius:16px;background:var(--card);border:1px solid var(--line);text-align:center;transition:.3s;cursor:default}
+.branch:hover{transform:translateY(-6px) scale(1.02);border-color:var(--accent);background:var(--card-2);box-shadow:var(--shadow)}
+.branch .bi{font-size:1.9rem;display:block;margin-bottom:10px;filter:grayscale(.2)}
+.branch span{font-size:.84rem;font-weight:600;color:var(--txt-2)}
+.branch:hover span{color:var(--txt)}
+
+/* ---------- Qualität / Labor ---------- */
+.quality{display:grid;grid-template-columns:1.05fr .95fr;gap:44px;align-items:center;margin-top:20px}
+.q-visual{position:relative;border-radius:24px;background:var(--metal);border:1px solid var(--line-2);padding:36px;overflow:hidden;min-height:380px;display:flex;flex-direction:column;justify-content:center;gap:16px}
+.q-visual::before{content:"";position:absolute;inset:-40%;background:conic-gradient(from 180deg,transparent 0deg,rgba(56,189,248,.13) 90deg,transparent 180deg,rgba(129,140,248,.13) 270deg,transparent 360deg);animation:spin 14s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.q-item{position:relative;display:flex;gap:14px;align-items:center;padding:15px 18px;border-radius:14px;background:rgba(9,14,24,.8);border:1px solid var(--line);backdrop-filter:blur(6px);transition:.3s}
+.q-item:hover{transform:translateX(8px);border-color:var(--accent)}
+.q-item .qi{font-size:1.35rem}
+.q-item b{display:block;font-size:.95rem}
+.q-item span{font-size:.8rem;color:var(--txt-2)}
+.q-copy h2{margin-bottom:18px}
+.q-copy p{color:var(--txt-2);margin-bottom:14px;font-size:.98rem}
+.certs{display:flex;gap:14px;flex-wrap:wrap;margin-top:26px}
+.cert{display:flex;align-items:center;gap:12px;padding:14px 20px;border-radius:14px;background:var(--grad-soft);border:1px solid var(--line-2)}
+.cert .ci{font-size:1.4rem}
+.cert b{font-size:.92rem;display:block}
+.cert span{font-size:.75rem;color:var(--txt-2)}
+
+/* ---------- über uns ---------- */
+.about-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:20px;margin-top:52px}
+.about-card{padding:30px;border-radius:var(--r);background:var(--card);border:1px solid var(--line);transition:.3s}
+.about-card:hover{transform:translateY(-5px);border-color:var(--line-2);box-shadow:var(--shadow)}
+.about-card .ai{width:50px;height:50px;border-radius:13px;background:var(--grad-soft);border:1px solid var(--line);display:grid;place-items:center;font-size:1.4rem;margin-bottom:16px}
+.about-card h3{font-size:1.15rem;margin-bottom:10px}
+.about-card p{font-size:.92rem;color:var(--txt-2);margin-bottom:10px}
+.counter-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:56px}
+.cnt{text-align:center;padding:34px 20px;border-radius:var(--r);background:var(--card);border:1px solid var(--line);transition:.3s}
+.cnt:hover{border-color:var(--accent);transform:translateY(-4px)}
+.cnt b{font-family:'Sora',sans-serif;font-size:2.6rem;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;display:block;line-height:1.1}
+.cnt span{font-size:.86rem;color:var(--txt-2)}
+
+/* ---------- testimonials ---------- */
+.tst{max-width:830px;margin:56px auto 0;position:relative}
+.tst-track{overflow:hidden;border-radius:22px}
+.tst-inner{display:flex;transition:transform .6s cubic-bezier(.2,.65,.3,1)}
+.tst-card{flex:0 0 100%;padding:clamp(30px,4vw,52px);background:var(--card);border:1px solid var(--line);border-radius:22px;text-align:center}
+.tst-card .quote{font-size:2.6rem;line-height:1;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;font-family:'Sora',sans-serif;margin-bottom:14px}
+.tst-card p{font-size:clamp(1.02rem,1.8vw,1.25rem);color:var(--txt);font-style:italic;max-width:56ch;margin:0 auto 18px}
+.tst-card span{font-size:.85rem;color:var(--txt-3)}
+.tst-nav{display:flex;justify-content:center;gap:10px;margin-top:22px}
+.tst-dot{width:10px;height:10px;border-radius:50%;background:var(--line-2);border:0;transition:.3s}
+.tst-dot.on{width:30px;border-radius:99px;background:var(--grad)}
+
+/* ---------- karriere ---------- */
+.career{display:grid;grid-template-columns:1fr 1fr;gap:44px;align-items:center}
+.career-copy p{color:var(--txt-2);margin-bottom:14px;font-size:.98rem}
+.career-perks{display:flex;flex-direction:column;gap:12px;margin-top:24px}
+.perk{display:flex;gap:14px;align-items:flex-start;padding:16px 18px;border-radius:14px;background:var(--card);border:1px solid var(--line);transition:.25s}
+.perk:hover{border-color:var(--accent);transform:translateX(6px)}
+.perk .pi{font-size:1.25rem;margin-top:2px}
+.perk b{display:block;font-size:.95rem}
+.perk span{font-size:.84rem;color:var(--txt-2)}
+
+/* ---------- downloads ---------- */
+.dl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px;margin-top:52px}
+.dl{display:flex;gap:16px;align-items:center;padding:22px;border-radius:16px;background:var(--card);border:1px solid var(--line);color:var(--txt);transition:.28s}
+.dl:hover{transform:translateY(-4px);border-color:var(--accent);text-decoration:none;box-shadow:var(--shadow)}
+.dl .dic{width:48px;height:48px;flex:none;border-radius:13px;background:var(--grad-soft);border:1px solid var(--line);display:grid;place-items:center;font-size:1.3rem}
+.dl b{display:block;font-size:.95rem}
+.dl span{font-size:.8rem;color:var(--txt-2)}
+.dl .arrow{margin-left:auto;color:var(--accent);transition:.25s;font-size:1.1rem}
+.dl:hover .arrow{transform:translateX(5px)}
+
+/* ---------- kontakt ---------- */
+.contact{display:grid;grid-template-columns:.9fr 1.1fr;gap:40px;margin-top:52px;align-items:start}
+.c-info{display:flex;flex-direction:column;gap:14px}
+.c-row{display:flex;gap:16px;align-items:flex-start;padding:20px;border-radius:16px;background:var(--card);border:1px solid var(--line);transition:.25s}
+.c-row:hover{border-color:var(--line-2);transform:translateX(5px)}
+.c-row .cic{width:46px;height:46px;flex:none;border-radius:12px;background:var(--grad-soft);border:1px solid var(--line);display:grid;place-items:center;font-size:1.2rem}
+.c-row b{display:block;font-size:.9rem;margin-bottom:3px}
+.c-row a,.c-row span{font-size:.92rem;color:var(--txt-2)}
+.map-link{display:flex;align-items:center;justify-content:center;gap:10px;padding:16px;border-radius:16px;border:1px dashed var(--line-2);color:var(--txt-2);font-size:.9rem;transition:.25s}
+.map-link:hover{border-color:var(--accent);color:var(--accent);text-decoration:none}
+form.cform{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:clamp(24px,3vw,38px)}
+.f-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.f-group{margin-bottom:14px;display:flex;flex-direction:column;gap:7px}
+.f-group label{font-size:.82rem;font-weight:600;color:var(--txt-2)}
+.f-group label em{color:var(--accent);font-style:normal}
+.f-group input,.f-group select,.f-group textarea{padding:13px 15px;border-radius:12px;border:1px solid var(--line-2);background:var(--bg-2);color:var(--txt);font-size:.93rem;font-family:inherit;outline:none;transition:.22s;width:100%}
+.f-group input:focus,.f-group select:focus,.f-group textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(56,189,248,.14)}
+.f-group textarea{min-height:130px;resize:vertical}
+.f-check{display:flex;gap:11px;align-items:flex-start;font-size:.8rem;color:var(--txt-2);margin-bottom:12px}
+.f-check input{width:17px;height:17px;margin-top:2px;accent-color:var(--accent);flex:none}
+.form-note{font-size:.78rem;color:var(--txt-3);margin-top:14px}
+#formOK{display:none;margin-top:16px;padding:14px 18px;border-radius:12px;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.4);color:var(--ok);font-size:.9rem}
+
+/* ---------- footer ---------- */
+footer{background:var(--bg-2);border-top:1px solid var(--line);padding:64px clamp(16px,4vw,44px) 34px}
+.f-grid{max-width:1280px;margin:0 auto;display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:36px}
+.f-grid h4{font-size:.86rem;letter-spacing:.14em;text-transform:uppercase;color:var(--txt-2);margin-bottom:18px}
+.f-grid ul{list-style:none;display:flex;flex-direction:column;gap:10px}
+.f-grid a{color:var(--txt-3);font-size:.9rem;transition:.2s}
+.f-grid a:hover{color:var(--accent);text-decoration:none;padding-left:4px}
+.f-brand p{color:var(--txt-3);font-size:.88rem;margin-top:14px;max-width:34ch}
+.f-bottom{max-width:1280px;margin:44px auto 0;padding-top:24px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;color:var(--txt-3);font-size:.82rem}
+.f-bottom .legal{display:flex;gap:18px;flex-wrap:wrap}
+.f-bottom button{background:none;border:0;color:var(--txt-3);font-size:.82rem;transition:.2s;padding:0}
+.f-bottom button:hover{color:var(--accent)}
+
+/* ---------- modal ---------- */
+.modal{position:fixed;inset:0;z-index:1300;display:grid;place-items:center;padding:20px;background:rgba(4,7,13,.8);backdrop-filter:blur(8px);opacity:0;visibility:hidden;transition:.3s}
+.modal.open{opacity:1;visibility:visible}
+.modal-card{width:min(820px,100%);max-height:86vh;overflow-y:auto;background:var(--card);border:1px solid var(--line-2);border-radius:22px;padding:clamp(26px,4vw,44px);transform:translateY(24px);transition:.35s}
+.modal.open .modal-card{transform:none}
+.modal-card h3{font-size:1.5rem;margin-bottom:20px;padding-right:44px}
+.modal-card h4{font-size:1.02rem;margin:22px 0 8px}
+.modal-card p,.modal-card li{font-size:.92rem;color:var(--txt-2);margin-bottom:10px}
+.modal-card ul{padding-left:20px}
+.modal-x{position:sticky;top:0;float:right;width:40px;height:40px;border-radius:12px;border:1px solid var(--line-2);background:var(--bg-2);color:var(--txt);font-size:1.1rem;transition:.2s;z-index:2}
+.modal-x:hover{border-color:var(--accent);color:var(--accent);transform:rotate(90deg)}
+
+/* ---------- back to top ---------- */
+#toTop{position:fixed;right:22px;bottom:22px;width:50px;height:50px;border-radius:14px;background:var(--grad);color:#071018;border:0;font-size:1.2rem;box-shadow:0 10px 30px -8px rgba(86,140,255,.8);opacity:0;visibility:hidden;transform:translateY(16px);transition:.3s;z-index:900}
+#toTop.show{opacity:1;visibility:visible;transform:none}
+#toTop:hover{transform:translateY(-4px)}
+
+/* ---------- responsive ---------- */
+@media(max-width:1080px){
+  .svc-shell{grid-template-columns:1fr}
+  .svc-nav{position:static;flex-direction:row;flex-wrap:wrap}
+  .svc-tab{flex:1 1 200px}
+  .quality,.career{grid-template-columns:1fr}
+  .f-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:880px){
+  .nav-links,.nav-cta{display:none}
+  #burger{display:block}
+  .contact{grid-template-columns:1fr}
+  .svc-cols{grid-template-columns:1fr}
+  .f-row{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .f-grid{grid-template-columns:1fr}
+  .hero-stats{grid-template-columns:1fr 1fr}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001s!important;transition-duration:.001s!important}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+
+<!-- ================= NAV ================= -->
+<nav id="nav">
+  <div class="nav-inner">
+    <a class="logo" href="#start">
+      <span class="logo-mark">P</span>
+      <span>PRIMUS<small>Oberflächentechnik</small></span>
+    </a>
+    <ul class="nav-links">
+      <li>
+        <a class="nl" href="#leistungen">Leistungen <span class="car">▼</span></a>
+        <div class="dropdown">
+          <a href="#leistungen" data-svc="vorbehandlung"><span class="di">🔵</span><span><b>Mechanische Vorbehandlung</b><br><small style="color:var(--txt-3)">Glasperlenstrahlanlage</small></span></a>
+          <a href="#leistungen" data-svc="eloxal"><span class="di">🛡️</span><span><b>Eloxal Verfahren</b><br><small style="color:var(--txt-3)">Anodische Oxidation</small></span></a>
+          <a href="#leistungen" data-svc="harteloxal"><span class="di">💎</span><span><b>Hart Eloxal Verfahren</b><br><small style="color:var(--txt-3)">Extreme Verschleißfestigkeit</small></span></a>
+          <a href="#leistungen" data-svc="nickel"><span class="di">⚙️</span><span><b>Chemisch Nickel</b><br><small style="color:var(--txt-3)">Stromloses Verfahren</small></span></a>
+          <a href="#leistungen" data-svc="nickeloptik"><span class="di">🔭</span><span><b>Chemisch Nickel Optik</b><br><small style="color:var(--txt-3)">Für optische Funktionsflächen</small></span></a>
+          <a href="#leistungen" data-svc="labor"><span class="di">🧪</span><span><b>Das Labor</b><br><small style="color:var(--txt-3)">Hauseigene Prüftechnik</small></span></a>
+        </div>
+      </li>
+      <li><a class="nl" href="#branchen">Branchen</a></li>
+      <li><a class="nl" href="#qualitaet">Qualität</a></li>
+      <li><a class="nl" href="#ueber-uns">Über uns</a></li>
+      <li><a class="nl" href="#karriere">Karriere</a></li>
+      <li><a class="nl" href="#downloads">Downloads</a></li>
+    </ul>
+    <a class="nav-cta btn-like" href="#kontakt">Kontakt aufnehmen</a>
+    <button id="burger" aria-label="Menü öffnen"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+
+<div id="mobileMenu">
+  <a href="#leistungen">Leistungen</a>
+  <a class="sub" href="#leistungen" data-svc="vorbehandlung">→ Mechanische Vorbehandlung</a>
+  <a class="sub" href="#leistungen" data-svc="eloxal">→ Eloxal Verfahren</a>
+  <a class="sub" href="#leistungen" data-svc="harteloxal">→ Hart Eloxal Verfahren</a>
+  <a class="sub" href="#leistungen" data-svc="nickel">→ Chemisch Nickel</a>
+  <a class="sub" href="#leistungen" data-svc="nickeloptik">→ Chemisch Nickel für Optik</a>
+  <a class="sub" href="#leistungen" data-svc="labor">→ Das Labor</a>
+  <a href="#branchen">Branchen</a>
+  <a href="#qualitaet">Qualität &amp; Zertifikate</a>
+  <a href="#ueber-uns">Über uns</a>
+  <a href="#karriere">Karriere</a>
+  <a href="#downloads">Downloads</a>
+  <a href="#kontakt">Kontakt</a>
+</div>
+
+<!-- ================= HERO ================= -->
+<header class="hero" id="start">
+  <canvas id="heroCanvas"></canvas>
+  <div class="hero-wrap">
+    <div class="hero-badge"><span class="dot"></span> Lohngalvanik aus Schwäbisch Hall · seit 2009</div>
+    <h1>Oberflächen in <span class="grad">Vollendung.</span></h1>
+    <p class="lead">Die Primus Oberflächentechnik GmbH &amp; Co. KG ist ein galvanotechnischer Betrieb mit Schwerpunkt auf Korrosions- und Verschleißschutz-Beschichtungen für Metalloberflächen – von Kleinserien bis zu wiederkehrenden Stückzahlen von mehreren tausend Stück. Schichtdickengenau. Reproduzierbar. Alles aus einer Hand.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-p" href="#leistungen">Unsere Leistungen <span>→</span></a>
+      <a class="btn btn-g" href="#kontakt">Beratung anfragen</a>
+    </div>
+    <div class="hero-stats">
+      <div class="hstat"><b data-count="2009" data-plain="1">0</b><span>gegründet in Schwäbisch Hall</span></div>
+      <div class="hstat"><b><span data-count="19">0</span>+</b><span>belieferte Branchen</span></div>
+      <div class="hstat"><b><span data-count="800">0</span> µm</b><span>Schichtdicken bis</span></div>
+      <div class="hstat"><b><span data-count="100">0</span>%</b><span>Zufriedenheitsgarantie</span></div>
+    </div>
+  </div>
+  <div class="scroll-hint">Scrollen</div>
+</header>
+
+<!-- ================= USP ================= -->
+<section id="staerken" class="sec-alt">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="kicker">Warum Primus</span>
+      <h2 class="title">Alles aus einer Hand – jeder Schritt im eigenen Werk</h2>
+      <p class="sub">Als einer der wenigen Oberflächentechnik-Betriebe erfüllen wir alle nötigen Arbeitsschritte und Qualitätskontrollen vor Ort: von der mechanischen Vorbehandlung der Werkstücke bis zur labortechnischen Kontrolle. Unsere Stärke ist die gleichbleibende Qualität unserer Arbeit.</p>
+    </div>
+    <div class="usp-grid">
+      <div class="usp reveal"><div class="ic">🏭</div><h3>Komplette Fertigungstiefe</h3><p>Alle Fertigungsschritte bis zur endgültigen Oberflächenbeschichtung werden bei uns im Werk vorgenommen – ohne Umwege, ohne Schnittstellenverluste.</p></div>
+      <div class="usp reveal"><div class="ic">🎯</div><h3>Schichtdickengenau</h3><p>Reproduzierbare Oberflächenbeschichtungen von Kleinserien bis zu wiederkehrenden Stückzahlen von mehreren tausend Stück.</p></div>
+      <div class="usp reveal"><div class="ic">🧪</div><h3>Hauseigenes Labor</h3><p>Engmaschige Überwachung aller relevanten Prozessparameter – von der Zustandsüberwachung der galvanischen Bäder bis zur mikroskopischen Kontrolle.</p></div>
+      <div class="usp reveal"><div class="ic">⚡</div><h3>Konstante Lieferbedingungen</h3><p>Wir arbeiten eng nach den Vorstellungen unserer Kunden und garantieren konstante Lieferbedingungen – falls nötig auch im Eiltempo.</p></div>
+    </div>
+    <div class="proc">
+      <div class="pstep reveal"><h4>Beratung &amp; Analyse</h4><p>Machbarkeitsstudien, Testreihen und individuelle Verfahrensvarianten für Ihr Produkt.</p></div>
+      <div class="pstep reveal"><h4>Mechanische Vorbehandlung</h4><p>Reinigen, Entgraten, Mattieren und Glätten in der halbautomatischen Glasperlenstrahlanlage.</p></div>
+      <div class="pstep reveal"><h4>Oberflächenveredelung</h4><p>Eloxal, Hart-Eloxal, Chemisch Nickel – galvanische Prozesse in definierter Reihenfolge.</p></div>
+      <div class="pstep reveal"><h4>Laborkontrolle</h4><p>Schichtdickenmessung, Mikroskopie und Prozessdiagnose als Ergebniskontrolle.</p></div>
+      <div class="pstep reveal"><h4>Lieferung</h4><p>Dokumentierte Qualität, termintreu – auf Wunsch im Eiltempo, europaweit.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= LEISTUNGEN ================= -->
+<section id="leistungen">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="kicker">Leistungen</span>
+      <h2 class="title">Präzisions-Oberflächentechnik im Detail</h2>
+      <p class="sub">Neben der mechanischen Vorbehandlung mit einer Glasperlenstrahlanlage wenden wir unterschiedliche galvanische Methoden der Oberflächentechnik an. Wählen Sie ein Verfahren:</p>
+    </div>
+
+    <div class="svc-shell">
+      <div class="svc-nav reveal" role="tablist" aria-label="Leistungen">
+        <button class="svc-tab active" data-panel="vorbehandlung" role="tab"><span class="ti">🔵</span><span>Mechanische Vorbehandlung<small>Glasperlenstrahlanlage</small></span></button>
+        <button class="svc-tab" data-panel="eloxal" role="tab"><span class="ti">🛡️</span><span>Eloxal Verfahren<small>5–25 µm · funktional &amp; dekorativ</small></span></button>
+        <button class="svc-tab" data-panel="harteloxal" role="tab"><span class="ti">💎</span><span>Hart Eloxal Verfahren<small>20–80 µm · bis 600 HV</small></span></button>
+        <button class="svc-tab" data-panel="nickel" role="tab"><span class="ti">⚙️</span><span>Chemisch Nickel<small>Stromlos · konturtreu</small></span></button>
+        <button class="svc-tab" data-panel="nickeloptik" role="tab"><span class="ti">🔭</span><span>Chemisch Nickel Optik<small>Rauheiten &lt; 1 nm Rq</small></span></button>
+        <button class="svc-tab" data-panel="labor" role="tab"><span class="ti">🧪</span><span>Das Labor<small>Geprüfte Qualität</small></span></button>
+      </div>
+
+      <div class="svc-panels">
+
+        <!-- ===== Vorbehandlung ===== -->
+        <div class="svc-panel active" id="p-vorbehandlung">
+          <h3>Mechanische Vorbehandlung</h3>
+          <div class="tagline">Glasperlenstrahlanlage – Veredelung beginnt vor der Beschichtung</div>
+          <p>Durch den Einsatz von Glasperlen oder anderen Kornarten als Strahlmittel werden hochwertige Materialien weiter veredelt. Gezielt werden matte oder seidenglänzende Oberflächen durch Strahltechnik erzeugt, vorhandene Oberflächenfehler im Material kaschiert und die Oberfläche von anhaftenden Fremdkörpern gereinigt – während die Masse unverändert bleibt. Die Oberfläche wird verfestigt und die Lebensdauer des Werkstücks erheblich verlängert.</p>
+          <p>In unserer <strong>halbautomatischen Glasperlenstrahlanlage</strong> werden mit Hilfe kleinster Glaskugeln die metallenen Oberflächen mechanisch vorbehandelt. Wichtig ist dabei eine optimale und gleichbleibende Prozessführung, um perfekte Ergebnisse und reproduzierbare Qualitäten zu erhalten – der Vorgang wird bei uns dauerhaft kontrolliert.</p>
+          <div class="svc-cols">
+            <div class="svc-box"><h4>✨ Das Strahlen eignet sich zum</h4>
+              <ul>
+                <li><strong>Reinigen</strong> – schonende Reinigung des Werkstücks, die Oberfläche wird nicht zu stark aufgeraut</li>
+                <li><strong>Entgraten</strong> – Entfernen scharfkantiger Grate an Kleinteilen, Zahnrädern, Stanzteilen usw.</li>
+                <li><strong>Mattieren</strong> – Oberflächenfehler im Material werden kaschiert</li>
+                <li><strong>Glätten</strong> – z. B. zum Ebnen von Werkstückoberflächen</li>
+              </ul>
+            </div>
+            <div class="svc-box"><h4>⚙️ Verfahrenstechnik</h4>
+              <ul>
+                <li>Druckluft-, Schleuderrad- oder Injektorstrahlanlage</li>
+                <li>Luftdruck bis 10 bar, im Normalbetrieb 2–5 bar</li>
+                <li>Verfestigung durch elastische und plastische Verformung</li>
+                <li>Druckeigenspannung erhöht die Dauerfestigkeit des Werkstücks</li>
+                <li>Deutlich verbesserte Korrosionsbeständigkeit</li>
+                <li>Vergrößerung der Werkstückoberfläche – wichtig z. B. beim Kleben von Bauteilen</li>
+              </ul>
+            </div>
+          </div>
+          <p>Beim Glasperlenstrahlen wird – ähnlich wie beim Sandstrahlen – die Werkstückoberfläche mit kleinsten Partikeln beschossen. Da Glaskugeln die Oberfläche weniger stark aufrauen als Sandpartikel, ist die bearbeitete Oberfläche weniger schmutzanfällig. Das Verfahren wird auch als Kugelstrahlen oder Verfestigungsstrahlen bezeichnet.</p>
+        </div>
+
+        <!-- ===== Eloxal ===== -->
+        <div class="svc-panel" id="p-eloxal">
+          <h3>Eloxal Verfahren</h3>
+          <div class="tagline">Anodische Oxidation von Aluminium – funktional &amp; dekorativ</div>
+          <p>Mit dem Begriff <strong>Eloxal</strong> meint man die Oxidschicht, die durch anodische Oxidation auf der Aluminiumoberfläche erzeugt wird. Diese Oxidschicht ist im Verhältnis zur natürlichen Oxidschicht um ein Hundertfaches verstärkt – die Werkstücke weisen somit veränderte Eigenschaften in der Oberfläche auf. Durch mechanische Vorbehandlung wie Strahlen, Polieren, Beizen oder chemisches Glänzen werden verschiedene Oberflächeneffekte erzielt.</p>
+          <div class="chipline">
+            <span class="chip">Schichtdicke <b>5–25 µm</b></span>
+            <span class="chip">Härte <b>200–350 HV</b></span>
+            <span class="chip"><b>Funktional</b> &amp; <b>dekorativ</b></span>
+            <span class="chip">Einfärbbar &amp; imprägnierbar</span>
+          </div>
+          <p style="margin-top:14px">Bei <strong>funktionaler Eloxal-Beschichtung</strong> bestehen in der Regel keine besonderen Anforderungen an die Ausgangslegierung. Wird hingegen Wert auf das <strong>dekorative Aussehen</strong> bzw. die optische Qualität gelegt, ist eine entsprechend geeignete Aluminiumlegierung notwendig, um optisch reine Eloxal-Oberflächen höchster Qualität zu erhalten.</p>
+          <div class="tbl-tools">
+            <h4>Eloxal-beschichtbare Aluminiumlegierungen</h4>
+            <div class="search"><input type="text" placeholder="Legierung suchen…" data-filter="tbl-eloxal"></div>
+          </div>
+          <div class="tbl-wrap">
+            <table class="alloy" id="tbl-eloxal">
+              <thead><tr><th>Bezeichnung</th><th>DIN 10725-1</th><th>Euronorm</th><th>Funktional</th><th>Dekorativ</th></tr></thead>
+              <tbody>
+                <tr><td>Al99,8(A)</td><td>3.085</td><td>EN AW-1080A</td><td><span class="badge b-exc">ausgezeichnet</span></td><td><span class="badge b-exc">ausgezeichnet</span></td></tr>
+                <tr><td>Al99,5</td><td>3.0255</td><td>EN AW-1050A</td><td><span class="badge b-exc">ausgezeichnet</span></td><td><span class="badge b-good">gutes Ergebnis</span></td></tr>
+                <tr><td>Al99,0</td><td>3.0205</td><td>EN AW-1200</td><td><span class="badge b-exc">ausgezeichnet</span></td><td><span class="badge b-ok">annehmbar</span></td></tr>
+                <tr><td>AlCuBiPb</td><td>3.1655</td><td>EN AW-2011</td><td><span class="badge b-bad">nicht zu empfehlen</span></td><td><span class="badge b-bad">nicht geeignet</span></td></tr>
+                <tr><td>AlCuSiMn</td><td>3.1255</td><td>EN AW-2014</td><td><span class="badge b-ok">annehmbar</span></td><td><span class="badge b-bad">unzureichend</span></td></tr>
+                <tr><td>AlMn1</td><td>3.0515</td><td>EN AW-3103</td><td><span class="badge b-exc">ausgezeichnet</span></td><td><span class="badge b-ok">annehmbar</span></td></tr>
+                <tr><td>AlMn0,5Mg0,5</td><td>3.0505</td><td>EN AW-3105</td><td><span class="badge b-ok">annehmbar</span></td><td><span class="badge b-good">gutes Ergebnis</span></td></tr>
+                <tr><td>AlMg1(C)</td><td>3.3315</td><td>EN AW-5005A</td><td><span class="badge b-exc">ausgezeichnet</span></td><td><span class="badge b-bad">unzureichend</span></td></tr>
+                <tr><td>AlMg3Mn</td><td>3.3537</td><td>EN AW-5454</td><td><span class="badge b-good">gutes Ergebnis</span></td><td><span class="badge b-bad">unzureichend</span></td></tr>
+                <tr><td>AlMg4,5Mn0,7</td><td>3.3547</td><td>EN AW-5083</td><td><span class="badge b-good">gutes Ergebnis</span></td><td><span class="badge b-good">gutes Ergebnis</span></td></tr>
+                <tr><td>AlMg3</td><td>3.3535</td><td>EN AW-5754</td><td><span class="badge b-exc">ausgezeichnet</span></td><td><span class="badge b-good">gutes Ergebnis</span></td></tr>
+                <tr><td>AlMg1SiCu</td><td>3.3211</td><td>EN AW-6061</td><td><span class="badge b-exc">ausgezeichnet</span></td><td><span class="badge b-ok">annehmbar</span></td></tr>
+                <tr><td>AlSi1MgMn</td><td>3.2315</td><td>EN AW-6082</td><td><span class="badge b-exc">ausgezeichnet</span></td><td><span class="badge b-ok">annehmbar</span></td></tr>
+                <tr><td>AlZn4,5Mg1</td><td>3.4335</td><td>EN AW-7020</td><td><span class="badge b-good">gutes Ergebnis</span></td><td><span class="badge b-ok">annehmbar</span></td></tr>
+              </tbody>
+            </table>
+            <div class="no-result">Keine Legierung gefunden. Kontaktieren Sie uns – wir beraten Sie umgehend, ob Ihre Aluminiumlegierung für den angestrebten Eloxal-Zweck geeignet ist.</div>
+          </div>
+          <div class="svc-cols">
+            <div class="svc-box"><h4>🛡️ Eigenschaften von Eloxal-Schichten</h4>
+              <ul>
+                <li><strong>Korrosionsschutz</strong> gegenüber Witterungseinflüssen und chemischen Stoffen im pH-Bereich 5–8</li>
+                <li><strong>Toxische Unbedenklichkeit</strong> – medizinisch und lebensmittelrechtlich unbedenklich</li>
+                <li><strong>Einfärb- und Imprägnierbarkeit</strong> – Schichten lassen sich einfärben, bedrucken und imprägnieren</li>
+                <li><strong>Isolationswirkung</strong> – hohe elektrische Isolationsfähigkeit</li>
+                <li><strong>Mechanische Beanspruchbarkeit</strong> – hart und abriebfest</li>
+                <li><strong>Dekorative Wirkung</strong> – verändert über Jahre hinweg nicht das Aussehen</li>
+              </ul>
+            </div>
+            <div class="svc-box"><h4>📐 Gut zu wissen</h4>
+              <ul>
+                <li>Durchschnittliche Schichtdicke: 5–25 µm</li>
+                <li>Härte durch Eloxieren: 200–350 HV</li>
+                <li>Die Wahl des Anodisationsverfahrens richtet sich nach dem Verwendungszweck des Werkstücks</li>
+                <li>Technisch eloxierte Aluminiumteile bewähren sich in nahezu allen Branchen</li>
+                <li>Wir veredeln Produkte namhafter Hersteller – auch in großen Fertigungsstückzahlen</li>
+              </ul>
+            </div>
+          </div>
+          <div class="maxsize"><span class="mi">📏</span><span><b>Maximale Teilegröße: 2000 × 1400 × 500 mm</b><span>für Teile, die in unseren galvanischen Bädern beschichtet werden</span></span></div>
+        </div>
+
+        <!-- ===== Hart Eloxal ===== -->
+        <div class="svc-panel" id="p-harteloxal">
+          <h3>Hart Eloxal Verfahren</h3>
+          <div class="tagline">Extreme Verschleißfestigkeit durch Hartcoatierung</div>
+          <p>Beim <strong>Hart Eloxal Verfahren</strong> wird durch die anodische Oxidation von Aluminium in einem niedrigen Temperaturbereich und bei hoher Stromdichte eine extreme Verschleißfestigkeit und Korrosionsbeständigkeit der eloxierten Oberflächen erreicht. Hart eloxierte Teile werden überall dort eingesetzt, wo z. B. abreibende Beanspruchungen auftreten.</p>
+          <div class="chipline">
+            <span class="chip">Schichtdicke <b>20–80 µm</b></span>
+            <span class="chip">Härte bis <b>600 HV</b></span>
+            <span class="chip">Ideal bei <b>Gleitbeanspruchung</b></span>
+            <span class="chip">Sehr geringe Wärmeleitfähigkeit</span>
+          </div>
+          <p style="margin-top:14px">Harteloxalschichten sind die erweiterte Verfahrenstechnik der Eloxalschicht. Sie sind besonders hart und verschleißfest und finden ihren Einsatz oft für technische Zwecke – es werden besonders glatte Oberflächen erreicht. Ferner gelten alle Oberflächeneigenschaften der Eloxalschicht.</p>
+          <div class="tbl-tools">
+            <h4>Hart-Eloxal-beschichtbare Aluminiumlegierungen</h4>
+            <div class="search"><input type="text" placeholder="Legierung suchen…" data-filter="tbl-hart"></div>
+          </div>
+          <div class="tbl-wrap">
+            <table class="alloy" id="tbl-hart">
+              <thead><tr><th>Bezeichnung</th><th>DIN 10725-1</th><th>Euronorm</th><th>Eignung Harteloxal</th></tr></thead>
+              <tbody>
+                <tr><td>Al99,5</td><td>3.0255</td><td>EN AW-1050A</td><td><span class="badge b-exc">ausgezeichnet</span></td></tr>
+                <tr><td>AlMg1</td><td>3.3315</td><td>EN AW-5005A</td><td><span class="badge b-exc">ausgezeichnet</span></td></tr>
+                <tr><td>AlMn1</td><td>3.0515</td><td>EN AW-3103</td><td><span class="badge b-exc">ausgezeichnet</span></td></tr>
+                <tr><td>AlMgSi0,5</td><td>3.3206</td><td>EN AW-6060</td><td><span class="badge b-exc">ausgezeichnet</span></td></tr>
+                <tr><td>AlMg2</td><td>3.3525</td><td>EN AW-5241</td><td><span class="badge b-exc">ausgezeichnet</span></td></tr>
+                <tr><td>AlMn1Mg1</td><td>3.0526</td><td>EN AW-3004</td><td><span class="badge b-exc">ausgezeichnet</span></td></tr>
+                <tr><td>AlMg3</td><td>3.3535</td><td>EN AW-5754</td><td><span class="badge b-exc">ausgezeichnet</span></td></tr>
+                <tr><td>AlMgSi1</td><td>3.3315</td><td>EN AW-6082</td><td><span class="badge b-exc">ausgezeichnet</span></td></tr>
+                <tr><td>AlMg5</td><td>3.3555</td><td>EN AW-5056A</td><td><span class="badge b-exc">ausgezeichnet</span></td></tr>
+                <tr><td>AlZn4,5Mg1</td><td>3.4335</td><td>EN AW-7020</td><td><span class="badge b-exc">ausgezeichnet</span></td></tr>
+                <tr><td>AlCuMgPb</td><td>3.1645</td><td>EN AW-2007</td><td><span class="badge b-ok">annehmbar</span></td></tr>
+                <tr><td>AlCuBiPb</td><td>3.1655</td><td>EN AW-2011</td><td><span class="badge b-bad">nicht geeignet</span></td></tr>
+                <tr><td>AlMgCuMg1</td><td>3.1325</td><td>EN AW-2017A</td><td><span class="badge b-bad">unzureichend</span></td></tr>
+                <tr><td>AlMg4,5Mn</td><td>3.3547</td><td>EN AW-5083</td><td><span class="badge b-exc">ausgezeichnet</span></td></tr>
+                <tr><td>AlMgCuMg2</td><td>3.1355</td><td>EN AW-2024</td><td><span class="badge b-bad">unzureichend</span></td></tr>
+                <tr><td>AlMgZnCu0,5</td><td>3.4345</td><td>EN AW-7022</td><td><span class="badge b-good">gutes Ergebnis</span></td></tr>
+                <tr><td>AlMgZnCu1,5</td><td>3.4365</td><td>EN AW-7075</td><td><span class="badge b-good">gutes Ergebnis</span></td></tr>
+              </tbody>
+            </table>
+            <div class="no-result">Keine Legierung gefunden. Kontaktieren Sie uns – wir beraten Sie gerne.</div>
+          </div>
+          <div class="svc-cols">
+            <div class="svc-box"><h4>🛡️ Eigenschaften von Harteloxal | Hartcoatierung</h4>
+              <ul>
+                <li><strong>Korrosionsschutz</strong> gegenüber Witterungseinflüssen und chemischen Stoffen im pH-Bereich 5–8</li>
+                <li><strong>Toxische Unbedenklichkeit</strong> – medizinisch und lebensmittelrechtlich unbedenklich</li>
+                <li><strong>Einfärb- und Imprägnierbarkeit</strong> – einfärben, bedrucken, imprägnieren</li>
+                <li><strong>Isolationswirkung</strong> – hohe elektrische Isolationsfähigkeit</li>
+                <li><strong>Mechanisch hoch beanspruchbar</strong> – hart und abriebfest</li>
+                <li><strong>Dekorative Wirkung</strong> – langzeitstabiles Aussehen</li>
+              </ul>
+            </div>
+            <div class="svc-box"><h4>📐 Technische Eckdaten</h4>
+              <ul>
+                <li>Anodische Oxidation im niedrigen Temperaturbereich mit hoher Stromdichte</li>
+                <li>Schichtdicke: 20–80 µm</li>
+                <li>Eloxieren: 200–350 HV · Hart-Eloxal: bis 600 HV</li>
+                <li>Besonders glatte Oberflächen – ideal für Gleitbeanspruchung</li>
+                <li>Sehr geringe Wärmeleitfähigkeit</li>
+                <li>Oberflächeneffekte durch Strahlen, Polieren, Beizen oder chemisches Glänzen</li>
+              </ul>
+            </div>
+          </div>
+          <div class="maxsize"><span class="mi">📏</span><span><b>Maximale Teilegröße: 2000 × 1400 × 500 mm</b><span>für Teile, die in unseren galvanischen Bädern beschichtet werden</span></span></div>
+        </div>
+
+        <!-- ===== Chemisch Nickel ===== -->
+        <div class="svc-panel" id="p-nickel">
+          <h3>Chemisch Nickel</h3>
+          <div class="tagline">Stromlos abgeschieden – extrem glatt, konturtreu, homogen</div>
+          <p><strong>Chemisch Nickel</strong> ist eine auf Werkstoff, Bearbeitung und Einsatz abgestimmte Oberflächenveredelung. Ihre wesentliche Aufgabe: Bauteile aus allen Branchen gegen Verschleiß und Korrosion zu schützen – und weitere funktionelle Anforderungen zu erfüllen. Es wird ein extrem glatter, konturtreuer, homogener Schichtaufbau erreicht.</p>
+          <p>Chemisch-Nickel-Schichten sind <strong>Nickel-Phosphor-Legierungsschichten</strong> mit einem Phosphorgehalt von 10–12 Gew.-%; die Legierungsschicht ist röntgenamorph. Durch eine Wärmebehandlung &gt; 200 °C findet eine Rekristallisation unter Bildung von Nickelphosphiden statt – elektrische, magnetische, mechanische und chemische Eigenschaften können hierbei verändert werden.</p>
+          <div class="chipline">
+            <span class="chip">Phosphor <b>10–12 Gew.-%</b></span>
+            <span class="chip">Schmelzpunkt <b>880 °C</b></span>
+            <span class="chip">Härte <b>500–550 HV</b>, bis <b>950 HV</b> n. Wärmebehandlung</span>
+            <span class="chip">Nicht magnetisch · röntgenamorph</span>
+          </div>
+          <div class="thick">
+            <h4>🧮 Interaktiv: Empfohlene Schichtdicke nach Korrosionsbeanspruchung</h4>
+            <div class="thick-opts">
+              <button class="thick-opt sel" data-td="5 – 10 µm" data-w="18">Geringe Beanspruchung</button>
+              <button class="thick-opt" data-td="10 – 25 µm" data-w="40">Mäßige Beanspruchung</button>
+              <button class="thick-opt" data-td="25 – 50 µm" data-w="68">Starke Beanspruchung</button>
+              <button class="thick-opt" data-td="&gt; 50 µm" data-w="100">Sehr starke Beanspruchung</button>
+            </div>
+            <div class="thick-out">
+              <div class="thick-val" id="thickVal">5 – 10 µm</div>
+              <div class="thick-bar"><i id="thickBar" style="width:18%"></i></div>
+            </div>
+          </div>
+          <div class="svc-cols">
+            <div class="svc-box"><h4>🧲 Schichteigenschaften</h4>
+              <ul>
+                <li>Hervorragende Korrosionsbeständigkeit in Abhängigkeit zur Schichtdicke</li>
+                <li>Thermischer Ausdehnungskoeffizient: 3–15 µm/m/K</li>
+                <li>Hohe Dichtigkeit, hält Druckspannungen aus</li>
+                <li>Röntgenamorphe Schichtdicken bis 800 µm – geeignet zur Diamantbearbeitung</li>
+                <li>Gute Lötbarkeit</li>
+                <li>Enge Schichtdickentoleranzen: üblich ±10 %, mindestens ±3 %</li>
+              </ul>
+            </div>
+            <div class="svc-box"><h4>🔩 Veredelbare Werkstoffe</h4>
+              <ul>
+                <li>Alle niedrig legierten, ferritischen Stähle</li>
+                <li>Edelstähle</li>
+                <li>Buntmetalle: Kupfer, Messing, Bronze</li>
+                <li>Chromlegierter (13,5 %) Stahl</li>
+                <li>Aluminiumlegierungen</li>
+              </ul>
+            </div>
+          </div>
+          <div class="svc-cols">
+            <div class="svc-box"><h4>🎯 Einsatzgebiete</h4>
+              <ul>
+                <li>Diamantbearbeitende Metalloptiken</li>
+                <li>Formkerne (Mandrels) für asphärische Präzisionsspiegel</li>
+                <li>Master für Abformwerkzeuge</li>
+                <li>Formeinsätze für das Spritzgießen bzw. -prägen von Kunststoffoptiken</li>
+                <li>Formeinsätze für das Blankpressen optischer Gläser</li>
+                <li>Eich- und Kalibriernormale · Lauf- und Lagerflächen</li>
+              </ul>
+            </div>
+            <div class="svc-box"><h4>⚡ Vorteil gegenüber galvanischen Schichten</h4>
+              <ul>
+                <li>Stromloses Verfahren: Abscheidung mit gleichmäßiger Schichtdicke an katalytisch wirkenden Werkstoffen</li>
+                <li>Auch komplexe Geometrien erhalten eine sehr gute, homogene Schichtverteilung</li>
+                <li>Komplizierte Bauteile wie Spritzgusswerkzeuge, Extruderschnecken, Breitschlitzdüsen oder Kühlkanalsysteme werden maßhaltig konturgleich beschichtet</li>
+              </ul>
+            </div>
+          </div>
+          <div class="maxsize"><span class="mi">📏</span><span><b>Maximale Teilegröße: 900 × 900 × 900 mm</b><span>für Teile, die in unseren galvanischen Bädern beschichtet werden</span></span></div>
+        </div>
+
+        <!-- ===== Chemisch Nickel Optik ===== -->
+        <div class="svc-panel" id="p-nickeloptik">
+          <h3>Chemisch Nickel für optische Funktionsflächen</h3>
+          <div class="tagline">Ultrapräzision bis in den Teleskopbau – Rauheiten &lt; 1 nm Rq</div>
+          <p>Aufgrund ihrer hohen Reinheit und Homogenität besitzen diese Schichten <strong>hervorragende Poliereigenschaften (Rauheiten &lt; 1 nm Rq)</strong> und eignen sich insbesondere für die Ultrapräzisionsbearbeitung mit Diamantwerkzeugen.</p>
+          <p><strong>Primus Oberflächentechnik gehört europaweit zu den wenigen galvanischen Betrieben</strong>, die Chemisch Nickel für optische Funktionsflächen in dieser hohen Qualität anbieten können. Unsere Beschichtungen finden bis hin zu Hochpräzisionsanwendungen wie im Teleskopbau Anwendung.</p>
+          <div class="chipline">
+            <span class="chip">Rauheit <b>&lt; 1 nm Rq</b></span>
+            <span class="chip">Schichtdicke bis <b>500 µm</b></span>
+            <span class="chip">Dickentoleranz <b>±2 µm</b> auch an Kanten</span>
+            <span class="chip">Härte <b>500–580 HV</b>, bis <b>950 HV</b></span>
+          </div>
+          <div class="svc-cols">
+            <div class="svc-box"><h4>🔬 Schichteigenschaften</h4>
+              <ul>
+                <li>Schichtdicke bis 500 µm</li>
+                <li>Konstante Dickentoleranz ±2 µm – auch an Kanten und Ecken</li>
+                <li>Hoher Phosphoranteil (10–12 Gew.-%)</li>
+                <li>Homogener Schichtaufbau, röntgenamorphes Gefüge</li>
+                <li>Hohe Schichtreinheit, Porenfreiheit auch bei dicken Schichten</li>
+                <li>Minimale Eigenspannung auch bei dicken Schichten</li>
+                <li>Garantierte Haftfestigkeit auf Grundsubstrat</li>
+                <li>Vickershärte im abgeschiedenen Zustand: 500–580 HV</li>
+                <li>Präzise Maskierung nicht zu beschichtender Flächen</li>
+              </ul>
+            </div>
+            <div class="svc-box"><h4>🔭 Einsatzgebiete</h4>
+              <ul>
+                <li>Diamantbearbeitende Metalloptiken</li>
+                <li>Formkerne (Mandrels) für asphärische Präzisionsspiegel</li>
+                <li>Master für Abformwerkzeuge</li>
+                <li>Formeinsätze für Spritzgießen/-prägen von Kunststoffoptiken</li>
+                <li>Formeinsätze für das Blankpressen optischer Gläser</li>
+                <li>Eich- und Kalibriernormale</li>
+                <li>Lauf- und Lagerflächen</li>
+              </ul>
+            </div>
+          </div>
+          <p>Die Schichten enthalten wie normale Chemisch-Nickel-Schichten 10–12 Gew.-% Phosphor, Schmelzpunkt 880 °C, thermischer Ausdehnungskoeffizient 3–15 µm/m/K. Sie sind nicht magnetisch, röntgenamorph, besitzen eine hohe Dichtigkeit und halten Druckspannungen aus. Röntgenamorphe Schichtdicken bis 800 µm eignen sich aufgrund ihrer hohen Reinheit und Homogenität auch zur Diamantbearbeitung und verfügen über eine gute Lötbarkeit. Durch Wärmebehandlung sind Härten bis 950 HV möglich.</p>
+          <div class="maxsize"><span class="mi">📏</span><span><b>Maximale Teilegröße: 900 × 900 × 900 mm</b><span>für Teile, die in unseren galvanischen Bädern beschichtet werden</span></span></div>
+        </div>
+
+        <!-- ===== Labor ===== -->
+        <div class="svc-panel" id="p-labor">
+          <h3>Das Labor</h3>
+          <div class="tagline">Geprüfte und gleichbleibende Qualität der Schichten</div>
+          <p>Unser Laborteam gewährleistet Ihnen eine <strong>engmaschige Überwachung aller relevanten Prozessparameter</strong>. Mit Hilfe eines Stereolichtmikroskops erkennt es kleinste Unebenheiten in der Topographie unserer Werkstücke.</p>
+          <div class="svc-cols">
+            <div class="svc-box"><h4>🧪 Laborequipment</h4>
+              <ul>
+                <li>Stereolichtmikroskop</li>
+                <li>Schichtdickenmessgerät</li>
+                <li>Leitfähigkeitsmessgerät</li>
+                <li>Verdichtungsmessgerät</li>
+                <li>Geräte zur Abwasseranalyse</li>
+                <li>… und viele weitere Prüfmittel</li>
+              </ul>
+            </div>
+            <div class="svc-box"><h4>📋 Serviceleistungen</h4>
+              <ul>
+                <li>Analysen &amp; Machbarkeitsstudien</li>
+                <li>Schichtoptimierung &amp; Testreihen</li>
+                <li>Qualitäts- und Schadensanalysen</li>
+                <li>Metallographische Analysen als Ergebniskontrolle</li>
+                <li>Wöchentliche chemische Analysen</li>
+                <li>Optimale Badbewirtschaftung</li>
+              </ul>
+            </div>
+          </div>
+          <p>Das chemische Labor, die Metallographie und die Versuchsgalvanik unterstützen Ihren Innovationsprozess. Wöchentliche chemische Analysen und eine optimale Badbewirtschaftung bürgen für höchste Qualität und reproduzierbare Beschichtungsergebnisse.</p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= BRANCHEN ================= -->
+<section id="branchen" class="sec-alt">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="kicker">Branchen</span>
+      <h2 class="title">Wir fertigen für Kunden aus über 19 Branchen</h2>
+      <p class="sub">Primus Oberflächentechnik beliefert namhafte Kunden aus ganz Europa. Wir respektieren unsere Kunden und nennen daher namentlich keine Unternehmen, die bei uns ihre Produkte veredeln lassen – Ihr Produkt ist bei uns in guten Händen.</p>
+    </div>
+    <div class="branch-grid">
+      <div class="branch reveal"><span class="bi">🏗️</span><span>Maschinenbau</span></div>
+      <div class="branch reveal"><span class="bi">🚗</span><span>Automobilindustrie</span></div>
+      <div class="branch reveal"><span class="bi">⛏️</span><span>Bergbau</span></div>
+      <div class="branch reveal"><span class="bi">🥫</span><span>Lebensmittelindustrie</span></div>
+      <div class="branch reveal"><span class="bi">🏥</span><span>Medizintechnik</span></div>
+      <div class="branch reveal"><span class="bi">📟</span><span>Mess- und Regeltechnik</span></div>
+      <div class="branch reveal"><span class="bi">💡</span><span>Leuchtenindustrie</span></div>
+      <div class="branch reveal"><span class="bi">💊</span><span>Pharmatechnik</span></div>
+      <div class="branch reveal"><span class="bi">🛡️</span><span>Wehrtechnik</span></div>
+      <div class="branch reveal"><span class="bi">🚀</span><span>Luft- und Raumfahrt</span></div>
+      <div class="branch reveal"><span class="bi">🏠</span><span>Haushaltsgeräte &amp; -waren</span></div>
+      <div class="branch reveal"><span class="bi">⚡</span><span>Elektrotechnik</span></div>
+      <div class="branch reveal"><span class="bi">💻</span><span>Computerindustrie</span></div>
+      <div class="branch reveal"><span class="bi">⚗️</span><span>Chemische Industrie</span></div>
+      <div class="branch reveal"><span class="bi">🧱</span><span>Bauindustrie</span></div>
+      <div class="branch reveal"><span class="bi">🪑</span><span>Möbel- &amp; Beschlagindustrie</span></div>
+      <div class="branch reveal"><span class="bi">🔭</span><span>Optik &amp; Feinwerktechnik</span></div>
+      <div class="branch reveal"><span class="bi">⛺</span><span>Sport- &amp; Campingindustrie</span></div>
+      <div class="branch reveal"><span class="bi">🧵</span><span>Textilindustrie</span></div>
+      <div class="branch reveal"><span class="bi">✨</span><span>und weitere …</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= QUALITÄT ================= -->
+<section id="qualitaet">
+  <div class="wrap">
+    <div class="quality">
+      <div class="q-visual reveal">
+        <div class="q-item"><span class="qi">🔬</span><span><b>Mikroskopische Kontrolle</b><span>Stereolichtmikroskop erkennt kleinste Unebenheiten der Topographie</span></span></div>
+        <div class="q-item"><span class="qi">📊</span><span><b>Prozessüberwachung</b><span>Jeder relevante Parameter wird überwacht und dokumentiert</span></span></div>
+        <div class="q-item"><span class="qi">⚗️</span><span><b>Wöchentliche chemische Analysen</b><span>Optimale Badbewirtschaftung für reproduzierbare Ergebnisse</span></span></div>
+        <div class="q-item"><span class="qi">🔁</span><span><b>Kurze Reaktionszeiten</b><span>Kontrollierte Abläufe lassen für Überraschungen keinen Spielraum</span></span></div>
+      </div>
+      <div class="q-copy reveal">
+        <span class="kicker">Qualität &amp; Zertifikate</span>
+        <h2 class="title">100 % Zufriedenheits&shy;garantie</h2>
+        <p>Die Anforderungen sind bei jeder Oberflächenbeschichtung stets exakt definiert. Die Qualität und Funktionalität der Schichten werden neben der reinen Verfahrenstechnik mit gezielter Prozesskontrolle und -diagnose kontinuierlich erhöht.</p>
+        <p>In Zusammenarbeit mit Ihnen erarbeitet Primus Oberflächentechnik spezifische, individuelle Oberflächenlösungen. Das chemische Labor, die Metallographie und die Versuchsgalvanik unterstützen Ihren Innovationsprozess.</p>
+        <div class="certs">
+          <div class="cert"><span class="ci">🏅</span><span><b>ISO 9001:2015</b><span>DEKRA-zertifiziert</span></span></div>
+          <div class="cert"><span class="ci">✈️</span><span><b>EN 9100:2018</b><span>DEKRA-zertifiziert · Luft- &amp; Raumfahrt</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ÜBER UNS ================= -->
+<section id="ueber-uns" class="sec-alt">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="kicker">Das sind wir</span>
+      <h2 class="title">Inhabergeführt. Spezialisiert. Seit 2009.</h2>
+      <p class="sub">Das Team von Primus Oberflächentechnik setzt sich aus hochqualifizierten Mitarbeitern zusammen: Ingenieure, Galvanotechniker und Facharbeiter aus den Bereichen Oberflächentechnik, Elektrotechnik und Maschinenbautechnik. Wir verstehen, was wir tun.</p>
+    </div>
+    <div class="about-grid">
+      <div class="about-card reveal"><div class="ai">👥</div><h3>Unser Team</h3><p>Unsere Mitarbeiter sind größtenteils spezialisierte Facharbeiter in ihren Aufgabenbereichen. Durch diesen langjährig gewachsenen und gut ausgebildeten Mitarbeiterstamm führen wir auch komplizierte Auftragsstellungen in höchster Präzision aus – zur vollsten Zufriedenheit unserer Kunden.</p></div>
+      <div class="about-card reveal"><div class="ai">🤝</div><h3>Unser Betriebsklima</h3><p>Unser inhabergeführter Betrieb zeichnet sich durch ein hervorragendes Betriebsklima aus – basierend auf guter persönlicher Zusammenarbeit und gegenseitiger Akzeptanz. Wir behandeln Kunden und Angestellte gleichermaßen mit Respekt. Gegenseitiges Vertrauen ist Teil unseres über Jahre anhaltenden Erfolgs als hochspezialisierter Lohngalvanik-Betrieb.</p></div>
+      <div class="about-card reveal"><div class="ai">🌱</div><h3>Unsere Werte</h3><p>Wir bekennen uns zu verantwortlichem, nachhaltigem Handeln gegenüber Mitarbeitern, Geschäftspartnern und der Umwelt: Rückgewinnung von Prozesswärme, Photovoltaik und Nutzung unserer Regenwasserzisterne im Kühlkreislauf. Wir bekennen uns zur Einhaltung der gesetzlichen Regelungen – insbesondere bezüglich Korruption und Bestechung, Kinderarbeit, Umweltschutz sowie Arbeitsschutz und -sicherheit – und erwarten von unseren Lieferpartnern die Beachtung unserer Werte und einen aktiven Beitrag.</p></div>
+    </div>
+    <div class="counter-row">
+      <div class="cnt reveal"><b data-count="2009" data-plain="1">0</b><span>gegründete Lohngalvanik mit Sitz in Schwäbisch Hall</span></div>
+      <div class="cnt reveal"><b><span data-count="100">0</span>%</b><span>auf Kundenwunsch abgestimmte Arbeiten aus der Oberflächentechnik</span></div>
+      <div class="cnt reveal"><b><span data-count="100">0</span>%</b><span>Qualität, Lieferbereitschaft, Innovation und Kreativität</span></div>
+    </div>
+    <div class="tst reveal">
+      <div class="tst-track">
+        <div class="tst-inner" id="tstInner">
+          <div class="tst-card"><div class="quote">„</div><p>Die Firma Primus Oberflächentechnik war trotz schwieriger Voraussetzungen in der Lage, unsere Anforderungen mit einem optimalen Ergebnis zu erfüllen!</p><span>— Kundenstimme</span></div>
+          <div class="tst-card"><div class="quote">„</div><p>Wir schätzen vor allem die seit Jahren gleichbleibende Qualität der Leistungen von Primus Oberflächentechnik.</p><span>— Kundenstimme</span></div>
+        </div>
+      </div>
+      <div class="tst-nav">
+        <button class="tst-dot on" data-i="0" aria-label="Zitat 1"></button>
+        <button class="tst-dot" data-i="1" aria-label="Zitat 2"></button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= KARRIERE ================= -->
+<section id="karriere">
+  <div class="wrap">
+    <div class="career">
+      <div class="career-copy reveal">
+        <span class="kicker">Karriere</span>
+        <h2 class="title">Wir suchen Sie!</h2>
+        <p style="margin-top:16px">Als stetig wachsender Betrieb im Bereich der galvanischen Oberflächentechnik suchen wir ständig engagierte und qualifizierte Mitarbeiter, die unser Team erweitern.</p>
+        <p>Sie sind Fachkraft aus dem Bereich Galvanik und Oberflächentechnik? Sie verfügen über eine abgeschlossene Berufsausbildung bzw. mehrjährige Berufserfahrung als Galvaniseur, Oberflächenbeschichter, Oberflächentechniker oder in einer vergleichbaren Tätigkeit? Dann melden Sie sich bei uns – wir freuen uns auf Ihre Bewerbung!</p>
+        <p><strong>Bewerben Sie sich bei uns als Auszubildender, Mitarbeiter oder qualifizierte Fachkraft.</strong></p>
+        <a class="btn btn-p" style="margin-top:14px" href="mailto:info@primus-ot.de?subject=Bewerbung bei Primus Oberflächentechnik">Jetzt bewerben ✉️</a>
+      </div>
+      <div class="career-perks reveal">
+        <div class="perk"><span class="pi">💶</span><span><b>Überdurchschnittliche Bezahlung</b><span>Faire Konditionen für Ihre Leistung</span></span></div>
+        <div class="perk"><span class="pi">📈</span><span><b>Berufliche Weiterentwicklung</b><span>In einem Team aus spezialisierten Mitarbeitern</span></span></div>
+        <div class="perk"><span class="pi">🏭</span><span><b>Moderner Fertigungsbetrieb</b><span>Stetig wachsende Belegschaft, modernste Technik</span></span></div>
+        <div class="perk"><span class="pi">🤝</span><span><b>Hervorragendes Betriebsklima</b><span>Respekt und Vertrauen zwischen Team und Geschäftsführung</span></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= DOWNLOADS ================= -->
+<section id="downloads" class="sec-alt">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="kicker">Downloads</span>
+      <h2 class="title">Dokumente &amp; Zertifikate</h2>
+      <p class="sub">In unserem Download-Bereich stellen wir Ihnen unterschiedliche Dokumente unseres Unternehmens zur Verfügung – spezifische Informationen, vorhandene Zertifikate und unsere Einkaufs- bzw. Verkaufsbedingungen für Kunden und Lieferanten.</p>
+    </div>
+    <div class="dl-grid">
+      <a class="dl reveal" href="https://www.primus-ot.de/downloads/einkaufsbedingungen/" target="_blank" rel="noopener"><span class="dic">📄</span><span><b>Einkaufsbedingungen (EKB)</b><span>Stand 15.09.2018 · ansehen oder als PDF laden</span></span><span class="arrow">→</span></a>
+      <a class="dl reveal" href="https://www.primus-ot.de/downloads/verkaufsbedingungen/" target="_blank" rel="noopener"><span class="dic">📄</span><span><b>Verkaufsbedingungen (VKB)</b><span>Stand 15.09.2018 · ansehen oder als PDF laden</span></span><span class="arrow">→</span></a>
+      <a class="dl reveal" href="https://www.primus-ot.de/downloads/" target="_blank" rel="noopener"><span class="dic">🏅</span><span><b>ISO 9001:2015 Zertifikat</b><span>DEKRA-zertifiziert · Deutsch &amp; Englisch</span></span><span class="arrow">→</span></a>
+      <a class="dl reveal" href="https://www.primus-ot.de/downloads/" target="_blank" rel="noopener"><span class="dic">✈️</span><span><b>EN 9100:2018 Zertifikat</b><span>DEKRA-zertifiziert · Deutsch &amp; Englisch</span></span><span class="arrow">→</span></a>
+    </div>
+  </div>
+</section>
+
+<!-- ================= KONTAKT ================= -->
+<section id="kontakt">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="kicker">Kontakt</span>
+      <h2 class="title">Wir beraten Sie gerne</h2>
+      <p class="sub">Kontaktieren Sie uns per E-Mail oder telefonisch – qualifizierte Ansprechpartner begleiten Sie für die gesamte Projektdauer.</p>
+    </div>
+    <div class="contact">
+      <div class="c-info reveal">
+        <div class="c-row"><span class="cic">📍</span><span><b>Adresse</b><span>Primus Oberflächentechnik GmbH &amp; Co. KG<br>Steinbeisweg 27<br>74523 Schwäbisch Hall</span></span></div>
+        <div class="c-row"><span class="cic">📞</span><span><b>Telefon</b><a href="tel:+4979195414 90">+49 (0)791 – 954 14 90</a></span></div>
+        <div class="c-row"><span class="cic">📠</span><span><b>Telefax</b><span>+49 (0)791 – 954 14 88</span></span></div>
+        <div class="c-row"><span class="cic">✉️</span><span><b>E-Mail</b><a href="mailto:info@primus-ot.de?subject=Primus Oberflächentechnik Kontaktanfrage">info@primus-ot.de</a></span></div>
+        <a class="map-link" href="https://www.google.com/maps/search/?api=1&query=Primus+Oberfl%C3%A4chentechnik+Steinbeisweg+27+74523+Schw%C3%A4bisch+Hall" target="_blank" rel="noopener">🗺️ Route in Google Maps öffnen (extern, datenschutzfreundlich per Klick)</a>
+      </div>
+      <form class="cform reveal" id="contactForm">
+        <div class="f-row">
+          <div class="f-group"><label>Anrede <em>*</em></label><select required name="anrede"><option value="">Bitte wählen</option><option>Herr</option><option>Frau</option></select></div>
+          <div class="f-group"><label>Unternehmen <em>*</em></label><input required name="unternehmen" type="text" placeholder="Ihre Firma"></div>
+        </div>
+        <div class="f-row">
+          <div class="f-group"><label>Vorname <em>*</em></label><input required name="vorname" type="text" placeholder="Max"></div>
+          <div class="f-group"><label>Nachname <em>*</em></label><input required name="nachname" type="text" placeholder="Mustermann"></div>
+        </div>
+        <div class="f-row">
+          <div class="f-group"><label>Telefon</label><input name="telefon" type="tel" placeholder="+49 …"></div>
+          <div class="f-group"><label>E-Mail-Adresse <em>*</em></label><input required name="email" type="email" placeholder="max@firma.de"></div>
+        </div>
+        <div class="f-group"><label>Betreff <em>*</em></label><input required name="betreff" type="text" placeholder="Worum geht es?"></div>
+        <div class="f-group"><label>Nachricht <em>*</em></label><textarea required name="nachricht" placeholder="Beschreiben Sie Ihr Anliegen – Werkstoff, Stückzahl, gewünschtes Verfahren …"></textarea></div>
+        <label class="f-check"><input type="checkbox" required> Ich willige der Übermittlung und Nutzung meiner persönlichen Daten ein. Diese Einwilligung kann ich jederzeit per Mail an info[@]primus-ot.de widerrufen. <em style="color:var(--accent)">*</em></label>
+        <label class="f-check"><input type="checkbox" required> Die Informationen zur Verarbeitung meiner Daten konnte ich in der <a href="#" data-modal="m-datenschutz">Datenschutzinformation</a> einsehen. <em style="color:var(--accent)">*</em></label>
+        <button class="btn btn-p" type="submit" style="width:100%;justify-content:center">Nachricht absenden</button>
+        <div id="formOK">✅ Vielen Dank! Ihr E-Mail-Programm öffnet sich mit Ihrer Nachricht an info@primus-ot.de.</div>
+        <p class="form-note">* Pflichtfelder. Der Versand erfolgt über Ihr E-Mail-Programm an info@primus-ot.de.</p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FOOTER ================= -->
+<footer>
+  <div class="f-grid">
+    <div class="f-brand">
+      <a class="logo" href="#start"><span class="logo-mark">P</span><span>PRIMUS<small>Oberflächentechnik</small></span></a>
+      <p>Oberflächen in Vollendung! Galvanotechnischer Betrieb mit Schwerpunkt Korrosions- und Verschleißschutz-Beschichtungen für Metalloberflächen.</p>
+    </div>
+    <div>
+      <h4>Leistungen</h4>
+      <ul>
+        <li><a href="#leistungen" data-svc="vorbehandlung">Mechanische Vorbehandlung</a></li>
+        <li><a href="#leistungen" data-svc="eloxal">Eloxal Verfahren</a></li>
+        <li><a href="#leistungen" data-svc="harteloxal">Hart Eloxal Verfahren</a></li>
+        <li><a href="#leistungen" data-svc="nickel">Chemisch Nickel</a></li>
+        <li><a href="#leistungen" data-svc="nickeloptik">Chemisch Nickel für Optik</a></li>
+        <li><a href="#leistungen" data-svc="labor">Das Labor</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Unternehmen</h4>
+      <ul>
+        <li><a href="#ueber-uns">Das sind wir</a></li>
+        <li><a href="#qualitaet">Qualität &amp; Zertifikate</a></li>
+        <li><a href="#branchen">Branchen</a></li>
+        <li><a href="#karriere">Karriere</a></li>
+        <li><a href="#downloads">Downloads</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Kontakt</h4>
+      <ul>
+        <li><a href="tel:+497919541490">+49 (0)791 – 954 14 90</a></li>
+        <li><a href="mailto:info@primus-ot.de">info@primus-ot.de</a></li>
+        <li><span style="color:var(--txt-3);font-size:.9rem">Steinbeisweg 27<br>74523 Schwäbisch Hall</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="f-bottom">
+    <span>© <span id="year"></span> Primus Oberflächentechnik GmbH &amp; Co. KG · Alle Rechte vorbehalten</span>
+    <span class="legal">
+      <button data-modal="m-impressum">Impressum</button>
+      <button data-modal="m-datenschutz">Datenschutz</button>
+      <button data-modal="m-disclaimer">Disclaimer</button>
+    </span>
+  </div>
+</footer>
+
+<!-- ================= MODALS ================= -->
+<div class="modal" id="m-impressum">
+  <div class="modal-card">
+    <button class="modal-x" aria-label="Schließen">✕</button>
+    <h3>Impressum</h3>
+    <p><strong style="color:var(--txt)">Primus Oberflächentechnik GmbH und Co. KG</strong><br>Steinbeisweg 27<br>74523 Schwäbisch Hall</p>
+    <p>Telefon: +49 (0)791 – 954 14 90<br>Telefax: +49 (0)791 – 954 14 88<br>E-Mail: info@primus-ot.de</p>
+    <h4>Vertreten durch</h4>
+    <p>Primus Oberflächentechnik Verwaltungs-GmbH<br>Geschäftsführer: Dieter Jung, Nesa Jung-Pantic</p>
+    <h4>Registereintrag</h4>
+    <p>Eingetragen im Handelsregister.<br>Registergericht: Amtsgericht Stuttgart · Registernummer: HRB 731108<br>Registergericht: Amtsgericht Stuttgart · Registernummer: HRA 724413</p>
+    <h4>Umsatzsteuer-ID</h4>
+    <p>Umsatzsteuer-Identifikationsnummer nach §27a Umsatzsteuergesetz: DE266411906</p>
+  </div>
+</div>
+
+<div class="modal" id="m-datenschutz">
+  <div class="modal-card">
+    <button class="modal-x" aria-label="Schließen">✕</button>
+    <h3>Datenschutzinformation</h3>
+    <p>In dieser Datenschutzerklärung informieren wir Sie über die Verarbeitung Ihrer personenbezogenen Daten.</p>
+    <h4>Verantwortlich</h4>
+    <p>Nesa Jung-Pantic, Primus Oberflächentechnik GmbH und Co. KG, Steinbeisweg 27, 74523 Schwäbisch Hall, Deutschland, info@primus-ot.de, +49 (0)791 – 954 14 90</p>
+    <h4>Server Log Files</h4>
+    <p>Zum Zweck der Überwachung der technischen Funktion und zur Erhöhung der Betriebssicherheit unseres Webhosts werden Verbindungsdaten verarbeitet. Die Dauer der Verarbeitung ist auf 7 Tage beschränkt. Rechtsgrundlage ist das berechtigte Interesse gemäß Art. 6 Abs. 1 lit. f DSGVO.</p>
+    <h4>Kontaktformular</h4>
+    <p>Nach Absenden des Kontaktformulars erfolgt eine Verarbeitung der von Ihnen eingegebenen personenbezogenen Daten zum Zweck der Bearbeitung Ihrer Anfrage auf Grundlage Ihrer Einwilligung gem. Art. 6 Abs. 1 lit. a DSGVO bis auf Widerruf. Es besteht keine gesetzliche oder vertragliche Verpflichtung zur Bereitstellung der Daten; die Nichtbereitstellung hat lediglich zur Folge, dass wir Ihr Anliegen nicht bearbeiten können.</p>
+    <h4>Bewerbungsformular</h4>
+    <p>Zum Zweck der Bearbeitung Ihrer Bewerbung verarbeiten wir Ihre personenbezogenen Daten auf Grundlage eines vorvertraglichen Verhältnisses gem. Art. 6 Abs. 1 lit. b DSGVO, längstens für die Dauer von 6 Monaten nach Abschluss des Bewerbungsverfahrens (bei ausdrücklich gewünschter Evidenzhaltung maximal 18 Monate auf Grundlage Ihrer Einwilligung). Eine Weitergabe Ihrer Bewerberdaten an Dritte erfolgt nicht.</p>
+    <h4>Vollständige Datenschutzerklärung</h4>
+    <p>Die vollständige und jeweils aktuelle Datenschutzerklärung finden Sie unter:<br><a href="https://www.primus-ot.de/datenschutzerklaerung/" target="_blank" rel="noopener">www.primus-ot.de/datenschutzerklaerung</a></p>
+  </div>
+</div>
+
+<div class="modal" id="m-disclaimer">
+  <div class="modal-card">
+    <button class="modal-x" aria-label="Schließen">✕</button>
+    <h3>Disclaimer</h3>
+    <h4>§ 1 Haftungsbeschränkung</h4>
+    <p>Die Inhalte dieser Website werden mit größtmöglicher Sorgfalt erstellt. Der Anbieter übernimmt jedoch keine Gewähr für die Richtigkeit, Vollständigkeit und Aktualität der bereitgestellten Inhalte. Die Nutzung der Inhalte der Website erfolgt auf eigene Gefahr des Nutzers. Namentlich gekennzeichnete Beiträge geben die Meinung des jeweiligen Autors und nicht immer die Meinung des Anbieters wieder. Mit der reinen Nutzung der Website des Anbieters kommt keinerlei Vertragsverhältnis zwischen dem Nutzer und dem Anbieter zustande.</p>
+    <h4>§ 2 Externe Links</h4>
+    <p>Diese Website enthält Verknüpfungen zu Websites Dritter („externe Links“). Diese Websites unterliegen der Haftung der jeweiligen Betreiber. Der Anbieter hat bei der erstmaligen Verknüpfung der externen Links die fremden Inhalte daraufhin überprüft, ob etwaige Rechtsverstöße bestehen. Zu dem Zeitpunkt waren keine Rechtsverstöße ersichtlich. Der Anbieter hat keinerlei Einfluss auf die aktuelle und zukünftige Gestaltung und auf die Inhalte der verknüpften Seiten. Bei Kenntnis von Rechtsverstößen werden derartige externe Links unverzüglich gelöscht.</p>
+    <h4>§ 3 Urheber- und Leistungsschutzrechte</h4>
+    <p>Die auf dieser Website veröffentlichten Inhalte unterliegen dem deutschen Urheber- und Leistungsschutzrecht. Jede vom deutschen Urheber- und Leistungsschutzrecht nicht zugelassene Verwertung bedarf der vorherigen schriftlichen Zustimmung des Anbieters oder jeweiligen Rechteinhabers. Die unerlaubte Vervielfältigung oder Weitergabe einzelner Inhalte oder kompletter Seiten ist nicht gestattet und strafbar. Lediglich die Herstellung von Kopien und Downloads für den persönlichen, privaten und nicht kommerziellen Gebrauch ist erlaubt.</p>
+    <h4>§ 4 Besondere Nutzungsbedingungen</h4>
+    <p>Soweit besondere Bedingungen für einzelne Nutzungen dieser Website von den vorgenannten Paragraphen abweichen, wird an entsprechender Stelle ausdrücklich darauf hingewiesen. In diesem Falle gelten im jeweiligen Einzelfall die besonderen Nutzungsbedingungen.</p>
+  </div>
+</div>
+
+<button id="toTop" aria-label="Nach oben">↑</button>
+
+<script>
+/* ============ scroll progress + nav ============ */
+const nav=document.getElementById('nav'),prog=document.getElementById('progress'),toTop=document.getElementById('toTop');
+addEventListener('scroll',()=>{
+  const s=scrollY,h=document.documentElement.scrollHeight-innerHeight;
+  prog.style.width=(h>0?s/h*100:0)+'%';
+  nav.classList.toggle('scrolled',s>30);
+  toTop.classList.toggle('show',s>700);
+},{passive:true});
+toTop.addEventListener('click',()=>scrollTo({top:0,behavior:'smooth'}));
+document.getElementById('year').textContent=new Date().getFullYear();
+
+/* ============ mobile menu ============ */
+const burger=document.getElementById('burger'),mMenu=document.getElementById('mobileMenu');
+burger.addEventListener('click',()=>{
+  burger.classList.toggle('open');
+  mMenu.classList.toggle('open');
+  document.body.style.overflow=mMenu.classList.contains('open')?'hidden':'';
+});
+mMenu.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{
+  burger.classList.remove('open');mMenu.classList.remove('open');document.body.style.overflow='';
+}));
+
+/* ============ hero particle canvas (metal sparks network) ============ */
+(()=>{
+  const c=document.getElementById('heroCanvas'),x=c.getContext('2d');
+  let w,h,pts=[],mouse={x:-999,y:-999};
+  const N=()=>Math.min(90,Math.floor(innerWidth/16));
+  function size(){w=c.width=c.offsetWidth*devicePixelRatio;h=c.height=c.offsetHeight*devicePixelRatio;x.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0)}
+  function init(){pts=[];const n=N();for(let i=0;i<n;i++)pts.push({x:Math.random()*c.offsetWidth,y:Math.random()*c.offsetHeight,vx:(Math.random()-.5)*.4,vy:(Math.random()-.5)*.4,r:Math.random()*1.8+.6})}
+  size();init();
+  addEventListener('resize',()=>{size();init()});
+  c.parentElement.addEventListener('pointermove',e=>{const r=c.getBoundingClientRect();mouse.x=e.clientX-r.left;mouse.y=e.clientY-r.top});
+  c.parentElement.addEventListener('pointerleave',()=>{mouse.x=-999;mouse.y=-999});
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function frame(){
+    x.clearRect(0,0,c.offsetWidth,c.offsetHeight);
+    const W=c.offsetWidth,H=c.offsetHeight;
+    for(const p of pts){
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0||p.x>W)p.vx*=-1;
+      if(p.y<0||p.y>H)p.vy*=-1;
+      const dm=Math.hypot(p.x-mouse.x,p.y-mouse.y);
+      if(dm<140){p.x+=(p.x-mouse.x)/dm*1.2;p.y+=(p.y-mouse.y)/dm*1.2}
+      x.beginPath();x.arc(p.x,p.y,p.r,0,7);
+      x.fillStyle='rgba(120,175,255,.55)';x.fill();
+    }
+    for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++){
+      const a=pts[i],b=pts[j],d=Math.hypot(a.x-b.x,a.y-b.y);
+      if(d<130){x.beginPath();x.moveTo(a.x,a.y);x.lineTo(b.x,b.y);x.strokeStyle=`rgba(99,150,255,${.16*(1-d/130)})`;x.lineWidth=1;x.stroke()}
+    }
+    if(!reduce)requestAnimationFrame(frame);
+  }
+  frame();
+})();
+
+/* ============ reveal on scroll ============ */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('vis');io.unobserve(e.target)}}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* ============ animated counters ============ */
+const cio=new IntersectionObserver(es=>es.forEach(e=>{
+  if(!e.isIntersecting)return;
+  const el=e.target,target=+el.dataset.count,plain=el.dataset.plain,t0=performance.now(),dur=1600;
+  (function tick(t){
+    const p=Math.min(1,(t-t0)/dur),ease=1-Math.pow(1-p,3);
+    const v=Math.round(target*ease);
+    el.textContent=plain?String(v):v.toLocaleString('de-DE');
+    if(p<1)requestAnimationFrame(tick);
+  })(t0);
+  cio.unobserve(el);
+}),{threshold:.5});
+document.querySelectorAll('[data-count]').forEach(el=>cio.observe(el));
+
+/* ============ Leistungen tabs ============ */
+function openSvc(id){
+  document.querySelectorAll('.svc-tab').forEach(t=>t.classList.toggle('active',t.dataset.panel===id));
+  document.querySelectorAll('.svc-panel').forEach(p=>p.classList.toggle('active',p.id==='p-'+id));
+}
+document.querySelectorAll('.svc-tab').forEach(t=>t.addEventListener('click',()=>openSvc(t.dataset.panel)));
+document.querySelectorAll('[data-svc]').forEach(a=>a.addEventListener('click',()=>openSvc(a.dataset.svc)));
+
+/* ============ alloy table filter ============ */
+document.querySelectorAll('[data-filter]').forEach(inp=>{
+  const tbl=document.getElementById(inp.dataset.filter);
+  const empty=tbl.parentElement.querySelector('.no-result');
+  inp.addEventListener('input',()=>{
+    const q=inp.value.trim().toLowerCase();
+    let hits=0;
+    tbl.querySelectorAll('tbody tr').forEach(tr=>{
+      const show=tr.textContent.toLowerCase().includes(q);
+      tr.style.display=show?'':'none';
+      if(show)hits++;
+    });
+    empty.style.display=hits?'none':'block';
+  });
+});
+
+/* ============ thickness selector ============ */
+document.querySelectorAll('.thick-opt').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.thick-opt').forEach(o=>o.classList.remove('sel'));
+  b.classList.add('sel');
+  document.getElementById('thickVal').innerHTML=b.dataset.td;
+  document.getElementById('thickBar').style.width=b.dataset.w+'%';
+}));
+
+/* ============ testimonial slider ============ */
+const tstInner=document.getElementById('tstInner'),dots=[...document.querySelectorAll('.tst-dot')];
+let tstIdx=0,tstTimer;
+function goTst(i){
+  tstIdx=i;
+  tstInner.style.transform=`translateX(-${i*100}%)`;
+  dots.forEach((d,j)=>d.classList.toggle('on',j===i));
+}
+dots.forEach(d=>d.addEventListener('click',()=>{goTst(+d.dataset.i);restartTst()}));
+function restartTst(){clearInterval(tstTimer);tstTimer=setInterval(()=>goTst((tstIdx+1)%dots.length),6000)}
+restartTst();
+
+/* ============ modals ============ */
+document.querySelectorAll('[data-modal]').forEach(b=>b.addEventListener('click',e=>{
+  e.preventDefault();
+  document.getElementById(b.dataset.modal).classList.add('open');
+  document.body.style.overflow='hidden';
+}));
+document.querySelectorAll('.modal').forEach(m=>{
+  m.addEventListener('click',e=>{if(e.target===m)close(m)});
+  m.querySelector('.modal-x').addEventListener('click',()=>close(m));
+});
+addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal.open').forEach(close)});
+function close(m){m.classList.remove('open');document.body.style.overflow=''}
+
+/* ============ contact form → mailto ============ */
+document.getElementById('contactForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  const f=new FormData(e.target);
+  const body=[
+    `Anrede: ${f.get('anrede')}`,
+    `Name: ${f.get('vorname')} ${f.get('nachname')}`,
+    `Unternehmen: ${f.get('unternehmen')}`,
+    `Telefon: ${f.get('telefon')||'—'}`,
+    `E-Mail: ${f.get('email')}`,
+    ``,
+    `${f.get('nachricht')}`
+  ].join('\n');
+  location.href=`mailto:info@primus-ot.de?subject=${encodeURIComponent(f.get('betreff'))}&body=${encodeURIComponent(body)}`;
+  document.getElementById('formOK').style.display='block';
+});
+
+/* ============ nav active state ============ */
+const secs=[...document.querySelectorAll('section[id],header[id]')];
+const navLinks=[...document.querySelectorAll('.nav-links a.nl[href^="#"]')];
+addEventListener('scroll',()=>{
+  let cur='';
+  for(const s of secs)if(scrollY>=s.offsetTop-120)cur=s.id;
+  navLinks.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+cur));
+},{passive:true});
+</script>
+</body>
+</html>
