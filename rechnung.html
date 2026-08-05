@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RechnungFix – Kostenlos Rechnung schreiben online | Rechnungsgenerator</title>
+<meta name="description" content="Kostenlos professionelle Rechnungen online erstellen – mit Logo, MwSt.-Berechnung, Kleinunternehmerregelung und PDF-Download. Ohne Anmeldung, direkt im Browser.">
+<meta name="keywords" content="Rechnung schreiben, Rechnung erstellen kostenlos, Rechnungsgenerator, Rechnungsvorlage, Kleinunternehmer Rechnung, Rechnung online, PDF Rechnung">
+<meta property="og:title" content="RechnungFix – Kostenlos Rechnung schreiben online">
+<meta property="og:description" content="Professionelle Rechnungen in 2 Minuten erstellen. Kostenlos, ohne Anmeldung, DSGVO-freundlich – alle Daten bleiben in Ihrem Browser.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧾</text></svg>">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "RechnungFix",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Web",
+  "description": "Kostenloser Online-Rechnungsgenerator: Rechnungen mit Logo, MwSt. und PDF-Export direkt im Browser erstellen.",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
+}
+</script>
+<style>
+:root{
+  --blue:#1d4ed8; --blue-d:#1e40af; --blue-l:#eff6ff;
+  --ink:#0f172a; --ink-2:#334155; --ink-3:#64748b;
+  --bg:#f8fafc; --card:#ffffff; --line:#e2e8f0;
+  --green:#059669; --red:#dc2626; --amber:#d97706;
+  --radius:12px; --shadow:0 1px 3px rgba(15,23,42,.08),0 8px 24px rgba(15,23,42,.06);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:14px;color:var(--ink)}
+a{color:var(--blue)}
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px}
+
+/* ---------- Header ---------- */
+header.site{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.nav{display:flex;align-items:center;justify-content:space-between;height:64px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;color:var(--ink);text-decoration:none}
+.brand .mark{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,var(--blue),#3b82f6);display:grid;place-items:center;color:#fff;font-size:18px}
+.nav-links{display:flex;gap:26px;align-items:center}
+.nav-links a{color:var(--ink-2);text-decoration:none;font-size:14.5px;font-weight:500}
+.nav-links a:not(.btn):hover{color:var(--blue)}
+.nav-links a.btn-primary,.nav-links a.btn-primary:hover{color:#fff}
+@media(max-width:700px){
+  .nav-links{gap:0}
+  .nav-links a:not(.btn){display:none}
+  .nav-links .btn{padding:9px 14px;font-size:13.5px}
+  .brand{font-size:17px}
+}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:10px;font-weight:600;font-size:14.5px;padding:11px 20px;transition:.15s;text-decoration:none}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:hover{background:var(--blue-d)}
+.btn-ghost{background:#fff;color:var(--ink-2);border:1px solid var(--line)}
+.btn-ghost:hover{border-color:var(--blue);color:var(--blue)}
+.btn-green{background:var(--green);color:#fff}
+.btn-green:hover{background:#047857}
+.btn-danger{background:#fff;color:var(--red);border:1px solid #fecaca}
+.btn-danger:hover{background:#fef2f2}
+
+/* ---------- Hero ---------- */
+.hero{padding:64px 0 40px;text-align:center;background:linear-gradient(180deg,#fff 0%,var(--bg) 100%)}
+.hero h1{font-size:clamp(30px,4.5vw,46px);font-weight:800;letter-spacing:-.02em;max-width:820px;margin:0 auto 16px}
+.hero h1 em{font-style:normal;color:var(--blue)}
+.hero p{font-size:17px;color:var(--ink-3);max-width:640px;margin:0 auto 28px}
+.hero-badges{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:26px}
+.hero-badges span{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;color:var(--ink-2);background:#fff;border:1px solid var(--line);border-radius:999px;padding:7px 14px}
+
+/* ---------- Werbung / Monetarisierung ---------- */
+.ad-slot{display:none;margin:26px auto;text-align:center}
+.ad-slot.active{display:block}
+.ad-slot .ad-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);margin-bottom:4px}
+.support-bar{display:none;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;background:var(--blue-l);border:1px solid #bfdbfe;border-radius:var(--radius);padding:14px 18px;margin:26px 0;font-size:14.5px;color:var(--ink-2)}
+.support-bar.active{display:flex}
+
+/* ---------- App-Layout ---------- */
+.app{display:grid;grid-template-columns:minmax(380px,520px) 1fr;gap:28px;align-items:start;padding:30px 0 50px}
+.app > *{min-width:0}
+@media(max-width:1000px){.app{grid-template-columns:1fr}}
+
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line)}
+.panel-head h2{font-size:16px;font-weight:700}
+
+/* Accordion-Sektionen */
+details.sec{border-bottom:1px solid var(--line)}
+details.sec:last-of-type{border-bottom:none}
+details.sec summary{list-style:none;display:flex;align-items:center;gap:10px;padding:15px 20px;font-weight:600;font-size:15px;cursor:pointer;user-select:none}
+details.sec summary::-webkit-details-marker{display:none}
+details.sec summary .num{width:26px;height:26px;border-radius:50%;background:var(--blue-l);color:var(--blue);display:grid;place-items:center;font-size:13px;font-weight:700;flex-shrink:0}
+details.sec summary .chev{margin-left:auto;color:var(--ink-3);transition:.2s}
+details.sec[open] summary .chev{transform:rotate(180deg)}
+.sec-body{padding:4px 20px 20px}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px}
+@media(max-width:520px){.grid2,.grid3{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.field label{font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.field input,.field select,.field textarea{border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:#fff;outline:none;transition:.15s;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.12)}
+.field textarea{resize:vertical;min-height:60px}
+.hint{font-size:11.5px;color:var(--ink-3)}
+.check{display:flex;align-items:flex-start;gap:9px;font-size:13.5px;color:var(--ink-2);margin:10px 0;cursor:pointer}
+.check input{width:16px;height:16px;margin-top:2px;accent-color:var(--blue)}
+
+/* Positionen */
+.item-row{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:#fcfdff}
+.item-row .r1{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:8px}
+.item-row .r2{display:grid;grid-template-columns:70px 90px 1fr 90px;gap:8px}
+@media(max-width:520px){.item-row .r2{grid-template-columns:1fr 1fr}}
+.item-row input,.item-row select{border:1px solid var(--line);border-radius:7px;padding:8px 9px;width:100%}
+.item-del{border:none;background:#fef2f2;color:var(--red);border-radius:7px;width:36px;font-size:16px}
+.item-del:hover{background:#fee2e2}
+.mini-label{font-size:10.5px;font-weight:600;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:3px}
+
+/* Logo-Upload */
+.logo-drop{border:2px dashed var(--line);border-radius:10px;padding:16px;text-align:center;color:var(--ink-3);font-size:13px;cursor:pointer;transition:.15s}
+.logo-drop:hover{border-color:var(--blue);color:var(--blue)}
+.logo-drop img{max-height:60px;max-width:180px;display:block;margin:0 auto 6px}
+
+/* Farb-Themes */
+.theme-dots{display:flex;gap:10px;align-items:center}
+.theme-dot{width:26px;height:26px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:.15s}
+.theme-dot.sel{border-color:var(--ink);transform:scale(1.12)}
+
+/* Aktionsleiste */
+.actions{display:flex;gap:10px;flex-wrap:wrap;padding:16px 20px;border-top:1px solid var(--line);background:#fbfcfe;border-radius:0 0 var(--radius) var(--radius)}
+
+/* ---------- Rechnungs-Vorschau (A4) ---------- */
+.preview-col{position:sticky;top:84px}
+@media(max-width:1000px){.preview-col{position:static}}
+.preview-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px;flex-wrap:wrap}
+.preview-toolbar .title{font-weight:700;font-size:15px}
+.sheet-scroll{overflow-x:auto;border-radius:var(--radius);max-width:100%}
+.sheet{width:794px;min-height:1123px;background:#fff;box-shadow:var(--shadow);margin:0 auto;padding:57px 64px;font-size:13.2px;color:#1e293b;display:flex;flex-direction:column;transform-origin:top left}
+.sheet .inv-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:34px}
+.sheet .inv-logo img{max-height:72px;max-width:220px}
+.sheet .inv-company-name{font-size:20px;font-weight:800;color:var(--acc,#1d4ed8)}
+.sheet .sender-line{font-size:9.5px;color:#64748b;border-bottom:1px solid #e2e8f0;padding-bottom:3px;margin-bottom:8px}
+.sheet .inv-addr{white-space:pre-line;line-height:1.5}
+.sheet .inv-meta{text-align:right;font-size:12.5px;color:#334155}
+.sheet .inv-meta table{margin-left:auto;border-collapse:collapse}
+.sheet .inv-meta td{padding:2px 0 2px 18px;text-align:right}
+.sheet .inv-meta td:first-child{color:#64748b;text-align:left;padding-left:0}
+.sheet h1.inv-title{font-size:26px;font-weight:800;margin:26px 0 4px;color:#0f172a}
+.sheet .inv-intro{margin:10px 0 20px;white-space:pre-line}
+.sheet table.items{width:100%;border-collapse:collapse;margin:8px 0 4px}
+.sheet table.items th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;text-align:left;color:#fff;background:var(--acc,#1d4ed8);padding:9px 10px}
+.sheet table.items th.r,.sheet table.items td.r{text-align:right}
+.sheet table.items td{padding:9px 10px;border-bottom:1px solid #e8edf3;vertical-align:top}
+.sheet .totals{margin-left:auto;width:300px;margin-top:14px}
+.sheet .totals .row{display:flex;justify-content:space-between;padding:5px 10px}
+.sheet .totals .row.grand{background:var(--acc,#1d4ed8);color:#fff;font-weight:800;font-size:15px;border-radius:6px;margin-top:6px;padding:10px}
+.sheet .inv-notes{margin-top:26px;white-space:pre-line}
+.sheet .kleinunternehmer{margin-top:14px;font-size:12px;color:#475569}
+.sheet .inv-footer{margin-top:auto;padding-top:18px;border-top:1px solid #e2e8f0;display:flex;gap:24px;font-size:10px;color:#64748b;justify-content:space-between}
+.sheet .inv-footer div{white-space:pre-line}
+
+/* ---------- Sektionen unterhalb ---------- */
+.section{padding:56px 0}
+.section h2{font-size:28px;font-weight:800;text-align:center;margin-bottom:10px;letter-spacing:-.01em}
+.section .sub{text-align:center;color:var(--ink-3);max-width:600px;margin:0 auto 36px}
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}
+.feature{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:22px}
+.feature .ic{font-size:26px;margin-bottom:10px}
+.feature h3{font-size:15.5px;margin-bottom:6px}
+.feature p{font-size:13.5px;color:var(--ink-3)}
+.faq details{background:#fff;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;padding:0 18px}
+.faq summary{padding:15px 0;font-weight:600;font-size:15px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";font-size:20px;color:var(--ink-3)}
+.faq details[open] summary::after{content:"–"}
+.faq .a{padding:0 0 16px;color:var(--ink-2);font-size:14px}
+
+/* ---------- Footer ---------- */
+footer.site{background:#0f172a;color:#94a3b8;padding:40px 0 30px;font-size:13.5px}
+footer.site .cols{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap;margin-bottom:26px}
+footer.site a{color:#cbd5e1;text-decoration:none}
+footer.site a:hover{color:#fff}
+footer.site .fbrand{color:#fff;font-weight:800;font-size:17px;margin-bottom:8px}
+.foot-legal{border-top:1px solid #1e293b;padding-top:18px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+/* ---------- Modal ---------- */
+.modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:100;padding:24px;overflow-y:auto}
+.modal.open{display:flex;align-items:flex-start;justify-content:center}
+.modal .box{background:#fff;border-radius:var(--radius);max-width:680px;width:100%;padding:30px;margin:auto;position:relative}
+.modal .box h2{margin-bottom:14px}
+.modal .box h3{margin:16px 0 6px;font-size:15px}
+.modal .box p{font-size:14px;color:var(--ink-2);margin-bottom:8px}
+.modal .close{position:absolute;top:14px;right:14px;border:none;background:var(--bg);width:34px;height:34px;border-radius:8px;font-size:16px}
+
+/* ---------- Toast ---------- */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 22px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:200}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---------- Druck: nur die Rechnung ---------- */
+@media print{
+  @page{size:A4;margin:0}
+  body{background:#fff}
+  body > *:not(#printMount){display:none !important}
+  #printMount{display:block !important}
+  #printMount .sheet{box-shadow:none;width:210mm;min-height:287mm;padding:15mm 17mm;transform:none !important}
+}
+#printMount{display:none}
+</style>
+</head>
+<body>
+
+<!-- ================= KONFIGURATION / MONETARISIERUNG =================
+  Hier trägst du deine IDs ein, sobald du sie hast (Anleitung: MONETARISIERUNG.md).
+  Solange die Felder leer sind, bleiben Werbeflächen unsichtbar – die Seite
+  wirkt für Besucher trotzdem vollständig und professionell.
+==================================================================== -->
+<script>
+const MONETIZATION = {
+  // Google AdSense Publisher-ID, z. B. "ca-pub-1234567890123456"
+  adsenseClient: "",
+  // PayPal.me-Link für Unterstützungen, z. B. "https://paypal.me/deinname"
+  paypalLink: "",
+  // Affiliate-Link zu einer Buchhaltungssoftware (z. B. sevDesk/Lexoffice Partnerprogramm)
+  affiliateUrl: "",
+  affiliateLabel: "Buchhaltung automatisieren – Software-Empfehlung ansehen",
+  // Kontakt-E-Mail für Impressum & Anfragen
+  contactEmail: "philglibota7@gmail.com",
+  // Name/Ort für das Impressum – VOR Veröffentlichung ausfüllen (Pflicht in DE!)
+  imprintName: "",
+  imprintAddress: ""
+};
+</script>
+
+<header class="site">
+  <div class="wrap nav">
+    <a class="brand" href="#top"><span class="mark">🧾</span>RechnungFix</a>
+    <nav class="nav-links">
+      <a href="#generator">Generator</a>
+      <a href="#funktionen">Funktionen</a>
+      <a href="#faq">FAQ</a>
+      <a href="#generator" class="btn btn-primary">Rechnung erstellen</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <h1>Professionelle Rechnungen <em>kostenlos</em> erstellen – in 2 Minuten</h1>
+    <p>Mit Logo, automatischer MwSt.-Berechnung, Kleinunternehmerregelung und PDF-Download. Ohne Anmeldung, ohne Software-Installation. Ihre Daten bleiben zu 100 % in Ihrem Browser.</p>
+    <a href="#generator" class="btn btn-primary" style="font-size:16px;padding:14px 30px">Jetzt kostenlos Rechnung schreiben →</a>
+    <div class="hero-badges">
+      <span>✓ 100 % kostenlos</span>
+      <span>✓ Keine Anmeldung</span>
+      <span>✓ DSGVO-freundlich – keine Datenübertragung</span>
+      <span>✓ Alle Pflichtangaben nach §14 UStG</span>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <!-- Werbefläche oben (wird nur mit AdSense-ID sichtbar) -->
+  <div class="ad-slot" id="adTop"><div class="ad-label">Anzeige</div></div>
+</div>
+
+<main class="wrap" id="generator">
+  <div class="app">
+
+    <!-- ============ FORMULAR ============ -->
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Rechnungsdaten eingeben</h2>
+        <span class="hint" id="saveState">automatisch gespeichert</span>
+      </div>
+
+      <details class="sec" open>
+        <summary><span class="num">1</span> Ihr Unternehmen (Absender) <span class="chev">▾</span></summary>
+        <div class="sec-body">
+          <div class="field">
+            <label>Logo (optional)</label>
+            <div class="logo-drop" id="logoDrop" title="Logo hochladen">
+              <span id="logoDropText">📁 Logo hochladen (PNG/JPG, bleibt lokal)</span>
+            </div>
+            <input type="file" id="logoInput" accept="image/*" hidden>
+          </div>
+          <div class="field"><label>Firmenname / Ihr Name *</label><input id="f_senderName" placeholder="Max Mustermann Webdesign"></div>
+          <div class="field"><label>Anschrift *</label><textarea id="f_senderAddr" placeholder="Musterstraße 12&#10;12345 Musterstadt"></textarea></div>
+          <div class="grid2">
+            <div class="field"><label>Telefon</label><input id="f_senderPhone" placeholder="+49 123 456789"></div>
+            <div class="field"><label>E-Mail</label><input id="f_senderEmail" placeholder="mail@firma.de"></div>
+          </div>
+          <div class="field"><label>Steuernummer oder USt-IdNr. *</label><input id="f_senderTax" placeholder="Steuernr. 12/345/67890 oder USt-IdNr. DE123456789"><span class="hint">Pflichtangabe nach §14 UStG</span></div>
+        </div>
+      </details>
+
+      <details class="sec" open>
+        <summary><span class="num">2</span> Kunde (Empfänger) <span class="chev">▾</span></summary>
+        <div class="sec-body">
+          <div class="field"><label>Name / Firma des Kunden *</label><input id="f_clientName" placeholder="Kunde GmbH"></div>
+          <div class="field"><label>Anschrift des Kunden *</label><textarea id="f_clientAddr" placeholder="Kundenweg 1&#10;54321 Kundenstadt"></textarea></div>
+        </div>
+      </details>
+
+      <details class="sec" open>
+        <summary><span class="num">3</span> Rechnungsdetails <span class="chev">▾</span></summary>
+        <div class="sec-body">
+          <div class="grid2">
+            <div class="field"><label>Rechnungsnummer *</label><input id="f_invNo"></div>
+            <div class="field"><label>Rechnungsdatum *</label><input type="date" id="f_invDate"></div>
+          </div>
+          <div class="grid2">
+            <div class="field"><label>Leistungsdatum / -zeitraum *</label><input id="f_serviceDate" placeholder="z. B. 01.–15.07.2026"></div>
+            <div class="field"><label>Zahlungsziel (Tage)</label><input type="number" id="f_dueDays" value="14" min="0"></div>
+          </div>
+          <div class="field"><label>Einleitungstext</label><textarea id="f_intro">Sehr geehrte Damen und Herren,&#10;&#10;vielen Dank für Ihren Auftrag. Hiermit stelle ich Ihnen folgende Leistungen in Rechnung:</textarea></div>
+        </div>
+      </details>
+
+      <details class="sec" open>
+        <summary><span class="num">4</span> Positionen <span class="chev">▾</span></summary>
+        <div class="sec-body">
+          <div id="itemList"></div>
+          <button class="btn btn-ghost" id="addItem" style="width:100%">＋ Position hinzufügen</button>
+        </div>
+      </details>
+
+      <details class="sec">
+        <summary><span class="num">5</span> Steuern, Zahlung &amp; Design <span class="chev">▾</span></summary>
+        <div class="sec-body">
+          <label class="check"><input type="checkbox" id="f_kleinunternehmer">
+            <span><strong>Kleinunternehmerregelung (§19 UStG)</strong><br><span class="hint">Es wird keine Umsatzsteuer ausgewiesen; der Pflichthinweis erscheint automatisch auf der Rechnung.</span></span>
+          </label>
+          <div class="field"><label>IBAN</label><input id="f_iban" placeholder="DE12 3456 7890 1234 5678 90"></div>
+          <div class="grid2">
+            <div class="field"><label>Bank</label><input id="f_bank" placeholder="Musterbank"></div>
+            <div class="field"><label>BIC</label><input id="f_bic" placeholder="ABCDDE12"></div>
+          </div>
+          <div class="field"><label>Schlusstext</label><textarea id="f_outro">Bitte überweisen Sie den Rechnungsbetrag unter Angabe der Rechnungsnummer auf das unten genannte Konto.&#10;&#10;Mit freundlichen Grüßen</textarea></div>
+          <div class="field">
+            <label>Akzentfarbe der Rechnung</label>
+            <div class="theme-dots" id="themeDots"></div>
+          </div>
+        </div>
+      </details>
+
+      <div class="actions">
+        <button class="btn btn-green" id="btnPdf" style="flex:1;min-width:200px">⬇ Als PDF speichern / Drucken</button>
+        <button class="btn btn-ghost" id="btnNew">Neue Rechnung</button>
+        <button class="btn btn-danger" id="btnClear">Alle Daten löschen</button>
+      </div>
+    </div>
+
+    <!-- ============ VORSCHAU ============ -->
+    <div class="preview-col">
+      <div class="preview-toolbar">
+        <span class="title">Live-Vorschau (DIN A4)</span>
+        <span class="hint">aktualisiert sich automatisch</span>
+      </div>
+      <div class="sheet-scroll">
+        <div class="sheet" id="sheet"></div>
+      </div>
+      <div class="support-bar" id="supportBar">
+        <span>☕ Dieses Tool ist und bleibt kostenlos. Wenn es Ihnen Zeit spart, freuen wir uns über eine kleine Unterstützung!</span>
+        <a class="btn btn-primary" id="supportBtn" target="_blank" rel="noopener">Unterstützen</a>
+      </div>
+      <div class="support-bar" id="affiliateBar" style="background:#f0fdf4;border-color:#bbf7d0">
+        <span>📊 Sie schreiben regelmäßig Rechnungen?</span>
+        <a class="btn btn-green" id="affiliateBtn" target="_blank" rel="noopener sponsored"></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Werbefläche unten -->
+  <div class="ad-slot" id="adBottom"><div class="ad-label">Anzeige</div></div>
+</main>
+
+<!-- ============ FUNKTIONEN ============ -->
+<section class="section" id="funktionen" style="background:#fff;border-top:1px solid var(--line)">
+  <div class="wrap">
+    <h2>Alles, was eine professionelle Rechnung braucht</h2>
+    <p class="sub">RechnungFix erstellt rechtssichere Rechnungen mit allen Pflichtangaben – für Freelancer, Kleinunternehmer, Handwerker und Selbstständige.</p>
+    <div class="features">
+      <div class="feature"><div class="ic">⚖️</div><h3>Pflichtangaben nach §14 UStG</h3><p>Rechnungsnummer, Steuernummer, Leistungsdatum, Steuersätze – die Vorlage führt Sie durch alle gesetzlichen Pflichtfelder.</p></div>
+      <div class="feature"><div class="ic">🧮</div><h3>Automatische MwSt.-Berechnung</h3><p>19 %, 7 % oder 0 % pro Position – Netto, Umsatzsteuer und Brutto werden automatisch und getrennt nach Steuersatz berechnet.</p></div>
+      <div class="feature"><div class="ic">📄</div><h3>Kleinunternehmer-Modus</h3><p>Ein Klick genügt: Die Rechnung wird ohne Umsatzsteuer erstellt und der Pflichthinweis nach §19 UStG automatisch ergänzt.</p></div>
+      <div class="feature"><div class="ic">🎨</div><h3>Eigenes Logo &amp; Farben</h3><p>Laden Sie Ihr Firmenlogo hoch und wählen Sie Ihre Akzentfarbe – für einen professionellen Auftritt bei Ihren Kunden.</p></div>
+      <div class="feature"><div class="ic">🔒</div><h3>100 % Datenschutz</h3><p>Alle Eingaben werden ausschließlich lokal in Ihrem Browser verarbeitet und gespeichert. Nichts wird an Server übertragen.</p></div>
+      <div class="feature"><div class="ic">💾</div><h3>Automatisches Speichern</h3><p>Ihre Firmendaten und die letzte Rechnung bleiben im Browser gespeichert – die nächste Rechnung ist in Sekunden fertig.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="section" id="faq">
+  <div class="wrap" style="max-width:820px">
+    <h2>Häufige Fragen</h2>
+    <p class="sub">Alles Wichtige rund um das kostenlose Rechnungschreiben.</p>
+    <div class="faq">
+      <details>
+        <summary>Ist RechnungFix wirklich komplett kostenlos?</summary>
+        <div class="a">Ja. Sie können unbegrenzt viele Rechnungen erstellen und als PDF speichern – ohne Anmeldung, ohne Abo, ohne versteckte Kosten. Die Seite finanziert sich über Werbung und freiwillige Unterstützungen.</div>
+      </details>
+      <details>
+        <summary>Welche Pflichtangaben muss eine Rechnung in Deutschland enthalten?</summary>
+        <div class="a">Nach §14 UStG u. a.: vollständiger Name und Anschrift von Rechnungssteller und Empfänger, Steuernummer oder USt-IdNr., Rechnungsdatum, fortlaufende Rechnungsnummer, Leistungsdatum, Menge und Art der Leistung, Entgelt nach Steuersätzen aufgeschlüsselt sowie der Steuerbetrag. Unsere Vorlage enthält Felder für alle diese Angaben.</div>
+      </details>
+      <details>
+        <summary>Wie funktioniert der PDF-Download?</summary>
+        <div class="a">Klicken Sie auf „Als PDF speichern / Drucken“. Im Druckdialog Ihres Browsers wählen Sie als Ziel „Als PDF speichern“ – die Rechnung wird pixelgenau im DIN-A4-Format ausgegeben. Das funktioniert in Chrome, Edge, Firefox und Safari.</div>
+      </details>
+      <details>
+        <summary>Was bedeutet die Kleinunternehmerregelung (§19 UStG)?</summary>
+        <div class="a">Kleinunternehmer weisen keine Umsatzsteuer aus, müssen aber einen Hinweis darauf auf der Rechnung angeben. Aktivieren Sie einfach die Option „Kleinunternehmerregelung“ – der korrekte Hinweis wird automatisch eingefügt und die MwSt.-Berechnung entfällt.</div>
+      </details>
+      <details>
+        <summary>Wo werden meine Daten gespeichert?</summary>
+        <div class="a">Ausschließlich lokal in Ihrem Browser (localStorage). Es werden keine Rechnungs- oder Kundendaten an einen Server übertragen. Mit „Alle Daten löschen“ entfernen Sie sämtliche gespeicherten Angaben jederzeit vollständig.</div>
+      </details>
+      <details>
+        <summary>Kann ich das Tool geschäftlich nutzen?</summary>
+        <div class="a">Ja, die Nutzung ist für private und geschäftliche Zwecke uneingeschränkt kostenlos erlaubt. Für die inhaltliche und steuerliche Richtigkeit der erstellten Rechnungen sind Sie selbst verantwortlich; im Zweifel fragen Sie Ihre Steuerberatung.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <div class="fbrand">🧾 RechnungFix</div>
+        <p style="max-width:320px">Der kostenlose Online-Rechnungsgenerator für Freelancer, Kleinunternehmer und Selbstständige. Rechtssicher, schnell und ohne Anmeldung.</p>
+      </div>
+      <div>
+        <p style="color:#fff;font-weight:700;margin-bottom:8px">Navigation</p>
+        <p><a href="#generator">Rechnung erstellen</a></p>
+        <p><a href="#funktionen">Funktionen</a></p>
+        <p><a href="#faq">FAQ</a></p>
+      </div>
+      <div>
+        <p style="color:#fff;font-weight:700;margin-bottom:8px">Rechtliches</p>
+        <p><a href="#" data-modal="imprintModal">Impressum</a></p>
+        <p><a href="#" data-modal="privacyModal">Datenschutzerklärung</a></p>
+      </div>
+    </div>
+    <div class="foot-legal">
+      <span>© <span id="year"></span> RechnungFix – Alle Angaben ohne Gewähr. Keine Steuer- oder Rechtsberatung.</span>
+      <span>Made in Germany 🇩🇪</span>
+    </div>
+  </div>
+</footer>
+
+<!-- ============ MODALS ============ -->
+<div class="modal" id="imprintModal">
+  <div class="box">
+    <button class="close" data-close>✕</button>
+    <h2>Impressum</h2>
+    <p>Angaben gemäß § 5 DDG:</p>
+    <p id="imprintContent" style="white-space:pre-line"></p>
+    <h3>Kontakt</h3>
+    <p id="imprintContact"></p>
+    <h3>Haftungsausschluss</h3>
+    <p>Dieses Tool dient ausschließlich als Hilfsmittel zur Erstellung von Rechnungen und stellt keine Steuer- oder Rechtsberatung dar. Für die Richtigkeit und Vollständigkeit der erstellten Dokumente ist der Nutzer selbst verantwortlich.</p>
+  </div>
+</div>
+
+<div class="modal" id="privacyModal">
+  <div class="box">
+    <button class="close" data-close>✕</button>
+    <h2>Datenschutzerklärung</h2>
+    <h3>1. Verarbeitung Ihrer Rechnungsdaten</h3>
+    <p>Alle in den Rechnungsgenerator eingegebenen Daten (Firmendaten, Kundendaten, Rechnungspositionen, Logos) werden ausschließlich lokal in Ihrem Browser verarbeitet und im localStorage Ihres Geräts gespeichert. Eine Übertragung dieser Daten an unsere oder fremde Server findet nicht statt.</p>
+    <h3>2. Hosting</h3>
+    <p>Diese Website wird über GitHub Pages (GitHub Inc.) bereitgestellt. Beim Aufruf der Seite werden durch den Hoster technisch notwendige Daten (z. B. IP-Adresse, Zeitpunkt des Zugriffs) in Server-Logs verarbeitet. Details: <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub Privacy Statement</a>.</p>
+    <h3>3. Werbung</h3>
+    <p id="privacyAds">Sofern auf dieser Seite Werbung (Google AdSense) eingebunden ist, kann Google Cookies und vergleichbare Technologien einsetzen, um interessenbezogene Anzeigen auszuspielen. Weitere Informationen finden Sie in der <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Datenschutzerklärung von Google</a>.</p>
+    <h3>4. Ihre Rechte</h3>
+    <p>Sie haben das Recht auf Auskunft, Berichtigung und Löschung Ihrer Daten. Da Rechnungsdaten nur lokal bei Ihnen gespeichert werden, können Sie diese jederzeit selbst über „Alle Daten löschen“ entfernen.</p>
+  </div>
+</div>
+
+<!-- Druckbereich: hierhin wird die Rechnung beim Drucken geklont -->
+<div id="printMount"></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* =========================================================
+   RechnungFix – kompletter clientseitiger Rechnungsgenerator
+   ========================================================= */
+const $ = id => document.getElementById(id);
+const eur = new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"});
+const STORAGE_KEY = "rechnungfix_v1";
+
+const THEMES = ["#1d4ed8","#0f766e","#7c3aed","#b91c1c","#0f172a","#c2410c"];
+
+const state = {
+  logo:"", accent:THEMES[0],
+  senderName:"", senderAddr:"", senderPhone:"", senderEmail:"", senderTax:"",
+  clientName:"", clientAddr:"",
+  invNo:"", invDate:"", serviceDate:"", dueDays:14,
+  intro:$("f_intro") ? $("f_intro").value : "",
+  outro:$("f_outro") ? $("f_outro").value : "",
+  kleinunternehmer:false,
+  iban:"", bank:"", bic:"",
+  items:[{desc:"", qty:1, unit:"Std.", price:0, vat:19}],
+  invCounter:1
+};
+
+/* ---------- Hilfsfunktionen ---------- */
+function esc(s){
+  return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function fmtDate(iso){
+  if(!iso) return "";
+  const [y,m,d] = iso.split("-");
+  return `${d}.${m}.${y}`;
+}
+function suggestInvNo(){
+  const y = new Date().getFullYear();
+  return `RE-${y}-${String(state.invCounter).padStart(4,"0")}`;
+}
+function toast(msg){
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._h);
+  t._h = setTimeout(()=>t.classList.remove("show"), 2600);
+}
+
+/* ---------- Speichern / Laden ---------- */
+let saveTimer;
+function save(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      $("saveState").textContent = "✓ automatisch gespeichert";
+    }catch(e){
+      $("saveState").textContent = "Speichern nicht möglich";
+    }
+  }, 300);
+}
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw) Object.assign(state, JSON.parse(raw));
+  }catch(e){/* defekte Daten ignorieren */}
+}
+
+/* ---------- Formular <-> State ---------- */
+const FIELDS = ["senderName","senderAddr","senderPhone","senderEmail","senderTax",
+  "clientName","clientAddr","invNo","invDate","serviceDate","dueDays","intro","outro",
+  "iban","bank","bic"];
+
+function fillForm(){
+  FIELDS.forEach(k => { const el = $("f_"+k); if(el) el.value = state[k] ?? ""; });
+  $("f_kleinunternehmer").checked = !!state.kleinunternehmer;
+  renderLogo();
+  renderThemeDots();
+  renderItems();
+}
+function bindForm(){
+  FIELDS.forEach(k => {
+    const el = $("f_"+k);
+    if(!el) return;
+    el.addEventListener("input", () => {
+      state[k] = el.type === "number" ? Number(el.value) : el.value;
+      save(); renderSheet();
+    });
+  });
+  $("f_kleinunternehmer").addEventListener("change", e => {
+    state.kleinunternehmer = e.target.checked;
+    save(); renderItems(); renderSheet();
+  });
+}
+
+/* ---------- Logo ---------- */
+function renderLogo(){
+  const drop = $("logoDrop");
+  drop.innerHTML = state.logo
+    ? `<img src="${state.logo}" alt="Logo"><span class="hint">Klicken zum Ändern · <a href="#" id="logoRemove">Logo entfernen</a></span>`
+    : `<span>📁 Logo hochladen (PNG/JPG, bleibt lokal)</span>`;
+  const rm = $("logoRemove");
+  if(rm) rm.addEventListener("click", e => {
+    e.preventDefault(); e.stopPropagation();
+    state.logo = ""; save(); renderLogo(); renderSheet();
+  });
+}
+$("logoDrop").addEventListener("click", ()=> $("logoInput").click());
+$("logoInput").addEventListener("change", e => {
+  const f = e.target.files[0];
+  if(!f) return;
+  if(f.size > 1024*1024){ toast("Bitte ein Logo unter 1 MB wählen."); return; }
+  const r = new FileReader();
+  r.onload = () => { state.logo = r.result; save(); renderLogo(); renderSheet(); };
+  r.readAsDataURL(f);
+});
+
+/* ---------- Farb-Themes ---------- */
+function renderThemeDots(){
+  $("themeDots").innerHTML = THEMES.map(c =>
+    `<button type="button" class="theme-dot ${c===state.accent?"sel":""}" style="background:${c}" data-c="${c}" aria-label="Farbe ${c}"></button>`
+  ).join("");
+  $("themeDots").querySelectorAll(".theme-dot").forEach(b =>
+    b.addEventListener("click", ()=>{ state.accent = b.dataset.c; save(); renderThemeDots(); renderSheet(); })
+  );
+}
+
+/* ---------- Positionen ---------- */
+function renderItems(){
+  const list = $("itemList");
+  list.innerHTML = state.items.map((it,i)=>`
+    <div class="item-row" data-i="${i}">
+      <div class="r1">
+        <div><span class="mini-label">Beschreibung</span>
+          <input data-k="desc" value="${esc(it.desc)}" placeholder="z. B. Webdesign nach Angebot #123"></div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="item-del" title="Position entfernen" ${state.items.length===1?"disabled style='opacity:.35;cursor:default'":""}>🗑</button>
+        </div>
+      </div>
+      <div class="r2">
+        <div><span class="mini-label">Menge</span><input data-k="qty" type="number" step="0.01" min="0" value="${it.qty}"></div>
+        <div><span class="mini-label">Einheit</span>
+          <select data-k="unit">
+            ${["Std.","Stück","Tag","Pauschal","km","m²","kg"].map(u=>`<option ${u===it.unit?"selected":""}>${u}</option>`).join("")}
+          </select></div>
+        <div><span class="mini-label">Einzelpreis netto €</span><input data-k="price" type="number" step="0.01" min="0" value="${it.price}"></div>
+        <div><span class="mini-label">MwSt.</span>
+          <select data-k="vat" ${state.kleinunternehmer?"disabled":""}>
+            ${[19,7,0].map(v=>`<option value="${v}" ${v===Number(it.vat)?"selected":""}>${v} %</option>`).join("")}
+          </select></div>
+      </div>
+    </div>`).join("");
+
+  list.querySelectorAll(".item-row").forEach(row => {
+    const i = Number(row.dataset.i);
+    row.querySelectorAll("input,select").forEach(el => {
+      el.addEventListener("input", ()=>{
+        const k = el.dataset.k;
+        state.items[i][k] = (k==="qty"||k==="price"||k==="vat") ? Number(el.value) : el.value;
+        save(); renderSheet();
+      });
+    });
+    row.querySelector(".item-del").addEventListener("click", ()=>{
+      if(state.items.length===1) return;
+      state.items.splice(i,1);
+      save(); renderItems(); renderSheet();
+    });
+  });
+}
+$("addItem").addEventListener("click", ()=>{
+  state.items.push({desc:"", qty:1, unit:"Std.", price:0, vat:19});
+  save(); renderItems(); renderSheet();
+});
+
+/* ---------- Berechnung ---------- */
+function calc(){
+  let net = 0;
+  const vatGroups = {};
+  state.items.forEach(it=>{
+    const line = (Number(it.qty)||0) * (Number(it.price)||0);
+    net += line;
+    if(!state.kleinunternehmer){
+      const rate = Number(it.vat)||0;
+      if(rate > 0) vatGroups[rate] = (vatGroups[rate]||0) + line * rate/100;
+    }
+  });
+  const vatTotal = Object.values(vatGroups).reduce((a,b)=>a+b,0);
+  return { net, vatGroups, vatTotal, gross: net + vatTotal };
+}
+
+/* ---------- Rechnung rendern ---------- */
+function renderSheet(){
+  const s = state, t = calc();
+  const dueDate = (()=>{
+    if(!s.invDate) return "";
+    const d = new Date(s.invDate);
+    d.setDate(d.getDate() + (Number(s.dueDays)||0));
+    return fmtDate(d.toISOString().slice(0,10));
+  })();
+
+  const senderShort = [s.senderName, ...String(s.senderAddr).split("\n")].filter(Boolean).join(" · ");
+
+  const rows = s.items.map(it=>{
+    const line = (Number(it.qty)||0)*(Number(it.price)||0);
+    return `<tr>
+      <td>${esc(it.desc)||"<span style='color:#94a3b8'>–</span>"}</td>
+      <td class="r">${(Number(it.qty)||0).toLocaleString("de-DE")} ${esc(it.unit)}</td>
+      <td class="r">${eur.format(Number(it.price)||0)}</td>
+      ${s.kleinunternehmer?"":`<td class="r">${Number(it.vat)||0} %</td>`}
+      <td class="r"><strong>${eur.format(line)}</strong></td>
+    </tr>`;
+  }).join("");
+
+  const vatRows = Object.entries(t.vatGroups)
+    .sort((a,b)=>b[0]-a[0])
+    .map(([rate,amt])=>`<div class="row"><span>zzgl. ${rate} % USt.</span><span>${eur.format(amt)}</span></div>`)
+    .join("");
+
+  $("sheet").style.setProperty("--acc", s.accent);
+  $("sheet").innerHTML = `
+    <div class="inv-top">
+      <div style="max-width:55%">
+        ${s.logo ? `<div class="inv-logo"><img src="${s.logo}" alt="Logo"></div>`
+                 : `<div class="inv-company-name">${esc(s.senderName)||"Ihr Firmenname"}</div>`}
+      </div>
+      <div class="inv-meta">
+        <table>
+          <tr><td>Rechnungsnr.</td><td><strong>${esc(s.invNo)||"–"}</strong></td></tr>
+          <tr><td>Rechnungsdatum</td><td>${fmtDate(s.invDate)||"–"}</td></tr>
+          <tr><td>Leistungsdatum</td><td>${esc(s.serviceDate)||"–"}</td></tr>
+          ${dueDate?`<tr><td>Zahlbar bis</td><td>${dueDate}</td></tr>`:""}
+        </table>
+      </div>
+    </div>
+
+    <div style="max-width:320px">
+      <div class="sender-line">${esc(senderShort)||"Absenderzeile"}</div>
+      <div class="inv-addr"><strong>${esc(s.clientName)||"Name des Kunden"}</strong>\n${esc(s.clientAddr)}</div>
+    </div>
+
+    <h1 class="inv-title">Rechnung</h1>
+    <div class="inv-intro">${esc(s.intro)}</div>
+
+    <table class="items">
+      <thead><tr>
+        <th style="width:44%">Beschreibung</th><th class="r">Menge</th><th class="r">Einzelpreis</th>
+        ${s.kleinunternehmer?"":'<th class="r">USt.</th>'}<th class="r">Gesamt</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+
+    <div class="totals">
+      <div class="row"><span>Zwischensumme (netto)</span><span>${eur.format(t.net)}</span></div>
+      ${vatRows}
+      <div class="row grand"><span>Rechnungsbetrag</span><span>${eur.format(t.gross)}</span></div>
+    </div>
+
+    ${s.kleinunternehmer?`<div class="kleinunternehmer">Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerregelung).</div>`:""}
+
+    <div class="inv-notes">${esc(s.outro)}${s.senderName?`\n${esc(s.senderName)}`:""}</div>
+
+    <div class="inv-footer">
+      <div><strong>${esc(s.senderName)}</strong>\n${esc(s.senderAddr)}</div>
+      <div>${s.senderPhone?`Tel. ${esc(s.senderPhone)}\n`:""}${esc(s.senderEmail)}\n${esc(s.senderTax)}</div>
+      <div>${s.bank?`${esc(s.bank)}\n`:""}${s.iban?`IBAN: ${esc(s.iban)}\n`:""}${s.bic?`BIC: ${esc(s.bic)}`:""}</div>
+    </div>`;
+  scaleSheet();
+}
+
+/* Vorschau responsiv skalieren */
+function scaleSheet(){
+  const sheet = $("sheet");
+  const holder = sheet.parentElement;
+  const avail = holder.clientWidth;
+  if(avail >= 794){ sheet.style.transform=""; holder.style.height=""; return; }
+  const k = avail/794;
+  sheet.style.transform = `scale(${k})`;
+  holder.style.height = (sheet.offsetHeight*k) + "px";
+  holder.style.overflow = "hidden";
+}
+window.addEventListener("resize", scaleSheet);
+
+/* ---------- Aktionen ---------- */
+function validate(){
+  const missing = [];
+  if(!state.senderName) missing.push("Firmenname");
+  if(!state.senderAddr) missing.push("Ihre Anschrift");
+  if(!state.senderTax) missing.push("Steuernummer/USt-IdNr.");
+  if(!state.clientName) missing.push("Kundenname");
+  if(!state.invNo) missing.push("Rechnungsnummer");
+  if(!state.invDate) missing.push("Rechnungsdatum");
+  if(!state.serviceDate) missing.push("Leistungsdatum");
+  return missing;
+}
+
+$("btnPdf").addEventListener("click", ()=>{
+  const missing = validate();
+  if(missing.length){
+    toast("Bitte noch ausfüllen: " + missing.join(", "));
+  }
+  const mount = $("printMount");
+  mount.innerHTML = "";
+  const clone = $("sheet").cloneNode(true);
+  clone.style.transform = "";
+  mount.appendChild(clone);
+  document.title = `Rechnung_${state.invNo||"Entwurf"}`;
+  window.print();
+  document.title = "RechnungFix – Kostenlos Rechnung schreiben online | Rechnungsgenerator";
+});
+
+$("btnNew").addEventListener("click", ()=>{
+  state.invCounter = (Number(state.invCounter)||1) + 1;
+  state.clientName = ""; state.clientAddr = "";
+  state.invNo = suggestInvNo();
+  state.invDate = todayISO();
+  state.serviceDate = "";
+  state.items = [{desc:"", qty:1, unit:"Std.", price:0, vat:19}];
+  save(); fillForm(); renderSheet();
+  toast("Neue Rechnung angelegt – Firmendaten wurden übernommen.");
+});
+
+$("btnClear").addEventListener("click", ()=>{
+  if(!confirm("Wirklich ALLE gespeicherten Daten (inkl. Firmendaten und Logo) löschen?")) return;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+});
+
+/* ---------- Modals ---------- */
+document.querySelectorAll("[data-modal]").forEach(a=>{
+  a.addEventListener("click", e=>{
+    e.preventDefault();
+    $(a.dataset.modal).classList.add("open");
+  });
+});
+document.querySelectorAll(".modal").forEach(m=>{
+  m.addEventListener("click", e=>{ if(e.target===m) m.classList.remove("open"); });
+  m.querySelectorAll("[data-close]").forEach(b=> b.addEventListener("click", ()=>m.classList.remove("open")));
+});
+
+/* ---------- Monetarisierung aktivieren ---------- */
+function initMonetization(){
+  const M = MONETIZATION;
+  // Google AdSense
+  if(M.adsenseClient){
+    const s = document.createElement("script");
+    s.async = true;
+    s.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(M.adsenseClient)}`;
+    s.crossOrigin = "anonymous";
+    document.head.appendChild(s);
+    ["adTop","adBottom"].forEach(id=>{
+      const slot = $(id);
+      slot.classList.add("active");
+      const ins = document.createElement("ins");
+      ins.className = "adsbygoogle";
+      ins.style.display = "block";
+      ins.setAttribute("data-ad-client", M.adsenseClient);
+      ins.setAttribute("data-ad-format", "auto");
+      ins.setAttribute("data-full-width-responsive", "true");
+      slot.appendChild(ins);
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    });
+  }
+  // PayPal-Unterstützung
+  if(M.paypalLink){
+    $("supportBar").classList.add("active");
+    $("supportBtn").href = M.paypalLink;
+  }
+  // Affiliate
+  if(M.affiliateUrl){
+    $("affiliateBar").classList.add("active");
+    $("affiliateBtn").href = M.affiliateUrl;
+    $("affiliateBtn").textContent = M.affiliateLabel;
+  }
+  // Impressum
+  $("imprintContent").textContent = (M.imprintName || M.imprintAddress)
+    ? `${M.imprintName}\n${M.imprintAddress}`
+    : "⚠️ Bitte in der Datei rechnung.html unter MONETIZATION.imprintName / imprintAddress Ihren Namen und Ihre ladungsfähige Anschrift eintragen (in Deutschland gesetzlich vorgeschrieben).";
+  $("imprintContact").textContent = M.contactEmail ? `E-Mail: ${M.contactEmail}` : "";
+}
+
+/* ---------- Start ---------- */
+load();
+if(!state.invNo) state.invNo = suggestInvNo();
+if(!state.invDate) state.invDate = todayISO();
+if(!state.items || !state.items.length) state.items = [{desc:"", qty:1, unit:"Std.", price:0, vat:19}];
+fillForm();
+bindForm();
+renderSheet();
+initMonetization();
+$("year").textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
