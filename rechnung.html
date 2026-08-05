@@ -1240,7 +1240,7 @@ $("btnNew").addEventListener("click",()=>{
 
 $("btnClear").addEventListener("click",()=>{
   if(!confirm("Wirklich ALLE Daten löschen – Firmendaten, Logo, Kundenliste und Archiv?")) return;
-  localStorage.removeItem(STORAGE_KEY);
+  try{ localStorage.removeItem(STORAGE_KEY); }catch(e){/* Speicher nicht verfuegbar */}
   location.reload();
 });
 
