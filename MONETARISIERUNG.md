@@ -122,9 +122,13 @@ Rechnung, Angebot, Lieferschein, Stornorechnung und Zahlungserinnerung.
 - **GiroCode**: QR-Code nach EPC-Standard, den Kunden mit der Banking-App
   scannen – IBAN, Betrag und Verwendungszweck sind sofort ausgefüllt
 - IBAN-Prüfziffernkontrolle nach Modulo 97 direkt bei der Eingabe
-- PDF-Export im DIN-A4-Format über den Druckdialog
-- **E-Rechnung als XML** im Format UBL 2.1 nach EN 16931 zum Einlesen in
-  Buchhaltungsprogramme
+- PDF-Export im DIN-A4-Format über den Druckdialog, auch mehrseitig mit
+  wiederholtem Tabellenkopf und korrekten Seitenrändern
+- **E-Rechnung als XML** im Standard XRechnung 3.0, geprüft mit dem offiziellen
+  KoSIT-Validator
+- Warnung, wenn eine Rechnungsnummer im Archiv bereits vergeben ist
+- Beträge lassen sich mit Komma eingeben („85,50“) und werden cent-genau
+  gerundet, sodass Einzelposten und Summen immer exakt zusammenpassen
 
 **Komfort**
 - Archiv: Dokumente speichern, wieder laden, duplizieren, löschen
@@ -144,11 +148,18 @@ Rechnung, Angebot, Lieferschein, Stornorechnung und Zahlungserinnerung.
 
 ## Hinweis zur E-Rechnung (XML-Export)
 
-Der XML-Export erzeugt eine strukturierte Rechnung nach UBL 2.1 / EN 16931 mit
-der Kennung für XRechnung 3.0. Die Datei wurde beim Bau auf Wohlgeformtheit und
-korrekte Beträge geprüft, **aber nicht gegen das offizielle Schematron-Regelwerk
-der KoSIT validiert**. Für Rechnungen an Behörden solltest du eine Testdatei
-einmalig durch einen kostenlosen XRechnung-Validator schicken, bevor du dich
-darauf verlässt. Für den normalen Geschäftsverkehr zwischen Unternehmen und zum
-Import in Buchhaltungssoftware reicht die Datei in aller Regel aus. Ein
-entsprechender Hinweis erscheint auch im Tool selbst nach dem Export.
+Der XML-Export erzeugt eine strukturierte Rechnung im Standard **XRechnung 3.0**
+(UBL 2.1 nach EN 16931). Für Stornorechnungen wird automatisch eine Gutschrift
+(`CreditNote`, Typcode 381) erzeugt.
+
+Die Ausgabe wurde mit dem **offiziellen Validator der KoSIT**
+(Koordinierungsstelle für IT-Standards, Konfiguration XRechnung 3.0.2) geprüft –
+in acht Varianten: Standardrechnung, Kleinunternehmer, zwei Steuersätze,
+krummer Prozentrabatt, Anzahlung, Storno, Rechnung mit 23 Positionen und ein
+Kunde in Österreich. Alle acht werden mit dem Ergebnis *ACCEPTABLE* akzeptiert
+(Schema und Schematron bestanden).
+
+Damit das gelingt, verlangt der Standard ein paar Angaben mehr als eine
+Papierrechnung: E-Mail-Adressen beider Seiten, einen Ansprechpartner mit
+Telefonnummer und eine Kundenreferenz (bei Behörden die Leitweg-ID). Fehlt
+etwas, nennt das Tool beim Export genau das fehlende Feld und markiert es.

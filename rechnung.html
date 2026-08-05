@@ -29,6 +29,7 @@
   {"@type":"Question","name":"Wie funktioniert der PDF-Download?","acceptedAnswer":{"@type":"Answer","text":"Über den Button „Als PDF speichern“ öffnet sich der Druckdialog des Browsers. Dort wählen Sie als Ziel „Als PDF speichern“ und erhalten die Rechnung pixelgenau im DIN-A4-Format."}},
   {"@type":"Question","name":"Was bedeutet die Kleinunternehmerregelung nach §19 UStG?","acceptedAnswer":{"@type":"Answer","text":"Kleinunternehmer weisen keine Umsatzsteuer aus, müssen aber einen Hinweis darauf auf der Rechnung angeben. Aktivieren Sie die Option „Kleinunternehmerregelung“, dann entfällt die Umsatzsteuer und der Pflichthinweis wird automatisch eingefügt."}},
   {"@type":"Question","name":"Was ist ein GiroCode auf der Rechnung?","acceptedAnswer":{"@type":"Answer","text":"Der GiroCode ist ein QR-Code nach dem europäischen EPC-Standard. Ihr Kunde scannt ihn mit seiner Banking-App, und Empfänger, IBAN, Betrag und Verwendungszweck sind automatisch ausgefüllt. Das reduziert Zahlendreher und beschleunigt die Zahlung."}},
+  {"@type":"Question","name":"Was ist die E-Rechnung und was macht der XML-Export?","acceptedAnswer":{"@type":"Answer","text":"Seit 2025 müssen Unternehmen in Deutschland untereinander elektronische Rechnungen empfangen können. Der XML-Export erzeugt Ihre Rechnung zusätzlich als strukturierte Datei im Standard XRechnung 3.0 (UBL 2.1 nach EN 16931), die Buchhaltungsprogramme und Behörden direkt einlesen können."}},
   {"@type":"Question","name":"Wo werden meine Daten gespeichert?","acceptedAnswer":{"@type":"Answer","text":"Ausschließlich lokal in Ihrem Browser. Es werden keine Rechnungs- oder Kundendaten an einen Server übertragen. Über „Alle Daten löschen“ entfernen Sie sämtliche Angaben jederzeit vollständig."}}
  ]
 }
@@ -228,11 +229,17 @@ footer.site .fbrand{color:#fff;font-weight:800;font-size:17px;margin-bottom:8px}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 @media print{
-  @page{size:A4;margin:0}
+  /* Die Seitenraender gehoeren an @page, nicht als Innenabstand ans Blatt –
+     sonst fehlt auf Folgeseiten jeder Rand. */
+  @page{size:A4;margin:15mm 17mm}
   body{background:#fff}
   body > *:not(#printMount){display:none !important}
   #printMount{display:block !important}
-  #printMount .sheet{box-shadow:none;width:210mm;min-height:287mm;padding:15mm 17mm;transform:none !important}
+  #printMount .sheet{box-shadow:none;width:auto;min-height:265mm;padding:0;margin:0;transform:none !important}
+  #printMount thead{display:table-header-group}
+  #printMount tr{page-break-inside:avoid;break-inside:avoid}
+  #printMount .totals,#printMount .pay-block,#printMount .inv-footer{page-break-inside:avoid;break-inside:avoid}
+  #printMount .inv-top,#printMount h1.inv-title{page-break-after:avoid;break-after:avoid}
 }
 #printMount{display:none}
 </style>
@@ -302,15 +309,17 @@ const MONETIZATION = {
         <div class="sec-body">
           <div class="field">
             <label>Logo (optional)</label>
-            <div class="logo-drop" id="logoDrop"></div>
+            <div class="logo-drop" id="logoDrop" role="button" tabindex="0" aria-label="Logo hochladen"></div>
             <input type="file" id="logoInput" accept="image/*" hidden>
           </div>
           <div class="field"><label>Firmenname / Ihr Name *</label><input id="c_name" placeholder="Max Mustermann Webdesign"></div>
           <div class="field"><label>Anschrift *</label><textarea id="c_addr" placeholder="Musterstraße 12&#10;12345 Musterstadt"></textarea></div>
+          <div class="field"><label>Land</label><select id="c_country"><option value="DE">Deutschland</option><option value="AT">Österreich</option><option value="CH">Schweiz</option><option value="LU">Luxemburg</option><option value="BE">Belgien</option><option value="NL">Niederlande</option><option value="FR">Frankreich</option><option value="IT">Italien</option><option value="PL">Polen</option><option value="DK">Dänemark</option></select></div>
           <div class="grid2">
             <div class="field"><label>Telefon</label><input id="c_phone" placeholder="+49 123 456789"></div>
             <div class="field"><label>E-Mail</label><input id="c_email" placeholder="mail@firma.de"></div>
           </div>
+          <div class="field"><label>Ansprechpartner</label><input id="c_contact" placeholder="Max Mustermann"><span class="hint">Wird für die E-Rechnung benötigt; leer bleibt der Firmenname.</span></div>
           <div class="grid2">
             <div class="field"><label>Steuernummer</label><input id="c_taxNo" placeholder="12/345/67890"></div>
             <div class="field"><label>USt-IdNr.</label><input id="c_vatId" placeholder="DE123456789"></div>
@@ -329,7 +338,10 @@ const MONETIZATION = {
             <span class="hint" id="clientHint">Gespeicherte Kunden erscheinen hier zur Auswahl.</span>
           </div>
           <div class="field"><label>Anschrift des Kunden *</label><textarea id="k_addr" placeholder="Kundenweg 1&#10;54321 Kundenstadt"></textarea></div>
+          <div class="field"><label>Land des Kunden</label><select id="k_country"><option value="DE">Deutschland</option><option value="AT">Österreich</option><option value="CH">Schweiz</option><option value="LU">Luxemburg</option><option value="BE">Belgien</option><option value="NL">Niederlande</option><option value="FR">Frankreich</option><option value="IT">Italien</option><option value="PL">Polen</option><option value="DK">Dänemark</option></select></div>
           <div class="field"><label>E-Mail des Kunden</label><input id="k_email" placeholder="kontakt@kunde.de"></div>
+          <div class="field"><label>Kundenreferenz / Leitweg-ID</label><input id="k_ref" placeholder="z. B. 04011000-1234512345-06">
+            <span class="hint">Bei Behörden die Leitweg-ID, sonst Ihre Kundennummer oder die Bestellnummer. Für die E-Rechnung Pflicht.</span></div>
         </div>
       </details>
 
@@ -337,7 +349,7 @@ const MONETIZATION = {
         <summary><span class="num">3</span> <span id="sec3Label">Rechnungsdetails</span> <span class="chev">▾</span></summary>
         <div class="sec-body">
           <div class="grid2">
-            <div class="field"><label id="lbl_no">Rechnungsnummer *</label><input id="d_no"></div>
+            <div class="field"><label id="lbl_no">Rechnungsnummer *</label><input id="d_no"><span class="hint" id="noHint"></span></div>
             <div class="field"><label id="lbl_date">Rechnungsdatum *</label><input type="date" id="d_date"></div>
           </div>
           <div class="grid2">
@@ -377,14 +389,14 @@ const MONETIZATION = {
             <div class="field"><label>Rabatt</label>
               <select id="a_discountMode"><option value="none">kein Rabatt</option><option value="percent">Prozent auf Netto</option><option value="amount">fester Betrag</option></select>
             </div>
-            <div class="field"><label>Rabatt-Wert</label><input type="number" id="a_discountValue" step="0.01" min="0" value="0"></div>
+            <div class="field"><label>Rabatt-Wert</label><input id="a_discountValue" inputmode="decimal" value="0"></div>
           </div>
-          <div class="field"><label>Bereits geleistete Anzahlung (brutto)</label><input type="number" id="a_deposit" step="0.01" min="0" value="0"></div>
+          <div class="field"><label>Bereits geleistete Anzahlung (brutto)</label><input id="a_deposit" inputmode="decimal" value="0"></div>
           <div class="grid2">
-            <div class="field"><label>Skonto (%)</label><input type="number" id="a_skontoPercent" step="0.1" min="0" value="0"></div>
+            <div class="field"><label>Skonto (%)</label><input id="a_skontoPercent" inputmode="decimal" value="0"></div>
             <div class="field"><label>Skonto-Frist (Tage)</label><input type="number" id="a_skontoDays" min="0" value="7"></div>
           </div>
-          <div class="field" id="wrap_fee"><label>Mahngebühr</label><input type="number" id="a_lateFee" step="0.01" min="0" value="0"></div>
+          <div class="field" id="wrap_fee"><label>Mahngebühr</label><input id="a_lateFee" inputmode="decimal" value="0"></div>
         </div>
       </details>
 
@@ -503,7 +515,8 @@ const MONETIZATION = {
       <details><summary>Wie funktioniert der PDF-Download?</summary><div class="a">Klicken Sie auf „Als PDF speichern“. Im Druckdialog Ihres Browsers wählen Sie als Ziel „Als PDF speichern“ – die Rechnung wird pixelgenau im DIN-A4-Format ausgegeben. Das funktioniert in Chrome, Edge, Firefox und Safari.</div></details>
       <details><summary>Was bedeutet die Kleinunternehmerregelung (§ 19 UStG)?</summary><div class="a">Kleinunternehmer weisen keine Umsatzsteuer aus, müssen aber einen Hinweis darauf angeben. Aktivieren Sie die Option „Kleinunternehmerregelung“ – der korrekte Hinweis wird automatisch eingefügt und die MwSt.-Berechnung entfällt.</div></details>
       <details><summary>Was ist der GiroCode auf der Rechnung?</summary><div class="a">Der GiroCode ist ein QR-Code nach dem europäischen EPC-Standard. Ihr Kunde scannt ihn mit seiner Banking-App, und Empfänger, IBAN, Betrag sowie Verwendungszweck sind sofort ausgefüllt. Das spart Tipparbeit und verhindert Zahlendreher. Er erscheint automatisch, sobald Sie eine gültige IBAN hinterlegt haben und in Euro abrechnen.</div></details>
-      <details><summary>Was ist die E-Rechnung und was macht der XML-Export?</summary><div class="a">Seit 2025 müssen Unternehmen in Deutschland im Geschäftsverkehr untereinander elektronische Rechnungen empfangen können. Der XML-Export erzeugt Ihre Rechnung zusätzlich als strukturierte Datei im Format UBL 2.1 nach EN 16931, die Buchhaltungsprogramme einlesen können. Wenn Sie an eine Behörde fakturieren, prüfen Sie die Datei bitte vorher mit einem kostenlosen XRechnung-Validator.</div></details>
+      <details><summary>Was ist die E-Rechnung und was macht der XML-Export?</summary><div class="a">Seit 2025 müssen Unternehmen in Deutschland im Geschäftsverkehr untereinander elektronische Rechnungen empfangen können. Der XML-Export erzeugt Ihre Rechnung zusätzlich als strukturierte Datei im Standard <strong>XRechnung 3.0</strong> (UBL 2.1 nach EN 16931). Diese Datei können Buchhaltungsprogramme und Behörden direkt einlesen. Für Stornorechnungen wird automatisch eine Gutschrift nach demselben Standard erzeugt.</div></details>
+      <details><summary>Welche Angaben braucht die E-Rechnung zusätzlich?</summary><div class="a">Der Standard verlangt mehr als eine Papierrechnung: die E-Mail-Adressen beider Seiten, einen Ansprechpartner mit Telefonnummer sowie eine Kundenreferenz. Bei Behörden ist das die Leitweg-ID, im Geschäftsverkehr genügt Ihre Kundennummer oder die Bestellnummer. Fehlt etwas, sagt Ihnen das Tool beim Export genau, welches Feld noch offen ist.</div></details>
       <details><summary>Wo werden meine Daten gespeichert?</summary><div class="a">Ausschließlich lokal in Ihrem Browser. Es werden keine Rechnungs- oder Kundendaten an einen Server übertragen. Mit „Alles löschen“ entfernen Sie sämtliche gespeicherten Angaben jederzeit vollständig. Für einen Umzug auf ein anderes Gerät nutzen Sie die Backup-Funktion.</div></details>
       <details><summary>Kann ich das Tool geschäftlich nutzen?</summary><div class="a">Ja, die Nutzung ist für private und geschäftliche Zwecke uneingeschränkt kostenlos erlaubt. Für die inhaltliche und steuerliche Richtigkeit der erstellten Dokumente sind Sie selbst verantwortlich; im Zweifel fragen Sie Ihre Steuerberatung.</div></details>
     </div>
@@ -537,8 +550,8 @@ const MONETIZATION = {
   </div>
 </footer>
 
-<div class="modal" id="imprintModal"><div class="box">
-  <button class="close" data-close>✕</button>
+<div class="modal" id="imprintModal" role="dialog" aria-modal="true" aria-label="Impressum"><div class="box">
+  <button class="close" data-close aria-label="Schließen">✕</button>
   <h2>Impressum</h2>
   <p>Angaben gemäß § 5 DDG:</p>
   <p id="imprintContent" style="white-space:pre-line"></p>
@@ -547,8 +560,8 @@ const MONETIZATION = {
   <p>Dieses Tool dient ausschließlich als Hilfsmittel zur Erstellung von Geschäftsdokumenten und stellt keine Steuer- oder Rechtsberatung dar. Für die Richtigkeit und Vollständigkeit der erstellten Dokumente ist der Nutzer selbst verantwortlich.</p>
 </div></div>
 
-<div class="modal" id="privacyModal"><div class="box">
-  <button class="close" data-close>✕</button>
+<div class="modal" id="privacyModal" role="dialog" aria-modal="true" aria-label="Datenschutzerklärung"><div class="box">
+  <button class="close" data-close aria-label="Schließen">✕</button>
   <h2>Datenschutzerklärung</h2>
   <h3>1. Verarbeitung Ihrer Dokumentdaten</h3>
   <p>Alle eingegebenen Daten (Firmendaten, Kundendaten, Positionen, Logos, Archiv) werden ausschließlich lokal in Ihrem Browser verarbeitet und im localStorage Ihres Geräts gespeichert. Eine Übertragung an unsere oder fremde Server findet nicht statt.</p>
@@ -560,15 +573,15 @@ const MONETIZATION = {
   <p>Sie haben das Recht auf Auskunft, Berichtigung und Löschung Ihrer Daten. Da alle Daten nur lokal bei Ihnen gespeichert werden, können Sie diese jederzeit selbst über „Alles löschen“ entfernen.</p>
 </div></div>
 
-<div class="modal" id="archiveModal"><div class="box">
-  <button class="close" data-close>✕</button>
+<div class="modal" id="archiveModal" role="dialog" aria-modal="true" aria-label="Archiv"><div class="box">
+  <button class="close" data-close aria-label="Schließen">✕</button>
   <h2>Archiv</h2>
   <p>Gespeicherte Dokumente. Sie liegen ausschließlich in diesem Browser – legen Sie zusätzlich Backups an.</p>
   <div id="archiveList" style="margin-top:16px"></div>
 </div></div>
 
-<div class="modal" id="backupModal"><div class="box">
-  <button class="close" data-close>✕</button>
+<div class="modal" id="backupModal" role="dialog" aria-modal="true" aria-label="Backup und Umzug"><div class="box">
+  <button class="close" data-close aria-label="Schließen">✕</button>
   <h2>Backup &amp; Umzug</h2>
   <p>Sichern Sie Firmendaten, Kundenliste und Archiv als Datei – etwa um auf einen anderen Rechner oder Browser umzuziehen.</p>
   <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px">
@@ -579,7 +592,7 @@ const MONETIZATION = {
 </div></div>
 
 <div id="printMount"></div>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 "use strict";
@@ -737,8 +750,8 @@ const DOC_TYPES = {
 function emptyDoc(type){
   const T = DOC_TYPES[type];
   return {
-    type, no:"", noAuto:true, date:todayISO(), serviceDate:"", validUntil:"", refNo:"",
-    client:{name:"",addr:"",email:""},
+    type, no:"", noAuto:true, archiveId:"", date:todayISO(), serviceDate:"", validUntil:"", refNo:"",
+    client:{name:"",addr:"",country:"DE",email:"",ref:""},
     items:[newItem()],
     intro:T.intro, outro:T.outro,
     discountMode:"none", discountValue:0, deposit:0, lateFee:0
@@ -747,7 +760,7 @@ function emptyDoc(type){
 const newItem = () => ({desc:"",qty:1,unit:"Std.",price:0,vat:19});
 
 let state = {
-  company:{name:"",addr:"",phone:"",email:"",taxNo:"",vatId:"",iban:"",bank:"",bic:"",logo:""},
+  company:{name:"",addr:"",country:"DE",phone:"",email:"",contact:"",taxNo:"",vatId:"",iban:"",bank:"",bic:"",logo:""},
   settings:{accent:THEMES[0],currency:"EUR",klein:false,dueDays:14,skontoPercent:0,skontoDays:7,qr:true},
   doc: emptyDoc("rechnung"),
   counters:{rechnung:1,angebot:1,lieferschein:1,storno:1,mahnung:1},
@@ -764,6 +777,17 @@ function money(v){
   catch(e){ return v.toFixed(2)+" "+state.settings.currency; }
 }
 function num(v){ const n=Number(v); return isFinite(n)?n:0; }
+/* Deutsche Eingaben mit Komma ("85,50") und Tausenderpunkten zuverlaessig lesen */
+function parseNum(s){
+  if(typeof s==="number") return isFinite(s)?s:0;
+  let t=String(s??"").trim().replace(/\s|€|CHF|\$|£/g,"");
+  if(!t) return 0;
+  if(t.includes(",")) t=t.replace(/\./g,"").replace(",",".");
+  const n=Number(t);
+  return isFinite(n)?n:0;
+}
+/* Zahl fuer die Anzeige im Eingabefeld: Punkt zu Komma */
+function numStr(v){ return (v===""||v==null)?"":String(v).replace(".",","); }
 function toast(msg){
   const t=$("toast"); t.textContent=msg; t.classList.add("show");
   clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),3000);
@@ -815,44 +839,60 @@ function load(){
     state.clients  = Array.isArray(p.clients)?p.clients:[];
     if(p.doc && DOC_TYPES[p.doc.type]){
       state.doc = Object.assign(emptyDoc(p.doc.type), p.doc);
-      state.doc.client = Object.assign({name:"",addr:"",email:""}, p.doc.client||{});
+      state.doc.client = Object.assign({name:"",addr:"",country:"DE",email:"",ref:""}, p.doc.client||{});
       if(!Array.isArray(state.doc.items)||!state.doc.items.length) state.doc.items=[newItem()];
     }
   }catch(e){/* defekte Daten ignorieren */}
 }
 
 /* ---------- Berechnung ---------- */
+function round2(v){ return Math.round((v+Number.EPSILON)*100)/100; }
+
+/* Alle Betraege werden auf Cent gerundet, damit die Summen exakt zu den
+   angezeigten Einzelwerten passen – das verlangt auch die E-Rechnung. */
 function calc(){
   const d=state.doc, S=state.settings, T=DOC_TYPES[d.type];
-  let netItems=0;
-  const groups={};
-  d.items.forEach(it=>{
-    const line=num(it.qty)*num(it.price);
-    netItems+=line;
-    const rate=S.klein?0:num(it.vat);
-    groups[rate]=(groups[rate]||0)+line;
-  });
+  const withTax = T.tax && !S.klein;
+
+  const lines=d.items.map(it=>({
+    desc:it.desc, qty:num(it.qty), unit:it.unit, price:num(it.price),
+    rate: withTax ? num(it.vat) : 0,
+    net: round2(num(it.qty)*num(it.price))
+  }));
+  const netItems=round2(lines.reduce((a,l)=>a+l.net,0));
+
   let discount=0;
-  if(d.discountMode==="percent") discount=netItems*num(d.discountValue)/100;
-  else if(d.discountMode==="amount") discount=Math.min(num(d.discountValue),netItems);
-  const net=netItems-discount;
-  const factor=netItems>0?net/netItems:0;
-  const vatRows=[];
-  let vatTotal=0;
-  if(T.tax && !S.klein){
-    Object.keys(groups).map(Number).sort((a,b)=>b-a).forEach(rate=>{
-      if(rate<=0) return;
-      const amt=groups[rate]*factor*rate/100;
-      vatTotal+=amt;
-      vatRows.push({rate,amt});
-    });
-  }
-  const gross=net+vatTotal;
-  const fee=T.fee?num(d.lateFee):0;
-  const deposit=num(d.deposit);
-  const due=gross+fee-deposit;
-  const skontoAmt=due*num(S.skontoPercent)/100;
-  return {netItems,discount,net,vatRows,vatTotal,gross,fee,deposit,due,skontoAmt};
+  if(d.discountMode==="percent") discount=round2(netItems*num(d.discountValue)/100);
+  else if(d.discountMode==="amount") discount=round2(Math.min(num(d.discountValue),netItems));
+
+  const rates=[...new Set(lines.map(l=>l.rate))].sort((a,b)=>b-a);
+  const groups=rates.map(rate=>({
+    rate,
+    base: round2(lines.filter(l=>l.rate===rate).reduce((a,l)=>a+l.net,0))
+  }));
+  // Rabatt anteilig auf die Steuergruppen verteilen; der Rest faellt auf die letzte,
+  // damit die Summe der Einzelrabatte exakt dem Gesamtrabatt entspricht.
+  let assigned=0;
+  groups.forEach((g,i)=>{
+    g.allowance = (i===groups.length-1)
+      ? round2(discount-assigned)
+      : round2(netItems>0 ? discount*g.base/netItems : 0);
+    assigned=round2(assigned+g.allowance);
+  });
+  groups.forEach(g=>{
+    g.taxable=round2(g.base-g.allowance);
+    g.vat=round2(g.taxable*g.rate/100);
+  });
+
+  const net=round2(groups.reduce((a,g)=>a+g.taxable,0));
+  const vatTotal=round2(groups.reduce((a,g)=>a+g.vat,0));
+  const vatRows=groups.filter(g=>g.rate>0).map(g=>({rate:g.rate,amt:g.vat}));
+  const gross=round2(net+vatTotal);
+  const fee=T.fee?round2(num(d.lateFee)):0;
+  const deposit=round2(num(d.deposit));
+  const due=round2(gross+fee-deposit);
+  const skontoAmt=round2(due*num(S.skontoPercent)/100);
+  return {lines,netItems,discount,groups,net,vatRows,vatTotal,gross,fee,deposit,due,skontoAmt};
 }
 
 /* ---------- GiroCode ---------- */
@@ -876,13 +916,15 @@ function giroPayload(){
 /* ---------- Formularbindung ---------- */
 const BIND=[
   ["c_name","company.name"],["c_addr","company.addr"],["c_phone","company.phone"],["c_email","company.email"],
+  ["c_contact","company.contact"],["c_country","company.country"],
   ["c_taxNo","company.taxNo"],["c_vatId","company.vatId"],["c_iban","company.iban"],["c_bank","company.bank"],["c_bic","company.bic"],
-  ["k_name","doc.client.name"],["k_addr","doc.client.addr"],["k_email","doc.client.email"],
+  ["k_name","doc.client.name"],["k_addr","doc.client.addr"],["k_email","doc.client.email"],["k_ref","doc.client.ref"],["k_country","doc.client.country"],
   ["d_no","doc.no"],["d_date","doc.date"],["d_serviceDate","doc.serviceDate"],["d_validUntil","doc.validUntil"],
   ["d_refNo","doc.refNo"],["d_intro","doc.intro"],["d_outro","doc.outro"],
-  ["a_discountMode","doc.discountMode"],["a_discountValue","doc.discountValue"],["a_deposit","doc.deposit"],["a_lateFee","doc.lateFee"],
+  ["a_discountMode","doc.discountMode"],["a_discountValue","doc.discountValue","num"],
+  ["a_deposit","doc.deposit","num"],["a_lateFee","doc.lateFee","num"],
   ["s_currency","settings.currency"],["d_dueDays","settings.dueDays"],
-  ["a_skontoPercent","settings.skontoPercent"],["a_skontoDays","settings.skontoDays"]
+  ["a_skontoPercent","settings.skontoPercent","num"],["a_skontoDays","settings.skontoDays"]
 ];
 const getPath = p => p.split(".").reduce((o,k)=>o[k], state);
 function setPath(p,v){
@@ -890,17 +932,21 @@ function setPath(p,v){
   ks.reduce((o,k)=>o[k], state)[last]=v;
 }
 function fillForm(){
-  BIND.forEach(([id,path])=>{ const el=$(id); if(el) el.value=getPath(path) ?? ""; });
+  BIND.forEach(([id,path,kind])=>{
+    const el=$(id); if(!el) return;
+    el.value = kind==="num" ? numStr(getPath(path)) : (getPath(path) ?? "");
+  });
   $("s_klein").checked=!!state.settings.klein;
   $("s_qr").checked=!!state.settings.qr;
-  renderLogo(); renderThemeDots(); renderItems(); renderDocTypes(); applyTypeVisibility(); renderClientList(); checkIban();
+  renderLogo(); renderThemeDots(); renderItems(); renderDocTypes(); applyTypeVisibility();
+  renderClientList(); checkIban(); checkDuplicateNo();
 }
 function bindForm(){
-  BIND.forEach(([id,path])=>{
+  BIND.forEach(([id,path,kind])=>{
     const el=$(id); if(!el) return;
     el.addEventListener("input",()=>{
-      setPath(path, el.type==="number" ? num(el.value) : el.value);
-      if(id==="d_no") state.doc.noAuto=false;
+      setPath(path, kind==="num" ? parseNum(el.value) : (el.type==="number" ? num(el.value) : el.value));
+      if(id==="d_no"){ state.doc.noAuto=false; checkDuplicateNo(); }
       if(id==="c_iban") checkIban();
       el.classList.remove("invalid");
       save(); renderSheet();
@@ -914,6 +960,13 @@ function bindForm(){
     if(c){ state.doc.client={name:c.name,addr:c.addr||"",email:c.email||""}; fillForm(); save(); renderSheet(); toast("Kundendaten übernommen."); }
   });
 }
+/* Rechnungsnummern muessen einmalig sein – vor Doppelvergabe warnen */
+function checkDuplicateNo(){
+  const h=$("noHint"), d=state.doc;
+  const dup=d.no && state.archive.some(a=>a.type===d.type && a.no===d.no && a.id!==d.archiveId);
+  h.textContent = dup ? "⚠ Diese Nummer ist im Archiv bereits vergeben" : "";
+  h.className = "hint" + (dup?" err":"");
+}
 function checkIban(){
   const v=state.company.iban, h=$("ibanHint");
   if(!v){ h.textContent=""; h.className="hint"; return; }
@@ -925,7 +978,7 @@ function checkIban(){
 /* ---------- Dokumenttypen ---------- */
 function renderDocTypes(){
   $("docTypes").innerHTML=Object.entries(DOC_TYPES).map(([k,t])=>
-    `<button type="button" data-t="${k}" class="${k===state.doc.type?"sel":""}">${t.label}</button>`).join("");
+    `<button type="button" data-t="${k}" aria-pressed="${k===state.doc.type}" class="${k===state.doc.type?"sel":""}">${t.label}</button>`).join("");
   $("docTypes").querySelectorAll("button").forEach(b=>
     b.addEventListener("click",()=>switchType(b.dataset.t)));
 }
@@ -945,7 +998,7 @@ function suggestNo(type){
 function applyTypeVisibility(){
   const T=DOC_TYPES[state.doc.type];
   $("formTitle").textContent=T.label+" – Daten";
-  $("sec3Label").textContent=T.label+" im Detail";
+  $("sec3Label").textContent="Details";
   $("lbl_no").textContent=T.noLabel+" *";
   $("lbl_date").textContent=T.dateLabel+" *";
   $("lbl_service").textContent=T.serviceLabel+" *";
@@ -978,16 +1031,16 @@ function renderItems(){
         <div><span class="mini-label">Beschreibung</span>
           <input data-k="desc" value="${esc(it.desc)}" placeholder="z. B. Webdesign nach Angebot AN-2026-0001"></div>
         <div class="item-tools">
-          <button class="up" title="nach oben" ${i===0?"disabled":""}>▲</button>
-          <button class="down" title="nach unten" ${i===n-1?"disabled":""}>▼</button>
-          <button class="del" title="entfernen" ${n===1?"disabled":""}>🗑</button>
+          <button class="up" title="nach oben" aria-label="Position ${i+1} nach oben" ${i===0?"disabled":""}>▲</button>
+          <button class="down" title="nach unten" aria-label="Position ${i+1} nach unten" ${i===n-1?"disabled":""}>▼</button>
+          <button class="del" title="entfernen" aria-label="Position ${i+1} entfernen" ${n===1?"disabled":""}>🗑</button>
         </div>
       </div>
       <div class="r2">
-        <div><span class="mini-label">Menge</span><input data-k="qty" type="number" step="0.01" value="${it.qty}"></div>
+        <div><span class="mini-label">Menge</span><input data-k="qty" inputmode="decimal" value="${esc(numStr(it.qty))}"></div>
         <div><span class="mini-label">Einheit</span><input data-k="unit" list="unitList" value="${esc(it.unit)}"></div>
-        ${T.prices?`<div><span class="mini-label">Einzelpreis netto</span><input data-k="price" type="number" step="0.01" value="${it.price}"></div>`:""}
-        ${T.prices&&T.tax?`<div><span class="mini-label">MwSt. %</span><input data-k="vat" type="number" step="0.1" list="vatList" value="${it.vat}" ${state.settings.klein?"disabled":""}></div>`:""}
+        ${T.prices?`<div><span class="mini-label">Einzelpreis netto</span><input data-k="price" inputmode="decimal" value="${esc(numStr(it.price))}"></div>`:""}
+        ${T.prices&&T.tax?`<div><span class="mini-label">MwSt. %</span><input data-k="vat" inputmode="decimal" list="vatList" value="${esc(numStr(it.vat))}" ${state.settings.klein?"disabled":""}></div>`:""}
       </div>
     </div>`).join("");
 
@@ -996,7 +1049,7 @@ function renderItems(){
     row.querySelectorAll("input").forEach(el=>{
       el.addEventListener("input",()=>{
         const k=el.dataset.k;
-        state.doc.items[i][k]=(k==="qty"||k==="price"||k==="vat")?num(el.value):el.value;
+        state.doc.items[i][k]=(k==="qty"||k==="price"||k==="vat")?parseNum(el.value):el.value;
         save(); renderSheet();
       });
     });
@@ -1021,7 +1074,7 @@ $("addItem").addEventListener("click",()=>{
 /* ---------- Farben ---------- */
 function renderThemeDots(){
   $("themeDots").innerHTML=THEMES.map(c=>
-    `<button type="button" class="theme-dot ${c===state.settings.accent?"sel":""}" style="background:${c}" data-c="${c}" aria-label="Farbe"></button>`).join("");
+    `<button type="button" class="theme-dot ${c===state.settings.accent?"sel":""}" style="background:${c}" data-c="${c}" aria-label="Akzentfarbe ${c}" aria-pressed="${c===state.settings.accent}"></button>`).join("");
   $("themeDots").querySelectorAll(".theme-dot").forEach(b=>
     b.addEventListener("click",()=>{ state.settings.accent=b.dataset.c; save(); renderThemeDots(); renderSheet(); }));
 }
@@ -1035,16 +1088,13 @@ function renderSheet(){
   const senderShort=[c.name,...String(c.addr).split("\n")].filter(Boolean).join(" · ");
 
   const cols = T.prices ? (T.tax&&!S.klein?5:4) : 3;
-  const rows=d.items.map(it=>{
-    const line=num(it.qty)*num(it.price);
-    return `<tr>
-      <td>${esc(it.desc)||"<span style='color:#94a3b8'>–</span>"}</td>
-      <td class="r">${num(it.qty).toLocaleString("de-DE")} ${esc(it.unit)}</td>
-      ${T.prices?`<td class="r">${m(num(it.price))}</td>`:""}
-      ${T.prices&&T.tax&&!S.klein?`<td class="r">${num(it.vat).toLocaleString("de-DE")} %</td>`:""}
-      ${T.prices?`<td class="r"><strong>${m(line)}</strong></td>`:""}
-    </tr>`;
-  }).join("");
+  const rows=t.lines.map(l=>`<tr>
+      <td>${esc(l.desc)||"<span style='color:#94a3b8'>–</span>"}</td>
+      <td class="r">${l.qty.toLocaleString("de-DE")} ${esc(l.unit)}</td>
+      ${T.prices?`<td class="r">${m(l.price)}</td>`:""}
+      ${T.prices&&T.tax&&!S.klein?`<td class="r">${l.rate.toLocaleString("de-DE")} %</td>`:""}
+      ${T.prices?`<td class="r"><strong>${m(l.net)}</strong></td>`:""}
+    </tr>`).join("");
 
   let totals="";
   if(T.prices){
@@ -1208,8 +1258,9 @@ $("btnSave").addEventListener("click",()=>{
   };
   const same=state.archive.findIndex(a=>a.type===entry.type&&a.no===entry.no);
   if(same>=0) state.archive[same]=entry; else state.archive.unshift(entry);
+  state.doc.archiveId=entry.id;
   rememberClient();
-  save(); renderArchive();
+  save(); renderArchive(); checkDuplicateNo();
   toast(same>=0?"Dokument im Archiv aktualisiert.":"Dokument im Archiv gespeichert.");
 });
 function rememberClient(){
@@ -1248,6 +1299,7 @@ function renderArchive(){
     el.querySelector(".load").addEventListener("click",()=>{
       const a=entry(); if(!a) return;
       state.doc=Object.assign(emptyDoc(a.snapshot.doc.type),a.snapshot.doc);
+      state.doc.archiveId=a.id;
       state.settings=Object.assign(state.settings,a.snapshot.settings);
       save(); fillForm(); renderSheet(); closeModals();
       toast("Dokument geladen.");
@@ -1257,7 +1309,7 @@ function renderArchive(){
       const type=a.snapshot.doc.type;
       state.counters[type]=(num(state.counters[type])||1)+1;
       state.doc=Object.assign(emptyDoc(type),a.snapshot.doc);
-      state.doc.no=suggestNo(type); state.doc.noAuto=true; state.doc.date=todayISO();
+      state.doc.no=suggestNo(type); state.doc.noAuto=true; state.doc.archiveId=""; state.doc.date=todayISO();
       state.settings=Object.assign(state.settings,a.snapshot.settings);
       save(); fillForm(); renderSheet(); closeModals();
       toast("Kopie mit neuer Nummer erstellt.");
@@ -1269,10 +1321,10 @@ function renderArchive(){
     });
   });
 }
-$("btnArchive").addEventListener("click",()=>{ renderArchive(); $("archiveModal").classList.add("open"); });
+$("btnArchive").addEventListener("click",()=>{ renderArchive(); openModal("archiveModal"); });
 
 /* ---------- Backup ---------- */
-$("btnBackup").addEventListener("click",()=>$("backupModal").classList.add("open"));
+$("btnBackup").addEventListener("click",()=>openModal("backupModal"));
 $("btnExportJson").addEventListener("click",()=>{
   download(`rechnungfix-backup-${todayISO()}.json`, JSON.stringify(state,null,2), "application/json");
   toast("Backup heruntergeladen.");
@@ -1298,114 +1350,164 @@ $("importInput").addEventListener("change",e=>{
 function buildUbl(){
   const c=state.company, d=state.doc, S=state.settings, t=calc();
   const x=s=>esc(s);
-  const n=v=>v.toFixed(2);
+  const n=v=>Number(v).toFixed(2);
   const cur=S.currency;
-  const addr=lines=>{
+  const credit = d.type==="storno";           // Gutschrift statt Rechnung
+  const root = credit?"CreditNote":"Invoice";
+  const ns   = credit
+    ? "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2"
+    : "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2";
+
+  const addr=(lines,country)=>{
     const p=String(lines||"").split("\n").map(s=>s.trim()).filter(Boolean);
-    const street=p[0]||"";
-    const last=p[p.length-1]||"";
-    const mm=last.match(/^(\d{4,5})\s+(.*)$/);
-    return {street, zip:mm?mm[1]:"", city:mm?mm[2]:last};
+    const last=p.length?p[p.length-1]:"";
+    const mm=last.match(/^([A-Z]{0,2}[- ]?\d{4,6})\s+(.+)$/);
+    const street=p.length>1?p[p.length-2]:(p[0]||"");
+    return {street, zip:mm?mm[1]:"", city:mm?mm[2]:last, country:country||"DE"};
   };
-  const sa=addr(c.addr), ca=addr(d.client.addr);
-  const taxCat=S.klein?"E":"S";
-  const lines=d.items.map((it,i)=>{
-    const line=num(it.qty)*num(it.price)*(t.netItems>0?t.net/t.netItems:1);
-    return `  <cac:InvoiceLine>
+  const sa=addr(c.addr,c.country), ca=addr(d.client.addr,d.client.country);
+  const cat=S.klein?"E":"S";
+  const exempt=S.klein?"<cbc:TaxExemptionReason>Kleinunternehmer gemäß § 19 UStG</cbc:TaxExemptionReason>":"";
+
+  const docLines=t.lines.map((l,i)=>`  <cac:${root}Line>
     <cbc:ID>${i+1}</cbc:ID>
-    <cbc:InvoicedQuantity unitCode="C62">${num(it.qty)}</cbc:InvoicedQuantity>
-    <cbc:LineExtensionAmount currencyID="${cur}">${n(line)}</cbc:LineExtensionAmount>
+    <cbc:${credit?"Credited":"Invoiced"}Quantity unitCode="C62">${l.qty}</cbc:${credit?"Credited":"Invoiced"}Quantity>
+    <cbc:LineExtensionAmount currencyID="${cur}">${n(l.net)}</cbc:LineExtensionAmount>
     <cac:Item>
-      <cbc:Name>${x(it.desc||"Position "+(i+1))}</cbc:Name>
+      <cbc:Name>${x(l.desc||"Position "+(i+1))}</cbc:Name>
       <cac:ClassifiedTaxCategory>
-        <cbc:ID>${taxCat}</cbc:ID>
-        <cbc:Percent>${S.klein?"0.00":n(num(it.vat))}</cbc:Percent>
+        <cbc:ID>${cat}</cbc:ID>
+        <cbc:Percent>${n(l.rate)}</cbc:Percent>
         <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
       </cac:ClassifiedTaxCategory>
     </cac:Item>
-    <cac:Price><cbc:PriceAmount currencyID="${cur}">${n(num(it.price))}</cbc:PriceAmount></cac:Price>
-  </cac:InvoiceLine>`;
-  }).join("\n");
+    <cac:Price><cbc:PriceAmount currencyID="${cur}">${n(l.price)}</cbc:PriceAmount></cac:Price>
+  </cac:${root}Line>`).join("\n");
 
-  const subtotals=(t.vatRows.length?t.vatRows:[{rate:0,amt:0}]).map(v=>`    <cac:TaxSubtotal>
-      <cbc:TaxableAmount currencyID="${cur}">${n(v.rate>0?v.amt/(v.rate/100):t.net)}</cbc:TaxableAmount>
-      <cbc:TaxAmount currencyID="${cur}">${n(v.amt)}</cbc:TaxAmount>
+  // Rabatt je Steuergruppe, damit die Bemessungsgrundlagen aufgehen
+  const allowances=t.groups.filter(g=>g.allowance>0).map(g=>`  <cac:AllowanceCharge>
+    <cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+    <cbc:AllowanceChargeReason>Rabatt</cbc:AllowanceChargeReason>
+    <cbc:Amount currencyID="${cur}">${n(g.allowance)}</cbc:Amount>
+    <cac:TaxCategory>
+      <cbc:ID>${cat}</cbc:ID>
+      <cbc:Percent>${n(g.rate)}</cbc:Percent>
+      ${exempt}
+      <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+    </cac:TaxCategory>
+  </cac:AllowanceCharge>`).join("\n");
+
+  const subtotals=t.groups.map(g=>`    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="${cur}">${n(g.taxable)}</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="${cur}">${n(g.vat)}</cbc:TaxAmount>
       <cac:TaxCategory>
-        <cbc:ID>${taxCat}</cbc:ID>
-        <cbc:Percent>${n(v.rate)}</cbc:Percent>
-        ${S.klein?"<cbc:TaxExemptionReason>Kleinunternehmer gemäß § 19 UStG</cbc:TaxExemptionReason>":""}
+        <cbc:ID>${cat}</cbc:ID>
+        <cbc:Percent>${n(g.rate)}</cbc:Percent>
+        ${exempt}
         <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
       </cac:TaxCategory>
     </cac:TaxSubtotal>`).join("\n");
 
+  const party=(name,email,addrObj,extra)=>`<cac:Party>
+    <cbc:EndpointID schemeID="EM">${x(email)}</cbc:EndpointID>
+    <cac:PostalAddress>
+      <cbc:StreetName>${x(addrObj.street)}</cbc:StreetName>
+      <cbc:CityName>${x(addrObj.city)}</cbc:CityName>
+      <cbc:PostalZone>${x(addrObj.zip)}</cbc:PostalZone>
+      <cac:Country><cbc:IdentificationCode>${addrObj.country}</cbc:IdentificationCode></cac:Country>
+    </cac:PostalAddress>
+${extra||""}    <cac:PartyLegalEntity><cbc:RegistrationName>${x(name)}</cbc:RegistrationName></cac:PartyLegalEntity>
+  </cac:Party>`;
+
+  const sellerTax=[
+    c.vatId?`    <cac:PartyTaxScheme><cbc:CompanyID>${x(c.vatId)}</cbc:CompanyID><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:PartyTaxScheme>\n`:"",
+    c.taxNo?`    <cac:PartyTaxScheme><cbc:CompanyID>${x(c.taxNo)}</cbc:CompanyID><cac:TaxScheme><cbc:ID>FC</cbc:ID></cac:TaxScheme></cac:PartyTaxScheme>\n`:""
+  ].join("");
+  const seller=party(c.name,c.email,sa,sellerTax).replace("</cac:Party>",
+`  <cac:Contact>
+      <cbc:Name>${x(c.contact||c.name)}</cbc:Name>
+      <cbc:Telephone>${x(c.phone)}</cbc:Telephone>
+      <cbc:ElectronicMail>${x(c.email)}</cbc:ElectronicMail>
+    </cac:Contact>
+  </cac:Party>`);
+
+  const payable=round2(t.gross-t.deposit);
+
   return `<?xml version="1.0" encoding="UTF-8"?>
-<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+<${root} xmlns="${ns}"
          xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
          xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
-  <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:xoev-de:kosit:standard:xrechnung_3.0</cbc:CustomizationID>
+  <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</cbc:CustomizationID>
   <cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>
   <cbc:ID>${x(d.no)}</cbc:ID>
   <cbc:IssueDate>${d.date}</cbc:IssueDate>
-  <cbc:DueDate>${addDays(d.date,S.dueDays)}</cbc:DueDate>
-  <cbc:InvoiceTypeCode>${d.type==="storno"?"381":"380"}</cbc:InvoiceTypeCode>
+${credit?"":`  <cbc:DueDate>${addDays(d.date,S.dueDays)}</cbc:DueDate>\n`}  <cbc:${root}TypeCode>${credit?"381":"380"}</cbc:${root}TypeCode>
   <cbc:DocumentCurrencyCode>${cur}</cbc:DocumentCurrencyCode>
-  <cac:AccountingSupplierParty><cac:Party>
-    <cac:PostalAddress>
-      <cbc:StreetName>${x(sa.street)}</cbc:StreetName>
-      <cbc:CityName>${x(sa.city)}</cbc:CityName>
-      <cbc:PostalZone>${x(sa.zip)}</cbc:PostalZone>
-      <cac:Country><cbc:IdentificationCode>DE</cbc:IdentificationCode></cac:Country>
-    </cac:PostalAddress>
-    ${c.vatId?`<cac:PartyTaxScheme><cbc:CompanyID>${x(c.vatId)}</cbc:CompanyID><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:PartyTaxScheme>`:""}
-    ${c.taxNo?`<cac:PartyTaxScheme><cbc:CompanyID>${x(c.taxNo)}</cbc:CompanyID><cac:TaxScheme><cbc:ID>FC</cbc:ID></cac:TaxScheme></cac:PartyTaxScheme>`:""}
-    <cac:PartyLegalEntity><cbc:RegistrationName>${x(c.name)}</cbc:RegistrationName></cac:PartyLegalEntity>
-    ${c.email?`<cac:Contact><cbc:ElectronicMail>${x(c.email)}</cbc:ElectronicMail></cac:Contact>`:""}
-  </cac:Party></cac:AccountingSupplierParty>
-  <cac:AccountingCustomerParty><cac:Party>
-    <cac:PostalAddress>
-      <cbc:StreetName>${x(ca.street)}</cbc:StreetName>
-      <cbc:CityName>${x(ca.city)}</cbc:CityName>
-      <cbc:PostalZone>${x(ca.zip)}</cbc:PostalZone>
-      <cac:Country><cbc:IdentificationCode>DE</cbc:IdentificationCode></cac:Country>
-    </cac:PostalAddress>
-    <cac:PartyLegalEntity><cbc:RegistrationName>${x(d.client.name)}</cbc:RegistrationName></cac:PartyLegalEntity>
-    ${d.client.email?`<cac:Contact><cbc:ElectronicMail>${x(d.client.email)}</cbc:ElectronicMail></cac:Contact>`:""}
-  </cac:Party></cac:AccountingCustomerParty>
-  ${c.iban?`<cac:PaymentMeans>
+  <cbc:BuyerReference>${x(d.client.ref)}</cbc:BuyerReference>
+${credit&&d.refNo?`  <cac:BillingReference><cac:InvoiceDocumentReference><cbc:ID>${x(d.refNo)}</cbc:ID></cac:InvoiceDocumentReference></cac:BillingReference>\n`:""}  <cac:AccountingSupplierParty>${seller}</cac:AccountingSupplierParty>
+  <cac:AccountingCustomerParty>${party(d.client.name,d.client.email,ca)}</cac:AccountingCustomerParty>
+${c.iban?`  <cac:PaymentMeans>
     <cbc:PaymentMeansCode>58</cbc:PaymentMeansCode>
     <cbc:PaymentID>${x(d.no)}</cbc:PaymentID>
     <cac:PayeeFinancialAccount>
       <cbc:ID>${x(String(c.iban).replace(/\s+/g,"").toUpperCase())}</cbc:ID>
       <cbc:Name>${x(c.name)}</cbc:Name>
     </cac:PayeeFinancialAccount>
-  </cac:PaymentMeans>`:""}
-  <cac:TaxTotal>
+  </cac:PaymentMeans>\n`:""}${allowances?allowances+"\n":""}  <cac:TaxTotal>
     <cbc:TaxAmount currencyID="${cur}">${n(t.vatTotal)}</cbc:TaxAmount>
 ${subtotals}
   </cac:TaxTotal>
   <cac:LegalMonetaryTotal>
-    <cbc:LineExtensionAmount currencyID="${cur}">${n(t.net)}</cbc:LineExtensionAmount>
+    <cbc:LineExtensionAmount currencyID="${cur}">${n(t.netItems)}</cbc:LineExtensionAmount>
     <cbc:TaxExclusiveAmount currencyID="${cur}">${n(t.net)}</cbc:TaxExclusiveAmount>
     <cbc:TaxInclusiveAmount currencyID="${cur}">${n(t.gross)}</cbc:TaxInclusiveAmount>
+    <cbc:AllowanceTotalAmount currencyID="${cur}">${n(t.discount)}</cbc:AllowanceTotalAmount>
     <cbc:PrepaidAmount currencyID="${cur}">${n(t.deposit)}</cbc:PrepaidAmount>
-    <cbc:PayableAmount currencyID="${cur}">${n(t.gross-t.deposit)}</cbc:PayableAmount>
+    <cbc:PayableAmount currencyID="${cur}">${n(payable)}</cbc:PayableAmount>
   </cac:LegalMonetaryTotal>
-${lines}
-</Invoice>`;
+${docLines}
+</${root}>`;
+}
+/* Zusaetzliche Pflichtfelder, die nur die E-Rechnung verlangt (XRechnung 3.0) */
+function validateXml(){
+  const c=state.company, d=state.doc, miss=[];
+  const req=(id,cond,name)=>{ const el=$(id); if(cond){ miss.push(name); if(el) el.classList.add("invalid"); } else if(el) el.classList.remove("invalid"); };
+  req("c_email",!c.email,"Ihre E-Mail");
+  req("c_phone",(String(c.phone).replace(/\D/g,"").length<3),"Ihre Telefonnummer (mind. 3 Ziffern)");
+  req("k_email",!d.client.email,"E-Mail des Kunden");
+  req("k_ref",!d.client.ref,"Kundenreferenz / Leitweg-ID");
+  return miss;
 }
 $("btnXml").addEventListener("click",()=>{
   const T=DOC_TYPES[state.doc.type];
-  if(!T.prices||!T.tax){ toast("Ein E-Rechnungs-Export ist nur für Rechnungen sinnvoll."); return; }
-  const miss=validate();
-  if(miss.length){ toast("Es fehlt noch: "+miss.join(", ")); return; }
+  if(!(state.doc.type==="rechnung"||state.doc.type==="storno")){
+    toast("Der E-Rechnungs-Export ist nur für Rechnungen und Stornorechnungen vorgesehen."); return;
+  }
+  const miss=validate().concat(validateXml());
+  if(miss.length){
+    toast("Für die E-Rechnung fehlt noch: "+miss.join(", "));
+    document.querySelectorAll("details.sec").forEach(s=>s.open=true);
+    const first=document.querySelector(".field .invalid");
+    if(first) first.scrollIntoView({block:"center",behavior:"smooth"});
+    return;
+  }
   download(`${state.doc.no||"rechnung"}.xml`, buildUbl(), "application/xml");
-  toast("XML erzeugt. Vor dem Versand an Behörden bitte mit einem XRechnung-Validator prüfen.");
+  toast("E-Rechnung erzeugt (XRechnung 3.0 / UBL 2.1).");
 });
 
 /* ---------- Modals ---------- */
-function closeModals(){ document.querySelectorAll(".modal").forEach(m=>m.classList.remove("open")); }
+let lastFocus=null;
+function openModal(id){
+  lastFocus=document.activeElement;
+  const m=$(id); m.classList.add("open");
+  const btn=m.querySelector("[data-close]"); if(btn) btn.focus();
+}
+function closeModals(){
+  document.querySelectorAll(".modal").forEach(m=>m.classList.remove("open"));
+  if(lastFocus&&lastFocus.focus){ lastFocus.focus(); lastFocus=null; }
+}
 document.querySelectorAll("[data-modal]").forEach(a=>
-  a.addEventListener("click",e=>{ e.preventDefault(); $(a.dataset.modal).classList.add("open"); }));
+  a.addEventListener("click",e=>{ e.preventDefault(); openModal(a.dataset.modal); }));
 document.querySelectorAll(".modal").forEach(m=>{
   m.addEventListener("click",e=>{ if(e.target===m) m.classList.remove("open"); });
   m.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",closeModals));
@@ -1414,6 +1516,9 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeModals(); });
 
 /* ---------- Logo-Upload ---------- */
 $("logoDrop").addEventListener("click",()=>$("logoInput").click());
+$("logoDrop").addEventListener("keydown",e=>{
+  if(e.key==="Enter"||e.key===" "){ e.preventDefault(); $("logoInput").click(); }
+});
 $("logoInput").addEventListener("change",e=>{
   const f=e.target.files[0]; if(!f) return;
   if(f.size>1024*1024){ toast("Bitte ein Logo unter 1 MB wählen."); return; }
