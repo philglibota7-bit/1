@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f17">
+<title>IP-Rechner — Subnetting, IPv6 &amp; Taschenrechner</title>
+<style>
+  :root{
+    --bg:#0b0f17; --bg2:#111827; --panel:rgba(18,24,38,.78); --panel2:rgba(28,36,54,.6);
+    --line:rgba(125,160,255,.16); --line2:rgba(125,160,255,.30);
+    --accent:#38bdf8; --accent2:#a78bfa; --ok:#34d399; --warn:#fbbf24; --bad:#f87171;
+    --txt:#e8eefc; --muted:#93a4c4; --shadow:0 20px 60px rgba(0,0,0,.55);
+    --radius:16px;
+  }
+  html[data-theme="light"]{
+    --bg:#f2f5fb; --bg2:#e6ecf7; --panel:rgba(255,255,255,.85); --panel2:rgba(240,244,252,.9);
+    --line:rgba(30,60,120,.14); --line2:rgba(30,60,120,.28);
+    --accent:#0284c7; --accent2:#7c3aed; --ok:#059669; --warn:#b45309; --bad:#dc2626;
+    --txt:#0d1526; --muted:#4a5a76; --shadow:0 18px 44px rgba(20,40,90,.14);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    background:
+      radial-gradient(1100px 700px at 12% -10%, rgba(56,189,248,.16), transparent 60%),
+      radial-gradient(900px 600px at 92% 0%, rgba(167,139,250,.16), transparent 60%),
+      var(--bg);
+    color:var(--txt); font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,sans-serif;
+    line-height:1.55; min-height:100vh; transition:background .4s,color .3s;
+  }
+  .mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .wrap{max-width:1220px;margin:0 auto;padding:0 18px 80px}
+
+  /* ---------- Header ---------- */
+  header{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);
+    background:linear-gradient(180deg,rgba(11,15,23,.92),rgba(11,15,23,.62));
+    border-bottom:1px solid var(--line)}
+  html[data-theme="light"] header{background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(255,255,255,.6))}
+  .hbar{max-width:1220px;margin:0 auto;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .logo{display:flex;align-items:center;gap:11px;font-weight:800;font-size:1.2rem;letter-spacing:.2px}
+  .logo .dot{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:1.05rem;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));color:#08111f;box-shadow:0 8px 22px rgba(56,189,248,.35)}
+  .grad{background:linear-gradient(100deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .spacer{flex:1}
+  .iconbtn{border:1px solid var(--line2);background:var(--panel2);color:var(--txt);
+    padding:8px 13px;border-radius:11px;cursor:pointer;font-size:.9rem;font-weight:600;transition:.2s}
+  .iconbtn:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
+
+  nav.tabs{max-width:1220px;margin:0 auto;padding:0 12px 10px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+  nav.tabs::-webkit-scrollbar{display:none}
+  .tab{white-space:nowrap;border:1px solid transparent;background:transparent;color:var(--muted);
+    padding:9px 15px;border-radius:11px;cursor:pointer;font-size:.93rem;font-weight:650;transition:.18s}
+  .tab:hover{color:var(--txt);background:var(--panel2)}
+  .tab.on{color:#08111f;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 8px 20px rgba(56,189,248,.28)}
+
+  /* ---------- Panels ---------- */
+  .view{display:none;animation:fade .35s ease}
+  .view.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .intro{margin:26px 0 20px}
+  .intro h1{font-size:clamp(1.5rem,3.4vw,2.15rem);font-weight:850;letter-spacing:-.4px}
+  .intro p{color:var(--muted);margin-top:6px;max-width:70ch}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:20px;box-shadow:var(--shadow);backdrop-filter:blur(10px)}
+  .card + .card{margin-top:18px}
+  .card h2{font-size:1.05rem;font-weight:750;display:flex;align-items:center;gap:9px;margin-bottom:4px}
+  .card h2 .ico{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:.85rem;
+    background:linear-gradient(135deg,rgba(56,189,248,.25),rgba(167,139,250,.25));border:1px solid var(--line2)}
+  .hint{color:var(--muted);font-size:.87rem;margin-bottom:14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:860px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  label.fl{display:block;font-size:.8rem;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:700;margin-bottom:6px}
+  input[type=text],input[type=number],select,textarea{
+    width:100%;background:var(--panel2);border:1px solid var(--line2);color:var(--txt);
+    padding:11px 13px;border-radius:11px;font-size:1rem;outline:none;transition:.18s;font-family:inherit}
+  textarea{resize:vertical;min-height:110px}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(56,189,248,.16)}
+  input.bad{border-color:var(--bad);box-shadow:0 0 0 3px rgba(248,113,113,.16)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  .row > div{flex:1;min-width:150px}
+  .btn{border:none;cursor:pointer;padding:11px 18px;border-radius:11px;font-weight:750;font-size:.95rem;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));color:#08111f;transition:.18s;
+    box-shadow:0 8px 22px rgba(56,189,248,.25)}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(56,189,248,.35)}
+  .btn.ghost{background:var(--panel2);color:var(--txt);border:1px solid var(--line2);box-shadow:none}
+  .btn.ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+  .chip{border:1px solid var(--line2);background:var(--panel2);color:var(--muted);border-radius:999px;
+    padding:5px 12px;font-size:.82rem;cursor:pointer;transition:.16s;font-weight:600}
+  .chip:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* result blocks */
+  .res{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:16px}
+  .kv{background:var(--panel2);border:1px solid var(--line);border-radius:13px;padding:12px 14px;position:relative;transition:.18s}
+  .kv:hover{border-color:var(--line2)}
+  .kv .k{font-size:.73rem;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:700}
+  .kv .v{font-size:1.06rem;font-weight:700;margin-top:3px;word-break:break-all;
+    font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
+  .kv .v.sm{font-size:.9rem}
+  .kv .cp{position:absolute;top:8px;right:8px;opacity:0;border:none;background:transparent;color:var(--muted);
+    cursor:pointer;font-size:.8rem;transition:.16s;padding:3px 5px;border-radius:6px}
+  .kv:hover .cp{opacity:1}
+  .kv .cp:hover{color:var(--accent);background:var(--panel)}
+  .accentv .v{color:var(--accent)}
+  .okv .v{color:var(--ok)}
+  .warnv .v{color:var(--warn)}
+
+  .binbox{margin-top:16px;background:var(--panel2);border:1px solid var(--line);border-radius:13px;padding:14px;overflow-x:auto}
+  .binrow{display:flex;align-items:center;gap:12px;font-size:.85rem;padding:4px 0;white-space:nowrap}
+  .binrow .lbl{width:132px;color:var(--muted);font-weight:700;flex:none;font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;padding-right:8px}
+  .bits{font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;letter-spacing:1.5px;font-size:.9rem}
+  .bits .net{color:var(--accent);font-weight:700}
+  .bits .host{color:var(--warn)}
+  .bits .sep{color:var(--muted);opacity:.5;margin:0 3px}
+
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.7px;font-weight:750;position:sticky;top:0;
+    background:var(--panel);backdrop-filter:blur(8px)}
+  tbody tr:hover{background:var(--panel2)}
+  td.mono,th.mono{font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
+  .tblwrap{margin-top:14px;max-height:460px;overflow:auto;border:1px solid var(--line);border-radius:13px}
+
+  .err{margin-top:14px;padding:11px 14px;border-radius:11px;border:1px solid rgba(248,113,113,.4);
+    background:rgba(248,113,113,.1);color:var(--bad);font-size:.9rem;font-weight:600}
+  .note{margin-top:14px;padding:11px 14px;border-radius:11px;border:1px solid var(--line2);
+    background:var(--panel2);color:var(--muted);font-size:.86rem}
+  .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:.75rem;font-weight:750;
+    border:1px solid var(--line2);background:var(--panel2)}
+  .badge.ok{color:var(--ok);border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.1)}
+  .badge.warn{color:var(--warn);border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.1)}
+  .badge.bad{color:var(--bad);border-color:rgba(248,113,113,.4);background:rgba(248,113,113,.1)}
+
+  /* ---------- Calculator ---------- */
+  .calcwrap{display:grid;grid-template-columns:1.15fr .85fr;gap:18px}
+  @media(max-width:900px){.calcwrap{grid-template-columns:1fr}}
+  .display{background:linear-gradient(160deg,var(--panel2),transparent);border:1px solid var(--line2);
+    border-radius:14px;padding:16px 18px;text-align:right;min-height:118px;display:flex;flex-direction:column;justify-content:space-between}
+  .display .expr{font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;color:var(--muted);
+    font-size:1rem;min-height:24px;word-break:break-all}
+  .display .out{font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+    font-size:clamp(1.6rem,4.5vw,2.3rem);font-weight:800;word-break:break-all;color:var(--txt)}
+  .display .out.err{color:var(--bad);font-size:1.2rem}
+  .flags{display:flex;gap:8px;justify-content:flex-start;font-size:.72rem;color:var(--muted);font-weight:750;letter-spacing:.6px}
+  .flags span{opacity:.35;transition:.2s}
+  .flags span.on{opacity:1;color:var(--accent)}
+  .keys{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:14px}
+  .keys button{border:1px solid var(--line);background:var(--panel2);color:var(--txt);border-radius:12px;
+    padding:13px 4px;font-size:.98rem;font-weight:650;cursor:pointer;transition:.13s;
+    font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
+  .keys button:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-2px)}
+  .keys button:active{transform:translateY(0) scale(.96)}
+  .keys button.fn{font-size:.85rem;color:var(--muted)}
+  .keys button.op{color:var(--accent);border-color:var(--line2)}
+  .keys button.eq{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#08111f;border:none;font-weight:850}
+  .keys button.eq:hover{color:#08111f}
+  .keys button.del{color:var(--bad);font-family:"Segoe UI",system-ui,-apple-system,sans-serif}
+  .keys button[data-k="neg"]{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;font-size:1.05rem}
+  .keys button.tog.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#08111f;border:none}
+  .keys button.tog.on:hover{color:#08111f}
+  .keys button.wide{grid-column:span 2}
+  .hist{max-height:430px;overflow:auto}
+  .hist .it{border:1px solid var(--line);background:var(--panel2);border-radius:11px;padding:9px 12px;margin-bottom:8px;cursor:pointer;transition:.16s}
+  .hist .it:hover{border-color:var(--accent)}
+  .hist .it .e{font-size:.82rem;color:var(--muted);word-break:break-all;font-family:"JetBrains Mono",ui-monospace,monospace}
+  .hist .it .r{font-size:1rem;font-weight:750;color:var(--accent);word-break:break-all;font-family:"JetBrains Mono",ui-monospace,monospace}
+  .empty{color:var(--muted);font-size:.88rem;text-align:center;padding:24px 0}
+
+  /* programmer */
+  .baserow{display:grid;grid-template-columns:70px 1fr;gap:10px;align-items:center;margin-bottom:9px}
+  .baserow .bl{font-size:.75rem;font-weight:800;color:var(--muted);letter-spacing:.8px}
+  .baserow .bv{font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;font-size:1rem;
+    background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;word-break:break-all}
+  .bitgrid{display:grid;grid-template-columns:repeat(16,1fr);column-gap:4px;row-gap:20px;margin-top:14px}
+  @media(max-width:640px){.bitgrid{grid-template-columns:repeat(8,1fr)}}
+  .bit{aspect-ratio:1;display:grid;place-items:center;border-radius:7px;border:1px solid var(--line);
+    background:var(--panel2);cursor:pointer;font-size:.8rem;font-weight:800;color:var(--muted);transition:.13s;
+    font-family:"JetBrains Mono",ui-monospace,monospace;position:relative}
+  .bit:hover{border-color:var(--accent)}
+  .bit.one{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#08111f;border-color:transparent}
+  .bit::after{content:attr(data-i);position:absolute;bottom:-13px;font-size:.55rem;color:var(--muted);opacity:.55;font-weight:600}
+  .bitgrid{margin-bottom:20px}
+
+  footer{text-align:center;color:var(--muted);font-size:.84rem;padding:40px 18px 10px}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,90px);background:var(--panel);
+    border:1px solid var(--line2);color:var(--txt);padding:11px 20px;border-radius:12px;font-weight:650;
+    box-shadow:var(--shadow);z-index:200;transition:transform .3s;backdrop-filter:blur(10px);font-size:.9rem}
+  .toast.on{transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hbar">
+    <div class="logo"><span class="dot">⛬</span><span>IP<span class="grad">Rechner</span></span></div>
+    <div class="spacer"></div>
+    <button class="iconbtn" id="themeBtn" title="Design wechseln">🌙 Design</button>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button class="tab on" data-v="subnet">Subnetz</button>
+    <button class="tab" data-v="split">Subnetting</button>
+    <button class="tab" data-v="vlsm">VLSM</button>
+    <button class="tab" data-v="conv">Konverter</button>
+    <button class="tab" data-v="ipv6">IPv6</button>
+    <button class="tab" data-v="tools">Werkzeuge</button>
+    <button class="tab" data-v="table">CIDR-Tabelle</button>
+    <button class="tab" data-v="calc">Taschenrechner</button>
+    <button class="tab" data-v="prog">Programmierer</button>
+  </nav>
+</header>
+
+<div class="wrap">
+
+<!-- ============ SUBNETZ ============ -->
+<section class="view on" id="v-subnet">
+  <div class="intro">
+    <h1>IPv4-<span class="grad">Subnetzrechner</span></h1>
+    <p>Adresse mit Präfix oder Subnetzmaske eingeben — Netz, Broadcast, Host-Bereich, Wildcard, Klasse und die Bit-Aufteilung werden sofort berechnet.</p>
+  </div>
+  <div class="card">
+    <h2><span class="ico">◈</span> Eingabe</h2>
+    <div class="hint">Erlaubt: <code class="mono">192.168.1.10/24</code>, <code class="mono">10.0.0.1 255.255.0.0</code> oder Felder getrennt.</div>
+    <div class="row">
+      <div style="flex:2">
+        <label class="fl" for="s_ip">IP-Adresse</label>
+        <input type="text" id="s_ip" class="mono" value="192.168.1.10" placeholder="192.168.1.10" autocomplete="off" spellcheck="false">
+      </div>
+      <div>
+        <label class="fl" for="s_cidr">Präfix / Maske</label>
+        <input type="text" id="s_cidr" class="mono" value="24" placeholder="24 oder 255.255.255.0" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+    <div class="chips" id="s_chips"></div>
+    <div id="s_err"></div>
+    <div class="res" id="s_res"></div>
+    <div class="binbox" id="s_bin" style="display:none"></div>
+  </div>
+</section>
+
+<!-- ============ SUBNETTING ============ -->
+<section class="view" id="v-split">
+  <div class="intro">
+    <h1>Netz <span class="grad">aufteilen</span></h1>
+    <p>Ein Netz in gleich große Subnetze zerlegen — entweder über das neue Präfix, die gewünschte Anzahl Subnetze oder die benötigten Hosts pro Subnetz.</p>
+  </div>
+  <div class="card">
+    <h2><span class="ico">⋔</span> Basisnetz &amp; Ziel</h2>
+    <div class="row">
+      <div style="flex:2">
+        <label class="fl" for="p_net">Basisnetz (CIDR)</label>
+        <input type="text" id="p_net" class="mono" value="192.168.0.0/16" placeholder="192.168.0.0/16" autocomplete="off" spellcheck="false">
+      </div>
+      <div>
+        <label class="fl" for="p_mode">Aufteilen nach</label>
+        <select id="p_mode">
+          <option value="prefix">Neues Präfix</option>
+          <option value="count">Anzahl Subnetze</option>
+          <option value="hosts">Hosts pro Subnetz</option>
+        </select>
+      </div>
+      <div>
+        <label class="fl" for="p_val">Wert</label>
+        <input type="number" id="p_val" class="mono" value="24" min="1">
+      </div>
+      <div style="flex:0 0 auto"><button class="btn" id="p_go">Berechnen</button></div>
+    </div>
+    <div id="p_err"></div>
+    <div class="res" id="p_sum"></div>
+    <div id="p_out"></div>
+  </div>
+</section>
+
+<!-- ============ VLSM ============ -->
+<section class="view" id="v-vlsm">
+  <div class="intro">
+    <h1><span class="grad">VLSM</span>-Planer</h1>
+    <p>Variable Subnetzmasken: Trage pro Abteilung die benötigten Hosts ein — die Blöcke werden größenoptimiert und lückenlos aus dem Basisnetz vergeben.</p>
+  </div>
+  <div class="card">
+    <h2><span class="ico">▦</span> Bedarf</h2>
+    <div class="row">
+      <div style="flex:2">
+        <label class="fl" for="v_net">Basisnetz (CIDR)</label>
+        <input type="text" id="v_net" class="mono" value="192.168.10.0/24" autocomplete="off" spellcheck="false">
+      </div>
+      <div style="flex:0 0 auto"><button class="btn" id="v_go">Zuteilen</button></div>
+    </div>
+    <div style="margin-top:14px">
+      <label class="fl" for="v_req">Anforderungen — eine pro Zeile: <span style="text-transform:none;letter-spacing:0">Name : Hosts</span></label>
+      <textarea id="v_req" class="mono" spellcheck="false">Vertrieb : 50
+Technik : 25
+Lager : 10
+WAN-Link : 2</textarea>
+    </div>
+    <div id="v_err"></div>
+    <div class="res" id="v_sum"></div>
+    <div id="v_out"></div>
+  </div>
+</section>
+
+<!-- ============ KONVERTER ============ -->
+<section class="view" id="v-conv">
+  <div class="intro">
+    <h1>IP-<span class="grad">Konverter</span></h1>
+    <p>Jede Darstellung ineinander umrechnen: punktierte Dezimal-Notation, Integer, Hexadezimal, Oktal und Binär. Tippe in ein beliebiges Feld.</p>
+  </div>
+  <div class="card">
+    <h2><span class="ico">⇄</span> IPv4-Darstellungen</h2>
+    <div class="grid2">
+      <div>
+        <label class="fl" for="c_dot">Punktiert dezimal</label>
+        <input type="text" id="c_dot" class="mono cin" data-b="dot" value="192.168.1.10" autocomplete="off" spellcheck="false">
+      </div>
+      <div>
+        <label class="fl" for="c_int">Integer (32 Bit)</label>
+        <input type="text" id="c_int" class="mono cin" data-b="int" autocomplete="off" spellcheck="false">
+      </div>
+      <div>
+        <label class="fl" for="c_hex">Hexadezimal</label>
+        <input type="text" id="c_hex" class="mono cin" data-b="hex" autocomplete="off" spellcheck="false">
+      </div>
+      <div>
+        <label class="fl" for="c_oct">Oktal</label>
+        <input type="text" id="c_oct" class="mono cin" data-b="oct" autocomplete="off" spellcheck="false">
+      </div>
+      <div style="grid-column:1/-1">
+        <label class="fl" for="c_bin">Binär (punktiert)</label>
+        <input type="text" id="c_bin" class="mono cin" data-b="bin" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+    <div id="c_err"></div>
+    <div class="res" id="c_extra"></div>
+  </div>
+</section>
+
+<!-- ============ IPv6 ============ -->
+<section class="view" id="v-ipv6">
+  <div class="intro">
+    <h1><span class="grad">IPv6</span>-Rechner</h1>
+    <p>Adressen normalisieren und komprimieren, Präfixe auswerten, Adressraum bestimmen — plus EUI-64-Generator aus einer MAC-Adresse.</p>
+  </div>
+  <div class="card">
+    <h2><span class="ico">⬢</span> Adresse &amp; Präfix</h2>
+    <div class="row">
+      <div style="flex:3">
+        <label class="fl" for="s6_ip">IPv6-Adresse</label>
+        <input type="text" id="s6_ip" class="mono" value="2001:db8:85a3::8a2e:370:7334/64" autocomplete="off" spellcheck="false">
+      </div>
+      <div>
+        <label class="fl" for="s6_pfx">Präfixlänge</label>
+        <input type="number" id="s6_pfx" class="mono" value="64" min="0" max="128">
+      </div>
+    </div>
+    <div class="chips" id="s6_chips"></div>
+    <div id="s6_err"></div>
+    <div class="res" id="s6_res"></div>
+  </div>
+  <div class="card">
+    <h2><span class="ico">⧉</span> MAC → EUI-64 / Link-Local</h2>
+    <div class="hint">Erzeugt den Interface-Identifier nach EUI-64 sowie die zugehörige fe80::-Adresse.</div>
+    <div class="row">
+      <div style="flex:2">
+        <label class="fl" for="m_mac">MAC-Adresse</label>
+        <input type="text" id="m_mac" class="mono" value="00:1A:2B:3C:4D:5E" autocomplete="off" spellcheck="false">
+      </div>
+      <div>
+        <label class="fl" for="m_pfx">Präfix (optional)</label>
+        <input type="text" id="m_pfx" class="mono" value="fe80::" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+    <div id="m_err"></div>
+    <div class="res" id="m_res"></div>
+  </div>
+</section>
+
+<!-- ============ WERKZEUGE ============ -->
+<section class="view" id="v-tools">
+  <div class="intro">
+    <h1>Netz-<span class="grad">Werkzeuge</span></h1>
+    <p>Zugehörigkeit prüfen, IP-Bereiche in CIDR-Blöcke zerlegen und zwei Adressen vergleichen.</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="ico">◎</span> Liegt die IP im Netz?</h2>
+    <div class="row">
+      <div><label class="fl" for="t_ip">IP-Adresse</label>
+        <input type="text" id="t_ip" class="mono" value="192.168.1.77" autocomplete="off" spellcheck="false"></div>
+      <div><label class="fl" for="t_net">Netz (CIDR)</label>
+        <input type="text" id="t_net" class="mono" value="192.168.1.0/24" autocomplete="off" spellcheck="false"></div>
+      <div style="flex:0 0 auto"><button class="btn" id="t_go">Prüfen</button></div>
+    </div>
+    <div id="t_err"></div>
+    <div class="res" id="t_res"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="ico">⟷</span> IP-Bereich → CIDR-Blöcke</h2>
+    <div class="hint">Zerlegt einen beliebigen Start-Ende-Bereich in die kleinstmögliche Menge an CIDR-Netzen.</div>
+    <div class="row">
+      <div><label class="fl" for="r_a">Start-IP</label>
+        <input type="text" id="r_a" class="mono" value="10.0.0.5" autocomplete="off" spellcheck="false"></div>
+      <div><label class="fl" for="r_b">End-IP</label>
+        <input type="text" id="r_b" class="mono" value="10.0.3.200" autocomplete="off" spellcheck="false"></div>
+      <div style="flex:0 0 auto"><button class="btn" id="r_go">Zerlegen</button></div>
+    </div>
+    <div id="r_err"></div>
+    <div class="res" id="r_sum"></div>
+    <div id="r_out"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="ico">⌘</span> Zwei Adressen vergleichen</h2>
+    <div class="hint">Findet das kleinste gemeinsame Supernetz (Summarisierung) beider Adressen.</div>
+    <div class="row">
+      <div><label class="fl" for="g_a">IP A</label>
+        <input type="text" id="g_a" class="mono" value="172.16.4.0" autocomplete="off" spellcheck="false"></div>
+      <div><label class="fl" for="g_b">IP B</label>
+        <input type="text" id="g_b" class="mono" value="172.16.7.255" autocomplete="off" spellcheck="false"></div>
+      <div style="flex:0 0 auto"><button class="btn" id="g_go">Summarisieren</button></div>
+    </div>
+    <div id="g_err"></div>
+    <div class="res" id="g_res"></div>
+  </div>
+</section>
+
+<!-- ============ CIDR-TABELLE ============ -->
+<section class="view" id="v-table">
+  <div class="intro">
+    <h1><span class="grad">CIDR</span>-Referenz</h1>
+    <p>Alle Präfixe von /0 bis /32 mit Maske, Wildcard, Adressanzahl und nutzbaren Hosts. Zeile anklicken übernimmt das Präfix in den Subnetzrechner.</p>
+  </div>
+  <div class="card">
+    <h2><span class="ico">☰</span> Präfixe /0 – /32</h2>
+    <div class="tblwrap">
+      <table id="cidrTbl">
+        <thead><tr><th>Präfix</th><th class="mono">Subnetzmaske</th><th class="mono">Wildcard</th><th>Adressen</th><th>Nutzbare Hosts</th><th>Klasse</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <h2><span class="ico">🔒</span> Reservierte Bereiche</h2>
+    <div class="tblwrap" style="max-height:none">
+      <table id="reservedTbl">
+        <thead><tr><th class="mono">Bereich</th><th>Bezeichnung</th><th>RFC</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TASCHENRECHNER ============ -->
+<section class="view" id="v-calc">
+  <div class="intro">
+    <h1>Wissenschaftlicher <span class="grad">Taschenrechner</span></h1>
+    <p>Vollständiger Funktionsumfang: Grundrechenarten, Potenzen, Wurzeln, Logarithmen, Trigonometrie (inkl. Umkehr &amp; hyperbolisch), Fakultät, Speicher und Verlauf. Tastatureingabe wird unterstützt.</p>
+  </div>
+  <div class="calcwrap">
+    <div class="card">
+      <div class="display">
+        <div class="flags">
+          <span id="f_deg" class="on">DEG</span><span id="f_rad">RAD</span>
+          <span id="f_inv">INV</span><span id="f_hyp">HYP</span><span id="f_mem">M</span>
+        </div>
+        <div class="expr" id="cExpr">&nbsp;</div>
+        <div class="out" id="cOut">0</div>
+      </div>
+      <div class="keys" id="cKeys">
+        <button class="fn" data-k="mc">MC</button>
+        <button class="fn" data-k="mr">MR</button>
+        <button class="fn" data-k="mplus">M+</button>
+        <button class="fn" data-k="mminus">M−</button>
+        <button class="fn" data-k="ms">MS</button>
+        <button class="del" data-k="ac">AC</button>
+
+        <button class="fn tog" data-k="inv">INV</button>
+        <button class="fn tog" data-k="hyp">HYP</button>
+        <button class="fn tog on" data-k="angle">DEG</button>
+        <button class="fn" data-k="ins" data-t="π">π</button>
+        <button class="fn" data-k="ins" data-t="e">e</button>
+        <button class="del" data-k="back">⌫</button>
+
+        <button class="fn" data-k="trig" data-t="sin">sin</button>
+        <button class="fn" data-k="trig" data-t="cos">cos</button>
+        <button class="fn" data-k="trig" data-t="tan">tan</button>
+        <button class="fn" data-k="ins" data-t="(">(</button>
+        <button class="fn" data-k="ins" data-t=")">)</button>
+        <button class="op" data-k="ins" data-t="÷">÷</button>
+
+        <button class="fn" data-k="ins" data-t="^2">x²</button>
+        <button class="fn" data-k="ins" data-t="^3">x³</button>
+        <button class="fn" data-k="ins" data-t="^">xʸ</button>
+        <button data-k="ins" data-t="7">7</button>
+        <button data-k="ins" data-t="8">8</button>
+        <button class="op" data-k="ins" data-t="×">×</button>
+
+        <button class="fn" data-k="ins" data-t="√(">√</button>
+        <button class="fn" data-k="ins" data-t="cbrt(">∛</button>
+        <button class="fn" data-k="ins" data-t="^(-1)">1/x</button>
+        <button data-k="ins" data-t="4">4</button>
+        <button data-k="ins" data-t="5">5</button>
+        <button class="op" data-k="ins" data-t="−">−</button>
+
+        <button class="fn" data-k="log" data-t="ln">ln</button>
+        <button class="fn" data-k="log" data-t="log">log</button>
+        <button class="fn" data-k="ins" data-t="log2(">log₂</button>
+        <button data-k="ins" data-t="1">1</button>
+        <button data-k="ins" data-t="2">2</button>
+        <button class="op" data-k="ins" data-t="+">+</button>
+
+        <button class="fn" data-k="ins" data-t="!">n!</button>
+        <button class="fn" data-k="ins" data-t="abs(">|x|</button>
+        <button class="fn" data-k="ins" data-t="%">%</button>
+        <button data-k="ins" data-t="9">9</button>
+        <button data-k="ins" data-t="6">6</button>
+        <button class="eq" data-k="eq">=</button>
+
+        <button class="fn" data-k="ins" data-t="mod(">mod</button>
+        <button class="fn" data-k="ins" data-t="ncr(">nCr</button>
+        <button class="fn" data-k="ins" data-t="npr(">nPr</button>
+        <button data-k="ins" data-t="3">3</button>
+        <button data-k="ins" data-t="0">0</button>
+        <button data-k="ins" data-t=".">.</button>
+
+        <button class="fn" data-k="ins" data-t="rand()">rnd</button>
+        <button class="fn" data-k="ins" data-t="round(">rnd()</button>
+        <button class="fn" data-k="ins" data-t="ans">Ans</button>
+        <button class="fn" data-k="neg">±</button>
+        <button class="fn wide" data-k="ins" data-t="×10^">×10ˣ</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2><span class="ico">⟲</span> Verlauf</h2>
+      <div class="hint">Eintrag anklicken, um das Ergebnis zu übernehmen.</div>
+      <div class="hist" id="cHist"><div class="empty">Noch keine Berechnungen.</div></div>
+      <button class="btn ghost" id="cHistClear" style="width:100%;margin-top:10px">Verlauf leeren</button>
+      <div class="note">
+        <strong>Unterstützt u.&nbsp;a.:</strong> sin cos tan asin acos atan sinh cosh tanh asinh acosh atanh
+        ln log log2 sqrt cbrt abs exp round floor ceil sign min max mod gcd lcm ncr npr rand — sowie
+        <code class="mono">!</code> (Fakultät), <code class="mono">%</code> (Prozent), <code class="mono">^</code> (Potenz),
+        <code class="mono">π</code>, <code class="mono">e</code>, <code class="mono">ans</code> und implizite Multiplikation wie <code class="mono">2π(3+1)</code>.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PROGRAMMIERER ============ -->
+<section class="view" id="v-prog">
+  <div class="intro">
+    <h1><span class="grad">Programmierer</span>-Rechner</h1>
+    <p>Zahlensysteme, Bit-Operationen und ein interaktives 32-Bit-Raster — direkt anschlussfähig an IP-Adressen.</p>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h2><span class="ico">#</span> Zahlensysteme</h2>
+      <div class="row">
+        <div style="flex:2"><label class="fl" for="pg_in">Wert</label>
+          <input type="text" id="pg_in" class="mono" value="3232235786" autocomplete="off" spellcheck="false"></div>
+        <div><label class="fl" for="pg_base">Basis</label>
+          <select id="pg_base">
+            <option value="10">DEC — 10</option>
+            <option value="16">HEX — 16</option>
+            <option value="8">OCT — 8</option>
+            <option value="2">BIN — 2</option>
+          </select></div>
+      </div>
+      <div style="margin-top:16px">
+        <div class="baserow"><div class="bl">DEC</div><div class="bv" id="pg_dec">–</div></div>
+        <div class="baserow"><div class="bl">HEX</div><div class="bv" id="pg_hex">–</div></div>
+        <div class="baserow"><div class="bl">OCT</div><div class="bv" id="pg_oct">–</div></div>
+        <div class="baserow"><div class="bl">BIN</div><div class="bv" id="pg_bin">–</div></div>
+        <div class="baserow"><div class="bl">IPv4</div><div class="bv" id="pg_ip">–</div></div>
+      </div>
+      <div id="pg_err"></div>
+      <div class="bitgrid" id="pg_bits"></div>
+    </div>
+    <div class="card">
+      <h2><span class="ico">⊕</span> Bit-Operationen</h2>
+      <div class="hint">Operanden dezimal, hexadezimal (<code class="mono">0x…</code>), binär (<code class="mono">0b…</code>) oder als IPv4-Adresse.</div>
+      <div class="row">
+        <div><label class="fl" for="bo_a">Operand A</label>
+          <input type="text" id="bo_a" class="mono" value="192.168.1.10" autocomplete="off" spellcheck="false"></div>
+        <div style="flex:0 0 110px"><label class="fl" for="bo_op">Operator</label>
+          <select id="bo_op">
+            <option value="and">AND</option><option value="or">OR</option>
+            <option value="xor">XOR</option><option value="not">NOT A</option>
+            <option value="shl">A ≪ B</option><option value="shr">A ≫ B</option>
+            <option value="add">A + B</option><option value="sub">A − B</option>
+          </select></div>
+        <div><label class="fl" for="bo_b">Operand B</label>
+          <input type="text" id="bo_b" class="mono" value="255.255.255.0" autocomplete="off" spellcheck="false"></div>
+      </div>
+      <div id="bo_err"></div>
+      <div class="res" id="bo_res"></div>
+    </div>
+  </div>
+</section>
+
+<footer>Alles läuft lokal im Browser — keine Daten verlassen dein Gerät. · IPv4 &amp; IPv6 · <span class="mono">v1.0</span></footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+const $=(s,r)=>(r||document).querySelector(s);
+const $$=(s,r)=>Array.from((r||document).querySelectorAll(s));
+
+/* ================= Toast + Clipboard ================= */
+let toastT=null;
+function toast(msg){
+  const t=$("#toast"); t.textContent=msg; t.classList.add("on");
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("on"),1600);
+}
+function copy(txt){
+  const done=()=>toast("Kopiert: "+txt);
+  if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(txt).then(done).catch(fallback);}
+  else fallback();
+  function fallback(){
+    const ta=document.createElement("textarea");ta.value=txt;ta.style.position="fixed";ta.style.opacity="0";
+    document.body.appendChild(ta);ta.select();try{document.execCommand("copy");done();}catch(e){}
+    document.body.removeChild(ta);
+  }
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest(".cp"); if(b) copy(b.dataset.v);
+});
+
+/* ================= Theme ================= */
+const themeBtn=$("#themeBtn");
+try{ const st=localStorage.getItem("ipr-theme"); if(st) document.documentElement.dataset.theme=st; }catch(e){}
+function syncTheme(){
+  const d=document.documentElement.dataset.theme==="dark";
+  themeBtn.textContent=d?"🌙 Design":"☀️ Design";
+}
+syncTheme();
+themeBtn.onclick=()=>{
+  const n=document.documentElement.dataset.theme==="dark"?"light":"dark";
+  document.documentElement.dataset.theme=n;
+  try{localStorage.setItem("ipr-theme",n);}catch(e){}
+  syncTheme();
+};
+
+/* ================= Tabs ================= */
+$$("#tabs .tab").forEach(t=>{
+  t.onclick=()=>{
+    $$("#tabs .tab").forEach(x=>x.classList.remove("on"));
+    t.classList.add("on");
+    $$(".view").forEach(v=>v.classList.remove("on"));
+    $("#v-"+t.dataset.v).classList.add("on");
+    window.scrollTo({top:0,behavior:"smooth"});
+    activeView=t.dataset.v;
+  };
+});
+let activeView="subnet";
+
+/* ================= IPv4 core ================= */
+const P2=[];for(let i=0;i<=32;i++)P2[i]=Math.pow(2,i);
+
+function parseIp(s){
+  if(typeof s!=="string")return null;
+  const p=s.trim().split(".");
+  if(p.length!==4)return null;
+  let n=0;
+  for(let i=0;i<4;i++){
+    if(!/^\d{1,3}$/.test(p[i]))return null;
+    const o=parseInt(p[i],10);
+    if(o>255)return null;
+    n=n*256+o;
+  }
+  return n;
+}
+function ipStr(n){
+  n=n>>>0;
+  return [Math.floor(n/16777216)%256,Math.floor(n/65536)%256,Math.floor(n/256)%256,n%256].join(".");
+}
+function maskOf(c){ return c<=0?0:(4294967296-P2[32-c]); }
+function cidrOfMask(n){
+  const b=(n>>>0).toString(2).padStart(32,"0");
+  const m=b.match(/^(1*)(0*)$/);
+  return m?m[1].length:null;
+}
+function parsePrefix(s){
+  s=(s||"").trim();
+  if(s==="")return null;
+  if(/^\/?\d{1,2}$/.test(s)){const c=parseInt(s.replace("/",""),10);return c<=32?c:null;}
+  const m=parseIp(s);
+  if(m===null)return null;
+  const c=cidrOfMask(m);
+  if(c===null)return null;
+  return c;
+}
+// "1.2.3.4/24" | "1.2.3.4 255.255.255.0" | "1.2.3.4"
+function parseCidr(s,defPrefix){
+  s=(s||"").trim().replace(/\s+/g," ");
+  let ipPart=s,pfxPart=null;
+  if(s.includes("/")){const i=s.indexOf("/");ipPart=s.slice(0,i);pfxPart=s.slice(i+1);}
+  else if(s.includes(" ")){const i=s.indexOf(" ");ipPart=s.slice(0,i);pfxPart=s.slice(i+1);}
+  const ip=parseIp(ipPart);
+  if(ip===null)return null;
+  let c;
+  if(pfxPart!==null){c=parsePrefix(pfxPart);if(c===null)return null;}
+  else c=(defPrefix===undefined?null:defPrefix);
+  if(c===null)return null;
+  return {ip:ip,cidr:c};
+}
+function netOf(ip,c){const sz=P2[32-c];return Math.floor(ip/sz)*sz;}
+function sizeOf(c){return P2[32-c];}
+function usableOf(c){ return c>=32?1:(c===31?2:sizeOf(c)-2); }
+function classOf(ip){
+  const f=Math.floor(ip/16777216);
+  if(f<128)return{n:"A",dflt:8};
+  if(f<192)return{n:"B",dflt:16};
+  if(f<224)return{n:"C",dflt:24};
+  if(f<240)return{n:"D (Multicast)",dflt:null};
+  return{n:"E (reserviert)",dflt:null};
+}
+const RESERVED=[
+  ["0.0.0.0/8","Dieses Netzwerk","RFC 1122"],
+  ["10.0.0.0/8","Privat (Klasse A)","RFC 1918"],
+  ["100.64.0.0/10","Carrier-Grade NAT","RFC 6598"],
+  ["127.0.0.0/8","Loopback","RFC 1122"],
+  ["169.254.0.0/16","Link-Local / APIPA","RFC 3927"],
+  ["172.16.0.0/12","Privat (Klasse B)","RFC 1918"],
+  ["192.0.0.0/24","IETF-Protokollzuweisungen","RFC 6890"],
+  ["192.0.2.0/24","Dokumentation TEST-NET-1","RFC 5737"],
+  ["192.88.99.0/24","6to4-Relay (veraltet)","RFC 7526"],
+  ["192.168.0.0/16","Privat (Klasse C)","RFC 1918"],
+  ["198.18.0.0/15","Benchmark-Tests","RFC 2544"],
+  ["198.51.100.0/24","Dokumentation TEST-NET-2","RFC 5737"],
+  ["203.0.113.0/24","Dokumentation TEST-NET-3","RFC 5737"],
+  ["224.0.0.0/4","Multicast","RFC 5771"],
+  ["240.0.0.0/4","Reserviert (Klasse E)","RFC 1112"],
+  ["255.255.255.255/32","Limited Broadcast","RFC 919"]
+];
+const RES_PARSED=RESERVED.map(r=>{
+  const c=parseCidr(r[0]);
+  return {lo:netOf(c.ip,c.cidr),hi:netOf(c.ip,c.cidr)+sizeOf(c.cidr)-1,name:r[1],rfc:r[2],cidr:r[0]};
+});
+function scopeOf(ip){
+  for(const r of RES_PARSED) if(ip>=r.lo&&ip<=r.hi) return r;
+  return null;
+}
+function typeBadge(ip){
+  const r=scopeOf(ip);
+  if(!r)return{txt:"Öffentlich (global routbar)",cls:"ok"};
+  const priv=/Privat|Loopback|Link-Local|Carrier/.test(r.name);
+  return{txt:r.name+" · "+r.cidr,cls:priv?"warn":"bad"};
+}
+function fmtNum(n){ return n.toLocaleString("de-DE"); }
+
+/* result card helper */
+function kv(k,v,cls,copyable){
+  const safe=String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+  const cp=copyable===false?"":'<button class="cp" data-v="'+String(v).replace(/"/g,"&quot;")+'" title="Kopieren">⧉</button>';
+  return '<div class="kv '+(cls||"")+'">'+cp+'<div class="k">'+k+'</div><div class="v'+(String(v).length>22?" sm":"")+'">'+safe+'</div></div>';
+}
+function errBox(el,msg){ el.innerHTML=msg?'<div class="err">⚠ '+msg+'</div>':""; }
+
+/* ================= 1) Subnetzrechner ================= */
+const sIp=$("#s_ip"),sCidr=$("#s_cidr"),sRes=$("#s_res"),sBin=$("#s_bin"),sErrEl=$("#s_err");
+["192.168.1.10/24","10.0.0.1/8","172.16.5.20/20","10.10.10.130/26","203.0.113.7/29","192.168.100.1/30"]
+  .forEach(x=>{
+    const b=document.createElement("button");b.className="chip";b.textContent=x;
+    b.onclick=()=>{const p=x.split("/");sIp.value=p[0];sCidr.value=p[1];calcSubnet();};
+    $("#s_chips").appendChild(b);
+  });
+
+function bitsHtml(n,cidr,mode){
+  const b=(n>>>0).toString(2).padStart(32,"0");
+  let out="";
+  for(let i=0;i<32;i++){
+    if(i>0&&i%8===0) out+='<span class="sep">.</span>';
+    const cls=mode==="plain"?"":(i<cidr?"net":"host");
+    out+= cls?'<span class="'+cls+'">'+b[i]+"</span>":b[i];
+  }
+  return out;
+}
+function binRow(lbl,n,cidr,mode){
+  return '<div class="binrow"><div class="lbl">'+lbl+'</div><div class="bits">'+bitsHtml(n,cidr,mode)+'</div></div>';
+}
+function calcSubnet(){
+  const ipRaw=sIp.value.trim(), pfxRaw=sCidr.value.trim();
+  let parsed=null;
+  if(ipRaw.includes("/")||ipRaw.includes(" ")){
+    parsed=parseCidr(ipRaw);
+    if(parsed) sCidr.value=String(parsed.cidr), sIp.value=ipStr(parsed.ip);
+  }
+  if(!parsed){
+    const ip=parseIp(ipRaw), c=parsePrefix(pfxRaw);
+    sIp.classList.toggle("bad",ip===null&&ipRaw!=="");
+    sCidr.classList.toggle("bad",c===null&&pfxRaw!=="");
+    if(ip===null||c===null){
+      sRes.innerHTML="";sBin.style.display="none";
+      errBox(sErrEl, ip===null?"Ungültige IPv4-Adresse.":"Ungültiges Präfix oder ungültige Subnetzmaske (Masken müssen zusammenhängend sein).");
+      return;
+    }
+    parsed={ip:ip,cidr:c};
+  }
+  sIp.classList.remove("bad");sCidr.classList.remove("bad");
+  errBox(sErrEl,"");
+  const ip=parsed.ip,c=parsed.cidr;
+  const mask=maskOf(c),wild=4294967295-mask;
+  const net=netOf(ip,c),size=sizeOf(c),bc=net+size-1;
+  const usable=usableOf(c);
+  const first=c>=31?net:net+1, last=c>=31?bc:bc-1;
+  const kl=classOf(ip), tb=typeBadge(ip);
+
+  sRes.innerHTML=
+    kv("Netzadresse",ipStr(net)+"/"+c,"accentv")+
+    kv("Broadcast",ipStr(bc))+
+    kv("Erster Host",ipStr(first),"okv")+
+    kv("Letzter Host",ipStr(last),"okv")+
+    kv("Nutzbare Hosts",fmtNum(usable),"accentv")+
+    kv("Adressen gesamt",fmtNum(size))+
+    kv("Subnetzmaske",ipStr(mask))+
+    kv("Wildcard-Maske",ipStr(wild))+
+    kv("Präfix","/"+c)+
+    kv("Host-Bits",(32-c)+" Bit · Netz-Bits: "+c,null,false)+
+    kv("IP als Integer",String(ip>>>0))+
+    kv("IP hexadezimal","0x"+(ip>>>0).toString(16).toUpperCase().padStart(8,"0"))+
+    kv("Klasse (historisch)",kl.n,null,false)+
+    kv("Typ",tb.txt,tb.cls==="ok"?"okv":(tb.cls==="warn"?"warnv":""),false)+
+    kv("Netzbereich",ipStr(net)+" – "+ipStr(bc),null,false);
+
+  sBin.style.display="block";
+  sBin.innerHTML=
+    binRow("IP-Adresse",ip,c)+
+    binRow("Subnetzmaske",mask,c)+
+    binRow("Netzadresse",net,c)+
+    binRow("Broadcast",bc,c)+
+    binRow("Wildcard",wild,c,"plain")+
+    '<div class="binrow" style="margin-top:8px"><div class="lbl"></div><div style="font-size:.78rem;color:var(--muted)">'+
+    '<span style="color:var(--accent);font-weight:700">Blau</span> = Netzanteil ('+c+' Bit) · '+
+    '<span style="color:var(--warn);font-weight:700">Gelb</span> = Hostanteil ('+(32-c)+' Bit)</div></div>';
+}
+sIp.addEventListener("input",calcSubnet);
+sCidr.addEventListener("input",calcSubnet);
+calcSubnet();
+
+/* ================= 2) Subnetting ================= */
+$("#p_mode").addEventListener("change",()=>{
+  const m=$("#p_mode").value;
+  $("#p_val").value = m==="prefix"?24 : m==="count"?8 : 50;
+});
+$("#p_go").onclick=splitNet;
+function splitNet(){
+  const errEl=$("#p_err"),sum=$("#p_sum"),out=$("#p_out");
+  sum.innerHTML="";out.innerHTML="";
+  const base=parseCidr($("#p_net").value);
+  if(!base){errBox(errEl,"Basisnetz ungültig — erwartet z. B. 192.168.0.0/16");return;}
+  const mode=$("#p_mode").value, val=parseInt($("#p_val").value,10);
+  if(!isFinite(val)||val<1){errBox(errEl,"Bitte einen Wert größer als 0 eingeben.");return;}
+  let np;
+  if(mode==="prefix"){ np=val; }
+  else if(mode==="count"){ np=base.cidr+Math.ceil(Math.log2(val)); }
+  else { let p=32; while(p>0&&usableOf(p)<val)p--; np=p; }
+  if(np>32){errBox(errEl,"Nicht möglich — es werden mehr Bits benötigt, als in IPv4 verfügbar sind.");return;}
+  if(np<base.cidr){errBox(errEl,"Das Ziel-Präfix /"+np+" ist größer als das Basisnetz /"+base.cidr+". Wähle ein kleineres Präfix bzw. weniger Hosts pro Subnetz.");return;}
+  errBox(errEl,"");
+  const net=netOf(base.ip,base.cidr);
+  const count=P2[np-base.cidr];
+  const sz=sizeOf(np);
+  sum.innerHTML=
+    kv("Basisnetz",ipStr(net)+"/"+base.cidr,"accentv")+
+    kv("Neues Präfix","/"+np+"  ("+ipStr(maskOf(np))+")","accentv")+
+    kv("Anzahl Subnetze",fmtNum(count))+
+    kv("Adressen je Subnetz",fmtNum(sz))+
+    kv("Nutzbare Hosts je Subnetz",fmtNum(usableOf(np)),"okv")+
+    kv("Geliehene Bits",String(np-base.cidr),null,false);
+  const LIMIT=512;
+  const show=Math.min(count,LIMIT);
+  let rows="";
+  for(let i=0;i<show;i++){
+    const n=net+i*sz, b=n+sz-1;
+    const f=np>=31?n:n+1, l=np>=31?b:b-1;
+    rows+="<tr><td>"+(i+1)+'</td><td class="mono" style="color:var(--accent)">'+ipStr(n)+"/"+np+
+      '</td><td class="mono">'+ipStr(f)+" – "+ipStr(l)+
+      '</td><td class="mono">'+ipStr(b)+"</td><td>"+fmtNum(usableOf(np))+"</td></tr>";
+  }
+  out.innerHTML='<div class="tblwrap"><table><thead><tr><th>#</th><th>Subnetz</th><th>Host-Bereich</th><th>Broadcast</th><th>Hosts</th></tr></thead><tbody>'+rows+"</tbody></table></div>"+
+    (count>LIMIT?'<div class="note">Es werden die ersten '+LIMIT+" von "+fmtNum(count)+" Subnetzen angezeigt.</div>":"");
+}
+splitNet();
+
+/* ================= 3) VLSM ================= */
+$("#v_go").onclick=vlsm;
+function vlsm(){
+  const errEl=$("#v_err"),sum=$("#v_sum"),out=$("#v_out");
+  sum.innerHTML="";out.innerHTML="";
+  const base=parseCidr($("#v_net").value);
+  if(!base){errBox(errEl,"Basisnetz ungültig — erwartet z. B. 192.168.10.0/24");return;}
+  const lines=$("#v_req").value.split("\n").map(s=>s.trim()).filter(Boolean);
+  if(!lines.length){errBox(errEl,"Bitte mindestens eine Anforderung eintragen (Name : Hosts).");return;}
+  const reqs=[];
+  for(const ln of lines){
+    const m=ln.match(/^(.*?)[:=,]\s*(\d+)\s*$/) || ln.match(/^(.*?)\s+(\d+)\s*$/);
+    if(!m){errBox(errEl,'Zeile nicht lesbar: "'+ln+'" — erwartet Format "Name : Hosts".');return;}
+    const hosts=parseInt(m[2],10);
+    if(hosts<1){errBox(errEl,'"'+m[1].trim()+'" braucht mindestens 1 Host.');return;}
+    reqs.push({name:m[1].trim()||"Subnetz",hosts:hosts});
+  }
+  reqs.sort((a,b)=>b.hosts-a.hosts);
+  const netStart=netOf(base.ip,base.cidr), netEnd=netStart+sizeOf(base.cidr)-1;
+  let cur=netStart, used=0;
+  const alloc=[];
+  for(const r of reqs){
+    let p=32; while(p>0&&usableOf(p)<r.hosts)p--;
+    const sz=sizeOf(p);
+    cur=Math.ceil(cur/sz)*sz;              // Ausrichtung
+    if(cur+sz-1>netEnd){
+      errBox(errEl,'Nicht genug Adressraum: "'+r.name+'" ('+r.hosts+" Hosts → /"+p+") passt nicht mehr in "+ipStr(netStart)+"/"+base.cidr+". Wähle ein größeres Basisnetz.");
+      return;
+    }
+    alloc.push({name:r.name,need:r.hosts,cidr:p,net:cur,size:sz});
+    used+=sz; cur+=sz;
+  }
+  errBox(errEl,"");
+  const total=sizeOf(base.cidr);
+  sum.innerHTML=
+    kv("Basisnetz",ipStr(netStart)+"/"+base.cidr,"accentv")+
+    kv("Subnetze vergeben",String(alloc.length))+
+    kv("Adressen belegt",fmtNum(used)+" von "+fmtNum(total),null,false)+
+    kv("Auslastung",(used/total*100).toFixed(1).replace(".",",")+" %",used/total>0.9?"warnv":"okv",false)+
+    kv("Frei verbleibend",fmtNum(total-used)+" Adressen",null,false)+
+    kv("Nächste freie Adresse",cur<=netEnd?ipStr(cur):"—");
+  let rows="";
+  alloc.forEach((a,i)=>{
+    const b=a.net+a.size-1;
+    const f=a.cidr>=31?a.net:a.net+1, l=a.cidr>=31?b:b-1;
+    const u=usableOf(a.cidr);
+    rows+="<tr><td>"+(i+1)+"</td><td><strong>"+a.name.replace(/</g,"&lt;")+"</strong></td><td>"+a.need+
+      '</td><td class="mono" style="color:var(--accent)">'+ipStr(a.net)+"/"+a.cidr+
+      '</td><td class="mono">'+ipStr(maskOf(a.cidr))+
+      '</td><td class="mono">'+ipStr(f)+" – "+ipStr(l)+
+      '</td><td class="mono">'+ipStr(b)+"</td><td>"+u+' <span style="color:var(--muted)">(+'+(u-a.need)+")</span></td></tr>";
+  });
+  out.innerHTML='<div class="tblwrap"><table><thead><tr><th>#</th><th>Name</th><th>Bedarf</th><th>Subnetz</th><th>Maske</th><th>Host-Bereich</th><th>Broadcast</th><th>Nutzbar</th></tr></thead><tbody>'+rows+"</tbody></table></div>";
+}
+vlsm();
+
+/* ================= 4) Konverter ================= */
+const cIns=$$(".cin"),cErr=$("#c_err"),cExtra=$("#c_extra");
+let convLock=false;
+function convFrom(el){
+  const b=el.dataset.b, v=el.value.trim();
+  if(v==="")return null;
+  try{
+    if(b==="dot")return parseIp(v);
+    if(b==="int"){ if(!/^\d+$/.test(v))return null; const n=parseInt(v,10); return n<=4294967295?n:null; }
+    if(b==="hex"){ const s=v.replace(/^0x/i,"").replace(/[.\s:]/g,""); if(!/^[0-9a-f]{1,8}$/i.test(s))return null; return parseInt(s,16); }
+    if(b==="oct"){ const s=v.replace(/^0o/i,"").replace(/[.\s]/g,""); if(!/^[0-7]{1,11}$/.test(s))return null; const n=parseInt(s,8); return n<=4294967295?n:null; }
+    if(b==="bin"){ const s=v.replace(/[.\s]/g,""); if(!/^[01]{1,32}$/.test(s))return null; return parseInt(s,2); }
+  }catch(e){return null;}
+  return null;
+}
+function convSet(n,skip){
+  convLock=true;
+  const u=n>>>0;
+  if(skip!=="dot")$("#c_dot").value=ipStr(u);
+  if(skip!=="int")$("#c_int").value=String(u);
+  if(skip!=="hex")$("#c_hex").value="0x"+u.toString(16).toUpperCase().padStart(8,"0");
+  if(skip!=="oct")$("#c_oct").value="0o"+u.toString(8);
+  if(skip!=="bin")$("#c_bin").value=(u.toString(2).padStart(32,"0").match(/.{8}/g)||[]).join(".");
+  convLock=false;
+  const kl=classOf(u),tb=typeBadge(u);
+  cExtra.innerHTML=
+    kv("Punktiert hexadezimal",ipStr(u).split(".").map(x=>parseInt(x,10).toString(16).toUpperCase().padStart(2,"0")).join("."))+
+    kv("Reverse-DNS (PTR)",ipStr(u).split(".").reverse().join(".")+".in-addr.arpa")+
+    kv("IPv6-Mapped","::ffff:"+ipStr(u))+
+    kv("Klasse",kl.n,null,false)+
+    kv("Typ",tb.txt,tb.cls==="ok"?"okv":(tb.cls==="warn"?"warnv":""),false);
+}
+cIns.forEach(el=>{
+  el.addEventListener("input",()=>{
+    if(convLock)return;
+    const n=convFrom(el);
+    el.classList.toggle("bad",n===null&&el.value.trim()!=="");
+    if(n===null){errBox(cErr,el.value.trim()===""?"":"Wert für dieses Format ungültig.");return;}
+    errBox(cErr,"");
+    cIns.forEach(x=>x.classList.remove("bad"));
+    convSet(n,el.dataset.b);
+  });
+});
+convSet(parseIp("192.168.1.10"));
+
+/* ================= 5) IPv6 ================= */
+function parseV6(str){
+  let s=(str||"").trim(); if(!s)return null;
+  s=s.replace(/^\[|\]$/g,"");
+  let zone=s.indexOf("%"); if(zone>=0)s=s.slice(0,zone);
+  // eingebettetes IPv4
+  const v4m=s.match(/(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if(v4m){
+    const n=parseIp(v4m[1]); if(n===null)return null;
+    const hi=(Math.floor(n/65536)).toString(16), lo=(n%65536).toString(16);
+    s=s.slice(0,s.length-v4m[1].length)+hi+":"+lo;
+  }
+  if((s.match(/::/g)||[]).length>1)return null;
+  let head,tail;
+  if(s.includes("::")){
+    const parts=s.split("::");
+    head=parts[0]?parts[0].split(":"):[];
+    tail=parts[1]?parts[1].split(":"):[];
+    if(head.length+tail.length>7)return null;
+  }else{
+    head=s.split(":"); tail=[];
+    if(head.length!==8)return null;
+  }
+  const groups=[];
+  const push=g=>{ if(!/^[0-9a-f]{1,4}$/i.test(g))throw 0; groups.push(parseInt(g,16)); };
+  try{
+    head.forEach(push);
+    const fill=8-head.length-tail.length;
+    for(let i=0;i<fill;i++)groups.push(0);
+    tail.forEach(push);
+  }catch(e){return null;}
+  if(groups.length!==8)return null;
+  return groups;
+}
+function v6Big(g){ let n=0n; for(const x of g) n=(n<<16n)|BigInt(x); return n; }
+function bigV6(n){ const out=[]; for(let i=0;i<8;i++) out.push(Number((n>>BigInt(16*(7-i)))&0xffffn)); return out; }
+function v6Full(g){ return g.map(x=>x.toString(16).padStart(4,"0")).join(":"); }
+function v6Compress(g){
+  const h=g.map(x=>x.toString(16));
+  let bi=-1,bl=0,i=0;
+  while(i<8){
+    if(g[i]===0){let j=i;while(j<8&&g[j]===0)j++;if(j-i>bl){bl=j-i;bi=i;}i=j;}else i++;
+  }
+  if(bl<2)return h.join(":");
+  const a=h.slice(0,bi).join(":"), b=h.slice(bi+bl).join(":");
+  return a+"::"+b;
+}
+const s6ip=$("#s6_ip"),s6pfx=$("#s6_pfx");
+["2001:db8:85a3::8a2e:370:7334/64","fe80::1/10","::1/128","2001:db8::/32","fd00:1234::/48","ff02::1/16"]
+ .forEach(x=>{
+   const b=document.createElement("button");b.className="chip";b.textContent=x;
+   b.onclick=()=>{const i=x.lastIndexOf("/");s6ip.value=x.slice(0,i);s6pfx.value=x.slice(i+1);calcV6();};
+   $("#s6_chips").appendChild(b);
+ });
+function v6Type(g){
+  const f=g[0];
+  if(g.every(x=>x===0))return{t:"Unspecified (::)",c:"warn"};
+  if(g.slice(0,7).every(x=>x===0)&&g[7]===1)return{t:"Loopback (::1)",c:"warn"};
+  if((f&0xffc0)===0xfe80)return{t:"Link-Local (fe80::/10)",c:"warn"};
+  if((f&0xfe00)===0xfc00)return{t:"Unique Local — ULA (fc00::/7)",c:"warn"};
+  if((f&0xff00)===0xff00)return{t:"Multicast (ff00::/8)",c:"bad"};
+  if(f===0x2001&&g[1]===0x0db8)return{t:"Dokumentation (2001:db8::/32)",c:"bad"};
+  if((f&0xe000)===0x2000)return{t:"Global Unicast (2000::/3)",c:"ok"};
+  return{t:"Reserviert / sonstig",c:"bad"};
+}
+function calcV6(){
+  const errEl=$("#s6_err"),res=$("#s6_res");
+  let raw=s6ip.value.trim(),pfx=parseInt(s6pfx.value,10);
+  if(raw.includes("/")){const i=raw.lastIndexOf("/");const p=parseInt(raw.slice(i+1),10);
+    if(isFinite(p)&&p>=0&&p<=128){pfx=p;s6pfx.value=String(p);}
+    raw=raw.slice(0,i);s6ip.value=raw;}
+  const g=parseV6(raw);
+  s6ip.classList.toggle("bad",g===null&&raw!=="");
+  if(g===null){res.innerHTML="";errBox(errEl,"Ungültige IPv6-Adresse.");return;}
+  if(!isFinite(pfx)||pfx<0||pfx>128){res.innerHTML="";errBox(errEl,"Präfixlänge muss zwischen 0 und 128 liegen.");return;}
+  errBox(errEl,"");
+  const n=v6Big(g);
+  const hostBits=BigInt(128-pfx);
+  const mask=hostBits===128n?0n:(((1n<<128n)-1n)^((1n<<hostBits)-1n));
+  const net=n&mask;
+  const last=net|((1n<<hostBits)-1n);
+  const total=1n<<hostBits;
+  const ty=v6Type(g);
+  const netG=bigV6(net),lastG=bigV6(last);
+  res.innerHTML=
+    kv("Komprimiert",v6Compress(g),"accentv")+
+    kv("Vollständig",v6Full(g))+
+    kv("Netzpräfix",v6Compress(netG)+"/"+pfx,"accentv")+
+    kv("Erste Adresse",v6Compress(netG))+
+    kv("Letzte Adresse",v6Compress(lastG))+
+    kv("Adressen im Präfix",total.toLocaleString("de-DE"),"okv",false)+
+    kv("Präfixlänge","/"+pfx+" · "+(128-pfx)+" Host-Bits",null,false)+
+    kv("Typ",ty.t,ty.c==="ok"?"okv":(ty.c==="warn"?"warnv":""),false)+
+    kv("Interface-ID",v6Compress(bigV6(n&((1n<<64n)-1n))).replace(/^::/,"")||"0",null,false)+
+    kv("Reverse-DNS (PTR)",v6Full(g).replace(/:/g,"").split("").reverse().join(".")+".ip6.arpa")+
+    kv("Als Dezimalzahl",n.toString())+
+    kv("Als Hexzahl","0x"+n.toString(16).toUpperCase());
+}
+s6ip.addEventListener("input",calcV6);
+s6pfx.addEventListener("input",calcV6);
+calcV6();
+
+/* MAC → EUI-64 */
+function calcMac(){
+  const errEl=$("#m_err"),res=$("#m_res");
+  const raw=$("#m_mac").value.trim();
+  const hex=raw.replace(/[^0-9a-f]/gi,"");
+  if(hex.length!==12){res.innerHTML="";errBox(errEl,raw?"MAC-Adresse muss 12 Hex-Zeichen haben (z. B. 00:1A:2B:3C:4D:5E).":"");return;}
+  errBox(errEl,"");
+  const b=[];for(let i=0;i<12;i+=2)b.push(parseInt(hex.substr(i,2),16));
+  const flipped=b[0]^0x02;
+  const eui=[flipped,b[1],b[2],0xff,0xfe,b[3],b[4],b[5]];
+  const iid=[];
+  for(let i=0;i<8;i+=2) iid.push(((eui[i]<<8)|eui[i+1]).toString(16));
+  const pfxRaw=$("#m_pfx").value.trim()||"fe80::";
+  const pg=parseV6(pfxRaw.replace(/\/\d+$/,""));
+  let full="—";
+  if(pg){ const g=pg.slice(0,4).concat(iid.map(x=>parseInt(x,16))); full=v6Compress(g); }
+  res.innerHTML=
+    kv("MAC (normalisiert)",b.map(x=>x.toString(16).padStart(2,"0").toUpperCase()).join(":"))+
+    kv("EUI-64 Interface-ID",iid.join(":"),"accentv")+
+    kv("Link-Local","fe80::"+iid.join(":"),"okv")+
+    kv("Mit Präfix "+pfxRaw,full)+
+    kv("U/L-Bit gekippt","0x"+b[0].toString(16).padStart(2,"0")+" → 0x"+flipped.toString(16).padStart(2,"0"),null,false)+
+    kv("Hersteller-OUI",b.slice(0,3).map(x=>x.toString(16).padStart(2,"0").toUpperCase()).join("-"));
+}
+$("#m_mac").addEventListener("input",calcMac);
+$("#m_pfx").addEventListener("input",calcMac);
+calcMac();
+
+/* ================= 6) Werkzeuge ================= */
+$("#t_go").onclick=checkIn;
+["#t_ip","#t_net"].forEach(s=>$(s).addEventListener("input",checkIn));
+function checkIn(){
+  const errEl=$("#t_err"),res=$("#t_res");
+  const ip=parseIp($("#t_ip").value),net=parseCidr($("#t_net").value);
+  if(ip===null||!net){res.innerHTML="";errBox(errEl,ip===null?"Ungültige IP-Adresse.":"Ungültiges Netz — erwartet z. B. 192.168.1.0/24");return;}
+  errBox(errEl,"");
+  const n=netOf(net.ip,net.cidr),sz=sizeOf(net.cidr),b=n+sz-1;
+  const inside=ip>=n&&ip<=b;
+  const isNet=ip===n&&net.cidr<31, isBc=ip===b&&net.cidr<31;
+  res.innerHTML=
+    kv("Ergebnis",inside?"✔ IP liegt im Netz":"✘ IP liegt außerhalb",inside?"okv":"",false)+
+    kv("Geprüftes Netz",ipStr(n)+"/"+net.cidr,"accentv")+
+    kv("Netzbereich",ipStr(n)+" – "+ipStr(b),null,false)+
+    kv("Rolle der IP",isNet?"Netzadresse (nicht vergebbar)":isBc?"Broadcast (nicht vergebbar)":inside?"Gültige Host-Adresse":"Außerhalb des Netzes",isNet||isBc?"warnv":(inside?"okv":""),false)+
+    kv("Position im Netz",inside?("Host Nr. "+fmtNum(ip-n)+" von "+fmtNum(sz-1)):"—",null,false)+
+    kv("Abstand zur Netzadresse",fmtNum(Math.abs(ip-n))+" Adressen",null,false);
+}
+checkIn();
+
+function rangeToCidrs(start,end){
+  const out=[];let s=start,guard=0;
+  while(s<=end&&guard++<10000){
+    let c=32;
+    while(c>0){
+      const sz=P2[32-(c-1)];
+      if(s%sz!==0)break;
+      if(s+sz-1>end)break;
+      c--;
+    }
+    out.push({net:s,cidr:c});
+    s+=sizeOf(c);
+  }
+  return out;
+}
+$("#r_go").onclick=doRange;
+["#r_a","#r_b"].forEach(s=>$(s).addEventListener("input",doRange));
+function doRange(){
+  const errEl=$("#r_err"),sum=$("#r_sum"),out=$("#r_out");
+  const a=parseIp($("#r_a").value),b=parseIp($("#r_b").value);
+  if(a===null||b===null){sum.innerHTML="";out.innerHTML="";errBox(errEl,"Beide Adressen müssen gültige IPv4-Adressen sein.");return;}
+  if(a>b){sum.innerHTML="";out.innerHTML="";errBox(errEl,"Die Start-IP muss kleiner oder gleich der End-IP sein.");return;}
+  errBox(errEl,"");
+  const list=rangeToCidrs(a,b);
+  sum.innerHTML=
+    kv("Bereich",ipStr(a)+" – "+ipStr(b),"accentv",false)+
+    kv("Adressen im Bereich",fmtNum(b-a+1))+
+    kv("Benötigte CIDR-Blöcke",String(list.length),"okv",false)+
+    kv("Größter Block","/"+Math.min.apply(null,list.map(x=>x.cidr)),null,false);
+  let rows="";
+  list.forEach((x,i)=>{
+    const e=x.net+sizeOf(x.cidr)-1;
+    rows+="<tr><td>"+(i+1)+'</td><td class="mono" style="color:var(--accent)">'+ipStr(x.net)+"/"+x.cidr+
+      '</td><td class="mono">'+ipStr(maskOf(x.cidr))+'</td><td class="mono">'+ipStr(x.net)+" – "+ipStr(e)+
+      "</td><td>"+fmtNum(sizeOf(x.cidr))+"</td></tr>";
+  });
+  out.innerHTML='<div class="tblwrap"><table><thead><tr><th>#</th><th>CIDR</th><th>Maske</th><th>Bereich</th><th>Adressen</th></tr></thead><tbody>'+rows+"</tbody></table></div>";
+}
+doRange();
+
+$("#g_go").onclick=doSummary;
+["#g_a","#g_b"].forEach(s=>$(s).addEventListener("input",doSummary));
+function doSummary(){
+  const errEl=$("#g_err"),res=$("#g_res");
+  const a=parseIp($("#g_a").value),b=parseIp($("#g_b").value);
+  if(a===null||b===null){res.innerHTML="";errBox(errEl,"Beide Adressen müssen gültige IPv4-Adressen sein.");return;}
+  errBox(errEl,"");
+  let c=32;
+  while(c>0&&netOf(a,c)!==netOf(b,c))c--;
+  const n=netOf(a,c),sz=sizeOf(c),bc=n+sz-1;
+  const xor=(a^b)>>>0;
+  res.innerHTML=
+    kv("Gemeinsames Supernetz",ipStr(n)+"/"+c,"accentv")+
+    kv("Subnetzmaske",ipStr(maskOf(c)))+
+    kv("Bereich",ipStr(n)+" – "+ipStr(bc),null,false)+
+    kv("Gemeinsame Bits",c+" von 32",null,false)+
+    kv("Adressen im Supernetz",fmtNum(sz),null,false)+
+    kv("Differenz A↔B",fmtNum(Math.abs(a-b))+" Adressen",null,false)+
+    kv("XOR (A ⊕ B)",ipStr(xor))+
+    kv("Gleiches /24?",netOf(a,24)===netOf(b,24)?"Ja":"Nein",netOf(a,24)===netOf(b,24)?"okv":"warnv",false);
+}
+doSummary();
+
+/* ================= 7) CIDR-Tabelle ================= */
+(function(){
+  const tb=$("#cidrTbl tbody");
+  let h="";
+  for(let c=0;c<=32;c++){
+    const kls=c===8?"A":c===16?"B":c===24?"C":"";
+    h+='<tr data-c="'+c+'" style="cursor:pointer"><td class="mono" style="color:var(--accent);font-weight:700">/'+c+
+      '</td><td class="mono">'+ipStr(maskOf(c))+
+      '</td><td class="mono">'+ipStr(4294967295-maskOf(c))+
+      "</td><td>"+fmtNum(sizeOf(c))+
+      "</td><td>"+fmtNum(usableOf(c))+
+      "</td><td>"+(kls?'<span class="badge">Klasse '+kls+"</span>":"")+"</td></tr>";
+  }
+  tb.innerHTML=h;
+  tb.addEventListener("click",e=>{
+    const tr=e.target.closest("tr"); if(!tr)return;
+    sCidr.value=tr.dataset.c; calcSubnet();
+    $$("#tabs .tab").forEach(x=>x.classList.remove("on"));
+    $('#tabs .tab[data-v="subnet"]').classList.add("on");
+    $$(".view").forEach(v=>v.classList.remove("on"));
+    $("#v-subnet").classList.add("on");
+    window.scrollTo({top:0,behavior:"smooth"});
+    toast("Präfix /"+tr.dataset.c+" übernommen");
+  });
+  const rt=$("#reservedTbl tbody");
+  rt.innerHTML=RESERVED.map(r=>'<tr><td class="mono" style="color:var(--accent)">'+r[0]+"</td><td>"+r[1]+'</td><td><span class="badge">'+r[2]+"</span></td></tr>").join("");
+})();
+
+/* ================= 8) Wissenschaftlicher Taschenrechner ================= */
+const CST={pi:Math.PI,π:Math.PI,e:Math.E,tau:Math.PI*2,phi:(1+Math.sqrt(5))/2,inf:Infinity};
+let angleDeg=true, memory=0, ansVal=0;
+
+function toRad(x){return angleDeg?x*Math.PI/180:x;}
+function fromRad(x){return angleDeg?x*180/Math.PI:x;}
+function fact(n){
+  if(n<0||Math.floor(n)!==n)return gamma(n+1);
+  if(n>170)return Infinity;
+  let r=1;for(let i=2;i<=n;i++)r*=i;return r;
+}
+function gamma(z){ // Lanczos
+  if(z<0.5)return Math.PI/(Math.sin(Math.PI*z)*gamma(1-z));
+  z-=1;
+  const g=7,C=[0.99999999999980993,676.5203681218851,-1259.1392167224028,771.32342877765313,
+    -176.61502916214059,12.507343278686905,-0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];
+  let x=C[0];
+  for(let i=1;i<g+2;i++)x+=C[i]/(z+i);
+  const t=z+g+0.5;
+  return Math.sqrt(2*Math.PI)*Math.pow(t,z+0.5)*Math.exp(-t)*x;
+}
+function nCr(n,r){ if(r<0||r>n)return 0; let res=1; r=Math.min(r,n-r); for(let i=1;i<=r;i++)res=res*(n-r+i)/i; return Math.round(res*1e10)/1e10; }
+function nPr(n,r){ if(r<0||r>n)return 0; let res=1; for(let i=0;i<r;i++)res*=(n-i); return res; }
+function gcd(a,b){a=Math.abs(a);b=Math.abs(b);while(b){const t=b;b=a%b;a=t;}return a;}
+
+const FN={
+  sin:a=>Math.sin(toRad(a)), cos:a=>Math.cos(toRad(a)), tan:a=>Math.tan(toRad(a)),
+  asin:a=>fromRad(Math.asin(a)), acos:a=>fromRad(Math.acos(a)), atan:a=>fromRad(Math.atan(a)),
+  sinh:Math.sinh, cosh:Math.cosh, tanh:Math.tanh,
+  asinh:Math.asinh, acosh:Math.acosh, atanh:Math.atanh,
+  ln:Math.log, log:Math.log10, log10:Math.log10, log2:Math.log2, lg:Math.log10,
+  sqrt:Math.sqrt, cbrt:Math.cbrt, abs:Math.abs, exp:Math.exp,
+  round:(a,d)=>{const p=Math.pow(10,d||0);return Math.round(a*p)/p;},
+  floor:Math.floor, ceil:Math.ceil, sign:Math.sign, trunc:Math.trunc,
+  fact:fact, gamma:gamma,
+  min:function(){return Math.min.apply(null,arguments);},
+  max:function(){return Math.max.apply(null,arguments);},
+  mod:(a,b)=>a-b*Math.floor(a/b),
+  rem:(a,b)=>a%b,
+  pow:Math.pow, root:(a,b)=>Math.sign(a)*Math.pow(Math.abs(a),1/b),
+  hypot:function(){return Math.hypot.apply(null,arguments);},
+  ncr:nCr, npr:nPr, gcd:gcd, lcm:(a,b)=>Math.abs(a*b)/gcd(a,b),
+  rand:()=>Math.random(), randint:(a,b)=>Math.floor(Math.random()*(b-a+1))+a,
+  deg:a=>a*180/Math.PI, rad:a=>a*Math.PI/180
+};
+
+function tokenize(src){
+  const s=src.replace(/×/g,"*").replace(/÷/g,"/").replace(/−/g,"-").replace(/√/g,"sqrt").replace(/π/g,"pi").replace(/,/g,",");
+  const out=[];let i=0;
+  while(i<s.length){
+    const ch=s[i];
+    if(/\s/.test(ch)){i++;continue;}
+    if(/[0-9.]/.test(ch)){
+      let j=i;while(j<s.length&&/[0-9.]/.test(s[j]))j++;
+      const num=s.slice(i,j);
+      if((num.match(/\./g)||[]).length>1)throw new Error("Zahl fehlerhaft");
+      out.push({t:"num",v:parseFloat(num)});i=j;continue;
+    }
+    if(/[a-z_]/i.test(ch)){
+      let j=i;while(j<s.length&&/[a-z0-9_]/i.test(s[j]))j++;
+      out.push({t:"id",v:s.slice(i,j).toLowerCase()});i=j;continue;
+    }
+    if("+-*/^()!%".includes(ch)){out.push({t:ch});i++;continue;}
+    if(ch===","){out.push({t:","});i++;continue;}
+    throw new Error("Unbekanntes Zeichen: "+ch);
+  }
+  return out;
+}
+function evaluate(src){
+  const tk=tokenize(src);
+  let p=0;
+  const peek=()=>tk[p], next=()=>tk[p++];
+  function expr(){
+    let v=term();
+    while(peek()&&(peek().t==="+"||peek().t==="-")){
+      const op=next().t, r=term();
+      v = op==="+" ? v+r : v-r;
+    }
+    return v;
+  }
+  function term(){
+    let v=unary();
+    for(;;){
+      const t=peek();
+      if(!t)break;
+      if(t.t==="*"||t.t==="/"){ next(); const r=unary(); v = t.t==="*"?v*r:v/r; continue; }
+      // implizite Multiplikation: 2π, 3(4+1), 2sin(0)
+      if(t.t==="num"||t.t==="id"||t.t==="("){ const r=unary(); v=v*r; continue; }
+      break;
+    }
+    return v;
+  }
+  function unary(){
+    const t=peek();
+    if(t&&t.t==="-"){next();return -unary();}
+    if(t&&t.t==="+"){next();return unary();}
+    return power();
+  }
+  function power(){
+    const base=postfix();
+    if(peek()&&peek().t==="^"){ next(); const ex=unary(); return Math.pow(base,ex); }
+    return base;
+  }
+  function postfix(){
+    let v=primary();
+    for(;;){
+      const t=peek();
+      if(t&&t.t==="!"){next();v=fact(v);continue;}
+      if(t&&t.t==="%"){next();v=v/100;continue;}
+      if(t&&t.t==="^"){next();const ex=unary();v=Math.pow(v,ex);continue;}
+      break;
+    }
+    return v;
+  }
+  function args(){
+    const a=[];
+    if(peek()&&peek().t===")"){next();return a;}
+    for(;;){
+      a.push(expr());
+      const t=next();
+      if(!t)throw new Error("Klammer fehlt");
+      if(t.t===")")break;
+      if(t.t!==",")throw new Error("Erwartet , oder )");
+    }
+    return a;
+  }
+  function primary(){
+    const t=next();
+    if(!t)throw new Error("Eingabe unvollständig");
+    if(t.t==="num")return t.v;
+    if(t.t==="("){ const v=expr(); const c=next(); if(!c||c.t!==")")throw new Error("Klammer nicht geschlossen"); return v; }
+    if(t.t==="id"){
+      const name=t.v;
+      if(name==="ans")return ansVal;
+      if(name==="mem"||name==="mr")return memory;
+      if(peek()&&peek().t==="("){
+        next();
+        const a=args();
+        const f=FN[name];
+        if(!f)throw new Error("Unbekannte Funktion: "+name);
+        return f.apply(null,a);
+      }
+      if(name in CST)return CST[name];
+      if(FN[name])throw new Error("Klammern fehlen bei "+name+"()");
+      throw new Error("Unbekannt: "+name);
+    }
+    if(t.t==="-")return -primary();
+    if(t.t==="+")return primary();
+    throw new Error("Unerwartet: "+(t.v!==undefined?t.v:t.t));
+  }
+  const val=expr();
+  if(p<tk.length)throw new Error("Rest nicht auswertbar");
+  return val;
+}
+function fmtRes(n){
+  if(typeof n!=="number"||!isFinite(n)) return n===Infinity?"∞":(n===-Infinity?"-∞":"Fehler");
+  if(Number.isInteger(n)&&Math.abs(n)<1e15)return n.toLocaleString("de-DE",{useGrouping:false});
+  const a=Math.abs(n);
+  if(a!==0&&(a<1e-9||a>=1e15))return n.toExponential(9).replace(/\.?0+e/,"e");
+  let s=parseFloat(n.toPrecision(12)).toString();
+  return s;
+}
+
+const cExpr=$("#cExpr"),cOut=$("#cOut");
+let cBuf="", invOn=false, hypOn=false, hist=[];
+try{ const h=localStorage.getItem("ipr-hist"); if(h)hist=JSON.parse(h)||[]; }catch(e){}
+
+function renderCalc(){
+  cExpr.textContent = cBuf || " ";
+  $("#f_deg").classList.toggle("on",angleDeg);
+  $("#f_rad").classList.toggle("on",!angleDeg);
+  $("#f_inv").classList.toggle("on",invOn);
+  $("#f_hyp").classList.toggle("on",hypOn);
+  $("#f_mem").classList.toggle("on",memory!==0);
+  if(!cBuf){cOut.textContent="0";cOut.classList.remove("err");return;}
+  try{
+    const v=evaluate(cBuf);
+    cOut.textContent=fmtRes(v);
+    cOut.classList.remove("err");
+  }catch(e){
+    cOut.textContent="…";
+    cOut.classList.remove("err");
+  }
+}
+function renderHist(){
+  const box=$("#cHist");
+  if(!hist.length){box.innerHTML='<div class="empty">Noch keine Berechnungen.</div>';return;}
+  box.innerHTML=hist.slice().reverse().map(h=>
+    '<div class="it" data-r="'+String(h.r).replace(/"/g,"&quot;")+'"><div class="e">'+
+    h.e.replace(/</g,"&lt;")+' =</div><div class="r">'+h.r+"</div></div>").join("");
+  $$("#cHist .it").forEach(it=>it.onclick=()=>{cBuf+=it.dataset.r;renderCalc();});
+}
+renderHist();
+function saveHist(){ try{localStorage.setItem("ipr-hist",JSON.stringify(hist.slice(-40)));}catch(e){} }
+$("#cHistClear").onclick=()=>{hist=[];saveHist();renderHist();toast("Verlauf geleert");};
+
+function trigName(base){
+  let n=base;
+  if(hypOn)n=base+"h";
+  if(invOn)n="a"+n;
+  return n;
+}
+function calcKey(k,t,btn){
+  switch(k){
+    case "ins": cBuf+=t; break;
+    case "trig": cBuf+=trigName(t)+"("; if(invOn||hypOn){invOn=false;hypOn=false;syncTog();} break;
+    case "log": cBuf+= invOn?(t==="ln"?"exp(":"10^("):(t+"("); if(invOn){invOn=false;syncTog();} break;
+    case "back": cBuf=cBuf.slice(0,-1); break;
+    case "ac": cBuf=""; cOut.textContent="0"; cOut.classList.remove("err"); break;
+    case "neg":
+      if(/(^|[-+*/^(])$/.test(cBuf)) cBuf+="-";
+      else cBuf="-("+cBuf+")";
+      break;
+    case "inv": invOn=!invOn; syncTog(); break;
+    case "hyp": hypOn=!hypOn; syncTog(); break;
+    case "angle": angleDeg=!angleDeg; syncTog(); break;
+    case "eq": doEq(); break;
+    case "mc": memory=0; toast("Speicher gelöscht"); break;
+    case "mr": cBuf+=String(memory); break;
+    case "ms": memory=curVal(); toast("Gespeichert: "+fmtRes(memory)); break;
+    case "mplus": memory+=curVal(); toast("Speicher: "+fmtRes(memory)); break;
+    case "mminus": memory-=curVal(); toast("Speicher: "+fmtRes(memory)); break;
+  }
+  renderCalc();
+}
+function curVal(){ try{ return cBuf?evaluate(cBuf):ansVal; }catch(e){ return ansVal; } }
+function syncTog(){
+  $('#cKeys button[data-k="inv"]').classList.toggle("on",invOn);
+  $('#cKeys button[data-k="hyp"]').classList.toggle("on",hypOn);
+  const ab=$('#cKeys button[data-k="angle"]');
+  ab.textContent=angleDeg?"DEG":"RAD";
+  ab.classList.toggle("on",true);
+}
+function doEq(){
+  if(!cBuf)return;
+  try{
+    const v=evaluate(cBuf);
+    if(typeof v!=="number"||isNaN(v))throw new Error("Kein gültiges Ergebnis");
+    ansVal=v;
+    const r=fmtRes(v);
+    cOut.textContent=r; cOut.classList.remove("err");
+    hist.push({e:cBuf,r:r}); if(hist.length>40)hist.shift();
+    saveHist(); renderHist();
+    cBuf=r.replace(/\s/g,"");
+    cExpr.textContent=" ";
+  }catch(e){
+    cOut.textContent="⚠ "+e.message;
+    cOut.classList.add("err");
+  }
+}
+$$("#cKeys button").forEach(b=>{
+  b.onclick=()=>calcKey(b.dataset.k,b.dataset.t,b);
+});
+syncTog(); renderCalc();
+
+document.addEventListener("keydown",e=>{
+  if(activeView!=="calc")return;
+  const tag=(e.target.tagName||"").toLowerCase();
+  if(tag==="input"||tag==="textarea"||tag==="select")return;
+  const k=e.key;
+  if(/^[0-9.]$/.test(k)){calcKey("ins",k);e.preventDefault();return;}
+  if("+-*/^()!%".includes(k)){calcKey("ins",k);e.preventDefault();return;}
+  if(k==="Enter"||k==="="){calcKey("eq");e.preventDefault();return;}
+  if(k==="Backspace"){calcKey("back");e.preventDefault();return;}
+  if(k==="Escape"){calcKey("ac");e.preventDefault();return;}
+  if(k===","){calcKey("ins",".");e.preventDefault();return;}
+});
+
+/* ================= 9) Programmierer ================= */
+let pgVal=3232235786;
+function parseAny(s){
+  s=(s||"").trim();
+  if(s==="")return null;
+  if(s.includes(".")&&/^\d{1,3}(\.\d{1,3}){3}$/.test(s))return parseIp(s);
+  if(/^0x[0-9a-f]+$/i.test(s))return parseInt(s.slice(2),16);
+  if(/^0b[01]+$/i.test(s))return parseInt(s.slice(2),2);
+  if(/^0o[0-7]+$/i.test(s))return parseInt(s.slice(2),8);
+  if(/^\d+$/.test(s)){const n=parseInt(s,10);return n<=4294967295?n:null;}
+  return null;
+}
+function pgRender(){
+  const u=pgVal>>>0;
+  $("#pg_dec").textContent=u.toLocaleString("de-DE",{useGrouping:false});
+  $("#pg_hex").textContent="0x"+u.toString(16).toUpperCase().padStart(8,"0");
+  $("#pg_oct").textContent="0o"+u.toString(8);
+  $("#pg_bin").textContent=(u.toString(2).padStart(32,"0").match(/.{8}/g)||[]).join(" ");
+  $("#pg_ip").textContent=ipStr(u);
+  const bits=u.toString(2).padStart(32,"0");
+  const g=$("#pg_bits");
+  if(g.children.length!==32){
+    g.innerHTML="";
+    for(let i=0;i<32;i++){
+      const d=document.createElement("div");
+      d.className="bit"; d.dataset.i=String(31-i); d.dataset.pos=String(i);
+      d.onclick=()=>{ pgVal=(pgVal^P2[31-parseInt(d.dataset.pos,10)])>>>0; syncPgInput(); pgRender(); };
+      g.appendChild(d);
+    }
+  }
+  Array.from(g.children).forEach((d,i)=>{
+    d.textContent=bits[i];
+    d.classList.toggle("one",bits[i]==="1");
+  });
+}
+function syncPgInput(){
+  const b=parseInt($("#pg_base").value,10),u=pgVal>>>0;
+  $("#pg_in").value = b===10?String(u): b===16?u.toString(16).toUpperCase(): b===8?u.toString(8):u.toString(2);
+}
+$("#pg_in").addEventListener("input",()=>{
+  const b=parseInt($("#pg_base").value,10);
+  const raw=$("#pg_in").value.trim().replace(/^0[xbo]/i,"").replace(/[\s.]/g,"");
+  const re={10:/^\d+$/,16:/^[0-9a-f]+$/i,8:/^[0-7]+$/,2:/^[01]+$/}[b];
+  if(raw===""){errBox($("#pg_err"),"");return;}
+  if(!re.test(raw)){$("#pg_in").classList.add("bad");errBox($("#pg_err"),"Ungültige Ziffern für die gewählte Basis.");return;}
+  const n=parseInt(raw,b);
+  if(!isFinite(n)||n>4294967295){$("#pg_in").classList.add("bad");errBox($("#pg_err"),"Wert überschreitet 32 Bit (max. 4.294.967.295).");return;}
+  $("#pg_in").classList.remove("bad");errBox($("#pg_err"),"");
+  pgVal=n>>>0; pgRender();
+});
+$("#pg_base").addEventListener("change",syncPgInput);
+pgRender();
+
+function bitOps(){
+  const errEl=$("#bo_err"),res=$("#bo_res");
+  const op=$("#bo_op").value;
+  const a=parseAny($("#bo_a").value);
+  const needsB=op!=="not";
+  const b=needsB?parseAny($("#bo_b").value):0;
+  $("#bo_b").disabled=!needsB;
+  if(a===null||(needsB&&b===null)){res.innerHTML="";errBox(errEl,"Operanden müssen gültige Zahlen (dez/hex/bin) oder IPv4-Adressen sein.");return;}
+  errBox(errEl,"");
+  let r;
+  switch(op){
+    case "and": r=(a&b)>>>0;break;
+    case "or":  r=(a|b)>>>0;break;
+    case "xor": r=(a^b)>>>0;break;
+    case "not": r=(~a)>>>0;break;
+    case "shl": r=(a<<(b%32))>>>0;break;
+    case "shr": r=(a>>>(b%32))>>>0;break;
+    case "add": r=(a+b)%4294967296;break;
+    case "sub": r=((a-b)%4294967296+4294967296)%4294967296;break;
+  }
+  const ones=(r>>>0).toString(2).replace(/0/g,"").length;
+  res.innerHTML=
+    kv("Ergebnis dezimal",String(r>>>0),"accentv")+
+    kv("Ergebnis als IPv4",ipStr(r),"okv")+
+    kv("Ergebnis hexadezimal","0x"+(r>>>0).toString(16).toUpperCase().padStart(8,"0"))+
+    kv("Ergebnis binär",((r>>>0).toString(2).padStart(32,"0").match(/.{8}/g)||[]).join(" "))+
+    kv("Gesetzte Bits",String(ones)+" von 32",null,false)+
+    kv("Als Präfix",cidrOfMask(r)!==null?("/"+cidrOfMask(r)+" (gültige Maske)"):"keine gültige Subnetzmaske",cidrOfMask(r)!==null?"okv":"warnv",false);
+}
+["#bo_a","#bo_b"].forEach(s=>$(s).addEventListener("input",bitOps));
+$("#bo_op").addEventListener("change",bitOps);
+bitOps();
+
+})();
+</script>
+</body>
+</html>
