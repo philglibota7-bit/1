@@ -15,6 +15,7 @@ public sealed class PcItemViewModel : ObservableObject
     private string _groupName = "—";
     private string _scheduleName = "—";
     private string _groupColor = "#6A7285";
+    private string _effectiveContent = string.Empty;
     private bool _isChosen;
 
     public PcItemViewModel(KioskPc model)
@@ -126,6 +127,76 @@ public sealed class PcItemViewModel : ObservableObject
         set => SetProperty(ref _scheduleName, value);
     }
 
+    /// <summary>Zugeordneter Inhalt dieses PCs (leer = den der Gruppe verwenden).</summary>
+    public string ContentFolder
+    {
+        get => Model.ContentFolder;
+        set
+        {
+            var text = value ?? string.Empty;
+            if (Model.ContentFolder != text)
+            {
+                Model.ContentFolder = text;
+                OnPropertyChanged(nameof(ContentFolder));
+            }
+        }
+    }
+
+    /// <summary>Der wirklich gültige Inhalt — eigener oder der der Gruppe.</summary>
+    public string EffectiveContent
+    {
+        get => _effectiveContent;
+        set
+        {
+            if (SetProperty(ref _effectiveContent, value))
+            {
+                OnPropertyChanged(nameof(ContentText));
+            }
+        }
+    }
+
+    public string ContentText
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_effectiveContent))
+            {
+                return "kein Inhalt zugeordnet";
+            }
+
+            var own = !string.IsNullOrWhiteSpace(Model.ContentFolder);
+            return own ? _effectiveContent : _effectiveContent + " (von der Gruppe)";
+        }
+    }
+
+    /// <summary>Wann dieser PC zuletzt Inhalte bekommen hat.</summary>
+    public string LastSentText
+    {
+        get
+        {
+            if (Model.LastContentSentAt is not { } sent)
+            {
+                return "noch nie gesendet";
+            }
+
+            var name = string.IsNullOrWhiteSpace(Model.LastContentName)
+                ? string.Empty
+                : Model.LastContentName + " · ";
+
+            return sent.Date == DateTime.Today
+                ? $"{name}heute {sent:HH:mm}"
+                : $"{name}{sent:dd.MM.yy HH:mm}";
+        }
+    }
+
+    /// <summary>
+    /// True, wenn der zugeordnete Inhalt nicht dem zuletzt gesendeten entspricht —
+    /// dieser PC hängt also hinterher.
+    /// </summary>
+    public bool ContentIsStale =>
+        !string.IsNullOrWhiteSpace(_effectiveContent) &&
+        !string.Equals(_effectiveContent, Model.LastContentName, StringComparison.OrdinalIgnoreCase);
+
     public HostStatus Status
     {
         get => _status;
@@ -185,5 +256,6 @@ public sealed class PcItemViewModel : ObservableObject
     public void Refresh() => OnPropertyChanged(
         nameof(Name), nameof(Host), nameof(DisplayName), nameof(Enabled),
         nameof(Note), nameof(StatusText), nameof(State), nameof(ScheduleText),
-        nameof(HostIsValid), nameof(HostHint));
+        nameof(HostIsValid), nameof(HostHint), nameof(ContentFolder),
+        nameof(ContentText), nameof(LastSentText), nameof(ContentIsStale));
 }

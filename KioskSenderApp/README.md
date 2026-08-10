@@ -54,6 +54,11 @@ Medien nicht von sich aus auf einem fremden Rechner starten.
   PowerPoint startet als Bildschirmpräsentation
 - Endlos wiederholen und Reihenfolge mischen jeweils an- und abschaltbar
 - Empfänger einfach anhaken — einzeln, alle oder eine ganze Gruppe
+- **Feste Zuordnung je PC oder Gruppe**: „dieser PC zeigt diesen Ordner“.
+  Danach genügt *Alle Zuordnungen senden* — jeder Rechner bekommt seinen
+  eigenen Inhalt, ohne dass vorher etwas angehakt werden muss
+- Die Übersicht zeigt je PC, was er zeigen soll und wann er zuletzt
+  beliefert wurde
 - Übertragung mit Fortschrittsanzeige und Abbrechen-Schaltfläche
 - Es werden nur **geänderte** Dateien übertragen; nicht mehr benötigte werden
   auf dem Kiosk-PC entfernt
@@ -61,11 +66,14 @@ Medien nicht von sich aus auf einem fremden Rechner starten.
   wenn wirklich alle Dateien angekommen sind
 
 ### Sender
-- Ziel wählen: markierte PCs, die gewählte Gruppe oder alle aktiven PCs
+- Ein Konzept für alles: **angehakte PCs sind das Ziel**. Ist nichts angehakt,
+  gilt die markierte Zeile — keine getrennte Ziel-Auswahl mehr
 - Nachricht senden, Benutzer abmelden, Neustart, Herunterfahren, laufenden
   Countdown abbrechen, eigener Befehl
 - Eingriffe (Herunterfahren, Neustart, Abmelden) fragen vorher nach und nennen
   die betroffenen Rechner beim Namen
+- Nach jeder Aktion steht **je Rechner eine Zeile** mit grünem oder rotem Punkt
+  da — man sieht sofort, wer erreicht wurde und woran es sonst lag
 
 ### Betrieb
 - **Testbetrieb**: Es wird nur protokolliert, was passieren würde — nichts wird
@@ -77,6 +85,10 @@ Medien nicht von sich aus auf einem fremden Rechner starten.
   bestehende Konfiguration nicht zerstören
 - Nur **eine Instanz** gleichzeitig, damit sich nicht zwei Zeitmanager
   gegenseitig in die Quere kommen
+- **Keine Fehlerdialoge**: Probleme erscheinen als Hinweisbalken im Fenster
+  und im Protokoll. Nichts blockiert die Arbeit, nichts muss weggeklickt
+  werden, der Zeitmanager läuft weiter. Rückfragen gibt es nur dort, wo
+  wirklich etwas Folgenschweres passiert (Herunterfahren, Inhalte ersetzen).
 
 ---
 
@@ -149,6 +161,10 @@ Es wird nichts installiert, aber Windows muss die Fernbefehle zulassen:
 Tasten am Kiosk-PC: **Esc** beendet, **Leertaste** springt weiter,
 **F5** liest die Liste neu ein, **Strg + Alt + Q** ist der Notausstieg.
 
+Bei Tastendruck oder Mausbewegung blendet der Player kurz ein, **welcher
+Rechner** er ist und **welche Wiedergabeliste** gerade läuft — praktisch, um
+beim Einrichten zu prüfen, ob der richtige PC den richtigen Inhalt hat.
+
 Startparameter:
 
 ```
@@ -217,7 +233,7 @@ KioskSenderApp/
 │  │  └─ Infrastructure/         Basisklassen, Befehle, Konverter
 │  └─ KioskSender.Player/        Vollbild-Player für die Kiosk-PCs
 └─ tests/
-   └─ KioskSender.Core.Tests/    178 Tests (xUnit)
+   └─ KioskSender.Core.Tests/    189 Tests (xUnit)
 ```
 
 Die gesamte Logik steckt bewusst in `KioskSender.Core` und kennt weder WPF noch
@@ -242,7 +258,12 @@ Die Seitenleiste links führt durch die Arbeitsschritte.
 4. **Inhalte senden** → ① *Ordner wählen* — den Ordner mit den Medien angeben
 5. ② Ordner in der Liste anklicken, Inhalt und Reihenfolge prüfen,
    Anzeigedauer einstellen
-6. ③ Empfänger anhaken → *An ausgewählte PCs senden*
+6. ③ Empfänger anhaken → *Jetzt an die angehakten PCs senden*
+
+**Oder dauerhaft zuordnen** (empfehlenswert, wenn die PCs verschiedene
+Inhalte zeigen sollen): Ordner wählen, PCs anhaken, auf *Angehakten zuordnen*
+klicken. Von da an genügt **Alle Zuordnungen senden** — jeder Rechner bekommt
+seinen eigenen Inhalt, ganz ohne Anhaken.
 
 **Zeitplan**
 7. **Zeitmanager** → *Neuer Zeitplan*, Wochenzeiten eintragen, Schließ-Aktion

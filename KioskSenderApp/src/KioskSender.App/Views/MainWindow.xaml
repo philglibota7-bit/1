@@ -88,6 +88,17 @@
                                       SelectionChanged="OnPcSelectionChanged"
                                       IsReadOnly="True">
                                 <DataGrid.Columns>
+                                    <DataGridTemplateColumn Header="✓" Width="38">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding IsChosen, Mode=TwoWay}"
+                                                          IsEnabled="{Binding Enabled}"
+                                                          HorizontalAlignment="Center" Margin="0"
+                                                          ToolTip="Angehakte PCs sind das Ziel der Aktionen rechts." />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
                                     <DataGridTemplateColumn Header="" Width="34">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
@@ -101,6 +112,7 @@
 
                                     <DataGridTextColumn Header="Name" Width="1.4*" Binding="{Binding DisplayName}" />
                                     <DataGridTextColumn Header="Host / IP" Width="1.2*" Binding="{Binding Host}" />
+                                    <DataGridTextColumn Header="Zeigt" Width="1.3*" Binding="{Binding ContentText}" />
 
                                     <DataGridTemplateColumn Header="Gruppe" Width="1.2*">
                                         <DataGridTemplateColumn.CellTemplate>
@@ -127,22 +139,19 @@
                             <StackPanel>
                                 <TextBlock Text="Senden" Style="{StaticResource HeadlineText}" />
 
-                                <TextBlock Text="Ziel" Style="{StaticResource CaptionText}" />
-                                <RadioButton x:Name="ScopeSelection" Content="Ausgewählte PCs" IsChecked="True"
-                                             GroupName="Scope" Margin="0,0,0,4"
-                                             Foreground="{StaticResource TextBrush}"
-                                             Checked="OnScopeChanged" Tag="Selection" />
-                                <RadioButton x:Name="ScopeGroup" Content="Gewählte Gruppe" GroupName="Scope" Margin="0,0,0,4"
-                                             Foreground="{StaticResource TextBrush}"
-                                             Checked="OnScopeChanged" Tag="Group" />
-                                <RadioButton x:Name="ScopeAll" Content="Alle aktiven PCs" GroupName="Scope" Margin="0,0,0,8"
-                                             Foreground="{StaticResource TextBrush}"
-                                             Checked="OnScopeChanged" Tag="All" />
+                                <TextBlock Style="{StaticResource CaptionText}"
+                                           Text="Die Aktionen treffen die in der Tabelle angehakten PCs. Ist nichts angehakt, gilt die markierte Zeile." />
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Button Content="Alle" Command="{Binding ChooseAllPcsCommand}" />
+                                    <Button Content="Keine" Command="{Binding ChooseNoPcsCommand}" />
+                                    <Button Content="Gruppe" Command="{Binding ChooseGroupPcsCommand}" Margin="0" />
+                                </StackPanel>
 
                                 <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="5"
                                         Padding="9,7" Margin="0,0,0,12">
                                     <TextBlock Text="{Binding TargetSummary}" TextWrapping="Wrap"
-                                               Foreground="{StaticResource TextMutedBrush}" />
+                                               Foreground="{StaticResource TextBrush}" />
                                 </Border>
 
                                 <TextBlock Text="Nachricht" Style="{StaticResource CaptionText}" />
@@ -168,6 +177,30 @@
 
                                 <TextBlock Style="{StaticResource CaptionText}" Margin="0,10,0,0"
                                            Text="Herunterfahren und Neustart fragen vor der Ausführung nach. Im Testbetrieb wird nichts ausgeführt." />
+
+                                <!-- Ergebnis der letzten Aktion, je Rechner eine Zeile -->
+                                <ItemsControl ItemsSource="{Binding ActionResults}" Margin="0,10,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,0,0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <Border Grid.Column="0" Width="8" Height="8" CornerRadius="4"
+                                                        Margin="0,0,8,0" VerticalAlignment="Top"
+                                                        Background="{Binding IsGood, Converter={StaticResource BoolToBrush}}" />
+
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="{Binding Target}" FontSize="12" />
+                                                    <TextBlock Text="{Binding Message}" FontSize="11" TextWrapping="Wrap"
+                                                               Foreground="{StaticResource TextMutedBrush}" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
@@ -532,7 +565,9 @@
                                             <StackPanel Grid.Column="2">
                                                 <TextBlock Text="{Binding DisplayName}" />
                                                 <TextBlock FontSize="11" Foreground="{StaticResource TextMutedBrush}"
-                                                           Text="{Binding GroupName}" />
+                                                           Text="{Binding ContentText}" />
+                                                <TextBlock FontSize="11" Foreground="{StaticResource TextMutedBrush}"
+                                                           Text="{Binding LastSentText}" />
                                             </StackPanel>
                                         </Grid>
                                     </DataTemplate>
@@ -549,7 +584,7 @@
                                 <TextBlock Text="{Binding DeployStatus}" TextWrapping="Wrap" Margin="0,0,0,8"
                                            Visibility="{Binding DeployStatus, Converter={StaticResource StringToVisibility}}" />
 
-                                <Button Content="An ausgewählte PCs senden"
+                                <Button Content="Jetzt an die angehakten PCs senden"
                                         Style="{StaticResource BigActionButton}"
                                         Command="{Binding SendContentCommand}" />
 
@@ -558,7 +593,55 @@
                                         Margin="0,0,0,8"
                                         Visibility="{Binding IsDeploying, Converter={StaticResource BoolToVisibility}}" />
 
+                                <Separator />
+
+                                <TextBlock Text="Feste Zuordnung" Style="{StaticResource CaptionText}" Margin="0,6,0,4" />
                                 <TextBlock Style="{StaticResource CaptionText}"
+                                           Text="Damit merkt sich jeder PC, welchen Ordner er zeigt. Danach genügt ein Klick auf „Alle Zuordnungen senden“ — anhaken entfällt." />
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <Button Content="Angehakten zuordnen" Command="{Binding AssignToChosenPcsCommand}"
+                                            ToolTip="Der links gewählte Ordner wird den angehakten PCs fest zugeordnet." />
+                                    <Button Content="Der Gruppe zuordnen" Command="{Binding AssignToGroupCommand}" Margin="0"
+                                            ToolTip="Ordnet den Ordner der unter „Gruppen &amp; PCs“ gewählten Gruppe zu." />
+                                </StackPanel>
+
+                                <Button Content="Zuordnung aufheben" Command="{Binding ClearAssignmentCommand}"
+                                        Margin="0,0,0,8" HorizontalAlignment="Left" />
+
+                                <TextBlock Text="{Binding AssignmentSummary}" TextWrapping="Wrap" Margin="0,0,0,8"
+                                           Foreground="{StaticResource TextMutedBrush}" />
+
+                                <Button Content="Alle Zuordnungen senden"
+                                        Style="{StaticResource BigActionButton}"
+                                        Command="{Binding SendAssignedCommand}"
+                                        ToolTip="Jeder PC bekommt den Inhalt, der ihm zugeordnet ist." />
+
+                                <!-- Ergebnis der letzten Übertragung, je Rechner eine Zeile -->
+                                <ItemsControl ItemsSource="{Binding DeployResults}" Margin="0,4,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,0,0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <Border Grid.Column="0" Width="8" Height="8" CornerRadius="4"
+                                                        Margin="0,0,8,0" VerticalAlignment="Top"
+                                                        Background="{Binding Success, Converter={StaticResource BoolToBrush}}" />
+
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="{Binding PcName}" FontSize="12" />
+                                                    <TextBlock Text="{Binding Summary}" FontSize="11" TextWrapping="Wrap"
+                                                               Foreground="{StaticResource TextMutedBrush}" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <TextBlock Style="{StaticResource CaptionText}" Margin="0,8,0,0"
                                            Text="Auf den Kiosk-PCs muss KioskPlayer laufen. Er merkt selbst, wenn neue Inhalte ankommen, und wechselt darauf." />
                             </StackPanel>
                         </Grid>
@@ -851,7 +934,30 @@
         </TabControl>
 
         <!-- ============================== Statuszeile ============================== -->
-        <Border Grid.Row="2" Style="{StaticResource Card}" Padding="12,8" Margin="0,10,0,0">
+        <StackPanel Grid.Row="2">
+
+            <!--
+                Hinweisbalken statt Fehlerdialog: die Anwendung läuft weiter,
+                die Meldung steht ruhig da und lässt sich wegklicken.
+            -->
+            <Border Background="#2A2118" BorderBrush="{StaticResource WarningBrush}"
+                    BorderThickness="1,1,1,1" CornerRadius="8" Padding="12,9" Margin="0,10,0,0"
+                    Visibility="{Binding HasNotice, Converter={StaticResource BoolToVisibility}}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="{Binding Notice}" TextWrapping="Wrap"
+                               Foreground="{StaticResource TextBrush}" />
+
+                    <Button Grid.Column="1" Content="Verstanden" Margin="12,0,0,0"
+                            Command="{Binding DismissNoticeCommand}" />
+                </Grid>
+            </Border>
+
+        <Border Style="{StaticResource Card}" Padding="12,8" Margin="0,10,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -868,5 +974,6 @@
                 </StackPanel>
             </Grid>
         </Border>
+        </StackPanel>
     </Grid>
 </Window>

@@ -41,6 +41,29 @@ public sealed class AppConfig
     }
 
     /// <summary>
+    /// Welchen Inhalt ein PC zeigen soll: eigene Zuordnung vor Gruppenzuordnung.
+    /// Leer heißt, dass für diesen PC nichts festgelegt ist.
+    /// </summary>
+    public string EffectiveContentFolder(KioskPc pc)
+    {
+        if (!string.IsNullOrWhiteSpace(pc.ContentFolder))
+        {
+            return pc.ContentFolder.Trim();
+        }
+
+        var group = FindGroup(pc.GroupId);
+        return string.IsNullOrWhiteSpace(group?.ContentFolder)
+            ? string.Empty
+            : group!.ContentFolder.Trim();
+    }
+
+    /// <summary>Alle aktiven PCs, denen ein Inhalt zugeordnet ist.</summary>
+    public IEnumerable<KioskPc> PcsWithContent() =>
+        Pcs.Where(p => p.Enabled
+                       && !string.IsNullOrWhiteSpace(p.Host)
+                       && !string.IsNullOrWhiteSpace(EffectiveContentFolder(p)));
+
+    /// <summary>
     /// Repariert verwaiste Verweise (gelöschte Gruppe/Zeitplan) und ergänzt
     /// fehlende Wochentage. Gibt die Anzahl der Korrekturen zurück.
     /// </summary>

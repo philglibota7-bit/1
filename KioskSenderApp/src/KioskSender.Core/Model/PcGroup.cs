@@ -17,6 +17,12 @@ public sealed class PcGroup
 
     public string Note { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Inhalt, den alle PCs dieser Gruppe zeigen — der Ordnername aus der
+    /// Medienbibliothek. Einzelne PCs können ihn übersteuern.
+    /// </summary>
+    public string ContentFolder { get; set; } = string.Empty;
+
     public PcGroup Clone() => new()
     {
         Id = Id,
@@ -24,6 +30,7 @@ public sealed class PcGroup
         ColorHex = ColorHex,
         ScheduleId = ScheduleId,
         SortIndex = SortIndex,
-        Note = Note
+        Note = Note,
+        ContentFolder = ContentFolder
     };
 }

@@ -50,12 +50,8 @@ public sealed class ActionChoice
     public override string ToString() => Name;
 }
 
-public enum SendScope
-{
-    Selection,
-    Group,
-    All
-}
+/// <summary>Eine Zeile in der Ergebnisliste nach einer Aktion.</summary>
+public sealed record ActionResultItem(string Target, string Message, bool IsGood);
 
 /// <summary>Das Ansichtsmodell des Hauptfensters.</summary>
 public sealed partial class MainViewModel : ObservableObject, IDisposable
@@ -79,7 +75,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string _pcFilter = string.Empty;
     private string _statusMessage = "Bereit.";
     private string _messageText = "Bitte speichern Sie Ihre Arbeit.";
-    private SendScope _sendScope = SendScope.Selection;
     private bool _isBusy;
     private bool _isDirty;
     private string _clockText = string.Empty;
@@ -147,6 +142,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Wird vom Fenster aus der Mehrfachauswahl der Tabelle gefüllt.</summary>
     public ObservableCollection<PcItemViewModel> SelectedPcs { get; }
 
+    /// <summary>Ergebnis der zuletzt ausgelösten Aktion, je Rechner eine Zeile.</summary>
+    public ObservableCollection<ActionResultItem> ActionResults { get; } = new();
+
     public IReadOnlyList<ActionChoice> CloseActions { get; }
 
     public AppSettings Settings => _manager.Config.Settings;
@@ -154,8 +152,43 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Rückfrage beim Benutzer — wird vom Fenster gesetzt.</summary>
     public Func<string, string, bool> Confirm { get; set; } = (_, _) => true;
 
-    /// <summary>Fehlermeldung anzeigen — wird vom Fenster gesetzt.</summary>
-    public Action<string, string> ShowError { get; set; } = (_, _) => { };
+    private string _notice = string.Empty;
+    private bool _noticeIsError;
+
+    /// <summary>Text des Hinweisbalkens; leer heißt: kein Balken.</summary>
+    public string Notice
+    {
+        get => _notice;
+        private set
+        {
+            if (SetProperty(ref _notice, value))
+            {
+                OnPropertyChanged(nameof(HasNotice));
+            }
+        }
+    }
+
+    public bool HasNotice => !string.IsNullOrWhiteSpace(_notice);
+
+    public bool NoticeIsError
+    {
+        get => _noticeIsError;
+        private set => SetProperty(ref _noticeIsError, value);
+    }
+
+    /// <summary>Zeigt einen Hinweis an, ohne die Arbeit zu unterbrechen.</summary>
+    public void Notify(string message, bool isError = false)
+    {
+        NoticeIsError = isError;
+        Notice = message;
+
+        if (isError)
+        {
+            _log.Error("Anwendung", message);
+        }
+    }
+
+    public void ClearNotice() => Notice = string.Empty;
 
     // ------------------------------------------------------------ Zustand
 
@@ -275,18 +308,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         get => _messageText;
         set => SetProperty(ref _messageText, value);
-    }
-
-    public SendScope SendScope
-    {
-        get => _sendScope;
-        set
-        {
-            if (SetProperty(ref _sendScope, value))
-            {
-                OnPropertyChanged(nameof(TargetSummary));
-            }
-        }
     }
 
     public string StatusMessage
@@ -429,20 +450,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public string ConfigPath => _store.FilePath;
 
-    /// <summary>Beschreibt, wen ein Sendebefehl treffen würde.</summary>
+    /// <summary>Beschreibt in Klartext, wen ein Sendebefehl treffen würde.</summary>
     public string TargetSummary
     {
         get
         {
             var targets = ResolveSendTargets();
-            return SendScope switch
+
+            if (targets.Count == 0)
             {
-                SendScope.Selection => $"{targets.Count} ausgewählte(r) PC(s)",
-                SendScope.Group => _selectedGroup is null
-                    ? "Keine Gruppe gewählt"
-                    : $"Gruppe „{_selectedGroup.Name}“ ({targets.Count} PCs)",
-                _ => $"Alle aktiven PCs ({targets.Count})"
-            };
+                return "Kein Ziel — bitte PCs anhaken oder eine Zeile markieren.";
+            }
+
+            if (targets.Count <= 3)
+            {
+                return "Ziel: " + string.Join(", ", targets.Select(t => t.DisplayName));
+            }
+
+            return $"Ziel: {targets.Count} PCs — " +
+                   string.Join(", ", targets.Take(3).Select(t => t.DisplayName)) + " …";
         }
     }
 
@@ -463,6 +489,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public RelayCommand ClearLogCommand { get; private set; } = null!;
     public RelayCommand ExportLogCommand { get; private set; } = null!;
     public RelayCommand AssignSelectedToGroupCommand { get; private set; } = null!;
+    public RelayCommand DismissNoticeCommand { get; private set; } = null!;
 
     public AsyncRelayCommand SendMessageCommand { get; private set; } = null!;
     public AsyncRelayCommand SendShutdownCommand { get; private set; } = null!;
@@ -475,8 +502,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         void OnError(Exception ex)
         {
-            _log.Error("Anwendung", ex.Message);
-            ShowError("Fehler", ex.Message);
+            // Kein Dialog: der Balken im Fenster reicht, die Einzelheiten
+            // stehen im Protokoll. Die Anwendung läuft weiter.
+            Notify(ex.Message, isError: true);
         }
 
         SaveCommand = new AsyncRelayCommand(SaveAsync, onError: OnError);
@@ -501,6 +529,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _log.Clear();
             LogEntries.Clear();
         });
+
+        DismissNoticeCommand = new RelayCommand(ClearNotice);
 
         ExportLogCommand = new RelayCommand(ExportLog);
         AssignSelectedToGroupCommand = new RelayCommand(AssignSelectedToGroup, () => SelectedPcs.Count > 0);
@@ -691,8 +721,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             pc.GroupName = group?.Name ?? "—";
             pc.GroupColor = group?.ColorHex ?? "#6A7285";
             pc.ScheduleName = config.EffectiveSchedule(pc.Model)?.Name ?? "—";
+            pc.EffectiveContent = config.EffectiveContentFolder(pc.Model);
             pc.Status = _manager.Monitor.Get(pc.Host);
         }
+
+        OnPropertyChanged(nameof(AssignmentSummary));
     }
 
     /// <summary>Kennzahlen der Gruppen — günstig.</summary>
@@ -938,34 +971,41 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     // ------------------------------------------------------------ Senden
 
-    private IReadOnlyList<KioskPc> ResolveSendTargets() => SendScope switch
+    /// <summary>
+    /// Ziel einer Aktion: die angehakten PCs. Ist nichts angehakt, gilt die
+    /// in der Tabelle markierte Zeile — ein Konzept statt drei.
+    /// </summary>
+    private IReadOnlyList<KioskPc> ResolveSendTargets()
     {
-        SendScope.Selection => SelectedPcs
-            .Where(p => p.Enabled)
-            .Select(p => p.Model)
-            .ToList(),
+        var chosen = Pcs.Where(p => p.IsChosen && p.Enabled).Select(p => p.Model).ToList();
+        if (chosen.Count > 0)
+        {
+            return chosen;
+        }
 
-        SendScope.Group => _selectedGroup is null
-            ? Array.Empty<KioskPc>()
-            : Pcs.Where(p => p.Enabled && p.Model.GroupId == _selectedGroup.Id)
-                 .Select(p => p.Model)
-                 .ToList(),
+        var highlighted = SelectedPcs.Where(p => p.Enabled).Select(p => p.Model).ToList();
+        if (highlighted.Count > 0)
+        {
+            return highlighted;
+        }
 
-        _ => Pcs.Where(p => p.Enabled).Select(p => p.Model).ToList()
-    };
+        return _selectedPc is { Enabled: true }
+            ? new List<KioskPc> { _selectedPc.Model }
+            : Array.Empty<KioskPc>();
+    }
 
     private async Task SendAsync(KioskActionKind action, string text)
     {
         var targets = ResolveSendTargets();
         if (targets.Count == 0)
         {
-            StatusMessage = "Kein Ziel ausgewählt.";
+            Notify("Kein Ziel gewählt — bitte in der Tabelle PCs anhaken oder eine Zeile markieren.");
             return;
         }
 
         if (action == KioskActionKind.Message && string.IsNullOrWhiteSpace(text))
         {
-            StatusMessage = "Bitte zuerst einen Nachrichtentext eingeben.";
+            Notify("Bitte zuerst einen Nachrichtentext eingeben.");
             return;
         }
 
@@ -985,6 +1025,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
         }
 
+        var list = targets;
+        ClearNotice();
         IsBusy = true;
         try
         {
@@ -997,8 +1039,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 "Sender",
                 _shutdown.Token).ConfigureAwait(true);
 
+            ActionResults.Clear();
+            foreach (var result in results.OrderBy(r => r.Success))
+            {
+                var pc = list.FirstOrDefault(p =>
+                    string.Equals(p.Host, result.Host, StringComparison.OrdinalIgnoreCase));
+
+                ActionResults.Add(new ActionResultItem(
+                    pc?.DisplayName ?? result.Host, result.Message, result.Success));
+            }
+
             var ok = results.Count(r => r.Success);
-            StatusMessage = $"{action.ToDisplayName()}: {ok} von {results.Count} erfolgreich.";
+            StatusMessage = ok == results.Count
+                ? $"{action.ToDisplayName()}: alle {ok} PC(s) erreicht."
+                : $"{action.ToDisplayName()}: {ok} von {results.Count} erreicht — Einzelheiten unten.";
         }
         finally
         {
@@ -1306,7 +1360,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            ShowError("Export fehlgeschlagen", ex.Message);
+            Notify("Protokoll konnte nicht exportiert werden: " + ex.Message, isError: true);
         }
     }
 
@@ -1350,7 +1404,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            ShowError("Speichern fehlgeschlagen", ex.Message);
+            _log.Error("Speichern", ex.Message);
         }
 
         _shutdown.Cancel();

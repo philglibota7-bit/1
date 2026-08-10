@@ -23,9 +23,6 @@ public partial class MainWindow : Window
             MessageBox.Show(this, message, title, MessageBoxButton.YesNo, MessageBoxImage.Question)
                 == MessageBoxResult.Yes;
 
-        viewModel.ShowError = (title, message) =>
-            MessageBox.Show(this, message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
-
         viewModel.PickFolder = startPath =>
         {
             var dialog = new Microsoft.Win32.OpenFolderDialog
@@ -61,21 +58,6 @@ public partial class MainWindow : Window
         }
 
         _viewModel.NotifyTargetsChanged();
-    }
-
-    private void OnScopeChanged(object sender, RoutedEventArgs e)
-    {
-        if (sender is not RadioButton { Tag: string tag })
-        {
-            return;
-        }
-
-        _viewModel.SendScope = tag switch
-        {
-            "Group" => SendScope.Group,
-            "All" => SendScope.All,
-            _ => SendScope.Selection
-        };
     }
 
     protected override void OnClosing(CancelEventArgs e)

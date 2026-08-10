@@ -12,6 +12,7 @@
             <infra:LogLevelToBrushConverter x:Key="LogLevelToBrush" />
             <infra:HexToBrushConverter x:Key="HexToBrush" />
             <infra:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+            <infra:BoolToBrushConverter x:Key="BoolToBrush" />
             <infra:StringToVisibilityConverter x:Key="StringToVisibility" />
             <infra:InverseBooleanConverter x:Key="InverseBoolean" />
         </ResourceDictionary>

@@ -52,6 +52,9 @@ public sealed partial class MainViewModel
     /// <summary>Die Elemente der gerade gewählten Wiedergabeliste.</summary>
     public ObservableCollection<MediaItem> PlaylistItems { get; } = new();
 
+    /// <summary>Ergebnis der letzten Übertragung, je Rechner eine Zeile.</summary>
+    public ObservableCollection<DeployResult> DeployResults { get; } = new();
+
     /// <summary>Ordnerauswahl per Dialog — wird vom Fenster gesetzt.</summary>
     public Func<string?, string?> PickFolder { get; set; } = _ => null;
 
@@ -271,6 +274,10 @@ public sealed partial class MainViewModel
 
     // ------------------------------------------------------------ Befehle
 
+    public RelayCommand AssignToChosenPcsCommand { get; private set; } = null!;
+    public RelayCommand AssignToGroupCommand { get; private set; } = null!;
+    public RelayCommand ClearAssignmentCommand { get; private set; } = null!;
+    public AsyncRelayCommand SendAssignedCommand { get; private set; } = null!;
     public RelayCommand BrowseMediaFolderCommand { get; private set; } = null!;
     public RelayCommand RefreshLibraryCommand { get; private set; } = null!;
     public RelayCommand OpenMediaFolderCommand { get; private set; } = null!;
@@ -306,7 +313,7 @@ public sealed partial class MainViewModel
             }
             catch (Exception ex)
             {
-                ShowError("Ordner öffnen", ex.Message);
+                Notify("Der Ordner konnte nicht geöffnet werden: " + ex.Message, isError: true);
             }
         }, () => !string.IsNullOrWhiteSpace(Settings.MediaRootPath));
 
@@ -324,11 +331,108 @@ public sealed partial class MainViewModel
             SetChosen(Pcs.Where(p => p.Enabled && p.Model.GroupId == SelectedGroup.Id), true);
         }, () => SelectedGroup is not null);
 
+        AssignToChosenPcsCommand = new RelayCommand(
+            () => AssignFolder(ChosenPcs, _selectedLibraryFolder?.Name ?? string.Empty),
+            () => _selectedLibraryFolder is not null && ChosenPcCount > 0);
+
+        AssignToGroupCommand = new RelayCommand(() =>
+        {
+            if (SelectedGroup is null || _selectedLibraryFolder is null)
+            {
+                return;
+            }
+
+            SelectedGroup.Model.ContentFolder = _selectedLibraryFolder.Name;
+
+            // Eigene Zuordnungen der Mitglieder aufheben, damit wirklich die
+            // Gruppe gilt — sonst bliebe ein einzelner PC unbemerkt anders.
+            foreach (var pc in Pcs.Where(p => p.Model.GroupId == SelectedGroup.Id))
+            {
+                pc.ContentFolder = string.Empty;
+            }
+
+            AfterAssignmentChanged(
+                $"Gruppe „{SelectedGroup.Name}“ zeigt jetzt „{_selectedLibraryFolder.Name}“.");
+        }, () => SelectedGroup is not null && _selectedLibraryFolder is not null);
+
+        ClearAssignmentCommand = new RelayCommand(
+            () => AssignFolder(ChosenPcs, string.Empty),
+            () => ChosenPcCount > 0);
+
         SendContentCommand = new AsyncRelayCommand(SendContentAsync, () => CanSendContent, onError);
+
+        SendAssignedCommand = new AsyncRelayCommand(
+            SendAssignedAsync,
+            () => !IsDeploying && Pcs.Any(p => p.Enabled && !string.IsNullOrWhiteSpace(p.EffectiveContent)),
+            onError);
 
         CancelSendContentCommand = new RelayCommand(
             () => _deployCancel?.Cancel(),
             () => IsDeploying);
+    }
+
+    /// <summary>Ordnet den angegebenen PCs einen Inhalt zu (leer = Zuordnung aufheben).</summary>
+    private void AssignFolder(IReadOnlyList<PcItemViewModel> pcs, string folderName)
+    {
+        if (pcs.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var pc in pcs)
+        {
+            pc.ContentFolder = folderName;
+        }
+
+        AfterAssignmentChanged(string.IsNullOrEmpty(folderName)
+            ? $"Zuordnung für {pcs.Count} PC(s) aufgehoben."
+            : $"{pcs.Count} PC(s) zeigen jetzt „{folderName}“.");
+    }
+
+    private void AfterAssignmentChanged(string message)
+    {
+        RefreshContentAssignments();
+        MarkDirty();
+        StatusMessage = message;
+        OnPropertyChanged(nameof(AssignmentSummary));
+        RelayCommand.RaiseCanExecuteChanged();
+    }
+
+    /// <summary>Überträgt die Zuordnungen aus der Konfiguration in die Anzeige.</summary>
+    public void RefreshContentAssignments()
+    {
+        foreach (var pc in Pcs)
+        {
+            pc.EffectiveContent = _manager.Config.EffectiveContentFolder(pc.Model);
+            pc.Refresh();
+        }
+
+        OnPropertyChanged(nameof(AssignmentSummary));
+    }
+
+    /// <summary>Wie viele PCs überhaupt einen Inhalt zugeordnet haben.</summary>
+    public string AssignmentSummary
+    {
+        get
+        {
+            var active = Pcs.Where(p => p.Enabled).ToList();
+            if (active.Count == 0)
+            {
+                return "Noch keine PCs angelegt.";
+            }
+
+            var assigned = active.Count(p => !string.IsNullOrWhiteSpace(p.EffectiveContent));
+            var stale = active.Count(p => p.ContentIsStale);
+
+            if (assigned == 0)
+            {
+                return "Noch keinem PC ist ein Inhalt zugeordnet.";
+            }
+
+            return stale == 0
+                ? $"{assigned} von {active.Count} PC(s) zugeordnet — alle auf dem aktuellen Stand."
+                : $"{assigned} von {active.Count} PC(s) zugeordnet — {stale} noch nicht gesendet.";
+        }
     }
 
     private void SetChosen(IEnumerable<PcItemViewModel> pcs, bool chosen)
@@ -423,6 +527,51 @@ public sealed partial class MainViewModel
 
     // ------------------------------------------------------------ Senden
 
+    /// <summary>
+    /// Schickt jedem PC den Inhalt, der ihm zugeordnet ist — in einem Rutsch,
+    /// ohne dass vorher etwas angehakt werden muss.
+    /// </summary>
+    private async Task SendAssignedAsync()
+    {
+        var root = _manager.ScanLibrary().Root;
+        if (root is null)
+        {
+            Notify("Der Medienordner ist nicht lesbar — bitte unter Schritt 1 prüfen.", isError: true);
+            return;
+        }
+
+        var targets = _manager.Config.PcsWithContent().ToList();
+        if (targets.Count == 0)
+        {
+            Notify("Noch ist keinem PC ein Inhalt zugeordnet. " +
+                   "Dazu links einen Ordner wählen, rechts PCs anhaken und auf „Zuordnen“ klicken.");
+            return;
+        }
+
+        if (!Settings.DryRun)
+        {
+            var lines = string.Join("\n", targets
+                .Take(10)
+                .Select(t => $"  {t.DisplayName} → {_manager.Config.EffectiveContentFolder(t)}"));
+
+            if (targets.Count > 10)
+            {
+                lines += $"\n  … (+{targets.Count - 10})";
+            }
+
+            if (!Confirm("Zuordnungen senden",
+                    $"{targets.Count} PC(s) bekommen ihren zugeordneten Inhalt:\n\n{lines}"))
+            {
+                DeployStatus = "Abgebrochen.";
+                return;
+            }
+        }
+
+        await RunDeploymentAsync(
+            (progress, token) => _manager.DeployAssignedAsync(root, targets, progress, token),
+            targets.Count).ConfigureAwait(true);
+    }
+
     private async Task SendContentAsync()
     {
         var playlist = _currentPlaylist;
@@ -453,12 +602,28 @@ public sealed partial class MainViewModel
             }
         }
 
+        await RunDeploymentAsync(
+            (progress, token) => _manager.DeployContentAsync(playlist, targets, progress, token),
+            targets.Count).ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// Führt eine Übertragung aus und hält Fortschritt, Ergebnisliste und
+    /// Abbruch an einer Stelle zusammen — beide Sendewege nutzen sie.
+    /// </summary>
+    private async Task RunDeploymentAsync(
+        Func<IProgress<DeployProgress>, CancellationToken, Task<IReadOnlyList<DeployResult>>> run,
+        int targetCount)
+    {
         _deployCancel?.Dispose();
         _deployCancel = CancellationTokenSource.CreateLinkedTokenSource(_shutdown.Token);
 
+        ClearNotice();
+        DeployResults.Clear();
+
         IsDeploying = true;
         DeployPercent = 0;
-        DeployStatus = "Übertragung läuft…";
+        DeployStatus = $"Übertragung an {targetCount} PC(s) läuft…";
 
         var progress = new Progress<DeployProgress>(p =>
         {
@@ -468,9 +633,12 @@ public sealed partial class MainViewModel
 
         try
         {
-            var results = await _manager
-                .DeployContentAsync(playlist, targets, progress, _deployCancel.Token)
-                .ConfigureAwait(true);
+            var results = await run(progress, _deployCancel.Token).ConfigureAwait(true);
+
+            foreach (var result in results.OrderBy(r => r.Success).ThenBy(r => r.PcName))
+            {
+                DeployResults.Add(result);
+            }
 
             var ok = results.Count(r => r.Success);
             var failed = results.Count - ok;
@@ -478,7 +646,7 @@ public sealed partial class MainViewModel
             DeployPercent = 100;
             DeployStatus = failed == 0
                 ? $"Fertig — an {ok} PC(s) gesendet."
-                : $"{ok} von {results.Count} PC(s) erfolgreich, {failed} fehlgeschlagen (siehe Protokoll).";
+                : $"{ok} von {results.Count} PC(s) erfolgreich, {failed} nicht erreicht.";
 
             StatusMessage = DeployStatus;
         }
@@ -489,6 +657,7 @@ public sealed partial class MainViewModel
         finally
         {
             IsDeploying = false;
+            RefreshContentAssignments();
         }
     }
 }

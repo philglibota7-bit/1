@@ -21,6 +21,18 @@ public sealed class KioskPc
 
     public string Note { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Welchen Inhalt dieser PC zeigt — der Ordnername aus der Medienbibliothek.
+    /// Leer heißt: den Inhalt der Gruppe verwenden.
+    /// </summary>
+    public string ContentFolder { get; set; } = string.Empty;
+
+    /// <summary>Name des zuletzt übertragenen Inhalts.</summary>
+    public string LastContentName { get; set; } = string.Empty;
+
+    /// <summary>Wann zuletzt Inhalte an diesen PC gegangen sind.</summary>
+    public DateTime? LastContentSentAt { get; set; }
+
     /// <summary>Anzeigename mit Rückfall auf den Host.</summary>
     public string DisplayName => string.IsNullOrWhiteSpace(Name) ? Host : Name;
 
@@ -32,6 +44,9 @@ public sealed class KioskPc
         GroupId = GroupId,
         Enabled = Enabled,
         ScheduleId = ScheduleId,
-        Note = Note
+        Note = Note,
+        ContentFolder = ContentFolder,
+        LastContentName = LastContentName,
+        LastContentSentAt = LastContentSentAt
     };
 }

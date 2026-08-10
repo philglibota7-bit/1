@@ -103,6 +103,16 @@ public sealed class StringToVisibilityConverter : IValueConverter
         Binding.DoNothing;
 }
 
+/// <summary>true -> grün, false -> rot. Für Erfolgs-/Fehlerpunkte in Listen.</summary>
+public sealed class BoolToBrushConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value as bool? ?? false ? Palette.Online : Palette.Offline;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        Binding.DoNothing;
+}
+
 /// <summary>Kehrt einen Wahrheitswert um (z. B. für IsEnabled).</summary>
 public sealed class InverseBooleanConverter : IValueConverter
 {

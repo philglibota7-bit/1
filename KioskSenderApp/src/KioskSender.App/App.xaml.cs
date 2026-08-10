@@ -54,8 +54,13 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
+            // Bis hierher kommt nur, wer gar kein Fenster bekommen hat — dann
+            // bleibt nichts als eine Meldung. Alles andere wird oben abgefangen.
+            LogToFile(ex);
+
             MessageBox.Show(
-                "Die Anwendung konnte nicht gestartet werden:\n\n" + ex,
+                "Die Anwendung konnte nicht gestartet werden.\n\n" + ex.Message +
+                "\n\nEinzelheiten stehen in:\n" + Path.Combine(ConfigStore.DefaultDirectory(), "crash.log"),
                 "KioskSenderApp",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
@@ -108,11 +113,24 @@ public partial class App : Application
         base.OnExit(e);
     }
 
+    /// <summary>
+    /// Auffangnetz für die Oberfläche. Es erscheint bewusst kein Dialog:
+    /// Der Hinweis landet im Balken des Hauptfensters und im Protokoll, die
+    /// Anwendung läuft weiter — der Zeitmanager soll nicht wegen einer
+    /// Kleinigkeit stehen bleiben.
+    /// </summary>
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        // Ein Fehler in der Oberfläche darf den Zeitmanager nicht mitreißen.
         e.Handled = true;
+        LogToFile(e.Exception);
 
+        if (_viewModel is not null)
+        {
+            _viewModel.Notify(e.Exception.Message, isError: true);
+            return;
+        }
+
+        // Noch kein Fenster da — dann bleibt nur die Protokolldatei.
         MessageBox.Show(
             "Es ist ein Fehler aufgetreten:\n\n" + e.Exception.Message,
             "KioskSenderApp",
@@ -124,16 +142,22 @@ public partial class App : Application
     {
         if (e.ExceptionObject is Exception ex)
         {
-            try
-            {
-                File.AppendAllText(
-                    Path.Combine(ConfigStore.DefaultDirectory(), "crash.log"),
-                    $"{DateTime.Now:u}\t{ex}{Environment.NewLine}");
-            }
-            catch
-            {
-                // Im Absturzfall ist nichts mehr zu retten.
-            }
+            LogToFile(ex);
+        }
+    }
+
+    private static void LogToFile(Exception ex)
+    {
+        try
+        {
+            Directory.CreateDirectory(ConfigStore.DefaultDirectory());
+            File.AppendAllText(
+                Path.Combine(ConfigStore.DefaultDirectory(), "crash.log"),
+                $"{DateTime.Now:u}\t{ex}{Environment.NewLine}");
+        }
+        catch
+        {
+            // Wenn nicht einmal das geht, ist ohnehin nichts mehr zu retten.
         }
     }
 }

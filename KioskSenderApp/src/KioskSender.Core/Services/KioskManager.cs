@@ -103,6 +103,68 @@ public sealed class KioskManager
         return playlist;
     }
 
+    /// <summary>
+    /// Überträgt jedem Rechner den Inhalt, der ihm zugeordnet ist.
+    /// PCs mit gleicher Zuordnung werden zusammengefasst, damit die
+    /// Wiedergabeliste nur einmal aufgebaut werden muss.
+    /// </summary>
+    public async Task<IReadOnlyList<DeployResult>> DeployAssignedAsync(
+        LibraryFolder root,
+        IEnumerable<KioskPc> targets,
+        IProgress<DeployProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var byFolder = targets
+            .Select(pc => (Pc: pc, Folder: Config.EffectiveContentFolder(pc)))
+            .Where(x => !string.IsNullOrWhiteSpace(x.Folder))
+            .GroupBy(x => x.Folder, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (byFolder.Count == 0)
+        {
+            _log.Warning("Inhalte",
+                "Keinem der gewählten PCs ist ein Inhalt zugeordnet. " +
+                "Unter „Inhalte senden“ einen Ordner zuweisen.");
+            return Array.Empty<DeployResult>();
+        }
+
+        var all = new List<DeployResult>();
+        var folders = MediaLibrary.Flatten(root).ToList();
+
+        foreach (var group in byFolder)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var folder = folders.FirstOrDefault(f =>
+                string.Equals(f.Name, group.Key, StringComparison.OrdinalIgnoreCase));
+
+            var pcs = group.Select(x => x.Pc).ToList();
+
+            if (folder is null)
+            {
+                foreach (var pc in pcs)
+                {
+                    _log.Error("Inhalte",
+                        $"Der zugeordnete Ordner „{group.Key}“ ist im Medienordner nicht mehr vorhanden.",
+                        pc.DisplayName);
+
+                    all.Add(new DeployResult(pc.DisplayName, pc.Host, false, 0, 0, 0, 0,
+                        $"Ordner „{group.Key}“ nicht gefunden."));
+                }
+
+                continue;
+            }
+
+            var playlist = BuildPlaylist(folder);
+            var results = await DeployContentAsync(playlist, pcs, progress, cancellationToken)
+                .ConfigureAwait(false);
+
+            all.AddRange(results);
+        }
+
+        return all;
+    }
+
     /// <summary>Überträgt eine Wiedergabeliste auf die gewählten Rechner.</summary>
     public async Task<IReadOnlyList<DeployResult>> DeployContentAsync(
         Playlist playlist,
@@ -125,6 +187,17 @@ public sealed class KioskManager
             if (result.Success)
             {
                 _log.Success("Inhalte", result.Summary, result.PcName);
+
+                // Am PC vermerken, was er zuletzt bekommen hat — die Übersicht
+                // zeigt damit, ob ein Rechner noch auf altem Stand ist.
+                var pc = pcs.FirstOrDefault(p =>
+                    string.Equals(p.Host, result.Host, StringComparison.OrdinalIgnoreCase));
+
+                if (pc is not null && !Config.Settings.DryRun)
+                {
+                    pc.LastContentName = playlist.Name;
+                    pc.LastContentSentAt = DateTime.Now;
+                }
             }
             else
             {

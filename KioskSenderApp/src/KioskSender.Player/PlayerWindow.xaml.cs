@@ -184,6 +184,9 @@ public partial class PlayerWindow : Window
             _itemTimer.Stop();
             StopVideo();
             ShowNext();
+
+            // Beim Wechsel kurz einblenden, was angekommen ist.
+            ShowHint();
         }
     }
 
@@ -425,11 +428,24 @@ public partial class PlayerWindow : Window
         SetStage(image: false, video: false, info: true);
     }
 
+    /// <summary>
+    /// Kurze Einblendung: welcher Rechner, welche Wiedergabeliste, welche Taste.
+    /// Damit sieht man beim Einrichten sofort, ob der richtige PC den richtigen
+    /// Inhalt bekommen hat.
+    /// </summary>
     private void ShowHint()
     {
-        HintText.Text = _options.AllowExit
-            ? "Esc beendet den Player · Leertaste springt weiter"
-            : "Leertaste springt weiter";
+        var playlist = _cursor?.Playlist;
+
+        var what = playlist is null
+            ? "keine Inhalte"
+            : $"{playlist.Name} · {_cursor!.Items.Count} Datei(en)";
+
+        var keys = _options.AllowExit
+            ? "Esc beendet · Leertaste weiter · F5 neu laden"
+            : "Leertaste weiter · F5 neu laden";
+
+        HintText.Text = $"{Environment.MachineName}   |   {what}\n{keys}";
 
         HintPanel.Visibility = Visibility.Visible;
         _hintTimer.Stop();
