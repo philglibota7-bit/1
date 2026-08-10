@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+
+    <AssemblyName>KioskPlayer</AssemblyName>
+    <RootNamespace>KioskSender.Player</RootNamespace>
+    <AssemblyTitle>KioskPlayer</AssemblyTitle>
+    <Product>KioskPlayer</Product>
+    <Company>KioskSenderApp</Company>
+    <Description>Zeigt die vom KioskSenderApp gesendeten Inhalte im Vollbild an</Description>
+    <Version>2.1.0</Version>
+    <FileVersion>2.1.0.0</FileVersion>
+    <AssemblyVersion>2.1.0.0</AssemblyVersion>
+
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KioskSender.Core\KioskSender.Core.csproj" />
+  </ItemGroup>
+
+</Project>

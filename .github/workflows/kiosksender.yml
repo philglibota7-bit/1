@@ -1,0 +1,95 @@
+name: KioskSenderApp
+
+# Baut die fertige EXE und lässt die Tests laufen.
+# Ergebnis: unter "Actions" -> Lauf öffnen -> Artefakt "KioskSenderApp-win-x64" herunterladen.
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "KioskSenderApp/**"
+      - ".github/workflows/kiosksender.yml"
+  pull_request:
+    paths:
+      - "KioskSenderApp/**"
+      - ".github/workflows/kiosksender.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: .NET 8 einrichten
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Abhängigkeiten holen
+        run: dotnet restore KioskSenderApp/KioskSenderApp.sln
+
+      - name: Übersetzen
+        run: dotnet build KioskSenderApp/KioskSenderApp.sln --configuration Release --no-restore
+
+      - name: Tests
+        run: dotnet test KioskSenderApp/tests/KioskSender.Core.Tests/KioskSender.Core.Tests.csproj --configuration Release --no-build --verbosity normal
+
+      - name: EXE erzeugen — ohne .NET-Installation lauffähig (ca. 65 MB)
+        run: >
+          dotnet publish KioskSenderApp/src/KioskSender.App/KioskSender.App.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=none
+          --output publish/standalone
+
+      - name: EXE erzeugen — klein, benötigt .NET 8 Desktop Runtime (ca. 350 KB)
+        run: >
+          dotnet publish KioskSenderApp/src/KioskSender.App/KioskSender.App.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained false
+          -p:PublishSingleFile=true
+          -p:DebugType=none
+          --output publish/framework-dependent
+
+      - name: KioskPlayer erzeugen — läuft auf den Kiosk-PCs (ca. 65 MB)
+        run: >
+          dotnet publish KioskSenderApp/src/KioskSender.Player/KioskSender.Player.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=none
+          --output publish/player
+
+      - name: EXE hochladen (Manager, eigenständig)
+        uses: actions/upload-artifact@v4
+        with:
+          name: KioskSenderApp-win-x64-eigenstaendig
+          path: publish/standalone/KioskSenderApp.exe
+          if-no-files-found: error
+
+      - name: EXE hochladen (Manager, klein)
+        uses: actions/upload-artifact@v4
+        with:
+          name: KioskSenderApp-win-x64-klein
+          path: publish/framework-dependent/KioskSenderApp.exe
+          if-no-files-found: error
+
+      - name: EXE hochladen (Player für die Kiosk-PCs)
+        uses: actions/upload-artifact@v4
+        with:
+          name: KioskPlayer-win-x64
+          path: publish/player/KioskPlayer.exe
+          if-no-files-found: error
