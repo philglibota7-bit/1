@@ -1,0 +1,19 @@
+<Application x:Class="KioskSender.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:infra="clr-namespace:KioskSender.App.Infrastructure">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Theme/Dark.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <infra:HostStateToBrushConverter x:Key="HostStateToBrush" />
+            <infra:LogLevelToBrushConverter x:Key="LogLevelToBrush" />
+            <infra:HexToBrushConverter x:Key="HexToBrush" />
+            <infra:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+            <infra:StringToVisibilityConverter x:Key="StringToVisibility" />
+            <infra:InverseBooleanConverter x:Key="InverseBoolean" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
