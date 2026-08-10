@@ -110,9 +110,9 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
 
-                                    <DataGridTextColumn Header="Name" Width="1.4*" Binding="{Binding DisplayName}" />
-                                    <DataGridTextColumn Header="Host / IP" Width="1.2*" Binding="{Binding Host}" />
-                                    <DataGridTextColumn Header="Zeigt" Width="1.3*" Binding="{Binding ContentText}" />
+                                    <DataGridTextColumn Header="Name" Width="1.4*" Binding="{Binding DisplayName, Mode=OneWay}" />
+                                    <DataGridTextColumn Header="Host / IP" Width="1.2*" Binding="{Binding Host, Mode=OneWay}" />
+                                    <DataGridTextColumn Header="Zeigt" Width="1.3*" Binding="{Binding ContentText, Mode=OneWay}" />
 
                                     <DataGridTemplateColumn Header="Gruppe" Width="1.2*">
                                         <DataGridTemplateColumn.CellTemplate>
@@ -126,8 +126,8 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
 
-                                    <DataGridTextColumn Header="Zeitfenster" Width="1.6*" Binding="{Binding ScheduleText}" />
-                                    <DataGridTextColumn Header="Erreichbarkeit" Width="1.4*" Binding="{Binding StatusText}" />
+                                    <DataGridTextColumn Header="Zeitfenster" Width="1.6*" Binding="{Binding ScheduleText, Mode=OneWay}" />
+                                    <DataGridTextColumn Header="Erreichbarkeit" Width="1.4*" Binding="{Binding StatusText, Mode=OneWay}" />
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Grid>
@@ -324,7 +324,7 @@
                                     <DataGridTextColumn Header="Host / IP" Width="1.2*"
                                                         Binding="{Binding Host, UpdateSourceTrigger=PropertyChanged}" />
                                     <DataGridTextColumn Header="Gruppe" Width="*" IsReadOnly="True"
-                                                        Binding="{Binding GroupName}" />
+                                                        Binding="{Binding GroupName, Mode=OneWay}" />
                                     <DataGridTextColumn Header="Notiz" Width="*"
                                                         Binding="{Binding Note, UpdateSourceTrigger=PropertyChanged}" />
                                 </DataGrid.Columns>
@@ -483,11 +483,11 @@
 
                             <DataGrid Grid.Row="2" ItemsSource="{Binding PlaylistItems}" IsReadOnly="True">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="#" Width="40" Binding="{Binding Position}" />
-                                    <DataGridTextColumn Header="Datei" Width="2*" Binding="{Binding FileName}" />
-                                    <DataGridTextColumn Header="Art" Width="*" Binding="{Binding KindText}" />
-                                    <DataGridTextColumn Header="Dauer" Width="*" Binding="{Binding DurationText}" />
-                                    <DataGridTextColumn Header="Größe" Width="*" Binding="{Binding SizeText}" />
+                                    <DataGridTextColumn Header="#" Width="40" Binding="{Binding Position, Mode=OneWay}" />
+                                    <DataGridTextColumn Header="Datei" Width="2*" Binding="{Binding FileName, Mode=OneWay}" />
+                                    <DataGridTextColumn Header="Art" Width="*" Binding="{Binding KindText, Mode=OneWay}" />
+                                    <DataGridTextColumn Header="Dauer" Width="*" Binding="{Binding DurationText, Mode=OneWay}" />
+                                    <DataGridTextColumn Header="Größe" Width="*" Binding="{Binding SizeText, Mode=OneWay}" />
                                 </DataGrid.Columns>
                             </DataGrid>
 
@@ -578,7 +578,12 @@
                                 <TextBlock Text="{Binding ChosenPcSummary}" TextWrapping="Wrap" Margin="0,0,0,8"
                                            Foreground="{StaticResource TextMutedBrush}" />
 
-                                <ProgressBar Value="{Binding DeployPercent}" Maximum="100"
+                                <!--
+                                    Mode=OneWay ist Pflicht: ProgressBar.Value bindet sonst
+                                    beidseitig und WPF lehnt eine Eigenschaft ohne
+                                    öffentlichen Setter beim Aufbau des Fensters ab.
+                                -->
+                                <ProgressBar Value="{Binding DeployPercent, Mode=OneWay}" Maximum="100"
                                              Visibility="{Binding IsDeploying, Converter={StaticResource BoolToVisibility}}" />
 
                                 <TextBlock Text="{Binding DeployStatus}" TextWrapping="Wrap" Margin="0,0,0,8"
@@ -842,7 +847,7 @@
                         <DataGrid Grid.Row="0" ItemsSource="{Binding LogEntries}" IsReadOnly="True">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Zeit" Width="140"
-                                                    Binding="{Binding Timestamp, StringFormat='dd.MM. HH:mm:ss'}" />
+                                                    Binding="{Binding Timestamp, StringFormat='dd.MM. HH:mm:ss', Mode=OneWay}" />
                                 <DataGridTemplateColumn Header="Ebene" Width="90">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
@@ -852,9 +857,9 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Quelle" Width="130" Binding="{Binding Source}" />
-                                <DataGridTextColumn Header="Ziel" Width="180" Binding="{Binding Target}" />
-                                <DataGridTextColumn Header="Meldung" Width="*" Binding="{Binding Message}" />
+                                <DataGridTextColumn Header="Quelle" Width="130" Binding="{Binding Source, Mode=OneWay}" />
+                                <DataGridTextColumn Header="Ziel" Width="180" Binding="{Binding Target, Mode=OneWay}" />
+                                <DataGridTextColumn Header="Meldung" Width="*" Binding="{Binding Message, Mode=OneWay}" />
                             </DataGrid.Columns>
                         </DataGrid>
 
