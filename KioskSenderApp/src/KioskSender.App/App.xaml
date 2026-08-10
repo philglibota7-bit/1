@@ -5,7 +5,7 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/Theme/Dark.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Theme/Clinic.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <infra:HostStateToBrushConverter x:Key="HostStateToBrush" />

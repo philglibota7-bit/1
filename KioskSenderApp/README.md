@@ -75,6 +75,17 @@ Medien nicht von sich aus auf einem fremden Rechner starten.
 - Nach jeder Aktion steht **je Rechner eine Zeile** mit grünem oder rotem Punkt
   da — man sieht sofort, wer erreicht wurde und woran es sonst lag
 
+### Oberfläche
+- **Klinik-Design**: helle, ruhige Flächen, klinisches Blau als einzige
+  Akzentfarbe, kräftige Signalfarben nur für Zustände. Helle Oberflächen sind
+  in hell beleuchteten Räumen besser lesbar als dunkle.
+- **Kennzahlen am Kopf der Übersicht**: erreichbare PCs, Inhalte auf aktuellem
+  Stand, offene Zeitfenster, Fehler des Tages — der Zustand der Anlage in einer
+  Sekunde erfassbar
+- Seitenleiste links mit festen Plätzen für jeden Arbeitsschritt
+- Legende unter der Tabelle: kein Ratespiel, wofür die farbigen Punkte stehen
+- Große Schaltflächen und Schrift, hoher Kontrast
+
 ### Betrieb
 - **Testbetrieb**: Es wird nur protokolliert, was passieren würde — nichts wird
   ausgeführt. Ideal, um einen neuen Zeitplan gefahrlos zu prüfen.
@@ -165,6 +176,10 @@ Bei Tastendruck oder Mausbewegung blendet der Player kurz ein, **welcher
 Rechner** er ist und **welche Wiedergabeliste** gerade läuft — praktisch, um
 beim Einrichten zu prüfen, ob der richtige PC den richtigen Inhalt hat.
 
+Der Wartebildschirm ist im selben Klinik-Design gehalten und passt damit zur
+Beschilderung im Haus. Medien selbst laufen auf schwarzem Grund, damit nichts
+vom Bild ablenkt und Ränder nicht auffallen.
+
 Startparameter:
 
 ```
@@ -229,7 +244,7 @@ KioskSenderApp/
 │  ├─ KioskSender.App/           WPF-Oberfläche des Managers (net8.0-windows)
 │  │  ├─ ViewModels/             MVVM ohne Fremdpakete
 │  │  ├─ Views/                  Hauptfenster
-│  │  ├─ Theme/                  dunkles Design
+│  │  ├─ Theme/Clinic.xaml       Klinik-Design an einer Stelle
 │  │  └─ Infrastructure/         Basisklassen, Befehle, Konverter
 │  └─ KioskSender.Player/        Vollbild-Player für die Kiosk-PCs
 └─ tests/

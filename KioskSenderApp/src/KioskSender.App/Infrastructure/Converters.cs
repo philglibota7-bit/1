@@ -123,16 +123,20 @@ public sealed class InverseBooleanConverter : IValueConverter
         !(value as bool? ?? false);
 }
 
-/// <summary>Die Farben der Oberfläche an einer Stelle.</summary>
+/// <summary>
+/// Die Signalfarben an einer Stelle. Werte wie im Klinik-Design: kräftig genug
+/// für einen Blick aus der Entfernung und ausreichend kontrastreich auf hellem
+/// Grund.
+/// </summary>
 public static class Palette
 {
-    public static readonly SolidColorBrush Online = Frozen("#3FBF6F");
-    public static readonly SolidColorBrush Offline = Frozen("#E5484D");
-    public static readonly SolidColorBrush Warning = Frozen("#F5A524");
-    public static readonly SolidColorBrush Unknown = Frozen("#8B93A7");
-    public static readonly SolidColorBrush Muted = Frozen("#6A7285");
-    public static readonly SolidColorBrush Text = Frozen("#E6E9F0");
-    public static readonly SolidColorBrush Accent = Frozen("#4C8DFF");
+    public static readonly SolidColorBrush Online = Frozen("#1E8A57");
+    public static readonly SolidColorBrush Offline = Frozen("#C0362C");
+    public static readonly SolidColorBrush Warning = Frozen("#B0700A");
+    public static readonly SolidColorBrush Unknown = Frozen("#8496A5");
+    public static readonly SolidColorBrush Muted = Frozen("#5B7285");
+    public static readonly SolidColorBrush Text = Frozen("#15303F");
+    public static readonly SolidColorBrush Accent = Frozen("#0B6FA4");
 
     private static SolidColorBrush Frozen(string hex)
     {

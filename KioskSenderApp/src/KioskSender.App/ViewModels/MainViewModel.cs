@@ -53,6 +53,9 @@ public sealed class ActionChoice
 /// <summary>Eine Zeile in der Ergebnisliste nach einer Aktion.</summary>
 public sealed record ActionResultItem(string Target, string Message, bool IsGood);
 
+/// <summary>Eine Kennzahl-Kachel der Übersicht.</summary>
+public sealed record KpiTile(string Title, string Value, string Detail, string ColorHex);
+
 /// <summary>Das Ansichtsmodell des Hauptfensters.</summary>
 public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
@@ -144,6 +147,82 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Ergebnis der zuletzt ausgelösten Aktion, je Rechner eine Zeile.</summary>
     public ObservableCollection<ActionResultItem> ActionResults { get; } = new();
+
+    /// <summary>Kennzahlen am Kopf der Übersicht.</summary>
+    public ObservableCollection<KpiTile> Kpis { get; } = new();
+
+    private const string ColorOk = "#1E8A57";
+    private const string ColorWarn = "#B0700A";
+    private const string ColorAlarm = "#C0362C";
+    private const string ColorNeutral = "#0B6FA4";
+
+    /// <summary>
+    /// Rechnet die vier Kacheln neu aus. Bewusst knappe Zahlen: Wer den
+    /// Bildschirm im Vorbeigehen ansieht, soll in einer Sekunde erkennen,
+    /// ob etwas nicht stimmt.
+    /// </summary>
+    public void RefreshKpis()
+    {
+        var active = Pcs.Where(p => p.Enabled).ToList();
+        var online = active.Count(p => p.State == HostState.Online);
+
+        var assigned = active.Where(p => !string.IsNullOrWhiteSpace(p.EffectiveContent)).ToList();
+        var current = assigned.Count(p => !p.ContentIsStale);
+
+        var open = active.Count(p => p.ScheduleState.IsOpen);
+        var withSchedule = active.Count(p => p.ScheduleName != "—");
+
+        var today = DateTime.Today;
+        var errors = LogEntries.Count(e => e.Level == LogLevel.Error && e.Timestamp.Date == today);
+
+        var tiles = new[]
+        {
+            new KpiTile(
+                "Erreichbar",
+                active.Count == 0 ? "—" : $"{online}/{active.Count}",
+                active.Count == 0 ? "keine PCs angelegt" : "PCs antworten auf Ping",
+                active.Count == 0 ? ColorNeutral : online == active.Count ? ColorOk : ColorAlarm),
+
+            new KpiTile(
+                "Inhalte",
+                assigned.Count == 0 ? "—" : $"{current}/{assigned.Count}",
+                assigned.Count == 0 ? "nichts zugeordnet" : "auf aktuellem Stand",
+                assigned.Count == 0 ? ColorNeutral : current == assigned.Count ? ColorOk : ColorWarn),
+
+            new KpiTile(
+                "Zeitfenster",
+                withSchedule == 0 ? "—" : $"{open}/{withSchedule}",
+                withSchedule == 0 ? "kein Zeitplan zugewiesen" : "PCs gerade geöffnet",
+                ColorNeutral),
+
+            new KpiTile(
+                "Meldungen",
+                errors.ToString(),
+                errors == 0 ? "heute ohne Fehler" : "Fehler heute im Protokoll",
+                errors == 0 ? ColorOk : ColorAlarm)
+        };
+
+        // In die bestehende Sammlung schreiben statt sie zu leeren: So flackern
+        // die Kacheln nicht bei jedem Takt.
+        if (Kpis.Count != tiles.Length)
+        {
+            Kpis.Clear();
+            foreach (var tile in tiles)
+            {
+                Kpis.Add(tile);
+            }
+
+            return;
+        }
+
+        for (var i = 0; i < tiles.Length; i++)
+        {
+            if (!Kpis[i].Equals(tiles[i]))
+            {
+                Kpis[i] = tiles[i];
+            }
+        }
+    }
 
     public IReadOnlyList<ActionChoice> CloseActions { get; }
 
@@ -604,6 +683,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         ClockText = DateTime.Now.ToString("dddd, dd.MM.yyyy  HH:mm");
         UpdateScheduleStates();
+        RefreshKpis();
     }
 
     private async void OnSaveTick(object? sender, EventArgs e)
@@ -752,6 +832,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RefreshPcMetadata();
         RefreshGroupCounts();
         UpdateScheduleStates();
+        RefreshKpis();
         OnPropertyChanged(nameof(TargetSummary));
         RefreshViews();
     }
@@ -761,6 +842,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         RefreshPcMetadata();
         RefreshGroupCounts();
+        RefreshKpis();
         OnPropertyChanged(nameof(TargetSummary));
         RefreshViews();
     }
@@ -954,6 +1036,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 group.PcCount = members.Count;
                 group.OnlineCount = members.Count(p => p.State == HostState.Online);
             }
+
+            RefreshKpis();
 
             var online = Pcs.Count(p => p.State == HostState.Online);
             StatusMessage = $"{online} von {Pcs.Count(p => p.Enabled)} aktiven PCs erreichbar " +
