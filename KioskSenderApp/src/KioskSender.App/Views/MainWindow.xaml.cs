@@ -25,6 +25,22 @@ public partial class MainWindow : Window
 
         viewModel.ShowError = (title, message) =>
             MessageBox.Show(this, message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
+
+        viewModel.PickFolder = startPath =>
+        {
+            var dialog = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = "Ordner mit den Medien wählen",
+                Multiselect = false
+            };
+
+            if (!string.IsNullOrWhiteSpace(startPath) && System.IO.Directory.Exists(startPath))
+            {
+                dialog.InitialDirectory = startPath;
+            }
+
+            return dialog.ShowDialog(this) == true ? dialog.FolderName : null;
+        };
     }
 
     /// <summary>

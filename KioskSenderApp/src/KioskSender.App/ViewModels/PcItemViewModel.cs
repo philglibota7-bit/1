@@ -15,6 +15,7 @@ public sealed class PcItemViewModel : ObservableObject
     private string _groupName = "—";
     private string _scheduleName = "—";
     private string _groupColor = "#6A7285";
+    private bool _isChosen;
 
     public PcItemViewModel(KioskPc model)
     {
@@ -79,6 +80,27 @@ public sealed class PcItemViewModel : ObservableObject
     }
 
     public string DisplayName => Model.DisplayName;
+
+    /// <summary>
+    /// Häkchen in der Empfängerliste beim Senden von Inhalten.
+    /// Gehört bewusst nicht zur gespeicherten Konfiguration — es ist eine
+    /// Auswahl für den Moment, kein Merkmal des PCs.
+    /// </summary>
+    public bool IsChosen
+    {
+        get => _isChosen;
+        set
+        {
+            if (_isChosen != value)
+            {
+                _isChosen = value;
+                OnPropertyChanged();
+                ChosenChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+    }
+
+    public event EventHandler? ChosenChanged;
 
     public bool HostIsValid => CommandBuilder.IsValidHost(Model.Host);
 

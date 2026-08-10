@@ -282,28 +282,41 @@
     <Style TargetType="TabControl">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Padding" Value="0,10,0,0" />
+        <Setter Property="Padding" Value="12,0,0,0" />
     </Style>
 
+    <!--
+        Die Registerkarten stehen links als Seitenleiste. Das gibt jedem
+        Arbeitsschritt eine feste Stelle und lässt Platz für sprechende Namen.
+    -->
     <Style TargetType="TabItem">
         <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
-        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontSize" Value="14" />
         <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+        <Setter Property="MinWidth" Value="212" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TabItem">
                     <Border x:Name="Root"
                             Background="Transparent"
                             BorderBrush="Transparent"
-                            BorderThickness="0,0,0,2"
-                            Padding="16,9">
-                        <ContentPresenter ContentSource="Header" />
+                            BorderThickness="3,0,0,0"
+                            CornerRadius="0,6,6,0"
+                            Padding="15,12"
+                            Margin="0,0,0,3">
+                        <ContentPresenter ContentSource="Header"
+                                          HorizontalAlignment="Left"
+                                          VerticalAlignment="Center" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="#1C222E" />
                             <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{StaticResource SurfaceBrush}" />
                             <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
                             <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
                             <Setter Property="FontWeight" Value="SemiBold" />
@@ -312,6 +325,42 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- Nummernkreis für die Arbeitsschritte -->
+    <Style x:Key="StepBadge" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+        <Setter Property="CornerRadius" Value="11" />
+        <Setter Property="Width" Value="22" />
+        <Setter Property="Height" Value="22" />
+        <Setter Property="Margin" Value="0,0,9,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="StepBadgeText" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="#0B0E14" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="BigActionButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+        <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+        <Setter Property="Foreground" Value="#0B0E14" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="Padding" Value="16,12" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+
+    <Style TargetType="ProgressBar">
+        <Setter Property="Height" Value="8" />
+        <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Margin" Value="0,0,0,8" />
     </Style>
 
     <!-- ============================ Sonstiges ============================ -->

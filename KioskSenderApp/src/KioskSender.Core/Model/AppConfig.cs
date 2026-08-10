@@ -118,6 +118,13 @@ public sealed class AppConfig
         Settings.MaxParallelPings = Math.Clamp(Settings.MaxParallelPings, 1, 256);
         Settings.CommandTimeoutSeconds = Math.Clamp(Settings.CommandTimeoutSeconds, 5, 300);
         Settings.LogCapacity = Math.Clamp(Settings.LogCapacity, 100, 100_000);
+        Settings.DefaultImageSeconds = Math.Clamp(Settings.DefaultImageSeconds, 1, 3600);
+        Settings.MaxParallelTransfers = Math.Clamp(Settings.MaxParallelTransfers, 1, 16);
+
+        if (string.IsNullOrWhiteSpace(Settings.ContentTargetTemplate))
+        {
+            Settings.ContentTargetTemplate = @"\\{host}\C$\ProgramData\KioskPlayer";
+        }
 
         return fixes;
     }

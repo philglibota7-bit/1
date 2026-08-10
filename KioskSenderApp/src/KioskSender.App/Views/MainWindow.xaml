@@ -52,7 +52,7 @@
         </Border>
 
         <!-- ============================== Registerkarten ============================== -->
-        <TabControl Grid.Row="1">
+        <TabControl Grid.Row="1" TabStripPlacement="Left">
 
             <!-- ================================================================ Übersicht -->
             <TabItem Header="Übersicht">
@@ -364,6 +364,208 @@
                 </Grid>
             </TabItem>
 
+            <!-- ================================================================ Inhalte -->
+            <TabItem Header="Inhalte senden">
+                <Grid Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1.1*" />
+                        <ColumnDefinition Width="1.5*" />
+                        <ColumnDefinition Width="1.2*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Schritt 1: Ordner -->
+                    <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,10,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                                <Border Style="{StaticResource StepBadge}">
+                                    <TextBlock Text="1" Style="{StaticResource StepBadgeText}" />
+                                </Border>
+                                <TextBlock Text="Ordner wählen" Style="{StaticResource HeadlineText}" Margin="0" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="1">
+                                <TextBlock Style="{StaticResource CaptionText}"
+                                           Text="Jeder Unterordner ist eine eigene Wiedergabeliste. Die Dateien darin laufen der Reihe nach — nach Namen sortiert (Bild1, Bild2, Bild10)." />
+
+                                <TextBox Text="{Binding MediaRootPath, UpdateSourceTrigger=LostFocus}"
+                                         ToolTip="Hauptordner mit allen Medien." />
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Button Content="Ordner wählen…" Command="{Binding BrowseMediaFolderCommand}" />
+                                    <Button Content="Neu einlesen" Command="{Binding RefreshLibraryCommand}" />
+                                    <Button Content="Öffnen" Command="{Binding OpenMediaFolderCommand}" Margin="0"
+                                            ToolTip="Öffnet den Ordner im Explorer — dort Dateien hineinlegen." />
+                                </StackPanel>
+                            </StackPanel>
+
+                            <ListBox Grid.Row="2"
+                                     ItemsSource="{Binding LibraryFolders}"
+                                     SelectedItem="{Binding SelectedLibraryFolder, Mode=TwoWay}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="{Binding Indent}">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Summary}" FontSize="11"
+                                                       Foreground="{StaticResource TextMutedBrush}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <TextBlock Grid.Row="3" Text="{Binding LibraryStatus}" Margin="0,8,0,0"
+                                       TextWrapping="Wrap" FontSize="11"
+                                       Foreground="{StaticResource TextMutedBrush}" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Schritt 2: Inhalt prüfen -->
+                    <Border Grid.Column="1" Style="{StaticResource Card}" Margin="0,0,10,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                                <Border Style="{StaticResource StepBadge}">
+                                    <TextBlock Text="2" Style="{StaticResource StepBadgeText}" />
+                                </Border>
+                                <TextBlock Text="Inhalt prüfen" Style="{StaticResource HeadlineText}" Margin="0" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="1">
+                                <TextBlock Text="{Binding PlaylistName}" FontSize="15" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding PlaylistSummary}" TextWrapping="Wrap" Margin="0,3,0,10"
+                                           Foreground="{StaticResource TextMutedBrush}" />
+                            </StackPanel>
+
+                            <DataGrid Grid.Row="2" ItemsSource="{Binding PlaylistItems}" IsReadOnly="True">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="#" Width="40" Binding="{Binding Position}" />
+                                    <DataGridTextColumn Header="Datei" Width="2*" Binding="{Binding FileName}" />
+                                    <DataGridTextColumn Header="Art" Width="*" Binding="{Binding KindText}" />
+                                    <DataGridTextColumn Header="Dauer" Width="*" Binding="{Binding DurationText}" />
+                                    <DataGridTextColumn Header="Größe" Width="*" Binding="{Binding SizeText}" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <StackPanel Grid.Row="3" Margin="0,10,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                        <TextBlock Text="Bild zeigen für (Sek.)" Style="{StaticResource CaptionText}" />
+                                        <TextBox Width="80" HorizontalAlignment="Left"
+                                                 Text="{Binding DefaultImageSeconds, UpdateSourceTrigger=LostFocus}" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Bottom" Margin="0,0,16,8">
+                                        <CheckBox Content="Endlos wiederholen" IsChecked="{Binding PlaylistLoop}" Margin="0,0,0,4" />
+                                        <CheckBox Content="Reihenfolge mischen" IsChecked="{Binding PlaylistShuffle}" Margin="0" />
+                                    </StackPanel>
+
+                                    <TextBlock Grid.Column="2" VerticalAlignment="Bottom" Margin="0,0,0,10"
+                                               Style="{StaticResource CaptionText}"
+                                               Text="Videos laufen immer bis zum Ende. PowerPoint startet als Bildschirmpräsentation." />
+                                </Grid>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Schritt 3: Empfänger und senden -->
+                    <Border Grid.Column="2" Style="{StaticResource Card}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                                <Border Style="{StaticResource StepBadge}">
+                                    <TextBlock Text="3" Style="{StaticResource StepBadgeText}" />
+                                </Border>
+                                <TextBlock Text="An welche PCs?" Style="{StaticResource HeadlineText}" Margin="0" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+                                <Button Content="Alle" Command="{Binding ChooseAllPcsCommand}" />
+                                <Button Content="Keine" Command="{Binding ChooseNoPcsCommand}" />
+                                <Button Content="Gewählte Gruppe" Command="{Binding ChooseGroupPcsCommand}" Margin="0"
+                                        ToolTip="Hakt alle PCs der Gruppe an, die unter „Gruppen &amp; PCs“ ausgewählt ist." />
+                            </StackPanel>
+
+                            <ListBox Grid.Row="2" ItemsSource="{Binding Pcs}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <CheckBox Grid.Column="0" Margin="0,0,8,0"
+                                                      VerticalAlignment="Center"
+                                                      IsChecked="{Binding IsChosen, Mode=TwoWay}"
+                                                      IsEnabled="{Binding Enabled}" />
+
+                                            <Border Grid.Column="1" Width="8" Height="8" CornerRadius="4"
+                                                    Margin="0,0,8,0" VerticalAlignment="Center"
+                                                    Background="{Binding State, Converter={StaticResource HostStateToBrush}}"
+                                                    ToolTip="{Binding StatusText}" />
+
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="{Binding DisplayName}" />
+                                                <TextBlock FontSize="11" Foreground="{StaticResource TextMutedBrush}"
+                                                           Text="{Binding GroupName}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <StackPanel Grid.Row="3" Margin="0,10,0,0">
+                                <TextBlock Text="{Binding ChosenPcSummary}" TextWrapping="Wrap" Margin="0,0,0,8"
+                                           Foreground="{StaticResource TextMutedBrush}" />
+
+                                <ProgressBar Value="{Binding DeployPercent}" Maximum="100"
+                                             Visibility="{Binding IsDeploying, Converter={StaticResource BoolToVisibility}}" />
+
+                                <TextBlock Text="{Binding DeployStatus}" TextWrapping="Wrap" Margin="0,0,0,8"
+                                           Visibility="{Binding DeployStatus, Converter={StaticResource StringToVisibility}}" />
+
+                                <Button Content="An ausgewählte PCs senden"
+                                        Style="{StaticResource BigActionButton}"
+                                        Command="{Binding SendContentCommand}" />
+
+                                <Button Content="Übertragung abbrechen"
+                                        Command="{Binding CancelSendContentCommand}"
+                                        Margin="0,0,0,8"
+                                        Visibility="{Binding IsDeploying, Converter={StaticResource BoolToVisibility}}" />
+
+                                <TextBlock Style="{StaticResource CaptionText}"
+                                           Text="Auf den Kiosk-PCs muss KioskPlayer laufen. Er merkt selbst, wenn neue Inhalte ankommen, und wechselt darauf." />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
             <!-- ================================================================ Zeitmanager -->
             <TabItem Header="Zeitmanager">
                 <Grid Margin="0,10,0,0">
@@ -623,6 +825,17 @@
                             <TextBlock Style="{StaticResource CaptionText}" FontFamily="Consolas"
                                        Text="C:\Tools\PsExec.exe \\{host} -s -d rundll32.exe user32.dll,LockWorkStation" />
                             <TextBox Text="{Binding CustomCommand, UpdateSourceTrigger=LostFocus}" FontFamily="Consolas" />
+
+                            <TextBlock Text="Inhalte verteilen" Style="{StaticResource HeadlineText}" Margin="0,14,0,8" />
+                            <TextBlock Style="{StaticResource CaptionText}"
+                                       Text="Wohin die Bilder, Videos und Präsentationen auf dem Kiosk-PC kopiert werden. {host} wird durch den jeweiligen Rechner ersetzt. Voreingestellt ist die Verwaltungsfreigabe C$ — dorthin darf, wer auf dem Zielrechner Administrator ist. Alternativ geht auch eine zentrale Freigabe, z. B. \\medienserver\kiosk\{host}." />
+                            <TextBox Text="{Binding ContentTargetTemplate, UpdateSourceTrigger=LostFocus}" FontFamily="Consolas" />
+
+                            <CheckBox Content="Beim Senden nicht mehr benötigte Dateien auf dem Kiosk-PC löschen"
+                                      IsChecked="{Binding RemoveObsoleteContent}" />
+
+                            <TextBlock Style="{StaticResource CaptionText}"
+                                       Text="Auf jedem Kiosk-PC muss KioskPlayer.exe laufen. Der Player liest genau diesen Ordner, merkt selbstständig, wenn neue Inhalte ankommen, und wechselt darauf — ohne Neustart." />
 
                             <TextBlock Text="Voraussetzungen auf den Zielrechnern" Style="{StaticResource HeadlineText}" Margin="0,14,0,8" />
                             <TextBlock Style="{StaticResource CaptionText}"

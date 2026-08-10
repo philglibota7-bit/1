@@ -61,16 +61,35 @@ jobs:
           -p:DebugType=none
           --output publish/framework-dependent
 
-      - name: EXE hochladen (eigenständig)
+      - name: KioskPlayer erzeugen — läuft auf den Kiosk-PCs (ca. 65 MB)
+        run: >
+          dotnet publish KioskSenderApp/src/KioskSender.Player/KioskSender.Player.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=none
+          --output publish/player
+
+      - name: EXE hochladen (Manager, eigenständig)
         uses: actions/upload-artifact@v4
         with:
           name: KioskSenderApp-win-x64-eigenstaendig
           path: publish/standalone/KioskSenderApp.exe
           if-no-files-found: error
 
-      - name: EXE hochladen (klein)
+      - name: EXE hochladen (Manager, klein)
         uses: actions/upload-artifact@v4
         with:
           name: KioskSenderApp-win-x64-klein
           path: publish/framework-dependent/KioskSenderApp.exe
+          if-no-files-found: error
+
+      - name: EXE hochladen (Player für die Kiosk-PCs)
+        uses: actions/upload-artifact@v4
+        with:
+          name: KioskPlayer-win-x64
+          path: publish/player/KioskPlayer.exe
           if-no-files-found: error

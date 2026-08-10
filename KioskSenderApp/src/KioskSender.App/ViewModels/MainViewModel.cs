@@ -58,7 +58,7 @@ public enum SendScope
 }
 
 /// <summary>Das Ansichtsmodell des Hauptfensters.</summary>
-public sealed class MainViewModel : ObservableObject, IDisposable
+public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly ConfigStore _store;
     private readonly KioskManager _manager;
@@ -522,6 +522,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         SendCustomCommand = new AsyncRelayCommand(
             () => SendAsync(KioskActionKind.Custom, string.Empty), () => !IsBusy, OnError);
+
+        BuildContentCommands(OnError);
     }
 
     // ------------------------------------------------------------ Zeitgeber
@@ -603,6 +605,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
 
         RebuildFromConfig();
+        RefreshLibrary();
         _log.Info("Anwendung", $"Konfiguration geladen: {_store.FilePath}");
 
         await RefreshStatusAsync().ConfigureAwait(true);
@@ -815,7 +818,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         item.PropertyChanged -= OnTrackedPropertyChanged;
         item.PropertyChanged += OnTrackedPropertyChanged;
+
+        if (item is PcItemViewModel pc)
+        {
+            pc.ChosenChanged -= OnPcChosenChanged;
+            pc.ChosenChanged += OnPcChosenChanged;
+        }
     }
+
+    private void OnPcChosenChanged(object? sender, EventArgs e) => NotifyChosenChanged();
 
     private void TrackSchedule(ScheduleItemViewModel schedule)
     {

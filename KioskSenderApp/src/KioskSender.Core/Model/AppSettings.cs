@@ -46,5 +46,34 @@ public sealed class AppSettings
     /// <summary>Fenster beim Start minimiert in den Infobereich legen.</summary>
     public bool StartMinimized { get; set; }
 
+    // ------------------------------------------------------------- Inhalte
+
+    /// <summary>
+    /// Ordner mit den Medien. Jeder Unterordner darin ist eine Wiedergabeliste.
+    /// </summary>
+    public string MediaRootPath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Wohin die Inhalte auf dem Kiosk-PC kopiert werden. {host} wird ersetzt.
+    /// Vorgabe ist die Verwaltungsfreigabe C$ — dorthin darf, wer auf dem
+    /// Zielrechner Administrator ist.
+    /// </summary>
+    public string ContentTargetTemplate { get; set; } = @"\\{host}\C$\ProgramData\KioskPlayer";
+
+    /// <summary>Anzeigedauer für Bilder in Sekunden.</summary>
+    public int DefaultImageSeconds { get; set; } = 10;
+
+    /// <summary>Nach dem letzten Element wieder von vorn beginnen.</summary>
+    public bool PlaylistLoop { get; set; } = true;
+
+    /// <summary>Reihenfolge bei jedem Durchlauf mischen.</summary>
+    public bool PlaylistShuffle { get; set; }
+
+    /// <summary>Beim Senden Dateien auf dem Zielrechner löschen, die nicht mehr dazugehören.</summary>
+    public bool RemoveObsoleteContent { get; set; } = true;
+
+    /// <summary>Wie viele Rechner gleichzeitig beliefert werden.</summary>
+    public int MaxParallelTransfers { get; set; } = 4;
+
     public AppSettings Clone() => (AppSettings)MemberwiseClone();
 }

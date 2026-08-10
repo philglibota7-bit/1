@@ -1,3 +1,4 @@
+using KioskSender.Core.Content;
 using KioskSender.Core.Logging;
 using KioskSender.Core.Model;
 using KioskSender.Core.Remote;
@@ -18,18 +19,26 @@ public sealed class KioskManager
     private readonly StatusMonitor _monitor;
     private readonly LogService _log;
 
+    private readonly DeploymentService _deployment;
+
     public KioskManager(
         AppConfig config,
         RemoteCommandService remote,
         StatusMonitor monitor,
-        LogService log)
+        LogService log,
+        DeploymentService? deployment = null)
     {
         Config = config;
         _remote = remote;
         _monitor = monitor;
         _log = log;
+        _deployment = deployment ?? new DeploymentService(new FileSystemTransfer());
         ApplySettings();
     }
+
+    public DeploymentService Deployment => _deployment;
+
+    public MediaLibrary Library { get; } = new();
 
     public AppConfig Config { get; private set; }
 
@@ -57,6 +66,73 @@ public sealed class KioskManager
         _monitor.TimeoutMs = settings.PingTimeoutMs;
         _monitor.MaxParallel = settings.MaxParallelPings;
         _log.Capacity = settings.LogCapacity;
+
+        _deployment.DryRun = settings.DryRun;
+        _deployment.TargetPathTemplate = settings.ContentTargetTemplate;
+        _deployment.RemoveObsoleteFiles = settings.RemoveObsoleteContent;
+        _deployment.MaxParallel = settings.MaxParallelTransfers;
+
+        Library.DefaultImageSeconds = settings.DefaultImageSeconds;
+    }
+
+    // --------------------------------------------------------------- Inhalte
+
+    /// <summary>Liest den eingestellten Medienordner ein.</summary>
+    public LibraryScanResult ScanLibrary()
+    {
+        var result = Library.Scan(Config.Settings.MediaRootPath);
+
+        if (!result.Success)
+        {
+            _log.Warning("Inhalte", result.Error ?? "Der Medienordner konnte nicht gelesen werden.");
+        }
+        else if (result.Error is not null)
+        {
+            _log.Warning("Inhalte", result.Error);
+        }
+
+        return result;
+    }
+
+    /// <summary>Stellt aus einem Bibliotheksordner eine Wiedergabeliste zusammen.</summary>
+    public Playlist BuildPlaylist(LibraryFolder folder)
+    {
+        var playlist = Playlist.FromFolder(folder, Config.Settings.DefaultImageSeconds);
+        playlist.Loop = Config.Settings.PlaylistLoop;
+        playlist.Shuffle = Config.Settings.PlaylistShuffle;
+        return playlist;
+    }
+
+    /// <summary>Überträgt eine Wiedergabeliste auf die gewählten Rechner.</summary>
+    public async Task<IReadOnlyList<DeployResult>> DeployContentAsync(
+        Playlist playlist,
+        IEnumerable<KioskPc> targets,
+        IProgress<DeployProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var pcs = targets.ToList();
+
+        _log.Info("Inhalte",
+            $"Sende „{playlist.Name}“ ({playlist.PlayableCount} Datei(en), " +
+            $"{MediaItem.FormatSize(playlist.TotalBytes)}) an {pcs.Count} PC(s).");
+
+        var results = await _deployment
+            .DeployAsync(playlist, pcs, progress, cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (var result in results)
+        {
+            if (result.Success)
+            {
+                _log.Success("Inhalte", result.Summary, result.PcName);
+            }
+            else
+            {
+                _log.Error("Inhalte", result.Message, result.PcName);
+            }
+        }
+
+        return results;
     }
 
     // ---------------------------------------------------------------- Ziele

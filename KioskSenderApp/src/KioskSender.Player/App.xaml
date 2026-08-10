@@ -1,0 +1,10 @@
+<Application x:Class="KioskSender.Player.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <SolidColorBrush x:Key="StageBrush" Color="#000000" />
+        <SolidColorBrush x:Key="InfoBrush" Color="#E6E9F0" />
+        <SolidColorBrush x:Key="MutedBrush" Color="#8B93A7" />
+        <FontFamily x:Key="UiFont">Segoe UI</FontFamily>
+    </Application.Resources>
+</Application>

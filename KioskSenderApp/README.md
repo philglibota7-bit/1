@@ -1,11 +1,19 @@
 # KioskSenderApp
 
-Windows-Werkzeug zur Verwaltung von Kiosk-PCs: **Gruppenmanager**, **Zeitmanager**
-und **Sender** in einer Anwendung.
+Windows-Werkzeug zur Verwaltung von Kiosk-PCs: **Gruppenmanager**, **Zeitmanager**,
+**Inhalte senden** und **Sender** in einer Anwendung.
 
-Die Fernsteuerung läuft ausschließlich über Windows-Bordmittel
-(`msg.exe`, `shutdown.exe`, `quser.exe`, `logoff.exe`, ICMP-Ping) — auf den
-Kiosk-PCs muss **nichts installiert** werden.
+Es gehören zwei Programme dazu:
+
+| Programm | Läuft wo | Wofür |
+|---|---|---|
+| **KioskSenderApp.exe** | am Arbeitsplatz | verwalten, planen, Inhalte verteilen |
+| **KioskPlayer.exe** | auf jedem Kiosk-PC | zeigt die gesendeten Inhalte im Vollbild |
+
+Fernsteuerung (Meldung, Neustart, Herunterfahren, Abmelden) läuft über
+Windows-Bordmittel und braucht **nichts** auf den Kiosk-PCs. Zum **Abspielen**
+von Bildern, Videos und Präsentationen wird der Player benötigt — Windows kann
+Medien nicht von sich aus auf einem fremden Rechner starten.
 
 ---
 
@@ -33,6 +41,24 @@ Kiosk-PCs muss **nichts installiert** werden.
   vor dem Herunterfahren noch lässt
 - Nach längerem Stillstand (Standby, Anwendung war zu) werden **keine alten
   Aktionen nachgeholt** — nur was in den letzten 10 Minuten fällig war
+
+### Inhalte senden
+- Ein **Medienordner** wird eingelesen; jeder Unterordner darin ist eine
+  eigene Wiedergabeliste — die Struktur im Explorer ist die Struktur im Programm
+- Unterstützt **Bilder** (jpg, png, bmp, gif, webp, tif),
+  **Videos** (mp4, wmv, avi, mov, mkv, mpg) und
+  **PowerPoint** (ppt, pptx, pps, ppsx)
+- Dateien laufen in natürlicher Reihenfolge: `Bild1`, `Bild2`, `Bild10` —
+  nicht `Bild1`, `Bild10`, `Bild2`
+- Anzeigedauer für Bilder einstellbar, Videos laufen bis zum Ende,
+  PowerPoint startet als Bildschirmpräsentation
+- Endlos wiederholen und Reihenfolge mischen jeweils an- und abschaltbar
+- Empfänger einfach anhaken — einzeln, alle oder eine ganze Gruppe
+- Übertragung mit Fortschrittsanzeige und Abbrechen-Schaltfläche
+- Es werden nur **geänderte** Dateien übertragen; nicht mehr benötigte werden
+  auf dem Kiosk-PC entfernt
+- Die Wiedergabeliste wird **zuletzt** geschrieben — der Player wechselt erst,
+  wenn wirklich alle Dateien angekommen sind
 
 ### Sender
 - Ziel wählen: markierte PCs, die gewählte Gruppe oder alle aktiven PCs
@@ -62,7 +88,8 @@ Kiosk-PCs muss **nichts installiert** werden.
 | Artefakt | Größe | Voraussetzung |
 |---|---|---|
 | `KioskSenderApp-win-x64-eigenstaendig` | ca. 65 MB | keine — läuft direkt |
-| `KioskSenderApp-win-x64-klein` | ca. 350 KB | [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) |
+| `KioskSenderApp-win-x64-klein` | ca. 400 KB | [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) |
+| `KioskPlayer-win-x64` | ca. 65 MB | keine — für die Kiosk-PCs |
 
 ## Selbst bauen
 
@@ -82,9 +109,15 @@ dotnet publish KioskSenderApp/src/KioskSender.App/KioskSender.App.csproj `
 dotnet publish KioskSenderApp/src/KioskSender.App/KioskSender.App.csproj `
   -c Release -r win-x64 --self-contained false `
   -p:PublishSingleFile=true -o publish-klein
+
+# Player für die Kiosk-PCs
+dotnet publish KioskSenderApp/src/KioskSender.Player/KioskSender.Player.csproj `
+  -c Release -r win-x64 --self-contained true `
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+  -o publish-player
 ```
 
-Ergebnis: `publish\KioskSenderApp.exe`
+Ergebnis: `publish\KioskSenderApp.exe` und `publish-player\KioskPlayer.exe`
 
 ---
 
@@ -103,6 +136,31 @@ Es wird nichts installiert, aber Windows muss die Fernbefehle zulassen:
 4. Für Bildschirmmeldungen muss auf den Zielrechnern der Dienst
    **Remotedesktopdienste** laufen (`msg.exe` nutzt ihn)
 5. Für Ping: **ICMP (Echoanforderung)** eingehend erlauben
+
+### KioskPlayer auf einem Kiosk-PC einrichten
+
+1. `KioskPlayer.exe` auf den Kiosk-PC kopieren, z. B. nach `C:\KioskPlayer\`
+2. Einmal starten — er legt `C:\ProgramData\KioskPlayer` an und zeigt
+   „Warte auf Inhalte…“ samt Rechnername
+3. Für den Dauerbetrieb in den Autostart legen: Verknüpfung nach
+   `shell:startup` (Win + R) oder als geplante Aufgabe „Bei Anmeldung“
+4. Im Manager unter **Inhalte senden** den Rechner anhaken und senden
+
+Tasten am Kiosk-PC: **Esc** beendet, **Leertaste** springt weiter,
+**F5** liest die Liste neu ein, **Strg + Alt + Q** ist der Notausstieg.
+
+Startparameter:
+
+```
+KioskPlayer.exe                    Vollbild, Standardordner
+KioskPlayer.exe D:\Inhalte         anderer Inhaltsordner
+KioskPlayer.exe --fenster          im Fenster (zum Einrichten)
+KioskPlayer.exe --kein-beenden     Esc gesperrt (echter Kiosk)
+```
+
+Für PowerPoint muss auf dem Kiosk-PC PowerPoint installiert sein. Ohne
+PowerPoint einfach vorher als Video oder Bilderfolge exportieren — das ist
+für den Dauerbetrieb ohnehin die robustere Variante.
 
 ### Bildschirm sperren
 Windows kann einen fremden Rechner nicht ohne Hilfsmittel sperren. Dafür gibt es
@@ -124,6 +182,14 @@ C:\Tools\PsExec.exe \\{host} -s -d rundll32.exe user32.dll,LockWorkStation
 %AppData%\KioskSenderApp\logs\                Protokolle, tageweise
 ```
 
+Auf jedem Kiosk-PC:
+
+```
+C:\ProgramData\KioskPlayer\                   gesendete Dateien
+C:\ProgramData\KioskPlayer\playlist.json      die Wiedergabeliste
+C:\ProgramData\KioskPlayer\player.log         Fehler des Players
+```
+
 Lässt sich die Konfiguration nicht lesen, wird sie als `config.json.broken-<Zeit>`
 beiseitegelegt und die Anwendung startet mit einer Startkonfiguration — sie
 verweigert nie den Dienst wegen einer kaputten Datei.
@@ -136,6 +202,7 @@ verweigert nie den Dienst wegen einer kaputten Datei.
 KioskSenderApp/
 ├─ src/
 │  ├─ KioskSender.Core/          Logik ohne Oberfläche (net8.0, plattformneutral)
+│  │  ├─ Content/                Medienbibliothek, Wiedergabeliste, Verteilen
 │  │  ├─ Model/                  Datenmodell, Zeitspannen-Parser
 │  │  ├─ Scheduling/             Zeitplan-Auswertung und Ereignis-Erzeugung
 │  │  ├─ Remote/                 Befehlsaufbau, Prozessausführung, quser-Auswertung
@@ -143,13 +210,14 @@ KioskSenderApp/
 │  │  ├─ Storage/                Laden/Speichern der Konfiguration
 │  │  ├─ Logging/                Protokoll
 │  │  └─ Services/               KioskManager — klammert alles zusammen
-│  └─ KioskSender.App/           WPF-Oberfläche (net8.0-windows)
-│     ├─ ViewModels/             MVVM ohne Fremdpakete
-│     ├─ Views/                  Hauptfenster
-│     ├─ Theme/                  dunkles Design
-│     └─ Infrastructure/         Basisklassen, Befehle, Konverter
+│  ├─ KioskSender.App/           WPF-Oberfläche des Managers (net8.0-windows)
+│  │  ├─ ViewModels/             MVVM ohne Fremdpakete
+│  │  ├─ Views/                  Hauptfenster
+│  │  ├─ Theme/                  dunkles Design
+│  │  └─ Infrastructure/         Basisklassen, Befehle, Konverter
+│  └─ KioskSender.Player/        Vollbild-Player für die Kiosk-PCs
 └─ tests/
-   └─ KioskSender.Core.Tests/    118 Tests (xUnit)
+   └─ KioskSender.Core.Tests/    178 Tests (xUnit)
 ```
 
 Die gesamte Logik steckt bewusst in `KioskSender.Core` und kennt weder WPF noch
@@ -163,11 +231,22 @@ Es werden **keine Fremdpakete** verwendet (außer xUnit in den Tests).
 
 ## Bedienung in Kurzform
 
+Die Seitenleiste links führt durch die Arbeitsschritte.
+
+**PCs einrichten**
 1. **Gruppen & PCs** → *Neue Gruppe* anlegen, benennen, Farbe wählen
 2. *PC hinzufügen* → Anzeigename und Hostname/IP eintragen
 3. Mehrere PCs in der Tabelle markieren → *Auswahl dieser Gruppe zuordnen*
-4. **Zeitmanager** → *Neuer Zeitplan*, Wochenzeiten eintragen, Schließ-Aktion
+
+**Inhalte senden**
+4. **Inhalte senden** → ① *Ordner wählen* — den Ordner mit den Medien angeben
+5. ② Ordner in der Liste anklicken, Inhalt und Reihenfolge prüfen,
+   Anzeigedauer einstellen
+6. ③ Empfänger anhaken → *An ausgewählte PCs senden*
+
+**Zeitplan**
+7. **Zeitmanager** → *Neuer Zeitplan*, Wochenzeiten eintragen, Schließ-Aktion
    und Vorwarnungen festlegen, Feiertage als Ausnahmetage ergänzen
-5. Zurück zu **Gruppen & PCs** → der Gruppe den Zeitplan zuweisen
-6. Oben **Testbetrieb** einschalten und im **Protokoll** prüfen, was der
+8. Zurück zu **Gruppen & PCs** → der Gruppe den Zeitplan zuweisen
+9. Oben **Testbetrieb** einschalten und im **Protokoll** prüfen, was der
    Zeitmanager tun würde — erst danach scharf schalten
