@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#04070f">
 <title>DEALHAI — Wir beißen Preise klein </title>
-<meta name="description" content="DEALHAI jagt Rabatte: Blitzangebote, Preisbremse, Preiswecker, Preisverlauf, Gutscheine, Vergleich und Bestenlisten. Als Amazon-Partner verdienen wir an qualifizierten Verkäufen.">
+<meta name="description" content="DEALHAI zeigt zu jedem Angebot den Preisverlauf über 90 Tage und meldet sich per Preisbremse, sobald dein Wunschpreis erreicht ist. Als Amazon-Partner verdienen wir an qualifizierten Verkäufen.">
 <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
 <meta name="author" content="DEALHAI">
 <link rel="canonical" href="https://example.com/dealhai.html">
@@ -469,35 +469,15 @@ html[data-theme="light"] .qb{background:rgba(255,255,255,.8)}
 .bigin input:focus{border-color:var(--cy);box-shadow:0 0 0 3px rgba(34,245,255,.15)}
 .hint{font-size:.8rem;color:var(--muted);margin-top:7px}
 
-/* ---------- Gutscheine ---------- */
-.coupons{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
-.coupon{position:relative;border:1px dashed var(--line2);border-radius:18px;padding:17px 19px;background:var(--panel);
-  overflow:hidden;transition:.25s}
-.coupon:hover{border-color:var(--go);transform:translateY(-4px)}
-.coupon::before,.coupon::after{content:"";position:absolute;width:22px;height:22px;border-radius:50%;background:var(--abyss);
-  left:-12px;border:1px dashed var(--line2)}
-.coupon::before{top:calc(50% - 30px)}
-.coupon::after{top:calc(50% + 8px)}
-.coupon .cv{font-size:1.65rem;font-weight:900;letter-spacing:-1px;
-  background:linear-gradient(120deg,var(--go),var(--mg));-webkit-background-clip:text;background-clip:text;color:transparent}
-.coupon h4{font-size:.95rem;font-weight:750;margin:3px 0 6px}
-.coupon p{font-size:.79rem;color:var(--muted);margin-bottom:11px}
-.code{display:flex;align-items:center;gap:8px}
-.code .cc{flex:1;font-family:var(--fm);font-weight:800;letter-spacing:2px;background:var(--panel2);
-  border:1px solid var(--line2);border-radius:10px;padding:8px 11px;text-align:center;font-size:.9rem}
-
-/* ---------- Roulette ---------- */
-.roul{display:grid;grid-template-columns:280px 1fr;gap:26px;align-items:center}
-@media(max-width:800px){.roul{grid-template-columns:1fr}}
-.wheel{position:relative;width:250px;height:250px;margin:0 auto;border-radius:50%;border:5px solid var(--line2);
-  transition:transform 4.4s cubic-bezier(.15,.9,.15,1);box-shadow:0 0 50px rgba(34,245,255,.28),inset 0 0 40px rgba(0,0,0,.5)}
-.wheel .seg{position:absolute;inset:0;border-radius:50%;
-  background:conic-gradient(var(--cy) 0 12.5%,var(--mg) 0 25%,var(--li) 0 37.5%,var(--go) 0 50%,
-    var(--cy) 0 62.5%,var(--mg) 0 75%,var(--li) 0 87.5%,var(--go) 0 100%);opacity:.85}
-.wheel .hub{position:absolute;inset:34%;border-radius:50%;background:var(--abyss);display:grid;place-items:center;
-  font-size:2.4rem;border:3px solid var(--line2);z-index:2}
-.needle{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:1.7rem;z-index:3;filter:drop-shadow(0 4px 8px rgba(0,0,0,.6))}
-.roulout{min-height:110px}
+/* ---------- Benachrichtigungs-Status der Preisbremse ---------- */
+.notifbar{display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:11px 14px;margin-bottom:14px;
+  border:1px solid var(--line2);background:var(--panel2)}
+.notifbar .nst{display:inline-flex;align-items:center;gap:7px;font-family:var(--fm);font-size:.72rem;
+  letter-spacing:.08em;font-weight:600}
+.notifbar .nst::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.notifbar.on .nst::before{background:var(--ok)}
+.notifbar.off .nst::before{background:var(--bad)}
+.notifbar .nx{flex:1;min-width:180px;font-size:.78rem;color:var(--muted)}
 
 /* ---------- Top-Liste ---------- */
 .toplist{display:flex;flex-direction:column;gap:9px}
@@ -556,7 +536,7 @@ html[data-theme="light"] .qb{background:rgba(255,255,255,.8)}
 .nform input{flex:1;min-width:200px;background:var(--panel);border:1px solid var(--line2);border-radius:13px;padding:12px 15px;outline:none}
 .nform input:focus{border-color:var(--cy)}
 
-/* ---------- Toast / Konfetti ---------- */
+/* ---------- Toast ---------- */
 .toasts{position:fixed;bottom:20px;right:20px;z-index:320;display:flex;flex-direction:column;gap:9px;max-width:min(360px,92vw)}
 .toast{background:var(--panel);border:1px solid var(--line2);border-left:4px solid var(--cy);border-radius:15px;
   padding:12px 15px;box-shadow:var(--shadow);backdrop-filter:blur(18px);display:flex;gap:11px;align-items:flex-start;
@@ -570,7 +550,6 @@ html[data-theme="light"] .qb{background:rgba(255,255,255,.8)}
 .toast .ti{font-size:1.3rem;line-height:1}
 .toast .tc b{display:block;font-size:.9rem;font-weight:800}
 .toast .tc span{font-size:.82rem;color:var(--muted)}
-#confetti{position:fixed;inset:0;pointer-events:none;z-index:330}
 
 /* ---------- Command-Palette ---------- */
 .cmdp{position:fixed;inset:0;z-index:300;background:rgba(2,4,10,.7);backdrop-filter:blur(8px);display:none;
@@ -750,8 +729,11 @@ html[data-theme="light"] .cdown div{background:var(--panel2)}
 .plate svg .mv{transition:transform .5s cubic-bezier(.2,.8,.3,1)}
 
 /* ---------- Produktkarten ---------- */
-.pcard{border-radius:var(--r2);background:var(--panel);border:1px solid var(--line);transform-style:flat}
+.pcard{border-radius:var(--r2);background:var(--panel);border:1px solid var(--line);transform-style:flat;cursor:pointer}
 .pcard:hover{border-color:var(--line2);transform:none!important}
+.pcard:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+/* Der Knopf im Fuß ist die Ausnahme — er führt zu Amazon, nicht in die Detailansicht. */
+.pfoot .btn{cursor:pointer}
 .badges{top:auto;bottom:9px;left:9px;flex-direction:row;flex-wrap:wrap;max-width:calc(100% - 18px)}
 .bdg{border-radius:2px;font-family:var(--fm);font-size:.58rem;font-weight:600;letter-spacing:.1em;padding:2px 6px;
   box-shadow:none;border:1px solid transparent}
@@ -887,8 +869,7 @@ html[data-theme="light"] .ov{background:rgba(40,36,26,.5)}
 .guide h4{text-transform:uppercase;letter-spacing:.02em;font-size:.92rem}
 .guide .gm{font-size:.64rem;letter-spacing:.08em}
 .ain{border-radius:2px;font-family:var(--fm);font-size:.82rem}
-.coupon,.trow,.post,.radar .rrow,.alert{border-radius:var(--r2)}
-.coupon .cv{background:none;-webkit-text-fill-color:var(--cy);color:var(--cy);font-family:var(--fm);font-weight:700}
+.trow,.post,.radar .rrow,.alert{border-radius:var(--r2)}
 .trow .rk{background:none;-webkit-text-fill-color:var(--cy);color:var(--cy);font-weight:600;font-size:1.1rem}
 .trow:hover{transform:none;border-color:var(--cy)}
 .post{overflow:hidden}
@@ -901,7 +882,6 @@ html[data-theme="light"] .ov{background:rgba(40,36,26,.5)}
 .fab:hover{background:var(--cy);color:var(--inv);border-color:var(--cy);transform:none}
 .fab svg{width:17px;height:17px}
 .totop{border-radius:2px}
-.wheel,.hub{border-radius:50%}
 
 /* ---------- Vorspann ---------- */
 #pre{background:var(--abyss)}
@@ -944,7 +924,6 @@ body.raw .gridfx{background-size:40px 40px;opacity:1}
 <div class="bgfx"></div>
 <div class="gridfx"></div><div class="grain"></div>
 <div class="progress" id="prog"></div>
-<canvas id="confetti"></canvas>
 <div class="toasts" id="toasts"></div>
 
 <!-- ================= TICKER ================= -->
@@ -985,8 +964,6 @@ body.raw .gridfx{background-size:40px 40px;opacity:1}
     <button class="nb" data-go="blitz">Blitzangebote</button>
     <button class="nb" data-go="shop">Alle Deals</button>
     <button class="nb" data-go="bremse">Preisbremse</button>
-    <button class="nb" data-go="gutscheine">Gutscheine</button>
-    <button class="nb" data-go="roulette">Roulette</button>
     <button class="nb" data-go="top10">Bestenliste</button>
     <button class="nb" data-go="radar">Preis-Radar</button>
     <button class="nb" data-go="kaufberater">Kaufberater</button>
@@ -1182,83 +1159,64 @@ body.raw .gridfx{background-size:40px 40px;opacity:1}
       <h2>Preisbremse</h2>
       <p>Wunschpreis nennen — der Hai schlägt an, sobald der Preis fällt.</p>
     </div>
-    <div class="sp"></div>
-    <button class="btn g s" onclick="askNotify()">Browser-Alarm erlauben</button>
+  </div>
+
+  <div class="notifbar" id="notifBar">
+    <span class="nst" id="notifState">Benachrichtigungen: aus</span>
+    <span class="nx" id="notifHint">Ohne Erlaubnis siehst du Treffer nur, solange die Seite offen ist.</span>
+    <button class="btn g s" id="notifBtn" onclick="askNotify()">Benachrichtigungen erlauben</button>
   </div>
 
   <div class="card bremse">
     <div>
       <h3 style="font-size:1.05rem;font-weight:850;margin-bottom:5px">Neue Bremse setzen</h3>
-      <p class="hint">Produkt wählen, Wunschpreis eintragen, fertig. Wir simulieren live Preisbewegungen —
-        sinkt der Preis auf oder unter dein Ziel, gibt es Alarm, Toast und Konfetti.</p>
+      <p class="hint">Produkt wählen, Wunschpreis eintragen, fertig. Sobald der Preis auf oder unter
+        dein Ziel fällt, bekommst du eine Meldung — auf der Seite und, wenn erlaubt, als Browser-Benachrichtigung.</p>
       <label class="sr" for="brSel">Produkt</label>
-      <select class="sel" id="brSel" style="width:100%;margin:10px 0"></select>
+      <select class="sel" id="brSel" style="width:100%;margin:10px 0" onchange="syncBrakeHint()"></select>
       <div class="bigin">
-        <input type="number" id="brPrice" placeholder="Wunschpreis in €" min="1" step="0.01">
-        <button class="btn p" onclick="addAlert()">Bremsen</button>
+        <input type="number" id="brPrice" placeholder="Wunschpreis in €" min="1" step="0.01" oninput="syncBrakeHint()">
+        <button class="btn p" onclick="addAlert()">Bremse setzen</button>
       </div>
       <div class="pills" style="margin-top:11px">
+        <button class="pill" onclick="quickBrake(.95)">−5 %</button>
         <button class="pill" onclick="quickBrake(.9)">−10 %</button>
+        <button class="pill" onclick="quickBrake(.85)">−15 %</button>
         <button class="pill" onclick="quickBrake(.8)">−20 %</button>
-        <button class="pill" onclick="quickBrake(.7)">−30 %</button>
-        <button class="pill" onclick="quickBrake(.5)">Hälfte!</button>
+        <button class="pill" onclick="brakeToLow()">auf 90-Tage-Tief</button>
       </div>
+      <p class="hint" id="brHint">Wähle ein Produkt, um Tief- und Höchstpreis der letzten 90 Tage zu sehen.</p>
       <p class="hint">Alles bleibt lokal in deinem Browser (localStorage). Kein Server, kein Konto.</p>
     </div>
     <div>
       <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px">
         <b style="flex:1;font-size:1.05rem">Deine Bremsen</b>
         <span class="mini" id="alertCount">0 aktiv</span>
-        <button class="pill" onclick="simulateTick(true)">⏩ Preise bewegen</button>
       </div>
       <div id="alertList"></div>
     </div>
   </div>
 </section>
 
-<!-- ================= GUTSCHEINE ================= -->
-<section id="gutscheine">
+<!-- ================= PREIS-RADAR ================= -->
+<section id="radar">
   <div class="sechead">
     <div>
-      <span class="kicker" data-n="05">Aktionen</span>
-      <h2>Gutscheine &amp; Rabatt-Codes</h2>
-      <p>Code kopieren, an der Kasse einlösen — solange der Countdown läuft.</p>
+      <span class="kicker" data-n="05">Live</span>
+      <h2>Preis-Radar</h2>
+      <p>Jede Preisbewegung im Katalog, neueste zuerst.</p>
     </div>
   </div>
-  <div class="coupons" id="coupons"></div>
+  <div class="card">
+    <div class="radar" id="radarList"></div>
+  </div>
 </section>
-
-<!-- ================= ROULETTE + RADAR ================= -->
-<div class="split">
-  <section id="roulette">
-    <div class="sechead"><div><span class="kicker" data-n="06">Zufall</span><h2>Deal-Roulette</h2></div></div>
-    <div class="card roul">
-      <div style="position:relative">
-        <div class="needle"><svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;color:var(--cy)"><path d="M12 20L3 5h18z"/></svg></div>
-        <div class="wheel" id="wheel"><div class="seg"></div><div class="hub"><span class="ii" data-i="wuerfel"></span></div></div>
-      </div>
-      <div>
-        <p class="hint">Kein Bock auf Filtern? Dreh am Rad — der Hai sucht dir einen Deal aus.</p>
-        <div class="roulout" id="roulOut"><p style="color:var(--muted);font-size:.9rem">Noch nichts gejagt.</p></div>
-        <button class="btn p" onclick="spinWheel()" id="spinBtn">Drehen</button>
-      </div>
-    </div>
-  </section>
-
-  <section id="radar">
-    <div class="sechead"><div><span class="kicker" data-n="07">Live</span><h2>Preis-Radar</h2></div></div>
-    <div class="card">
-      <p class="hint" style="margin-bottom:12px">Jede Bewegung im Riff — Preise fallen und steigen in Echtzeit.</p>
-      <div class="radar" id="radarList"></div>
-    </div>
-  </section>
-</div>
 
 <!-- ================= TOP 10 ================= -->
 <section id="top10">
   <div class="sechead">
     <div>
-      <span class="kicker" data-n="08">Rangfolge</span>
+      <span class="kicker" data-n="06">Rangfolge</span>
       <h2>Top 10 der Woche</h2>
       <p>Nach Beliebtheit, Rabatt und Bewertung gewichtet.</p>
     </div>
@@ -1277,7 +1235,7 @@ body.raw .gridfx{background-size:40px 40px;opacity:1}
 <section id="kaufberater">
   <div class="sechead">
     <div>
-      <span class="kicker" data-n="09">Entscheidungshilfe</span>
+      <span class="kicker" data-n="07">Entscheidungshilfe</span>
       <h2>Kaufberater</h2>
       <p>Pro Kategorie drei Empfehlungen — Preis-Tipp, bestes Gesamtpaket, Premium. Mit Kaufkriterien und Fragen, die vor dem Klick zählen.</p>
     </div>
@@ -1291,7 +1249,7 @@ body.raw .gridfx{background-size:40px 40px;opacity:1}
 <section id="ratgeber">
   <div class="sechead">
     <div>
-      <span class="kicker" data-n="10">Wissen</span>
+      <span class="kicker" data-n="08">Wissen</span>
       <h2>Ratgeber</h2>
       <p>Wie man wirklich spart — ohne auf Fake-Rabatte reinzufallen.</p>
     </div>
@@ -1315,7 +1273,7 @@ body.raw .gridfx{background-size:40px 40px;opacity:1}
 
 <!-- ================= FAQ ================= -->
 <section id="faq">
-  <div class="sechead"><div><span class="kicker" data-n="11">Fragen</span><h2>Häufige Fragen</h2></div></div>
+  <div class="sechead"><div><span class="kicker" data-n="09">Fragen</span><h2>Häufige Fragen</h2></div></div>
   <div id="faqList"></div>
 </section>
 
@@ -1338,9 +1296,8 @@ body.raw .gridfx{background-size:40px 40px;opacity:1}
       <h5>Jagdgründe</h5>
       <a onclick="go('blitz')">Blitzangebote</a>
       <a onclick="go('shop')">Alle Deals</a>
-      <a onclick="go('gutscheine')">Gutscheine</a>
       <a onclick="go('top10')">Bestenliste</a>
-      <a onclick="go('roulette')">Deal-Roulette</a>
+      <a onclick="go('radar')">Preis-Radar</a>
     </div>
     <div class="fcol">
       <h5>Werkzeuge</h5>
@@ -1372,7 +1329,6 @@ body.raw .gridfx{background-size:40px 40px;opacity:1}
 <button class="totop" id="totop" onclick="go('top')" title="Nach oben" aria-label="Nach oben"><span class="ii" data-i="pfeilhoch"></span></button>
 <div class="fabs">
   <button class="fab" onclick="openGrow()" title="Betreiber-Zentrale" aria-label="Betreiber-Zentrale"><span class="ii" data-i="rakete"></span></button>
-  <button class="fab" onclick="spinWheel()" title="Zufalls-Deal" aria-label="Zufalls-Deal"><span class="ii" data-i="wuerfel"></span></button>
   <button class="fab" onclick="go('bremse')" title="Preisbremse" aria-label="Preisbremse"><span class="ii" data-i="glocke"></span></button>
   <button class="fab" onclick="toggleFx()" id="fxBtn" title="Effekte an/aus" aria-label="Effekte an/aus"><span class="ii" data-i="funken"></span></button>
 </div>
@@ -1485,7 +1441,6 @@ body.raw .gridfx{background-size:40px 40px;opacity:1}
       <tr><td>Preisbremse</td><td><span class="kbd">B</span></td></tr>
       <tr><td>Design wechseln</td><td><span class="kbd">T</span></td></tr>
       <tr><td>Ansicht wechseln</td><td><span class="kbd">G</span></td></tr>
-      <tr><td>Zufalls-Deal</td><td><span class="kbd">R</span></td></tr>
       <tr><td>Kaufberater</td><td><span class="kbd">K</span></td></tr>
       <tr><td>Betreiber-Zentrale</td><td><span class="kbd">W</span></td></tr>
       <tr><td>Alles schließen</td><td><span class="kbd">Esc</span></td></tr>
@@ -1849,16 +1804,6 @@ function specsFor(x, rnd){
   s["Tags"] = x.tg.join(", ");
   return s;
 }
-
-/* ---------- Gutscheine ---------- */
-const COUPONS = [
-  {v:"10 %",  t:"Auf alle Kopfhörer",       c:"HAIBEISST10", d:"Ab 99 € Bestellwert · Audio-Kategorie", h:180, days:3},
-  {v:"20 €",  t:"Ab 150 € Warenkorb",       c:"RIFF20",      d:"Einmal pro Kunde einlösbar",            h:320, days:5},
-  {v:"15 %",  t:"Küche & Haushalt",         c:"KUECHE15",    d:"Gilt nicht auf bereits reduzierte Blitzangebote", h:40, days:2},
-  {v:"5 €",   t:"Neukunden-Bonus",          c:"WILLKOMMEN5", d:"Ab 25 € · für die erste Bestellung",    h:260, days:9},
-  {v:"25 %",  t:"Fitness-Woche",            c:"MUSKELHAI25", d:"Ausgewählte Fitness-Artikel",           h:100, days:4},
-  {v:"Versand", t:"Gratis Lieferung",       c:"FREISCHWIMM", d:"Ohne Mindestbestellwert",               h:200, days:7}
-];
 
 /* ---------- Ratgeber ---------- */
 const POSTS = [
@@ -2229,34 +2174,6 @@ function toast(kind, title, text){
   setTimeout(function(){ el.classList.add("out"); setTimeout(function(){ el.remove(); }, 320); }, 4200);
 }
 
-/* ---------- Konfetti ---------- */
-const cvs = document.getElementById("confetti"), ctx = cvs.getContext("2d");
-let parts = [];
-function fitCanvas(){ cvs.width = innerWidth; cvs.height = innerHeight; }
-addEventListener("resize", fitCanvas); fitCanvas();
-/* Kein Partykonfetti, sondern Papierstreifen wie aus einem Fernschreiber. */
-function confetti(n){
-  if(!S.set.fx) return;
-  const cols = ["#ff5a1f", "#d8d4c8", "#8b8a85"];
-  for(let i = 0; i < (n || 90); i++){
-    parts.push({ x: innerWidth/2 + (Math.random()-.5)*300, y: innerHeight*.34,
-      vx:(Math.random()-.5)*9, vy:-(3+Math.random()*10), r:2+Math.random()*3,
-      len:8+Math.random()*16,
-      c:cols[(Math.random()*cols.length)|0], a:1, rot:Math.random()*6.28, vr:(Math.random()-.5)*.24 });
-  }
-  if(parts.length) requestAnimationFrame(drawConf);
-}
-function drawConf(){
-  ctx.clearRect(0,0,cvs.width,cvs.height);
-  parts = parts.filter(function(p){ return p.a > .02 && p.y < innerHeight + 60; });
-  parts.forEach(function(p){
-    p.x += p.vx; p.y += p.vy; p.vy += .32; p.vx *= .99; p.a -= .006; p.rot += p.vr;
-    ctx.save(); ctx.globalAlpha = Math.max(0,p.a); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
-    ctx.fillStyle = p.c; ctx.fillRect(-p.r/2, -(p.len||8)/2, p.r, p.len || 8); ctx.restore();
-  });
-  if(parts.length) requestAnimationFrame(drawConf); else ctx.clearRect(0,0,cvs.width,cvs.height);
-}
-
 /* ============================================================
    3) FILTER, SORTIERUNG, RENDERING
    ============================================================ */
@@ -2314,8 +2231,9 @@ function cardHTML(p, i){
   if(p.stock >0 && p.stock <= 10) badges.push('<span class="bdg low">Rest ' + p.stock + '</span>');
   const inWish = S.wish.indexOf(p.id) !== -1, inCmp = S.cmp.indexOf(p.id) !== -1;
   return '' +
-  '<article class="pcard" style="animation-delay:' + Math.min(i*18,360) + 'ms" data-id="' + p.id + '">' +
-    '<div class="thumb" onclick="openProduct(\'' + p.id + '\')">' +
+  '<article class="pcard" style="animation-delay:' + Math.min(i*18,360) + 'ms" data-id="' + p.id + '"' +
+    ' onclick="openProduct(\'' + p.id + '\')" role="button" tabindex="0" aria-label="' + esc(p.name) + ' — Details öffnen">' +
+    '<div class="thumb">' +
       plate(p) +
       '<span class="idx">' + catNo(p) + '</span>' +
       '<div class="badges">' + badges.join("") + '</div>' +
@@ -2331,7 +2249,7 @@ function cardHTML(p, i){
     '</div>' +
     '<div class="pbody">' +
       '<span class="pbrand">' + esc(p.brand) + ' · ' + esc(p.cat) + '</span>' +
-      '<h3 class="pname" onclick="openProduct(\'' + p.id + '\')" style="cursor:pointer">' + esc(p.name) + '</h3>' +
+      '<h3 class="pname">' + esc(p.name) + '</h3>' +
       '<div class="prate"><span class="stars">' + stars(p.rating) + '</span>' +
         '<b>' + p.rating.toFixed(1).replace(".",",") + '</b><span>(' + num(p.reviews) + ')</span>' +
         (p.prime ? '<span class="prime" style="margin-left:auto">Prime</span>' : '') + '</div>' +
@@ -2341,10 +2259,10 @@ function cardHTML(p, i){
       '<div class="pprice"><span class="pnow">' + eur(p.price) + '</span>' +
         (off >0 ? '<span class="pwas">' + eur(p.old) + '</span><span class="psave">−' + eur(saved) + '</span>' : '') +
       '</div>' +
+      /* Ein Knopf, eine Absicht. Details öffnet die Karte selbst, alles Weitere sitzt oben rechts. */
       '<div class="pfoot">' +
-        '<button class="btn g s" onclick="openProduct(\'' + p.id + '\')">' + ico("auge") + ' Details</button>' +
-        '<button class="btn p s" onclick="toAmazon(\'' + p.id + '\',\'karte\')">' +
-          (typeof ctaLabel === "function" ? ctaLabel() : "Zum Angebot") + '</button>' +
+        '<button class="btn p s" style="flex:1" onclick="event.stopPropagation();toAmazon(\'' + p.id + '\',\'karte\')">' +
+          ico("extern") + ' ' + (typeof ctaLabel === "function" ? ctaLabel() : "Zum Angebot") + '</button>' +
       '</div>' +
     '</div>' +
   '</article>';
@@ -2699,7 +2617,7 @@ function refreshBadges(){
 }
 function addCart(id){
   S.cart[id] = (S.cart[id] || 0) + 1;
-  save(); refreshBadges(); renderCart(); ping(880); confetti(26);
+  save(); refreshBadges(); renderCart(); ping(880);
   const p = byId(id);
   toast("ok","In den Deal-Korb", p.name + " · " + eur(p.price));
 }
@@ -2750,7 +2668,7 @@ function openAllCart(){
 }
 function toggleWish(id){
   const i = S.wish.indexOf(id);
-  if(i === -1){ S.wish.push(id); toast("ok","Gemerkt ", byId(id).name); confetti(18); }
+  if(i === -1){ S.wish.push(id); toast("ok","Gemerkt", byId(id).name); }
   else { S.wish.splice(i,1); toast("info","Entfernt", byId(id).name); }
   save(); refreshBadges(); renderWish(); applyAll(); ping(600);
 }
@@ -2823,32 +2741,69 @@ function fillBrakeSelect(){
 function brakeFor(id){
   const p = byId(id); if(!p) return;
   go("bremse"); closeAll();
+  const ex = S.alerts.filter(function(a){ return a.id === id; })[0];
   $("#brSel").value = id;
-  $("#brPrice").value = (p.price * .85).toFixed(2);
+  $("#brPrice").value = (ex ? ex.target : p.price * .85).toFixed(2);
+  syncBrakeHint();
   $("#brPrice").focus();
-  toast("info","Preisbremse vorbereitet", p.name + " · Wunschpreis anpassen und bremsen.");
+  $("#brPrice").select();
 }
 function quickBrake(f){
   const p = byId($("#brSel").value); if(!p) return;
   $("#brPrice").value = (p.price * f).toFixed(2);
+  syncBrakeHint();
+}
+function brakeToLow(){
+  const p = byId($("#brSel").value); if(!p) return;
+  const low = lowHigh(p).low;
+  /* Steht der Preis schon auf dem Tief, wäre das Tief als Ziel sofort „erreicht“ —
+     die Bremse würde es ablehnen. Dann ein Stück darunter ansetzen und das sagen. */
+  if(low >= p.price){
+    $("#brPrice").value = (p.price * .95).toFixed(2);
+    toast("info","Schon am Tiefpunkt",
+      p.name + " steht bereits auf dem 90-Tage-Tief. Ziel auf 5 % darunter gesetzt.");
+  } else {
+    $("#brPrice").value = low.toFixed(2);
+  }
+  syncBrakeHint();
+}
+/* Zeigt beim Eintippen, wie realistisch der Wunschpreis gemessen am 90-Tage-Verlauf ist. */
+function syncBrakeHint(){
+  const el = $("#brHint"); if(!el) return;
+  const p = byId($("#brSel").value);
+  if(!p){ el.textContent = "Wähle ein Produkt, um Tief- und Höchstpreis der letzten 90 Tage zu sehen."; return; }
+  const lh = lowHigh(p);
+  const t = parseFloat($("#brPrice").value);
+  let urteil = "";
+  if(isFinite(t) && t >0){
+    if(t >= p.price) urteil = " — <b>bereits erreicht</b>, setz das Ziel unter den aktuellen Preis.";
+    else if(t >= lh.low) urteil = " — realistisch, dieser Preis kam in den letzten 90 Tagen schon vor.";
+    else urteil = " — ehrgeizig, das liegt unter allem, was zuletzt bezahlt wurde.";
+  }
+  el.innerHTML = "Aktuell " + eur(p.price) + " · 90-Tage-Tief " + eur(lh.low) +
+    " · Höchstpreis " + eur(lh.high) + urteil;
 }
 function addAlert(){
   const id = $("#brSel").value, target = parseFloat($("#brPrice").value);
   const p = byId(id);
-  if(!p || !target || target <= 0){ toast("bad","Wunschpreis fehlt","Trage einen Betrag in Euro ein."); return; }
+  if(!p || !isFinite(target) || target <= 0){ toast("bad","Wunschpreis fehlt","Trage einen Betrag in Euro ein."); return; }
   if(target >= p.price){ toast("warn","Zu hoch angesetzt","Der Preis liegt schon bei " + eur(p.price) + "."); return; }
-  const ex = S.alerts.find(function(a){ return a.id === id; });
-  if(ex) ex.target = target; else S.alerts.push({ id:id, target:target, start:p.price, since:Date.now(), hit:false });
-  save(); renderAlerts(); refreshBadges(); applyAll(); confetti(40); ping(760);
-  toast("ok","Bremse gesetzt ", p.name + " ab " + eur(target));
+  const ex = S.alerts.filter(function(a){ return a.id === id; })[0];
+  if(ex){ ex.target = target; ex.start = p.price; ex.hit = false; }
+  else S.alerts.push({ id:id, target:target, start:p.price, since:Date.now(), hit:false });
+  save(); renderAlerts(); refreshBadges(); applyAll(); ping(760);
+  toast("ok", ex ? "Bremse angepasst" : "Bremse gesetzt",
+    p.name + " ab " + eur(target) + (notifyState() === "granted" ? "" : " · Benachrichtigungen sind noch aus."));
 }
 function delAlert(id){
   S.alerts = S.alerts.filter(function(a){ return a.id !== id; });
   save(); renderAlerts(); refreshBadges(); applyAll();
 }
 function renderAlerts(){
-  const el = $("#alertList");
-  $("#alertCount").textContent = S.alerts.length + " aktiv";
+  const el = $("#alertList"); if(!el) return;
+  const cnt = $("#alertCount");
+  const hits = S.alerts.filter(function(a){ const p = byId(a.id); return p && p.price <= a.target; }).length;
+  if(cnt) cnt.textContent = S.alerts.length + " aktiv" + (hits ? " · " + hits + " erreicht" : "");
   if(!S.alerts.length){
     el.innerHTML = '<div class="empty" style="padding:32px 10px"><span class="e"></span><b>Keine Bremse gesetzt</b>' +
       '<p>Wähle links ein Produkt und nenne deinen Wunschpreis.</p></div>';
@@ -2862,20 +2817,61 @@ function renderAlerts(){
       '<div class="lt" style="width:46px;height:46px">' + plate(p, false) + '</div>' +
       '<div class="am"><b>' + esc(p.name) + '</b>' +
         '<span>jetzt <b style="color:var(--cy)">' + eur(p.price) + '</b> · Ziel ' + eur(a.target) +
-        (done ? ' · <b style="color:var(--ok)">erreicht! </b>' : ' · noch ' + eur(p.price - a.target)) + '</span>' +
+        (done ? ' · <b style="color:var(--ok)">erreicht</b>' : ' · noch ' + eur(p.price - a.target) + ' zu gehen') + '</span>' +
         '<div class="trackbar"><i style="width:' + prog.toFixed(0) + '%"></i></div></div>' +
       '<div style="display:flex;flex-direction:column;gap:5px">' +
-        (done ? '<button class="btn p s" onclick="toAmazon(\'' + p.id + '\')">Kaufen</button>' : '') +
-        '<button class="pill" onclick="delAlert(\'' + a.id + '\')">✕</button></div>' +
+        (done ? '<button class="btn p s" onclick="toAmazon(\'' + p.id + '\',\'bremse\')">Zum Angebot</button>' : '') +
+        '<button class="pill" onclick="brakeFor(\'' + a.id + '\')">Ziel ändern</button>' +
+        '<button class="pill" onclick="delAlert(\'' + a.id + '\')">Entfernen</button></div>' +
     '</div>';
   }).join("");
 }
+
+/* ---------- Browser-Benachrichtigungen ---------- */
+function notifyState(){
+  if(!("Notification" in window)) return "unsupported";
+  return Notification.permission;      /* default | granted | denied */
+}
+function renderNotifyBar(){
+  const bar = $("#notifBar"); if(!bar) return;
+  const st = $("#notifState"), hint = $("#notifHint"), btn = $("#notifBtn");
+  const s = notifyState();
+  bar.classList.toggle("on", s === "granted");
+  bar.classList.toggle("off", s === "denied" || s === "unsupported");
+  if(s === "granted"){
+    st.textContent = "Benachrichtigungen: aktiv";
+    hint.textContent = "Erreicht ein Produkt deinen Wunschpreis, meldet sich der Browser — auch in einem anderen Tab.";
+    btn.textContent = "Testmeldung senden";
+    btn.setAttribute("onclick","testNotify()");
+  } else if(s === "denied"){
+    st.textContent = "Benachrichtigungen: blockiert";
+    hint.textContent = "Du hast sie für diese Seite abgelehnt. Im Browser über das Schloss-Symbol in der Adressleiste wieder freigeben.";
+    btn.textContent = "Wie freigeben?";
+    btn.setAttribute("onclick","openInfo('benachrichtigungen')");
+  } else if(s === "unsupported"){
+    st.textContent = "Benachrichtigungen: nicht verfügbar";
+    hint.textContent = "Dieser Browser kennt keine Benachrichtigungen. Treffer siehst du weiterhin auf der Seite.";
+    btn.style.display = "none";
+  } else {
+    st.textContent = "Benachrichtigungen: aus";
+    hint.textContent = "Ohne Erlaubnis siehst du Treffer nur, solange die Seite offen ist.";
+    btn.textContent = "Benachrichtigungen erlauben";
+    btn.setAttribute("onclick","askNotify()");
+  }
+}
 function askNotify(){
-  if(!("Notification" in window)){ toast("warn","Nicht unterstützt","Dein Browser kennt keine Benachrichtigungen."); return; }
+  if(notifyState() === "unsupported"){
+    toast("warn","Nicht unterstützt","Dein Browser kennt keine Benachrichtigungen."); return;
+  }
   Notification.requestPermission().then(function(r){
-    toast(r === "granted" ? "ok" : "warn", r === "granted" ? "Alarm aktiv " : "Nicht erlaubt",
-      r === "granted" ? "Der Hai meldet sich auch im Hintergrund." : "Du bekommst Meldungen weiterhin auf der Seite.");
+    renderNotifyBar();
+    if(r === "granted") toast("ok","Benachrichtigungen aktiv","Der Hai meldet sich, sobald eine Bremse auslöst.");
+    else if(r === "denied") toast("warn","Abgelehnt","Meldungen erscheinen weiterhin auf der Seite.");
   });
+}
+function testNotify(){
+  notify("DEALHAI — Testmeldung", "So sieht es aus, wenn eine Preisbremse auslöst.");
+  toast("info","Testmeldung gesendet","Erscheint sie nicht, blockiert dein System die Meldungen.");
 }
 function notify(title, body){
   try{
@@ -2947,10 +2943,10 @@ function checkAlerts(p, before){
   S.alerts.forEach(function(a){
     if(a.id !== p.id) return;
     if(p.price <= a.target && before >a.target){
-      a.hit = true; save();
-      toast("ok","Preisbremse ausgelöst!", p.name + " ist jetzt " + eur(p.price) + " (Ziel " + eur(a.target) + ")");
-      notify("DEALHAI  Preisbremse!", p.name + " kostet jetzt " + eur(p.price));
-      confetti(120); ping(980);
+      a.hit = true; a.hitAt = Date.now(); save();
+      toast("ok","Preisbremse ausgelöst", p.name + " ist jetzt " + eur(p.price) + " — dein Ziel war " + eur(a.target) + ".");
+      notify("Preisbremse: " + p.name, "Jetzt " + eur(p.price) + " statt " + eur(a.start) + ". Ziel war " + eur(a.target) + ".");
+      ping(980);
     }
   });
 }
@@ -3047,43 +3043,8 @@ function renderDotd(){
 }
 
 /* ============================================================
-   10) GUTSCHEINE, ROULETTE, TOP-LISTE, RATGEBER, FAQ
+   10) TOP-LISTE, RATGEBER, FAQ
    ============================================================ */
-function renderCoupons(){
-  $("#coupons").innerHTML = COUPONS.map(function(c,i){
-    const end = Date.now() + c.days * 864e5;
-    return '<div class="coupon" style="--h:' + c.h + '">' +
-      '<div class="cv">' + esc(c.v) + '</div>' +
-      '<h4>' + esc(c.t) + '</h4><p>' + esc(c.d) + '</p>' +
-      '<div class="code"><span class="cc">' + esc(c.c) + '</span>' +
-      '<button class="btn p s" onclick="copyCode(\'' + c.c + '\')">Kopieren</button></div>' +
-      '<span class="mini" style="display:block;margin-top:9px" data-cend="' + end + '">läuft ab in …</span>' +
-    '</div>';
-  }).join("");
-}
-function copyCode(c){ copy(c); confetti(30); ping(820); toast("ok","Code kopiert ", c + " — an der Kasse einlösen."); }
-let spinning = false, wheelRot = 0;
-function spinWheel(){
-  if(spinning) return;
-  spinning = true; ping(440);
-  const btn = $("#spinBtn"); if(btn) btn.disabled = true;
-  wheelRot += 1440 + Math.random() * 1440;
-  const w = $("#wheel"); if(w) w.style.transform = "rotate(" + wheelRot + "deg)";
-  setTimeout(function(){
-    spinning = false; if(btn) btn.disabled = false;
-    const pool = S.products.filter(function(p){ return discount(p) >= 15; });
-    const p = (pool.length ? pool : S.products)[(Math.random() * (pool.length || S.products.length)) | 0];
-    const out = $("#roulOut");
-    if(out) out.innerHTML =
-      '<div class="li"><div class="lt">' + plate(p, false) + '</div>' +
-      '<div class="lm"><b>' + esc(p.name) + '</b><span>' + esc(p.brand) + ' · −' + discount(p) + ' % · ' + stars(p.rating) + '</span></div>' +
-      '<span class="lp">' + eur(p.price) + '</span></div>' +
-      '<div style="display:flex;gap:8px;margin:10px 0"><button class="btn p s" onclick="toAmazon(\'' + p.id + '\')">Zu Amazon</button>' +
-      '<button class="btn g s" onclick="openProduct(\'' + p.id + '\')">Details</button></div>';
-    confetti(70); ping(900);
-    toast("ok","Beute!", p.name + " für " + eur(p.price));
-  }, 4500);
-}
 function renderTop(){
   const mode = ($("#topMode") || {}).value || "score";
   const cmp = { score: function(a,b){ return score(b)-score(a); }, off: function(a,b){ return discount(b)-discount(a); },
@@ -3140,7 +3101,7 @@ function subscribe(e){
   if($("#nlMail")) $("#nlMail").value = "";
   if(typeof track === "function") track("mail", {});
   if($("#mExit").classList.contains("on")) closeAll();
-  confetti(80); ping(900);
+  ping(900);
   toast("ok","Willkommen im Rudel ","Beute-Alarm ist aktiv.");
   return false;
 }
@@ -3257,7 +3218,7 @@ function addProduct(){
   S.products.push(p);
   buildFilterUI(); fillBrakeSelect(); renderCatRow(); applyAll(); heroStats(); save();
   ["aName","aBrand","aPrice","aOld","aCat","aEmo","aAsin","aRate"].forEach(function(i){ document.getElementById(i).value = ""; });
-  closeAll(); confetti(60);
+  closeAll();
   toast("ok","Produkt angelegt", name + " · " + eur(price));
 }
 function resetAll(){
@@ -3288,7 +3249,15 @@ function openInfo(k){
     preise: ["Preisangaben",
       "<p>Alle Preise verstehen sich inklusive gesetzlicher Mehrwertsteuer, zuzüglich Versandkosten.</p>" +
       "<p style='margin-top:10px'>Preise und Verfügbarkeit können sich jederzeit ändern. <b>Maßgeblich ist ausschließlich der Preis, der zum Zeitpunkt des Kaufs auf Amazon angezeigt wird.</b></p>" +
-      "<p style='margin-top:10px'>Durchgestrichene Preise sind unverbindliche Preisempfehlungen des Herstellers (UVP). Der angezeigte Preisverlauf zeigt die Entwicklung der letzten 90 Tage und hilft dir, echte Rabatte von Schein-Rabatten zu unterscheiden.</p>"]
+      "<p style='margin-top:10px'>Durchgestrichene Preise sind unverbindliche Preisempfehlungen des Herstellers (UVP). Der angezeigte Preisverlauf zeigt die Entwicklung der letzten 90 Tage und hilft dir, echte Rabatte von Schein-Rabatten zu unterscheiden.</p>"],
+    benachrichtigungen: ["Benachrichtigungen wieder freigeben",
+      "<p>Du hast Benachrichtigungen für diese Seite abgelehnt. Aus Sicherheitsgründen darf eine Seite nicht erneut fragen — die Freigabe musst du im Browser selbst zurücknehmen.</p>" +
+      "<table class='spec'>" +
+      "<tr><td>Chrome, Edge</td><td>Schloss-Symbol links in der Adressleiste → <b>Benachrichtigungen</b> → <b>Zulassen</b></td></tr>" +
+      "<tr><td>Firefox</td><td>Schloss-Symbol → <b>Verbindung sicher</b> → <b>Weitere Informationen</b> → <b>Berechtigungen</b></td></tr>" +
+      "<tr><td>Safari</td><td><b>Safari</b> → <b>Einstellungen</b> → <b>Websites</b> → <b>Benachrichtigungen</b></td></tr>" +
+      "</table>" +
+      "<p style='margin-top:10px'>Danach die Seite neu laden. Ohne Freigabe funktioniert die Preisbremse weiterhin — die Meldung erscheint dann nur auf der Seite selbst, solange sie geöffnet ist.</p>"]
   }[k];
   if(!T) return;
   $("#infoTitle").textContent = T[0];
@@ -3303,8 +3272,6 @@ const CMDS = [
   {i:"", t:"Alle Deals",       k:"shop",  a:function(){ go("shop"); }},
   {i:"", t:"Blitzangebote",     k:"blitz", a:function(){ go("blitz"); }},
   {i:"", t:"Preisbremse",       k:"bremse",a:function(){ go("bremse"); }},
-  {i:"", t:"Gutscheine",       k:"coupon",a:function(){ go("gutscheine"); }},
-  {i:"", t:"Deal-Roulette drehen",k:"spin",a:function(){ go("roulette"); spinWheel(); }},
   {i:"", t:"Bestenliste",       k:"top",   a:function(){ go("top10"); }},
   {i:"", t:"Preis-Radar",       k:"radar", a:function(){ go("radar"); }},
   {i:"", t:"Deal-Korb öffnen",  k:"cart",  a:function(){ openDrawer("cart"); }},
@@ -3405,10 +3372,10 @@ function initReveal(){
   const io = new IntersectionObserver(function(entries){
     entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } });
   }, {threshold:0, rootMargin:"0px 0px -6% 0px"});
-  $$("section, .card, .post, .coupon").forEach(function(el){ el.classList.add("reveal"); io.observe(el); });
+  $$("section, .card, .post").forEach(function(el){ el.classList.add("reveal"); io.observe(el); });
 }
 function initSpy(){
-  const ids = ["top","blitz","shop","bremse","gutscheine","roulette","top10","radar","ratgeber","faq"];
+  const ids = ["top","blitz","shop","bremse","radar","top10","kaufberater","ratgeber","faq"];
   const io = new IntersectionObserver(function(entries){
     entries.forEach(function(e){
       if(e.isIntersecting) $$("#navMain .nb").forEach(function(b){ b.classList.toggle("on", b.dataset.go === e.target.id); });
@@ -4161,7 +4128,7 @@ function playToggle(pi, ii){
   gsave(); renderPlaybook();
   const total = PHASES.reduce(function(s,p){ return s + p.items.length; }, 0);
   const done = Object.keys(G.play).filter(function(x){ return G.play[x]; }).length;
-  if(done === total){ confetti(140); toast("ok","Playbook vollständig ","Jetzt zählt nur noch Wiederholung."); }
+  if(done === total){ toast("ok","Playbook vollständig","Jetzt zählt nur noch Wiederholung."); }
 }
 function phaseToggle(i){
   const el = document.getElementById("ph" + i);
@@ -4510,9 +4477,19 @@ function initGrowth(){
   setupFlash();
   buildFilterUI();
   fillBrakeSelect();
-  renderCatRow(); renderTicker(); renderFlash(); renderDotd(); renderCoupons();
+  renderCatRow(); renderTicker(); renderFlash(); renderDotd();
   renderTop(); renderPosts(); renderFaq(); renderAlerts(); renderRadar();
+  renderNotifyBar(); syncBrakeHint();
   fillIcons();
+
+  /* Produktkarten sind als Knopf ausgezeichnet — also müssen sie auch auf die Tastatur hören. */
+  $("#grid").addEventListener("keydown", function(e){
+    if(e.key !== "Enter" && e.key !== " ") return;
+    const c = e.target.closest(".pcard");
+    if(!c || e.target !== c) return;
+    e.preventDefault();
+    openProduct(c.dataset.id);
+  });
   initGrowth();
   refreshBadges(); applyAll(); heroStats();
   initReveal(); initSpy();
@@ -4610,7 +4587,6 @@ function initGrowth(){
     else if(k === "v") openDrawer("cmp");
     else if(k === "b") go("bremse");
     else if(k === "t") toggleTheme();
-    else if(k === "r") spinWheel();
     else if(k === "w") openGrow();
     else if(k === "k") go("kaufberater");
     else if(k === "g"){
@@ -4657,10 +4633,6 @@ function initGrowth(){
   setInterval(function(){
     tickFlash();
     renderDotd();
-    $$("[data-cend]").forEach(function(el){
-      const left = +el.dataset.cend - Date.now();
-      el.textContent = left >0 ? "läuft ab in " + hms(left) : "abgelaufen";
-    });
     const now = new Date();
     $("#flashClock").textContent = " " + now.toLocaleTimeString("de-DE");
   }, 1000);

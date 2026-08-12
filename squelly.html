@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#14315c">
+<title>SQUELLY — Unsere Empfehlungen</title>
+<meta name="description" content="SQUELLY empfiehlt drei Produkte, die wir selbst nutzen. Als Amazon-Partner verdienen wir an qualifizierten Verkäufen.">
+<meta property="og:title" content="SQUELLY — Unsere Empfehlungen">
+<meta property="og:description" content="Drei Produkte, ehrlich beschrieben. Preis, Bewertung und wofür sie taugen.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="de_DE">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23d5eef8'/%3E%3Cg fill='none' stroke='%2314315c' stroke-width='1.2'%3E%3Cpath d='M8 2c5 6-4 10 1 14s-3 9 1 14'/%3E%3Cpath d='M16 2c5 6-4 10 1 14s-3 9 1 14'/%3E%3Cpath d='M24 2c5 6-4 10 1 14s-3 9 1 14'/%3E%3C/g%3E%3C/svg%3E">
+
+<style>
+/* ============================================================
+   SQUELLY — Farben direkt aus dem Logo
+   ============================================================ */
+:root{
+  --navy:#14315c;        /* Wortmarke, Konturlinien */
+  --navy-d:#0d2749;      /* dunkelster Punkt des Verlaufs */
+  --blue:#3a8ccd;        /* Wellenblau */
+  --blue-l:#6fb2e4;
+  --sky:#d5eef8;         /* Logo-Hintergrund */
+  --white:#ffffff;
+
+  --ink:#f2f9fe;         /* Text auf Blau */
+  --ink-mut:rgba(242,249,254,.72);
+  --ink-faint:rgba(242,249,254,.5);
+
+  --glass:rgba(255,255,255,.10);
+  --glass-2:rgba(255,255,255,.16);
+  --glass-line:rgba(255,255,255,.26);
+  --glass-line-2:rgba(255,255,255,.42);
+
+  --r:20px;
+  --ff:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif;
+  --fm:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--ff);
+  color:var(--ink);
+  background:var(--navy);
+  min-height:100vh;
+  line-height:1.6;
+  overflow-x:hidden;
+  position:relative;
+}
+img{max-width:100%;display:block}
+button{font:inherit;color:inherit;border:none;background:none;cursor:pointer}
+a{color:inherit;text-decoration:none}
+
+/* ---------- Hintergrund: Verlauf + Logo-Wellen, ineinander verschmolzen ---------- */
+.bg{position:fixed;inset:0;z-index:-3;
+  background:
+    radial-gradient(120% 80% at 50% -10%, var(--sky) 0%, rgba(213,238,248,0) 55%),
+    radial-gradient(90% 60% at 15% 20%, rgba(111,178,228,.55) 0%, rgba(111,178,228,0) 60%),
+    radial-gradient(90% 70% at 85% 45%, rgba(58,140,205,.5) 0%, rgba(58,140,205,0) 60%),
+    linear-gradient(180deg, #2f7fc0 0%, #24619b 35%, #17406e 65%, #0f2749 100%);
+}
+/* Die Konturlinien des Logos, riesig und weich — sie laufen aus, statt zu enden. */
+.bgwaves{position:fixed;inset:-10% -20%;z-index:-2;opacity:.5;
+  filter:blur(.4px);
+  -webkit-mask-image:radial-gradient(70% 60% at 50% 38%, #000 0%, rgba(0,0,0,.55) 45%, transparent 78%);
+  mask-image:radial-gradient(70% 60% at 50% 38%, #000 0%, rgba(0,0,0,.55) 45%, transparent 78%);
+  animation:drift 34s ease-in-out infinite alternate}
+.bgwaves svg{width:100%;height:100%}
+@keyframes drift{from{transform:translate3d(-1.5%,0,0) scale(1.02)}to{transform:translate3d(1.5%,-1.5%,0) scale(1.07)}}
+/* Ein zweiter, unschärferer Satz darunter — dadurch verschwimmen die Ebenen ineinander. */
+.bgwaves.soft{opacity:.3;filter:blur(9px);animation-duration:48s;animation-direction:alternate-reverse;z-index:-3}
+.bgglow{position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(60% 40% at 50% 0%, rgba(255,255,255,.22), transparent 70%)}
+
+@media (prefers-reduced-motion:reduce){.bgwaves{animation:none}}
+
+/* ---------- Grundgerüst: schmale Spalte wie bei einer Linkseite ---------- */
+.page{max-width:520px;margin:0 auto;padding:46px 20px 60px;position:relative}
+
+/* ---------- Glasflächen ---------- */
+.glass{
+  background:var(--glass);
+  border:1px solid var(--glass-line);
+  border-radius:var(--r);
+  -webkit-backdrop-filter:blur(22px) saturate(160%);
+  backdrop-filter:blur(22px) saturate(160%);
+  box-shadow:0 8px 32px rgba(8,26,52,.28), inset 0 1px 0 rgba(255,255,255,.3);
+}
+/* Ohne backdrop-filter (ältere Browser) bliebe das Glas unsichtbar — dann etwas mehr Deckung. */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .glass{background:rgba(255,255,255,.2)}
+}
+
+/* ---------- Kopf ---------- */
+.brand{text-align:center;margin-bottom:34px}
+.mark{
+  width:132px;margin:0 auto 20px;padding:14px;
+  background:rgba(255,255,255,.9);
+  border:1px solid rgba(255,255,255,.75);
+  border-radius:22px;
+  -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
+  box-shadow:0 14px 40px rgba(8,26,52,.35), inset 0 1px 0 #fff;
+}
+.mark svg{width:100%;height:auto;border-radius:6px}
+.brand h1{
+  font-size:clamp(2.4rem,11vw,3.2rem);font-weight:800;letter-spacing:.1em;
+  line-height:1;color:var(--white);text-indent:.1em;
+  text-shadow:0 2px 24px rgba(8,26,52,.4);
+}
+.since{
+  font-family:var(--fm);font-size:.72rem;letter-spacing:.46em;text-indent:.46em;
+  color:var(--sky);margin-top:10px;font-weight:500;
+}
+.bio{margin-top:16px;font-size:.95rem;color:var(--ink-mut);text-wrap:balance}
+
+/* ---------- Hinweisstreifen ---------- */
+.note{
+  display:flex;gap:11px;align-items:flex-start;
+  padding:13px 16px;margin-bottom:22px;border-radius:14px;
+  font-size:.79rem;line-height:1.5;color:var(--ink-mut);
+}
+.note svg{width:16px;height:16px;flex-shrink:0;margin-top:2px;color:var(--sky)}
+.note b{color:var(--ink);font-weight:650}
+
+/* ---------- Produktkarten ---------- */
+.cards{display:flex;flex-direction:column;gap:16px}
+.card{
+  position:relative;overflow:hidden;
+  padding:20px;
+  transition:transform .3s cubic-bezier(.2,.8,.3,1), box-shadow .3s, border-color .3s;
+}
+.card::before{ /* Lichtkante oben — lässt das Glas nach oben hin auslaufen */
+  content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+  background:linear-gradient(160deg, rgba(255,255,255,.2) 0%, rgba(255,255,255,0) 42%);
+}
+.card:hover{transform:translateY(-3px);border-color:var(--glass-line-2);
+  box-shadow:0 16px 46px rgba(8,26,52,.36), inset 0 1px 0 rgba(255,255,255,.4)}
+
+.crow{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.chip{
+  font-family:var(--fm);font-size:.64rem;letter-spacing:.14em;font-weight:600;
+  padding:5px 10px;border-radius:99px;
+  background:rgba(255,255,255,.16);border:1px solid var(--glass-line);color:var(--sky);
+}
+.rate{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--ink-mut)}
+.stars{color:#ffd36b;letter-spacing:1px;font-size:.8rem}
+.rate b{color:var(--ink);font-weight:650}
+
+.cname{font-size:1.08rem;font-weight:700;line-height:1.35;color:var(--white);margin-bottom:4px;text-wrap:balance}
+.cbrand{font-family:var(--fm);font-size:.7rem;letter-spacing:.12em;color:var(--sky);
+  text-transform:uppercase;margin-bottom:14px}
+
+.facts{list-style:none;display:flex;flex-direction:column;gap:7px;margin-bottom:16px}
+.facts li{display:flex;gap:9px;font-size:.85rem;color:var(--ink-mut);line-height:1.45}
+.facts li::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--blue-l);
+  flex-shrink:0;margin-top:8px}
+
+.price{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.now{font-size:1.75rem;font-weight:800;color:var(--white);letter-spacing:-.02em;line-height:1}
+.was{font-size:.9rem;color:var(--ink-faint);text-decoration:line-through}
+.off{
+  font-family:var(--fm);font-size:.72rem;font-weight:700;padding:4px 9px;border-radius:8px;
+  background:rgba(255,255,255,.92);color:var(--navy);
+}
+.saved{font-size:.76rem;color:var(--ink-faint);margin-bottom:16px}
+
+.cta{
+  display:flex;align-items:center;justify-content:center;gap:9px;width:100%;
+  padding:14px 18px;border-radius:14px;
+  background:rgba(255,255,255,.95);color:var(--navy);
+  font-size:.92rem;font-weight:700;letter-spacing:.01em;
+  box-shadow:0 6px 20px rgba(8,26,52,.26);
+  transition:background .2s, transform .15s, box-shadow .2s;
+}
+.cta svg{width:16px;height:16px}
+.cta:hover{background:#fff;transform:translateY(-1px);box-shadow:0 10px 28px rgba(8,26,52,.34)}
+.cta:active{transform:translateY(0)}
+
+/* ---------- Fuß ---------- */
+.foot{margin-top:34px;text-align:center}
+.flinks{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.flink{
+  padding:9px 15px;border-radius:99px;font-size:.78rem;color:var(--ink-mut);
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+  transition:background .2s,color .2s,border-color .2s;
+}
+.flink:hover{background:rgba(255,255,255,.18);color:var(--white);border-color:var(--glass-line-2)}
+.fine{font-size:.72rem;color:var(--ink-faint);line-height:1.6;max-width:42ch;margin:0 auto}
+
+/* ---------- Fenster für die Rechtstexte ---------- */
+.ov{position:fixed;inset:0;z-index:60;display:none;place-items:center;padding:20px;
+  background:rgba(8,26,52,.6);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.ov.on{display:grid}
+.sheet{width:100%;max-width:480px;max-height:82vh;overflow-y:auto;padding:24px;
+  background:rgba(30,72,120,.72);border:1px solid var(--glass-line);border-radius:var(--r);
+  -webkit-backdrop-filter:blur(26px) saturate(160%);backdrop-filter:blur(26px) saturate(160%);
+  box-shadow:0 24px 60px rgba(8,26,52,.5)}
+.sheet h2{font-size:1.1rem;font-weight:750;color:var(--white);margin-bottom:14px}
+.sheet p{font-size:.86rem;color:var(--ink-mut);margin-bottom:11px}
+.sheet dl{font-size:.84rem;color:var(--ink-mut)}
+.sheet dt{font-weight:650;color:var(--ink);margin-top:11px}
+.close{margin-top:18px;width:100%;padding:12px;border-radius:12px;
+  background:rgba(255,255,255,.92);color:var(--navy);font-weight:700;font-size:.88rem}
+
+@media(max-width:420px){
+  .page{padding:34px 15px 48px}
+  .card{padding:17px}
+  .now{font-size:1.55rem}
+}
+</style>
+</head>
+<body>
+
+<!-- Hintergrund: derselbe Konturenwald wie im Logo, nur riesig und ausgeblendet -->
+<div class="bg"></div>
+<div class="bgwaves soft" aria-hidden="true">
+  <svg viewBox="0 0 1200 900" preserveAspectRatio="none">
+    <defs><path id="bw" d="M0,-60 C120,150 -100,320 40,540 C176,752 -40,880 60,1060"/></defs>
+    <g fill="none" stroke="#ffffff" stroke-width="26" stroke-linecap="round" opacity=".5">
+      <use href="#bw" x="120"/><use href="#bw" x="520"/><use href="#bw" x="920"/>
+    </g>
+  </svg>
+</div>
+<div class="bgwaves" aria-hidden="true">
+  <svg viewBox="0 0 1200 900" preserveAspectRatio="none">
+    <g fill="none" stroke="#ffffff" stroke-width="1.6" opacity=".55">
+      <use href="#bw" x="-40"/><use href="#bw" x="20"/><use href="#bw" x="80"/>
+      <use href="#bw" x="140"/><use href="#bw" x="200"/><use href="#bw" x="260"/>
+      <use href="#bw" x="320"/><use href="#bw" x="380"/><use href="#bw" x="440"/>
+      <use href="#bw" x="500"/><use href="#bw" x="560"/><use href="#bw" x="620"/>
+      <use href="#bw" x="680"/><use href="#bw" x="740"/><use href="#bw" x="800"/>
+      <use href="#bw" x="860"/><use href="#bw" x="920"/><use href="#bw" x="980"/>
+      <use href="#bw" x="1040"/><use href="#bw" x="1100"/><use href="#bw" x="1160"/>
+      <use href="#bw" x="1220"/>
+    </g>
+  </svg>
+</div>
+<div class="bgglow" aria-hidden="true"></div>
+
+<div class="page">
+
+  <header class="brand">
+    <!-- Logo als Vektor: identisches Motiv, aber auf jedem Display gestochen scharf -->
+    <div class="mark">
+      <svg viewBox="0 0 200 360" role="img" aria-label="SQUELLY Logo">
+        <defs>
+          <clipPath id="sqClip"><rect x="1" y="1" width="198" height="358" rx="2"/></clipPath>
+          <!-- Zwei Wellenformen mit unterschiedlicher Auslenkung. Abwechselnd und in
+               ungleichen Abständen gesetzt ergeben sie das unruhige Bild einer Höhenkarte. -->
+          <path id="sqA" d="M0,-30 C40,52 -32,104 14,168 C56,230 -16,276 20,340 C38,376 6,388 12,412"/>
+          <path id="sqB" d="M0,-30 C22,60 -44,96 8,164 C44,226 -28,268 14,336 C30,372 -2,384 6,412"/>
+        </defs>
+        <g clip-path="url(#sqClip)">
+          <rect width="200" height="360" fill="#ffffff"/>
+          <!-- Die blauen Ströme: unterschiedlich breit, damit keiner wie ein Muster wirkt -->
+          <g fill="none" stroke="#3a8ccd" stroke-linecap="round">
+            <use href="#sqA" x="18"  stroke-width="26"/>
+            <use href="#sqB" x="72"  stroke-width="17"/>
+            <use href="#sqA" x="118" stroke-width="34"/>
+            <use href="#sqB" x="176" stroke-width="21"/>
+          </g>
+          <!-- Konturlinien in ungleichen Abständen: mal gedrängt, mal weit auseinander -->
+          <g fill="none" stroke="#14315c" stroke-width="1.6">
+            <use href="#sqA" x="-6"/>  <use href="#sqB" x="3"/>   <use href="#sqA" x="9"/>
+            <use href="#sqB" x="19"/>  <use href="#sqA" x="26"/>  <use href="#sqB" x="38"/>
+            <use href="#sqA" x="45"/>  <use href="#sqB" x="52"/>  <use href="#sqA" x="64"/>
+            <use href="#sqB" x="71"/>  <use href="#sqA" x="81"/>  <use href="#sqB" x="88"/>
+            <use href="#sqA" x="97"/>  <use href="#sqB" x="109"/> <use href="#sqA" x="116"/>
+            <use href="#sqB" x="124"/> <use href="#sqA" x="136"/> <use href="#sqB" x="143"/>
+            <use href="#sqA" x="152"/> <use href="#sqB" x="164"/> <use href="#sqA" x="171"/>
+            <use href="#sqB" x="179"/> <use href="#sqA" x="191"/> <use href="#sqB" x="199"/>
+            <use href="#sqA" x="207"/>
+          </g>
+        </g>
+        <rect x="1" y="1" width="198" height="358" rx="2" fill="none" stroke="#14315c" stroke-width="2.5"/>
+      </svg>
+    </div>
+    <h1>SQUELLY</h1>
+    <p class="since">SINCE 2026</p>
+    <p class="bio">Drei Dinge, die wir selbst benutzen — mit Preis, Bewertung und dem, was sie wirklich können.</p>
+  </header>
+
+  <div class="note glass">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+      <circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.5"/>
+    </svg>
+    <span><b>Werbelinks.</b> Als Amazon-Partner verdienen wir an qualifizierten Verkäufen.
+      Für dich bleibt der Preis exakt gleich.</span>
+  </div>
+
+  <main class="cards" id="cards"></main>
+
+  <footer class="foot">
+    <div class="flinks">
+      <button class="flink" onclick="sheet('affiliate')">Affiliate-Hinweis</button>
+      <button class="flink" onclick="sheet('impressum')">Impressum</button>
+      <button class="flink" onclick="sheet('datenschutz')">Datenschutz</button>
+    </div>
+    <p class="fine">
+      Preise inkl. MwSt., zzgl. Versand. Stand: <span id="stand"></span>.
+      Preise und Verfügbarkeit können sich ändern — es gilt der Preis auf Amazon zum Kaufzeitpunkt.
+      <br>© <span id="jahr"></span> SQUELLY
+    </p>
+  </footer>
+
+</div>
+
+<div class="ov" id="ov" onclick="if(event.target===this)closeSheet()">
+  <div class="sheet" role="dialog" aria-modal="true">
+    <h2 id="shTitle"></h2>
+    <div id="shBody"></div>
+    <button class="close" onclick="closeSheet()">Schließen</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   HIER ANPASSEN — Partner-Kürzel und die drei Produkte
+   ============================================================ */
+const PARTNER_TAG = "squelly-21";   /* dein Amazon-PartnerNet-Kürzel */
+const AMAZON_DOM  = "amazon.de";
+
+const PRODUKTE = [
+  {
+    name:  "Over-Ear Kopfhörer mit aktivem Noise-Cancelling",
+    marke: "Sony",
+    kat:   "AUDIO",
+    preis: 279.00,
+    uvp:   419.99,
+    sterne: 4.7,
+    bewertungen: 18432,
+    asin: "",                       /* echte ASIN eintragen -> direkter Produktlink */
+    fakten: [
+      "Bis 30 Stunden Akku mit eingeschalteter Geräuschunterdrückung",
+      "Multipoint: Notebook und Handy gleichzeitig verbunden",
+      "Faltbar, mit Hartschalenetui — hält Reisen aus"
+    ]
+  },
+  {
+    name:  "Powerbank 20.000 mAh mit 65 W USB-C PD",
+    marke: "Anker",
+    kat:   "TECHNIK",
+    preis: 44.99,
+    uvp:   69.99,
+    sterne: 4.8,
+    bewertungen: 31200,
+    asin: "",
+    fakten: [
+      "65 Watt — lädt auch Notebooks, nicht nur Telefone",
+      "Zwei Geräte gleichzeitig über USB-C und USB-A",
+      "Ladestand-Anzeige in Prozent statt vier Pünktchen"
+    ]
+  },
+  {
+    name:  "Gaming-Maus 26.000 DPI kabellos",
+    marke: "Logitech",
+    kat:   "GAMING",
+    preis: 99.00,
+    uvp:   149.00,
+    sterne: 4.7,
+    bewertungen: 22400,
+    asin: "",
+    fakten: [
+      "63 Gramm — der Unterschied wird nach einer Stunde spürbar",
+      "Bis 70 Stunden Akku, Aufladen per USB-C während des Spielens",
+      "Sensor mit 26.000 DPI, Abtastrate frei einstellbar"
+    ]
+  }
+];
+
+/* ============================================================
+   Aufbereitung
+   ============================================================ */
+const eur = function(v){
+  return new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(v);
+};
+const num = function(v){ return new Intl.NumberFormat("de-DE").format(v); };
+const esc = function(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+};
+
+/* Sterne als Zeichen — halbe Sterne werden aufgerundet dargestellt. */
+function sterne(r){
+  const voll = Math.floor(r), halb = r - voll >= .5;
+  return "★".repeat(voll) + (halb ? "½" : "") + "☆".repeat(Math.max(0, 5 - voll - (halb ? 1 : 0)));
+}
+
+function amazonLink(p){
+  const tag = encodeURIComponent(PARTNER_TAG);
+  if(p.asin) return "https://www." + AMAZON_DOM + "/dp/" + encodeURIComponent(p.asin) + "?tag=" + tag;
+  const q = encodeURIComponent(p.marke + " " + p.name);
+  return "https://www." + AMAZON_DOM + "/s?k=" + q + "&tag=" + tag;
+}
+
+function karte(p){
+  const rabatt = p.uvp > p.preis ? Math.round((1 - p.preis / p.uvp) * 100) : 0;
+  const gespart = p.uvp - p.preis;
+  return '' +
+  '<article class="card glass">' +
+    '<div class="crow">' +
+      '<span class="chip">' + esc(p.kat) + '</span>' +
+      '<span class="rate"><span class="stars">' + sterne(p.sterne) + '</span>' +
+        '<b>' + p.sterne.toFixed(1).replace(".", ",") + '</b>' +
+        '<span>(' + num(p.bewertungen) + ')</span></span>' +
+    '</div>' +
+    '<h2 class="cname">' + esc(p.name) + '</h2>' +
+    '<p class="cbrand">' + esc(p.marke) + '</p>' +
+    '<ul class="facts">' +
+      p.fakten.map(function(f){ return '<li>' + esc(f) + '</li>'; }).join("") +
+    '</ul>' +
+    '<div class="price">' +
+      '<span class="now">' + eur(p.preis) + '</span>' +
+      (rabatt > 0 ? '<span class="was">' + eur(p.uvp) + '</span>' +
+                    '<span class="off">−' + rabatt + ' %</span>' : '') +
+    '</div>' +
+    (rabatt > 0 ? '<p class="saved">' + eur(gespart) + ' unter der Preisempfehlung</p>' : '') +
+    '<a class="cta" href="' + esc(amazonLink(p)) + '" target="_blank" rel="noopener sponsored nofollow">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>' +
+        '<path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>' +
+      'Bei Amazon ansehen</a>' +
+  '</article>';
+}
+
+document.getElementById("cards").innerHTML = PRODUKTE.map(karte).join("");
+document.getElementById("jahr").textContent = new Date().getFullYear();
+document.getElementById("stand").textContent = new Date().toLocaleDateString("de-DE",
+  { day:"2-digit", month:"long", year:"numeric" });
+
+/* ---------- Rechtstexte ---------- */
+const TEXTE = {
+  affiliate: ["Affiliate-Hinweis",
+    "<p><b>Als Amazon-Partner verdienen wir an qualifizierten Verkäufen.</b></p>" +
+    "<p>Diese Seite enthält Werbelinks. Kaufst du über einen solchen Link bei Amazon ein, " +
+    "erhalten wir eine Provision vom Händler. <b>Für dich ändert sich der Preis dadurch nicht</b> — " +
+    "du zahlst denselben Betrag wie ohne Link.</p>" +
+    "<p>Welche Produkte hier stehen, entscheiden wir nach eigener Einschätzung, nicht nach der Höhe " +
+    "der Provision. Amazon und das Amazon-Logo sind Marken von Amazon.com, Inc. oder seinen " +
+    "verbundenen Unternehmen.</p>"],
+  impressum: ["Impressum",
+    "<p>Angaben gemäß § 5 DDG:</p>" +
+    "<dl>" +
+    "<dt>Betreiber</dt><dd>Vorname Nachname</dd>" +
+    "<dt>Anschrift</dt><dd>Straße Nr., PLZ Ort</dd>" +
+    "<dt>E-Mail</dt><dd>kontakt@example.com</dd>" +
+    "<dt>Verantwortlich nach § 18 Abs. 2 MStV</dt><dd>Vorname Nachname</dd>" +
+    "</dl>" +
+    "<p style='margin-top:14px'><b>Platzhalter.</b> Vor dem Veröffentlichen durch die eigenen " +
+    "Angaben ersetzen — ein fehlendes Impressum ist abmahnfähig.</p>"],
+  datenschutz: ["Datenschutz",
+    "<p>Diese Seite kommt ohne Tracking, ohne Analyse-Werkzeuge und ohne Cookies aus. " +
+    "Es werden keine Daten an einen Server übertragen — die Seite ist eine einzelne Datei " +
+    "und funktioniert auch offline.</p>" +
+    "<p>Klickst du auf einen Amazon-Link, verlässt du diese Seite. Ab dort gelten die " +
+    "Datenschutzbestimmungen von Amazon. Amazon erkennt über das Partner-Kürzel im Link, " +
+    "dass die Empfehlung von uns stammt.</p>"]
+};
+function sheet(k){
+  const t = TEXTE[k]; if(!t) return;
+  document.getElementById("shTitle").textContent = t[0];
+  document.getElementById("shBody").innerHTML = t[1];
+  document.getElementById("ov").classList.add("on");
+  document.body.style.overflow = "hidden";
+}
+function closeSheet(){
+  document.getElementById("ov").classList.remove("on");
+  document.body.style.overflow = "";
+}
+addEventListener("keydown", function(e){ if(e.key === "Escape") closeSheet(); });
+</script>
+
+</body>
+</html>
