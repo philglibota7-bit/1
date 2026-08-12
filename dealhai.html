@@ -6,9 +6,31 @@
 <meta name="theme-color" content="#04070f">
 <title>DEALHAI — Wir beißen Preise klein 🦈</title>
 <meta name="description" content="DEALHAI jagt Rabatte: Blitzangebote, Preisbremse, Preiswecker, Preisverlauf, Gutscheine, Vergleich und Bestenlisten. Als Amazon-Partner verdienen wir an qualifizierten Verkäufen.">
+<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+<meta name="author" content="DEALHAI">
+<link rel="canonical" href="https://example.com/dealhai.html">
 <meta property="og:title" content="DEALHAI — Wir beißen Preise klein">
 <meta property="og:description" content="Deal-Jagd mit Preisbremse, Preiswecker und Blitzangeboten.">
 <meta property="og:type" content="website">
+<meta property="og:locale" content="de_DE">
+<meta property="og:site_name" content="DEALHAI">
+<meta property="og:url" content="https://example.com/dealhai.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="DEALHAI — Wir beißen Preise klein">
+<meta name="twitter:description" content="Preisbremse, Preisverlauf und Blitzangebote — der Hai beißt Preise klein.">
+<!-- Strukturierte Daten: Organisation + Website-Suche. ItemList/FAQ werden zur Laufzeit ergänzt. -->
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+ {"@type":"Organization","@id":"https://example.com/#org","name":"DEALHAI","slogan":"Preise klein beißen",
+  "description":"Deal-Portal mit Preisbremse, Preisverlauf und Blitzangeboten. Amazon-Partner."},
+ {"@type":"WebSite","@id":"https://example.com/#site","name":"DEALHAI","inLanguage":"de-DE",
+  "publisher":{"@id":"https://example.com/#org"},
+  "potentialAction":{"@type":"SearchAction","target":{"@type":"EntryPoint",
+   "urlTemplate":"https://example.com/dealhai.html?q={search_term_string}"},"query-input":"required name=search_term_string"}}
+]}
+</script>
+<script type="application/ld+json" id="ldItems">{"@context":"https://schema.org","@type":"ItemList","itemListElement":[]}</script>
+<script type="application/ld+json" id="ldFaq">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[]}</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='26' fill='%23050a14'/%3E%3Cpath d='M18 76c20 5 38 3 51-3 9-4 13-10 13-10S68 28 43 13c7 24 2 47-25 63z' fill='%2322f5ff'/%3E%3Cpath d='M18 76c20 5 38 3 51-3-18-2-33-8-45-19-1 9-3 16-6 22z' fill='%23ff2e93'/%3E%3C/svg%3E">
 <style>
 /* ============================================================
@@ -667,6 +689,7 @@ section.reveal{transform:none}
     <button class="nb" data-go="roulette">🎰 Deal-Roulette</button>
     <button class="nb" data-go="top10">🏆 Bestenliste</button>
     <button class="nb" data-go="radar">📡 Preis-Radar</button>
+    <button class="nb" data-go="kaufberater">🧭 Kaufberater</button>
     <button class="nb" data-go="ratgeber">📚 Ratgeber</button>
     <button class="nb" data-go="faq">❓ FAQ</button>
   </nav>
@@ -950,6 +973,20 @@ section.reveal{transform:none}
   <div class="toplist" id="topList"></div>
 </section>
 
+<!-- ================= KAUFBERATER ================= -->
+<section id="kaufberater">
+  <div class="sechead">
+    <div>
+      <span class="kicker">Für Leute, die schon wissen, was sie wollen</span>
+      <h2>Kaufberater</h2>
+      <p>Pro Kategorie drei Empfehlungen — Preis-Tipp, bestes Gesamtpaket, Premium. Mit Kaufkriterien und Fragen, die vor dem Klick zählen.</p>
+    </div>
+    <div class="sp"></div>
+    <span class="mini" id="guideHint"></span>
+  </div>
+  <div class="guides" id="guides"></div>
+</section>
+
 <!-- ================= RATGEBER ================= -->
 <section id="ratgeber">
   <div class="sechead">
@@ -1010,7 +1047,9 @@ section.reveal{transform:none}
       <a onclick="go('bremse')">Preisbremse</a>
       <a onclick="openDrawer('cmp')">Vergleich</a>
       <a onclick="openDrawer('wish')">Merkliste</a>
+      <a onclick="go('kaufberater')">Kaufberater</a>
       <a onclick="openModal('mSettings')">Einstellungen</a>
+      <a onclick="openGrow()">🚀 Betreiber-Zentrale</a>
       <a onclick="openCmd()">Befehlspalette</a>
     </div>
     <div class="fcol">
@@ -1032,6 +1071,7 @@ section.reveal{transform:none}
 
 <button class="totop" id="totop" onclick="go('top')" title="Nach oben">↑</button>
 <div class="fabs">
+  <button class="fab" onclick="openGrow()" title="Betreiber-Zentrale (Umsatz, Kampagnen, Playbook)">🚀</button>
   <button class="fab" onclick="spinWheel()" title="Zufalls-Deal">🎰</button>
   <button class="fab" onclick="go('bremse')" title="Preisbremse">🛑</button>
   <button class="fab" onclick="toggleFx()" id="fxBtn" title="Effekte an/aus">✨</button>
@@ -1084,6 +1124,10 @@ section.reveal{transform:none}
       <option value="amazon.co.uk">amazon.co.uk (UK)</option>
     </select>
     <p class="hint">Beispiel-Link: <span class="mono" id="linkPreview" style="word-break:break-all"></span></p>
+    <p class="hint" style="margin-top:8px">An jeden Link hängen wir eine SubID nach dem Muster
+      <span class="mono">dh-quelle-kampagne-platzierung-produkt-testvariante</span>. Im Partnerbericht steht damit
+      schwarz auf weiß, welcher Kanal und welche Stelle der Seite verkauft hat.
+      <a onclick="openGrow('g1')" style="color:var(--cy);cursor:pointer">→ Cockpit öffnen</a></p>
 
     <h4 style="font-size:.95rem;font-weight:800;margin:20px 0 6px">Darstellung</h4>
     <label class="swtch"><span>🌙 Dunkles Design</span><input type="checkbox" id="setDark" checked><span class="tg"></span></label>
@@ -1142,9 +1186,112 @@ section.reveal{transform:none}
       <tr><td>Design wechseln</td><td><span class="kbd">T</span></td></tr>
       <tr><td>Ansicht wechseln</td><td><span class="kbd">G</span></td></tr>
       <tr><td>Zufalls-Deal</td><td><span class="kbd">R</span></td></tr>
+      <tr><td>Kaufberater</td><td><span class="kbd">K</span></td></tr>
+      <tr><td>Betreiber-Zentrale</td><td><span class="kbd">W</span></td></tr>
       <tr><td>Alles schließen</td><td><span class="kbd">Esc</span></td></tr>
       <tr><td>Hai-Modus 🦈</td><td><span class="kbd">↑↑↓↓←→←→BA</span></td></tr>
     </table>
+  </div>
+</div></div>
+
+<div class="ov" id="mGuide"><div class="modal" style="max-width:760px">
+  <div class="mhead"><h3 id="guideTitle">Kaufberater</h3><button class="x" onclick="closeAll()">✕</button></div>
+  <div class="mbody" id="guideBody"></div>
+</div></div>
+
+<!-- ================= BETREIBER-ZENTRALE ================= -->
+<div class="ov" id="mGrow"><div class="modal" style="max-width:980px">
+  <div class="mhead">
+    <h3>🚀 Betreiber-Zentrale</h3>
+    <span class="mini" style="margin-left:auto">alles lokal · kein Server</span>
+    <button class="x" onclick="closeAll()">✕</button>
+  </div>
+  <div class="mbody">
+    <div class="tabs2" id="growTabs">
+      <button class="on" data-g="g1">📊 Cockpit</button>
+      <button data-g="g2">🧭 Quellen</button>
+      <button data-g="g3">🚀 Kampagnen</button>
+      <button data-g="g4">🧪 A/B-Tests</button>
+      <button data-g="g5">✅ Playbook</button>
+      <button data-g="g6">💶 Hochrechnung</button>
+    </div>
+
+    <div class="pane on" id="g1"><div id="cockpitBody"></div></div>
+    <div class="pane" id="g2"><div id="sourceBody"></div></div>
+
+    <div class="pane" id="g3">
+      <p class="hint">Jeder Kanal bekommt eigene Parameter. So siehst du später im PartnerNet-Bericht und im Cockpit, welcher Kanal wirklich verkauft — und nicht nur Klicks bringt.</p>
+      <div class="split" style="gap:12px;margin-top:12px">
+        <div>
+          <label class="flab" for="cmpChan">Kanal</label>
+          <select class="sel" id="cmpChan" style="width:100%">
+            <option value="pinterest">Pinterest</option>
+            <option value="telegram">Telegram-Kanal</option>
+            <option value="whatsapp">WhatsApp-Kanal</option>
+            <option value="instagram">Instagram</option>
+            <option value="tiktok">TikTok</option>
+            <option value="youtube">YouTube</option>
+            <option value="newsletter">Newsletter</option>
+            <option value="blog">Blog / Gastbeitrag</option>
+            <option value="forum">Forum / Community</option>
+          </select>
+        </div>
+        <div>
+          <label class="flab" for="cmpName">Kampagnenname</label>
+          <input class="ain" id="cmpName" placeholder="z. B. herbst-airfryer">
+        </div>
+        <div>
+          <label class="flab" for="cmpDeal">Ziel der Verlinkung</label>
+          <select class="sel" id="cmpDeal" style="width:100%"></select>
+        </div>
+        <div>
+          <label class="flab" for="cmpBase">Adresse deiner Seite</label>
+          <input class="ain" id="cmpBase" placeholder="https://deine-domain.de/dealhai.html">
+        </div>
+      </div>
+      <div class="linkout" style="margin-top:14px">
+        <b class="mini">Kampagnen-Link (auf deine Seite, nicht direkt zu Amazon)</b>
+        <div class="mono" id="cmpUrl" style="word-break:break-all;margin:6px 0 10px"></div>
+        <div class="pills">
+          <button class="pill" onclick="copyCampaign()">📋 Link kopieren</button>
+          <button class="pill" onclick="openCampaign()">↗️ Öffnen</button>
+          <button class="pill" onclick="makeCard('pin')">🖼️ Pin-Bild (1000×1500)</button>
+          <button class="pill" onclick="makeCard('og')">🖼️ Vorschaubild (1200×630)</button>
+          <button class="pill" onclick="makeCard('story')">🖼️ Story (1080×1920)</button>
+        </div>
+      </div>
+      <h4 style="font-size:.95rem;font-weight:800;margin:20px 0 6px">Fertige Beitragstexte</h4>
+      <p class="hint">Aus dem gewählten Deal erzeugt — kopieren, prüfen, posten. Der Werbehinweis ist immer schon drin.</p>
+      <div id="cmpPosts" style="margin-top:12px"></div>
+    </div>
+
+    <div class="pane" id="g4"><div id="abBody"></div></div>
+    <div class="pane" id="g5"><div id="playBody"></div></div>
+
+    <div class="pane" id="g6">
+      <p class="hint">Rechne durch, was die Seite bei welcher Reichweite trägt. Die Provisionssätze sind die typischen PartnerNet-Spannen — im Zweifel in deinem Konto nachsehen und hier anpassen.</p>
+      <div class="calcgrid" id="calcGrid"></div>
+      <div id="calcOut" style="margin-top:16px"></div>
+      <h4 style="font-size:.95rem;font-weight:800;margin:22px 0 6px">Provision je Kategorie</h4>
+      <div id="commBody"></div>
+    </div>
+  </div>
+</div></div>
+
+<div class="ov" id="mExit"><div class="modal" style="max-width:520px">
+  <div class="mhead"><h3>🦈 Kurz bevor du gehst …</h3><button class="x" onclick="closeAll()">✕</button></div>
+  <div class="mbody">
+    <p style="font-size:.95rem">Der beste Preis kommt selten dann, wenn man gerade schaut. Setz eine <b>Preisbremse</b> — der Hai meldet sich, sobald dein Wunschpreis erreicht ist.</p>
+    <div class="pills" style="margin-top:14px">
+      <button class="pill" onclick="closeAll();go('bremse')">🛑 Preisbremse setzen</button>
+      <button class="pill" onclick="closeAll();go('blitz')">⚡ Blitzangebote</button>
+    </div>
+    <h4 style="font-size:.95rem;font-weight:800;margin:20px 0 6px">Oder die Deals per Mail</h4>
+    <form onsubmit="subscribe(event)" style="display:flex;gap:9px;flex-wrap:wrap">
+      <input class="ain" style="flex:1;min-width:200px" type="email" id="exitMail" placeholder="deine@mail.de" required>
+      <button class="btn p s" type="submit">Eintragen</button>
+    </form>
+    <p class="hint">Nur lokal gespeichert · kein Versand in dieser Demo · jederzeit löschbar.</p>
   </div>
 </div></div>
 
@@ -1158,6 +1305,103 @@ section.reveal{transform:none}
 <style>
 .ain{width:100%;background:var(--panel2);border:1px solid var(--line2);border-radius:12px;padding:10px 12px;outline:none}
 .ain:focus{border-color:var(--cy)}
+
+/* ---------- Vertrauensleiste im Produktfenster ---------- */
+.trustrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.trustrow span{font-size:.74rem;color:var(--muted);background:var(--panel2);border:1px solid var(--line);
+  border-radius:99px;padding:5px 11px}
+
+/* ---------- A/B-Hinweiszeile auf der Karte ---------- */
+.abhint{font-size:.73rem;font-weight:700;color:var(--go);margin:2px 0 8px;display:flex;align-items:center;gap:6px}
+
+/* ---------- Kaufberater ---------- */
+.guides{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.guide{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;cursor:pointer;
+  transition:.22s;position:relative;overflow:hidden}
+.guide:hover{transform:translateY(-4px);border-color:var(--line2);box-shadow:var(--glow)}
+.guide::after{content:"";position:absolute;inset:auto -30% -60% auto;width:150px;height:150px;border-radius:50%;
+  background:radial-gradient(circle,hsl(var(--h) 90% 60% / .22),transparent 65%)}
+.guide .ge{font-size:1.7rem}
+.guide h4{font-size:1rem;font-weight:850;margin:8px 0 4px}
+.guide p{font-size:.8rem;color:var(--muted)}
+.guide .gm{display:flex;gap:10px;margin-top:10px;font-size:.72rem;color:var(--muted);font-family:var(--fm)}
+.pickrow{display:flex;gap:12px;align-items:center;background:var(--panel2);border:1px solid var(--line);
+  border-radius:var(--r);padding:12px 14px;margin-bottom:10px}
+.pickrow .pi span.pk{display:inline-block;width:-moz-fit-content;width:fit-content;font-size:.68rem;font-weight:900;
+  letter-spacing:.08em;text-transform:uppercase;color:#04070f;background:var(--cy);
+  border-radius:99px;padding:3px 10px;white-space:nowrap}
+.pickrow .pe{font-size:1.6rem}
+.pickrow .pi{flex:1;min-width:0}
+.pickrow .pi b{display:block;font-size:.92rem;line-height:1.3;margin-top:6px}
+.pickrow .pi span{display:block;font-size:.75rem;color:var(--muted);margin-top:3px}
+.pickrow .pi span.mini{margin-top:6px;color:var(--txt);opacity:.85}
+@media(max-width:600px){
+  .pickrow{flex-wrap:wrap}
+  .pickrow > div:last-child{flex-direction:row!important;width:100%}
+  .pickrow > div:last-child .btn{flex:1;justify-content:center}
+}
+
+/* ---------- Cockpit ---------- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.kpi{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.kpi b{display:block;font-size:1.5rem;font-weight:900;line-height:1.1}
+.kpi span{font-size:.74rem;color:var(--muted)}
+.kpi.good b{color:var(--ok)} .kpi.warn b{color:var(--go)}
+.bars{display:flex;align-items:flex-end;gap:4px;height:110px;margin-top:10px}
+.bars div{flex:1;background:linear-gradient(180deg,var(--cy),rgba(34,245,255,.15));border-radius:5px 5px 2px 2px;
+  min-height:3px;position:relative}
+.bars div:hover{background:linear-gradient(180deg,var(--mg),rgba(255,46,147,.2))}
+.funnel{display:flex;flex-direction:column;gap:7px;margin-top:10px}
+.funnel .fr{display:flex;align-items:center;gap:10px;font-size:.82rem}
+.funnel .fr .fb{flex:1;height:22px;background:var(--panel3);border-radius:7px;overflow:hidden}
+.funnel .fr .fb i{display:block;height:100%;background:linear-gradient(90deg,var(--cy),var(--mg));
+  transition:width .5s}
+.dtable{width:100%;border-collapse:collapse;font-size:.84rem;margin-top:10px}
+.dtable th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+  padding:7px 9px;border-bottom:1px solid var(--line)}
+.dtable td{padding:8px 9px;border-bottom:1px solid var(--line)}
+.dtable tr:last-child td{border-bottom:none}
+.dtable td.r,.dtable th.r{text-align:right;font-family:var(--fm)}
+.linkout{background:var(--panel2);border:1px dashed var(--line2);border-radius:var(--r);padding:14px}
+.postbox{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;margin-bottom:11px}
+.postbox h5{font-size:.8rem;font-weight:800;margin-bottom:7px;display:flex;align-items:center;gap:7px}
+.postbox pre{font-family:var(--fm);font-size:.76rem;white-space:pre-wrap;word-break:break-word;color:var(--muted);
+  max-height:190px;overflow:auto;margin-bottom:9px}
+
+/* ---------- Playbook ---------- */
+.phase{border:1px solid var(--line);border-radius:var(--r);background:var(--panel2);margin-bottom:12px;overflow:hidden}
+.phase > h4{padding:13px 16px;font-size:.92rem;font-weight:850;cursor:pointer;display:flex;align-items:center;gap:10px}
+.phase > h4 .pc2{margin-left:auto;font-family:var(--fm);font-size:.74rem;color:var(--muted);font-weight:600}
+.phase .items{padding:0 16px 14px;display:none}
+.phase.open .items{display:block}
+.task{display:flex;gap:11px;padding:9px 0;border-top:1px solid var(--line);cursor:pointer;align-items:flex-start}
+.task .cb{width:20px;height:20px;flex:none;border-radius:6px;border:1.5px solid var(--line2);display:grid;
+  place-items:center;font-size:.72rem;margin-top:2px;transition:.18s}
+.task.done .cb{background:linear-gradient(120deg,var(--cy),var(--mg));border-color:transparent;color:var(--inv)}
+.task.done .tt b{text-decoration:line-through;opacity:.55}
+.task .tt b{display:block;font-size:.87rem;font-weight:700}
+.task .tt span{font-size:.76rem;color:var(--muted)}
+
+/* ---------- Hochrechnung ---------- */
+.calcgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.calcgrid label,.flab{display:block;font-size:.78rem;color:var(--muted);margin-bottom:5px;font-weight:600}
+.calcgrid output{display:block;font-family:var(--fm);font-size:.8rem;color:var(--cy);margin-top:4px}
+.scen{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:12px}
+.scen .sc{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:14px;text-align:center}
+.scen .sc b{display:block;font-size:1.35rem;font-weight:900}
+.scen .sc span{font-size:.74rem;color:var(--muted)}
+@media(max-width:760px){
+  .guides{grid-template-columns:1fr 1fr}
+  .kpis{grid-template-columns:1fr 1fr}
+}
+@media(max-width:560px){
+  #mGrow .mhead .mini{display:none}
+  #mGrow .tabs2{scrollbar-width:none}
+  #mGrow .tabs2::-webkit-scrollbar{display:none}
+  .funnel .fr span:first-child{width:110px!important;font-size:.78rem}
+  .dtable{font-size:.78rem}
+}
+@media(max-width:460px){ .guides{grid-template-columns:1fr} }
 </style>
 
 <script>
@@ -1426,18 +1670,22 @@ function lowHigh(p){
   return { low: Math.min.apply(null, p.hist), high: Math.max.apply(null, p.hist) };
 }
 
-/* ---------- Amazon-Partnerlink ---------- */
-function amazonLink(p){
+/* ---------- Amazon-Partnerlink ----------
+   Jeder Ausgangsklick trägt ein SubID-Kürzel (ascsubtag). Damit lässt sich im
+   PartnerNet-Bericht ablesen, welche Quelle und welche Platzierung verkauft hat. */
+function amazonLink(p, placement){
   const tag = encodeURIComponent(S.set.tag || "dealhai-21");
   const dom = S.set.dom || "amazon.de";
-  if (p && p.asin) return "https://www." + dom + "/dp/" + encodeURIComponent(p.asin) + "?tag=" + tag;
+  const sub = (typeof subId === "function") ? "&ascsubtag=" + encodeURIComponent(subId(p, placement)) : "";
+  if (p && p.asin) return "https://www." + dom + "/dp/" + encodeURIComponent(p.asin) + "?tag=" + tag + sub;
   const q = encodeURIComponent(((p && p.brand) ? p.brand + " " : "") + (p ? p.name : ""));
-  return "https://www." + dom + "/s?k=" + q + "&tag=" + tag;
+  return "https://www." + dom + "/s?k=" + q + "&tag=" + tag + sub;
 }
-function toAmazon(id){
+function toAmazon(id, placement){
   const p = byId(id); if(!p) return;
   ping(); markSeen(id);
-  window.open(amazonLink(p), "_blank", "noopener");
+  if(typeof track === "function") track("out", { id:p.id, cat:p.cat, price:p.price, pl:placement || "unbekannt" });
+  window.open(amazonLink(p, placement), "_blank", "noopener");
   toast("ok","🦈 Ab zu Amazon","Partner-Tag: " + (S.set.tag || "dealhai-21"));
 }
 
@@ -1556,6 +1804,7 @@ function cardHTML(p, i){
         '<button class="qb ' + (inWish?"on":"") + '" title="Merken" onclick="event.stopPropagation();toggleWish(\'' + p.id + '\')">' + (inWish?"❤️":"🤍") + '</button>' +
         '<button class="qb ' + (inCmp?"on":"") + '" title="Vergleichen" onclick="event.stopPropagation();toggleCmp(\'' + p.id + '\')">⚖️</button>' +
         '<button class="qb" title="Preisbremse" onclick="event.stopPropagation();brakeFor(\'' + p.id + '\')">🛑</button>' +
+        '<button class="qb" title="In den Deal-Korb" onclick="event.stopPropagation();addCart(\'' + p.id + '\')">🛒</button>' +
         '<button class="qb" title="Teilen" onclick="event.stopPropagation();share(\'' + p.id + '\')">🔗</button>' +
       '</div>' +
       '<span class="em">' + p.emoji + '</span>' +
@@ -1569,9 +1818,11 @@ function cardHTML(p, i){
       '<div class="pprice"><span class="pnow">' + eur(p.price) + '</span>' +
         (off > 0 ? '<span class="pwas">' + eur(p.old) + '</span><span class="psave">−' + eur(saved) + '</span>' : '') +
       '</div>' +
+      (typeof abCardHint === "function" ? abCardHint(p) : "") +
       '<div class="pfoot">' +
         '<button class="btn g s" onclick="openProduct(\'' + p.id + '\')">👁️ Details</button>' +
-        '<button class="btn p s" onclick="addCart(\'' + p.id + '\')">🛒 Merken</button>' +
+        '<button class="btn p s" onclick="toAmazon(\'' + p.id + '\',\'karte\')">' +
+          (typeof ctaLabel === "function" ? ctaLabel() : "🛒 Zum Angebot") + '</button>' +
       '</div>' +
     '</div>' +
   '</article>';
@@ -1746,6 +1997,7 @@ let pTab = "info";
 function openProduct(id){
   const p = byId(id); if(!p) return;
   markSeen(id); ping(700);
+  if(typeof track === "function") track("view", { id:p.id, cat:p.cat, price:p.price });
   $("#pTitle").textContent = p.name;
   $("#pBody").innerHTML = productHTML(p);
   openModal("mProduct");
@@ -1792,13 +2044,24 @@ function productHTML(p){
            (dist < 45 ? 'Guter Zeitpunkt, aber es ging schon günstiger.' : 'Warten lohnt sich vermutlich.')) + '</span>' +
       '</div>' +
 
-      '<div style="display:flex;gap:9px;flex-wrap:wrap">' +
-        '<button class="btn p" onclick="toAmazon(\'' + p.id + '\')">🛒 Bei Amazon ansehen</button>' +
+      '<p class="mini" style="margin-top:6px">🕒 Preis-Stand: ' + new Date().toLocaleTimeString("de-DE") +
+        ' · Preise und Verfügbarkeit können sich jederzeit ändern. Es gilt der Preis auf Amazon zum Kaufzeitpunkt.</p>' +
+
+      '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px">' +
+        '<button class="btn p" onclick="toAmazon(\'' + p.id + '\',\'detail\')">' +
+          (typeof ctaLabel === "function" ? ctaLabel() : "🛒 Bei Amazon ansehen") + '</button>' +
         '<button class="btn g" onclick="brakeFor(\'' + p.id + '\')">' + (hasAlert ? '🛑 Bremse ändern' : '🛑 Preisbremse') + '</button>' +
         '<button class="btn g" onclick="toggleWish(\'' + p.id + '\');openProduct(\'' + p.id + '\')">' +
           (S.wish.indexOf(p.id) !== -1 ? '❤️ Gemerkt' : '🤍 Merken') + '</button>' +
         '<button class="btn g" onclick="toggleCmp(\'' + p.id + '\')">⚖️ Vergleichen</button>' +
         '<button class="btn g" onclick="share(\'' + p.id + '\')">🔗 Teilen</button>' +
+      '</div>' +
+
+      '<div class="trustrow">' +
+        '<span>🔒 Kauf direkt bei Amazon</span>' +
+        '<span>↩️ 30 Tage Rückgabe</span>' +
+        '<span>💶 Kein Aufpreis für dich</span>' +
+        '<span>🛑 Preisbremse statt Impulskauf</span>' +
       '</div>' +
 
       '<div class="tabs2">' +
@@ -1954,7 +2217,11 @@ function openAllCart(){
   const ids = Object.keys(S.cart);
   if(!ids.length) return;
   ids.slice(0,8).forEach(function(id, i){
-    setTimeout(function(){ window.open(amazonLink(byId(id)), "_blank", "noopener"); }, i * 260);
+    setTimeout(function(){
+      const p = byId(id);
+      if(typeof track === "function") track("out", { id:id, cat:p ? p.cat : "", price:p ? p.price : 0, pl:"korb" });
+      window.open(amazonLink(p, "korb"), "_blank", "noopener");
+    }, i * 260);
   });
   toast("info","Tabs öffnen …", ids.length + " Produkt(e) — Popup-Blocker ggf. erlauben.");
 }
@@ -2320,10 +2587,16 @@ function renderFaq(){
 }
 function subscribe(e){
   e.preventDefault();
-  const v = $("#nlMail").value.trim();
+  const form = e.target && e.target.tagName === "FORM" ? e.target : null;
+  const input = (form && form.querySelector("input[type=email]")) || $("#nlMail");
+  const v = input ? input.value.trim() : "";
+  if(!v) return false;
   S.set.mail = v; save();
   $("#nlState").textContent = "✅ Eingetragen als " + v + " (nur lokal gespeichert).";
-  $("#nlMail").value = "";
+  if(input) input.value = "";
+  if($("#nlMail")) $("#nlMail").value = "";
+  if(typeof track === "function") track("mail", {});
+  if($("#mExit").classList.contains("on")) closeAll();
   confetti(80); ping(900);
   toast("ok","Willkommen im Rudel 🦈","Beute-Alarm ist aktiv.");
   return false;
@@ -2500,7 +2773,13 @@ const CMDS = [
   {i:"💶", t:"Sortieren: Preis aufsteigend", k:"sortprice", a:function(){ $("#sortSel").value="priceAsc"; S.sort="priceAsc"; applyAll(); go("shop"); }},
   {i:"🏷️", t:"Sortieren: höchster Rabatt",  k:"sortoff",   a:function(){ $("#sortSel").value="off"; S.sort="off"; applyAll(); go("shop"); }},
   {i:"♻️", t:"Filter zurücksetzen", k:"reset", a:function(){ resetFilters(); }},
-  {i:"⌨️", t:"Tastenkürzel",      k:"help",  a:function(){ openModal("mHelp"); }}
+  {i:"⌨️", t:"Tastenkürzel",      k:"help",  a:function(){ openModal("mHelp"); }},
+  {i:"🧭", t:"Kaufberater",       k:"guide", a:function(){ go("kaufberater"); }},
+  {i:"🚀", t:"Betreiber-Zentrale", k:"cockpit umsatz kampagne playbook", a:function(){ openGrow(); }},
+  {i:"📊", t:"Cockpit: Zahlen ansehen", k:"stats kpi", a:function(){ openGrow("g1"); }},
+  {i:"🚀", t:"Kampagnen-Link bauen", k:"utm link kampagne", a:function(){ openGrow("g3"); }},
+  {i:"✅", t:"Wachstums-Playbook", k:"plan checkliste", a:function(){ openGrow("g5"); }},
+  {i:"💶", t:"Umsatz hochrechnen", k:"rechner provision", a:function(){ openGrow("g6"); }}
 ];
 let cmdSel = 0, cmdRows = [];
 function openCmd(){
@@ -2617,6 +2896,1045 @@ function sharkMode(){
 <script>
 "use strict";
 /* ============================================================
+   16) WACHSTUM — Herkunft, Messung, A/B-Tests, Kampagnen, Playbook
+
+   Alles läuft ohne Server: Ereignisse, Testzuteilung und Fortschritt
+   liegen im localStorage. Das reicht, um die Mechanik zu bedienen und
+   zu üben — für echte Zahlen kommen später PartnerNet-Berichte und
+   ein serverseitiges Zählwerk dazu.
+   ============================================================ */
+const LSG = "dealhai_growth_v1";
+
+/* Provisionssätze in Prozent — Richtwerte, im PartnerNet nachsehen und hier anpassen. */
+const COMM_DEF = {
+  "Audio":2, "Technik":2, "Gaming":2, "Haushalt":3, "Küche":3, "Smart Home":2,
+  "Fitness":5, "Büro":3, "Garten":5, "Beauty":8, "Auto":3, "Werkzeug":3,
+  "Foto":2, "Haustier":4, "Mode":8, "Baby":3
+};
+
+const G = {
+  ev: [],            /* Ereignisse: {t, e, s, c, d} */
+  visits: 0,
+  first: null,       /* Erstkontakt */
+  last: null,        /* Herkunft dieses Besuchs */
+  ab: {},            /* Testname -> {v:Variante, s:{Variante:{i,c}}} */
+  play: {},          /* Playbook-Fortschritt */
+  comm: {},          /* Provisionssätze */
+  calc: { vis:20000, ctr:9, cr:5, aov:70 },
+  lastExit: 0
+};
+
+function gsave(){
+  try{
+    localStorage.setItem(LSG, JSON.stringify({
+      ev:G.ev.slice(-900), visits:G.visits, first:G.first, ab:G.ab,
+      play:G.play, comm:G.comm, calc:G.calc, lastExit:G.lastExit
+    }));
+  }catch(e){}
+}
+function gload(){
+  try{
+    const d = JSON.parse(localStorage.getItem(LSG) || "{}");
+    if(Array.isArray(d.ev)) G.ev = d.ev;
+    if(typeof d.visits === "number") G.visits = d.visits;
+    if(d.first) G.first = d.first;
+    if(d.ab) G.ab = d.ab;
+    if(d.play) G.play = d.play;
+    if(d.comm) G.comm = d.comm;
+    if(d.calc) Object.assign(G.calc, d.calc);
+    if(d.lastExit) G.lastExit = d.lastExit;
+  }catch(e){}
+}
+
+/* ---------- Kürzel für Links und SubIDs ---------- */
+function slug(s){
+  return String(s == null ? "" : s).toLowerCase()
+    .replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss")
+    .replace(/[^a-z0-9]+/g,"").slice(0,16);
+}
+
+/* ---------- Herkunft erkennen ---------- */
+const REFMAP = [
+  [/pinterest\./,"pinterest"], [/instagram\./,"instagram"], [/tiktok\./,"tiktok"],
+  [/youtube\.|youtu\.be/,"youtube"], [/facebook\.|fb\./,"facebook"], [/t\.co$|twitter\.|x\.com/,"x"],
+  [/t\.me|telegram\./,"telegram"], [/whatsapp\./,"whatsapp"], [/reddit\./,"reddit"],
+  [/google\./,"google"], [/bing\./,"bing"], [/duckduckgo\.|ecosia\./,"suchmaschine"]
+];
+function detectSource(){
+  let u = null;
+  try{ u = new URLSearchParams(location.search); }catch(e){}
+  const us = u ? (u.get("utm_source") || "") : "";
+  if(us){
+    return { src:slug(us) || "unbekannt",
+             med:slug(u.get("utm_medium")) || "unbekannt",
+             camp:slug(u.get("utm_campaign")) || "ohne",
+             ct:slug(u.get("utm_content")) };
+  }
+  const r = document.referrer || "";
+  if(r){
+    let host = "";
+    try{ host = new URL(r).hostname.replace(/^www\./,""); }catch(e){}
+    if(host && host !== location.hostname){
+      for(let i = 0; i < REFMAP.length; i++){
+        if(REFMAP[i][0].test(host)) return { src:REFMAP[i][1], med:"verweis", camp:"organisch", ct:"" };
+      }
+      return { src:slug(host) || "verweis", med:"verweis", camp:"organisch", ct:"" };
+    }
+  }
+  return { src:"direkt", med:"direkt", camp:"ohne", ct:"" };
+}
+
+/* ---------- SubID für den Amazon-Link ----------
+   Muster: dh-<quelle>-<kampagne>-<platzierung>-<produkt>-<testvariante>
+   Damit steht im PartnerNet-Bericht, welcher Kanal und welche Stelle der
+   Seite den Verkauf gebracht hat. */
+function subId(p, pl){
+  const a = G.last || { src:"direkt", camp:"ohne" };
+  return ["dh", a.src || "direkt", a.camp || "ohne", slug(pl) || "seite",
+          p ? p.id : "x", abVar("cta")].join("-").slice(0, 80);
+}
+
+/* ---------- Ereignisse ---------- */
+let gTimer = null;
+function track(e, d){
+  const a = G.last || { src:"direkt", camp:"ohne" };
+  G.ev.push({ t:Date.now(), e:e, s:a.src || "direkt", c:a.camp || "ohne", d:d || {} });
+  if(G.ev.length > 900) G.ev = G.ev.slice(-900);
+  if(e === "out"){ abClick("cta"); abClick("hint"); }
+  clearTimeout(gTimer);
+  gTimer = setTimeout(gsave, 400);
+  const m = document.getElementById("mGrow");
+  if(m && m.classList.contains("on")){ renderCockpit(); renderSources(); }
+}
+
+/* ============================================================
+   A/B-TESTS
+   ============================================================ */
+const AB_TESTS = {
+  cta: { t:"Text auf dem Klick-Knopf", v:[
+    {k:"a", l:"🛒 Zum Angebot"},
+    {k:"b", l:"💰 Preis prüfen"},
+    {k:"c", l:"🦈 Deal sichern"}
+  ]},
+  hint: { t:"Tiefpreis-Hinweis auf der Karte", v:[
+    {k:"a", l:"ohne Hinweis"},
+    {k:"b", l:"mit Hinweis"}
+  ]}
+};
+function abInit(){
+  Object.keys(AB_TESTS).forEach(function(t){
+    const vs = AB_TESTS[t].v;
+    if(!G.ab[t] || !G.ab[t].v) G.ab[t] = { v: vs[(Math.random() * vs.length) | 0].k, s:{} };
+    if(!G.ab[t].s) G.ab[t].s = {};
+    vs.forEach(function(x){ if(!G.ab[t].s[x.k]) G.ab[t].s[x.k] = { i:0, c:0 }; });
+  });
+}
+function abVar(t){ return (G.ab[t] && G.ab[t].v) || "a"; }
+function abShow(t){ const st = G.ab[t] && G.ab[t].s[abVar(t)]; if(st) st.i++; }
+function abClick(t){ const st = G.ab[t] && G.ab[t].s[abVar(t)]; if(st) st.c++; }
+function abSwitch(t, k){
+  if(!G.ab[t]) return;
+  G.ab[t].v = k; gsave(); applyAll(); renderAB();
+  toast("info","Variante gewechselt", AB_TESTS[t].t + " → " + k.toUpperCase());
+}
+function abReset(){
+  Object.keys(G.ab).forEach(function(t){
+    Object.keys(G.ab[t].s).forEach(function(k){ G.ab[t].s[k] = { i:0, c:0 }; });
+  });
+  gsave(); renderAB(); toast("ok","Testzähler zurückgesetzt","Neue Runde, saubere Zahlen.");
+}
+
+/* Vom Rendering benutzt: Knopftext und Kartenhinweis */
+function ctaLabel(){
+  abShow("cta");
+  const v = abVar("cta");
+  const f = AB_TESTS.cta.v.filter(function(x){ return x.k === v; })[0];
+  return f ? f.l : "🛒 Zum Angebot";
+}
+function abCardHint(p){
+  abShow("hint");
+  if(abVar("hint") !== "b") return "";
+  const lh = lowHigh(p);
+  const over = lh.low > 0 ? (p.price / lh.low - 1) * 100 : 100;
+  if(over <= 3)  return '<div class="abhint">🔻 Auf 90-Tage-Tiefstand</div>';
+  if(over <= 12) return '<div class="abhint">📉 Nur ' + over.toFixed(0) + ' % über dem 90-Tage-Tief</div>';
+  return '<div class="abhint" style="color:var(--muted)">⏳ War schon für ' + eur(lh.low) + ' zu haben</div>';
+}
+
+/* ============================================================
+   COCKPIT
+   ============================================================ */
+function evSince(days){
+  const t0 = Date.now() - days * 864e5;
+  return G.ev.filter(function(x){ return x.t >= t0; });
+}
+function cnt(list, e){ return list.filter(function(x){ return x.e === e; }).length; }
+function commOf(cat){
+  if(G.comm[cat] != null) return +G.comm[cat];
+  if(COMM_DEF[cat] != null) return COMM_DEF[cat];
+  return 3;
+}
+function estEarn(list){
+  const cr = G.calc.cr / 100;
+  return list.filter(function(x){ return x.e === "out"; }).reduce(function(s, x){
+    const pr = (x.d && x.d.price) || 0;
+    return s + pr * cr * commOf(x.d && x.d.cat) / 100;
+  }, 0);
+}
+function pct(a, b){ return b > 0 ? (a / b * 100) : 0; }
+
+function renderCockpit(){
+  const box = document.getElementById("cockpitBody"); if(!box) return;
+  const all = G.ev, d30 = evSince(30);
+  const views = cnt(all, "view"), outs = cnt(all, "out");
+  const ctr = pct(outs, views);
+  const earn = estEarn(all);
+  const orders = outs * G.calc.cr / 100;
+
+  /* 14 Tage Balken */
+  const days = [];
+  for(let i = 13; i >= 0; i--){
+    const t0 = new Date(); t0.setHours(0,0,0,0); t0.setDate(t0.getDate() - i);
+    const t1 = t0.getTime() + 864e5;
+    days.push({
+      lab: t0.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"}),
+      n: all.filter(function(x){ return x.e === "out" && x.t >= t0.getTime() && x.t < t1; }).length
+    });
+  }
+  const maxD = Math.max(1, Math.max.apply(null, days.map(function(x){ return x.n; })));
+
+  /* Top-Deals nach Ausgangsklicks */
+  const byId2 = {};
+  all.filter(function(x){ return x.e === "out" && x.d && x.d.id; }).forEach(function(x){
+    const k = x.d.id;
+    if(!byId2[k]) byId2[k] = { n:0, sum:0, cat:x.d.cat || "", pl:{} };
+    byId2[k].n++;
+    byId2[k].sum += (x.d.price || 0) * (G.calc.cr/100) * commOf(x.d.cat) / 100;
+    const pl = x.d.pl || "?"; byId2[k].pl[pl] = (byId2[k].pl[pl] || 0) + 1;
+  });
+  const top = Object.keys(byId2).map(function(k){
+    const p = byId(k);
+    return { id:k, name: p ? p.name : k, n:byId2[k].n, sum:byId2[k].sum,
+             pl: Object.keys(byId2[k].pl).sort(function(a,b){ return byId2[k].pl[b]-byId2[k].pl[a]; })[0] };
+  }).sort(function(a,b){ return b.n - a.n; }).slice(0, 10);
+
+  box.innerHTML =
+    '<div class="kpis">' +
+      '<div class="kpi"><b>' + num(G.visits) + '</b><span>Besuche</span></div>' +
+      '<div class="kpi"><b>' + num(views) + '</b><span>Produktansichten</span></div>' +
+      '<div class="kpi good"><b>' + num(outs) + '</b><span>Klicks zu Amazon</span></div>' +
+      '<div class="kpi ' + (ctr >= 8 ? "good" : "warn") + '"><b>' + ctr.toFixed(1).replace(".",",") + ' %</b><span>Klickrate auf Ansichten</span></div>' +
+      '<div class="kpi"><b>' + eur(earn) + '</b><span>Provision (Prognose)</span></div>' +
+      '<div class="kpi"><b>' + num(S.alerts.length) + '</b><span>aktive Preisbremsen</span></div>' +
+    '</div>' +
+
+    '<h4 style="font-size:.95rem;font-weight:800;margin:22px 0 2px">Klicks zu Amazon · 14 Tage</h4>' +
+    '<p class="hint">Jede Säule ist ein Tag. Wer hier nichts sieht, hat ein Verteilungsproblem — kein Produktproblem.</p>' +
+    '<div class="bars">' + days.map(function(d){
+      return '<div style="height:' + Math.max(3, d.n / maxD * 100) + '%" title="' + d.lab + ': ' + d.n + ' Klicks"></div>';
+    }).join("") + '</div>' +
+    '<div class="mini" style="display:flex;justify-content:space-between;margin-top:4px">' +
+      '<span>' + days[0].lab + '</span><span>heute</span></div>' +
+
+    '<h4 style="font-size:.95rem;font-weight:800;margin:22px 0 2px">Trichter</h4>' +
+    '<p class="hint">Die Prognose der Käufe rechnet mit ' + G.calc.cr.toString().replace(".",",") + ' % Kaufquote nach dem Klick — anpassbar unter „Hochrechnung“.</p>' +
+    '<div class="funnel">' +
+      fRow("Besuche", G.visits, G.visits) +
+      fRow("Produktansichten", views, G.visits) +
+      fRow("Klicks zu Amazon", outs, G.visits) +
+      fRow("Käufe (Prognose)", +orders.toFixed(1), G.visits) +
+    '</div>' +
+
+    '<h4 style="font-size:.95rem;font-weight:800;margin:22px 0 2px">Deals mit den meisten Ausgangsklicks</h4>' +
+    (top.length ?
+      '<table class="dtable"><thead><tr><th>Deal</th><th>beste Stelle</th><th class="r">Klicks</th><th class="r">Prognose</th></tr></thead><tbody>' +
+      top.map(function(t){
+        return '<tr><td>' + esc(t.name.slice(0,52)) + '</td><td class="mini">' + esc(t.pl || "–") + '</td>' +
+               '<td class="r">' + t.n + '</td><td class="r">' + eur(t.sum) + '</td></tr>';
+      }).join("") + '</tbody></table>'
+      : '<p class="hint">Noch keine Ausgangsklicks erfasst. Öffne einen Deal und klick auf „Zum Angebot“ — dann füllt sich diese Liste.</p>') +
+
+    '<div class="pills" style="margin-top:18px">' +
+      '<button class="pill" onclick="exportStats()">⬇️ Zahlen als JSON</button>' +
+      '<button class="pill" onclick="exportCsv()">⬇️ Ereignisse als CSV</button>' +
+      '<button class="pill" onclick="resetStats()">♻️ Zähler zurücksetzen</button>' +
+    '</div>' +
+    '<p class="hint" style="margin-top:10px">Erfasst werden nur anonyme Zähler im eigenen Browser — keine Kennungen, kein Versand, kein fremder Dienst. Letzte 30 Tage: ' +
+      num(cnt(d30,"out")) + ' Klicks.</p>';
+}
+function fRow(label, v, base){
+  return '<div class="fr"><span style="width:150px">' + label + '</span>' +
+    '<span class="fb"><i style="width:' + Math.min(100, pct(v, Math.max(1, base))).toFixed(1) + '%"></i></span>' +
+    '<b style="width:70px;text-align:right;font-family:var(--fm);font-size:.8rem">' + num(v) + '</b></div>';
+}
+
+function renderSources(){
+  const box = document.getElementById("sourceBody"); if(!box) return;
+  const g = {};
+  G.ev.forEach(function(x){
+    const k = (x.s || "direkt") + " · " + (x.c || "ohne");
+    if(!g[k]) g[k] = { v:0, o:0, sum:0 };
+    if(x.e === "view") g[k].v++;
+    if(x.e === "out"){
+      g[k].o++;
+      g[k].sum += ((x.d && x.d.price) || 0) * (G.calc.cr/100) * commOf(x.d && x.d.cat) / 100;
+    }
+  });
+  const rows = Object.keys(g).map(function(k){
+    return { k:k, v:g[k].v, o:g[k].o, sum:g[k].sum };
+  }).sort(function(a,b){ return b.o - a.o || b.v - a.v; });
+
+  const first = G.first || {};
+  box.innerHTML =
+    '<p class="hint">Woher die Besuche kamen und was sie gebracht haben. Die Zuordnung stammt aus den UTM-Parametern im Link — deshalb bekommt jeder Kanal eigene.</p>' +
+    '<div class="kpis" style="margin-top:12px">' +
+      '<div class="kpi"><b style="font-size:1rem">' + esc(first.src || "—") + '</b><span>Erstkontakt</span></div>' +
+      '<div class="kpi"><b style="font-size:1rem">' + esc((G.last && G.last.src) || "—") + '</b><span>dieser Besuch</span></div>' +
+      '<div class="kpi"><b style="font-size:1rem">' + esc((G.last && G.last.camp) || "—") + '</b><span>Kampagne</span></div>' +
+      '<div class="kpi"><b style="font-size:1rem">' + esc((G.last && G.last.med) || "—") + '</b><span>Medium</span></div>' +
+    '</div>' +
+    (rows.length ?
+      '<table class="dtable"><thead><tr><th>Quelle · Kampagne</th><th class="r">Ansichten</th><th class="r">Klicks</th><th class="r">Klickrate</th><th class="r">Prognose</th></tr></thead><tbody>' +
+      rows.map(function(r){
+        return '<tr><td>' + esc(r.k) + '</td><td class="r">' + num(r.v) + '</td><td class="r">' + num(r.o) + '</td>' +
+          '<td class="r">' + pct(r.o, r.v).toFixed(1).replace(".",",") + ' %</td><td class="r">' + eur(r.sum) + '</td></tr>';
+      }).join("") + '</tbody></table>'
+      : '<p class="hint" style="margin-top:14px">Noch nichts erfasst.</p>') +
+    '<div class="linkout" style="margin-top:16px">' +
+      '<b class="mini">So testest du die Zuordnung</b>' +
+      '<p class="mini" style="margin-top:6px">Seite mit <span class="mono">?utm_source=pinterest&amp;utm_medium=pin&amp;utm_campaign=airfryer</span> aufrufen — ' +
+      'die Herkunft steht danach oben und hängt an jedem Amazon-Link als SubID.</p>' +
+      '<div class="mono" style="margin-top:8px;word-break:break-all">Beispiel-SubID: ' + esc(subId(S.products[0], "karte")) + '</div>' +
+    '</div>';
+}
+
+function renderAB(){
+  const box = document.getElementById("abBody"); if(!box) return;
+  box.innerHTML =
+    '<p class="hint">Zwei Varianten laufen nie gleichzeitig im selben Browser — jeder Besucher bekommt eine feste Zuteilung. Erst ab etwa 300 Einblendungen je Variante lohnt sich ein Urteil.</p>' +
+    Object.keys(AB_TESTS).map(function(t){
+      const test = AB_TESTS[t], st = G.ab[t].s;
+      const best = test.v.slice().sort(function(a,b){
+        return pct(st[b.k].c, st[b.k].i) - pct(st[a.k].c, st[a.k].i);
+      })[0];
+      const enough = test.v.every(function(x){ return st[x.k].i >= 300; });
+      return '<h4 style="font-size:.95rem;font-weight:800;margin:20px 0 2px">' + esc(test.t) + '</h4>' +
+        '<table class="dtable"><thead><tr><th>Variante</th><th class="r">Einblendungen</th><th class="r">Klicks</th><th class="r">Klickrate</th><th></th></tr></thead><tbody>' +
+        test.v.map(function(x){
+          const s2 = st[x.k], live = abVar(t) === x.k;
+          return '<tr' + (live ? ' style="background:var(--panel3)"' : '') + '>' +
+            '<td><b>' + x.k.toUpperCase() + '</b> · ' + esc(x.l) + (live ? ' <span class="mini">(deine)</span>' : '') + '</td>' +
+            '<td class="r">' + num(s2.i) + '</td><td class="r">' + num(s2.c) + '</td>' +
+            '<td class="r">' + pct(s2.c, s2.i).toFixed(2).replace(".",",") + ' %</td>' +
+            '<td class="r"><button class="pill" onclick="abSwitch(\'' + t + '\',\'' + x.k + '\')">testen</button></td></tr>';
+        }).join("") + '</tbody></table>' +
+        '<p class="hint">' + (enough
+          ? '📌 Genug Daten: Variante <b>' + best.k.toUpperCase() + '</b> führt. Übernimm sie fest und starte den nächsten Test.'
+          : '⏳ Noch zu wenig Daten für ein Urteil — weiter laufen lassen.') + '</p>';
+    }).join("") +
+    '<div class="pills" style="margin-top:18px"><button class="pill" onclick="abReset()">♻️ Testzähler zurücksetzen</button></div>' +
+    '<div class="linkout" style="margin-top:16px"><b class="mini">Nächste sinnvolle Tests</b>' +
+      '<p class="mini" style="margin-top:6px">1. Preis groß vs. Ersparnis groß · 2. Blitzangebote oben vs. Bestenliste oben · ' +
+      '3. Kaufberater vor Produktliste · 4. Newsletter-Fenster nach 30 s vs. beim Verlassen. Immer nur einen Test gleichzeitig.</p></div>';
+}
+
+function exportStats(){
+  const blob = new Blob([JSON.stringify({ visits:G.visits, first:G.first, ab:G.ab, ev:G.ev }, null, 2)],
+    {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "dealhai-zahlen.json"; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  toast("ok","Export erstellt","dealhai-zahlen.json");
+}
+function exportCsv(){
+  const head = "zeit;ereignis;quelle;kampagne;produkt;kategorie;preis;platzierung\n";
+  const rows = G.ev.map(function(x){
+    const d = x.d || {};
+    return [new Date(x.t).toISOString(), x.e, x.s, x.c, d.id || "", d.cat || "",
+            (d.price != null ? String(d.price).replace(".",",") : ""), d.pl || ""].join(";");
+  }).join("\n");
+  const blob = new Blob([head + rows], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "dealhai-ereignisse.csv"; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  toast("ok","CSV erstellt","Für Tabellenkalkulation oder Berichte.");
+}
+function resetStats(){
+  if(!confirm("Alle Zähler und Ereignisse löschen? Playbook und Einstellungen bleiben.")) return;
+  G.ev = []; G.visits = 0;
+  abReset(); gsave(); renderCockpit(); renderSources();
+  toast("ok","Zurückgesetzt","Saubere Zahlen ab jetzt.");
+}
+
+/* ============================================================
+   KAMPAGNEN
+   ============================================================ */
+const MEDMAP = {
+  pinterest:"pin", telegram:"kanal", whatsapp:"kanal", instagram:"social",
+  tiktok:"social", youtube:"video", newsletter:"mail", blog:"artikel", forum:"beitrag"
+};
+function fillCampaignDeals(){
+  const sel = document.getElementById("cmpDeal"); if(!sel) return;
+  const top = S.products.slice().sort(function(a,b){ return discount(b) - discount(a); }).slice(0, 40);
+  sel.innerHTML = '<option value="_">Startseite (kein bestimmter Deal)</option>' +
+    top.map(function(p){
+      return '<option value="' + p.id + '">' + esc(p.name.slice(0,44)) + ' · −' + discount(p) + ' %</option>';
+    }).join("");
+}
+function campaignBase(){
+  const raw = (document.getElementById("cmpBase").value || "").trim();
+  if(raw) return raw.split("#")[0].split("?")[0];
+  if(location.protocol === "file:") return "https://deine-domain.de/dealhai.html";
+  return location.origin + location.pathname;
+}
+function campaignUrl(){
+  const chan = document.getElementById("cmpChan").value;
+  const name = slug(document.getElementById("cmpName").value) || "start";
+  const deal = document.getElementById("cmpDeal").value;
+  let u = campaignBase() + "?utm_source=" + chan + "&utm_medium=" + (MEDMAP[chan] || "verweis") +
+          "&utm_campaign=" + name;
+  if(deal && deal !== "_") u += "&utm_content=" + deal + "#deal=" + deal;
+  return u;
+}
+function currentCampaignDeal(){
+  const v = document.getElementById("cmpDeal").value;
+  return (v && v !== "_") ? byId(v) : null;
+}
+function renderCampaign(){
+  const out = document.getElementById("cmpUrl"); if(!out) return;
+  const url = campaignUrl();
+  out.textContent = url;
+  const p = currentCampaignDeal();
+  const chan = document.getElementById("cmpChan").value;
+  document.getElementById("cmpPosts").innerHTML = postTexts(p, url, chan).map(function(b, i){
+    return '<div class="postbox"><h5>' + b.i + ' ' + esc(b.t) +
+      '<button class="pill" style="margin-left:auto" onclick="copyPost(' + i + ')">📋 kopieren</button></h5>' +
+      '<pre id="pt' + i + '">' + esc(b.x) + '</pre></div>';
+  }).join("");
+}
+function copyPost(i){
+  const el = document.getElementById("pt" + i); if(!el) return;
+  copy(el.textContent); ping(820);
+  toast("ok","Text kopiert","Vor dem Posten einmal gegenlesen.");
+}
+function copyCampaign(){ copy(campaignUrl()); toast("ok","Link kopiert","Immer auf die eigene Seite verlinken, nie aus Anzeigen direkt zu Amazon."); }
+function openCampaign(){ window.open(campaignUrl(), "_blank", "noopener"); }
+
+function postTexts(p, url, chan){
+  const D = "Werbung · Affiliate-Link";
+  if(!p){
+    return [
+      {i:"📣", t:"Telegram / WhatsApp", x:
+        "🦈 DEALHAI — täglich die Deals, die wirklich welche sind\n\n" +
+        "• Preisverlauf über 90 Tage statt durchgestrichener UVP\n" +
+        "• Preisbremse: du nennst deinen Wunschpreis, wir melden uns\n" +
+        "• Blitzangebote mit ehrlichem Countdown\n\n" + url + "\n\n" + D},
+      {i:"📌", t:"Pinterest (Titel + Beschreibung)", x:
+        "Titel: Deals mit Preisverlauf statt Fake-Rabatt\n\n" +
+        "Beschreibung: Wir prüfen den 90-Tage-Preis, bevor wir einen Deal zeigen. " +
+        "Setz eine Preisbremse auf dein Wunschprodukt und kauf erst, wenn der Preis stimmt.\n\n" +
+        url + "\n\n#deals #sparen #schnäppchen #preisvergleich\n" + D},
+      {i:"✉️", t:"Newsletter-Auftakt", x:
+        "Betreff: Die 5 Deals der Woche — geprüft, nicht geraten\n" +
+        "Vorschautext: Ein Blick auf den 90-Tage-Preis reicht meistens.\n\n" +
+        "Hi,\n\ndiese Woche haben es fünf Angebote durch unsere Prüfung geschafft. " +
+        "Alle anderen waren nur laut.\n\n👉 " + url + "\n\n" + D}
+    ];
+  }
+  const off = discount(p), lh = lowHigh(p);
+  const nah = p.price <= lh.low * 1.05;
+  return [
+    {i:"📣", t:"Telegram / WhatsApp", x:
+      "⚡ " + p.name + "\n\n" +
+      "💶 " + eur(p.price) + "  (statt " + eur(p.old) + ", −" + off + " %)\n" +
+      "📉 90-Tage-Tief: " + eur(lh.low) + (nah ? "  ← praktisch Bestpreis" : "") + "\n" +
+      "⭐ " + p.rating.toFixed(1).replace(".",",") + " von 5 bei " + num(p.reviews) + " Bewertungen\n" +
+      (p.stock <= 10 ? "📦 nur noch " + p.stock + " Stück\n" : "") + "\n" +
+      "👉 " + url + "\n\n" + D},
+    {i:"📌", t:"Pinterest (Titel + Beschreibung)", x:
+      "Titel: " + p.name.slice(0, 90) + " für " + eur(p.price) + "\n\n" +
+      "Beschreibung: " + p.brand + " " + p.cat + " mit " + off + " % Nachlass. " +
+      "Der 90-Tage-Tiefstpreis lag bei " + eur(lh.low) + " — " +
+      (nah ? "günstiger war es also praktisch nie." : "kurz warten kann sich also lohnen.") +
+      " Preisverlauf und Preisbremse auf der Seite.\n\n" + url + "\n\n" +
+      "#" + slug(p.cat) + " #deal #sparen #" + slug(p.brand) + "\n" + D},
+    {i:"📷", t:"Instagram / TikTok (Bildunterschrift)", x:
+      "Werbung.\n\n" + p.emoji + " " + p.name + "\n" +
+      "Statt " + eur(p.old) + " nur " + eur(p.price) + " (−" + off + " %).\n\n" +
+      "Vor dem Kauf immer den Preisverlauf checken: In 90 Tagen war der Tiefstpreis " + eur(lh.low) + ". " +
+      (nah ? "Heute ist also ein guter Tag." : "Wer Zeit hat, setzt lieber eine Preisbremse.") + "\n\n" +
+      "Link in der Bio 👆\n\n#" + slug(p.cat) + " #sparen #deals #" + slug(p.brand) + " #schnäppchen"},
+    {i:"▶️", t:"YouTube-Beschreibung", x:
+      "📦 " + p.name + "\n💶 Aktuell " + eur(p.price) + " statt " + eur(p.old) + " (−" + off + " %)\n" +
+      "🔗 " + url + "\n\n" +
+      "Kapitel:\n0:00 Worum es geht\n0:35 Preisverlauf der letzten 90 Tage\n1:20 Für wen sich das lohnt\n2:05 Alternativen\n\n" +
+      D + ". Der Preis kann sich jederzeit ändern — es gilt der Preis auf der Zielseite."},
+    {i:"✉️", t:"Newsletter-Block", x:
+      "Betreff: " + p.name.slice(0, 45) + " — " + off + " % unter UVP\n" +
+      "Vorschautext: 90-Tage-Tief bei " + eur(lh.low) + ".\n\n" +
+      "**" + p.name + "**\n" + eur(p.price) + " statt " + eur(p.old) + " · " +
+      p.rating.toFixed(1).replace(".",",") + " ⭐ (" + num(p.reviews) + ")\n\n" +
+      (nah ? "Das ist praktisch der Bestpreis der letzten 90 Tage."
+           : "Der Tiefstpreis lag bei " + eur(lh.low) + " — mit Preisbremse abwarten ist hier legitim.") +
+      "\n\n👉 " + url + "\n\n" + D},
+    {i:"💬", t:"Kurzpost (X / Threads / Mastodon)", x:
+      p.emoji + " " + p.name.slice(0, 70) + "\n" + eur(p.price) + " statt " + eur(p.old) +
+      " (−" + off + " %) · 90-Tage-Tief " + eur(lh.low) + "\n" + url + "\n#Werbung"}
+  ];
+}
+
+/* ---------- Deal-Karte als Bild (für Pinterest, Story, Vorschau) ---------- */
+function makeCard(kind){
+  const sizes = { pin:[1000,1500], og:[1200,630], story:[1080,1920] };
+  const s = sizes[kind] || sizes.pin;
+  const p = currentCampaignDeal();
+  const c = document.createElement("canvas");
+  c.width = s[0]; c.height = s[1];
+  const x = c.getContext("2d");
+  const W = c.width, H = c.height, wide = W > H;
+  const FF = "Segoe UI, system-ui, -apple-system, sans-serif";
+  const FE = "'Segoe UI Emoji', 'Noto Color Emoji', " + FF;
+  const pad = Math.round(W * .075);
+
+  /* ---- Hintergrund ---- */
+  const g1 = x.createLinearGradient(0, 0, W, H);
+  g1.addColorStop(0, "#050b18"); g1.addColorStop(.55, "#0a1730"); g1.addColorStop(1, "#12082a");
+  x.fillStyle = g1; x.fillRect(0, 0, W, H);
+  const g2 = x.createRadialGradient(W * .82, H * .1, 10, W * .82, H * .1, W * .85);
+  g2.addColorStop(0, "rgba(34,245,255,.32)"); g2.addColorStop(1, "rgba(34,245,255,0)");
+  x.fillStyle = g2; x.fillRect(0, 0, W, H);
+  const g3 = x.createRadialGradient(W * .08, H * .92, 10, W * .08, H * .92, W * .95);
+  g3.addColorStop(0, "rgba(255,46,147,.28)"); g3.addColorStop(1, "rgba(255,46,147,0)");
+  x.fillStyle = g3; x.fillRect(0, 0, W, H);
+  x.strokeStyle = "rgba(90,220,255,.09)"; x.lineWidth = 2;
+  for(let i = 0; i < W; i += 64){ x.beginPath(); x.moveTo(i, 0); x.lineTo(i, H); x.stroke(); }
+  for(let j = 0; j < H; j += 64){ x.beginPath(); x.moveTo(0, j); x.lineTo(W, j); x.stroke(); }
+
+  /* ---- Kopfzeile ---- */
+  x.textAlign = "left"; x.textBaseline = "alphabetic";
+  x.font = Math.round(W * .036) + "px " + FE;
+  x.fillText("🦈", pad, pad + W * .035);
+  x.fillStyle = "#22f5ff";
+  x.font = "800 " + Math.round(W * .034) + "px " + FF;
+  x.fillText("DEALHAI", pad + W * .055, pad + W * .033);
+  x.fillStyle = "rgba(233,243,255,.62)";
+  x.font = "600 " + Math.round(W * .021) + "px " + FF;
+  x.fillText("Preise klein beißen", pad + W * .055, pad + W * .066);
+
+  /* ---- Rabatt-Plakette ---- */
+  if(p && discount(p) > 0){
+    const bw = W * .25, bh = W * .085, bx = W - pad - bw, by = pad;
+    const gb = x.createLinearGradient(bx, by, bx + bw, by + bh);
+    gb.addColorStop(0, "#22f5ff"); gb.addColorStop(1, "#ff2e93");
+    x.fillStyle = gb; roundRect(x, bx, by, bw, bh, bh / 2); x.fill();
+    x.fillStyle = "#04070f";
+    x.font = "900 " + Math.round(W * .044) + "px " + FF;
+    x.textAlign = "center";
+    x.fillText("−" + discount(p) + " %", bx + bw / 2, by + bh * .69);
+    x.textAlign = "left";
+  }
+
+  /* ---- Inhaltsblock mittig zwischen Kopf und Fuß ---- */
+  const title = p ? p.name : "Deals mit Preisverlauf statt Fake-Rabatt";
+  const emS = Math.round(W * (wide ? .10 : .14));
+  const tS  = Math.round(W * (wide ? .046 : .056));
+  const tLH = Math.round(tS * 1.22);
+  const pS  = Math.round(W * (wide ? .072 : .092));
+  const mS  = Math.round(W * .028);
+
+  x.font = "850 " + tS + "px " + FF;
+  const lines = layoutLines(x, title, W - pad * 2, wide ? 2 : 3);
+
+  const gapA = W * .045, gapB = W * .05, metaH = p ? mS * 2.9 : 0;
+  const blockH = emS + gapA + lines.length * tLH + (p ? gapB + pS + metaH : 0);
+  const top = pad + W * .13, bot = H - pad - W * .12;
+  let y = top + Math.max(0, (bot - top - blockH) / 2) + emS;
+
+  x.fillStyle = "#ffffff";
+  x.font = emS + "px " + FE;
+  x.fillText(p ? p.emoji : "🦈", pad, y);
+
+  y += gapA;
+  x.fillStyle = "#e9f3ff";
+  x.font = "850 " + tS + "px " + FF;
+  lines.forEach(function(l){ y += tLH; x.fillText(l, pad, y); });
+
+  if(p){
+    y += gapB + pS * .82;
+    x.fillStyle = "#2bffa3";
+    x.font = "900 " + pS + "px " + FF;
+    x.fillText(eur(p.price), pad, y);
+    const wNow = x.measureText(eur(p.price)).width;
+    if(p.old > p.price){
+      const ox = pad + wNow + W * .035;
+      x.fillStyle = "rgba(233,243,255,.5)";
+      x.font = "600 " + Math.round(W * .032) + "px " + FF;
+      x.fillText(eur(p.old), ox, y);
+      const wOld = x.measureText(eur(p.old)).width;
+      x.strokeStyle = "rgba(233,243,255,.55)";
+      x.lineWidth = Math.max(2, W * .0035);
+      x.beginPath();
+      x.moveTo(ox, y - W * .011); x.lineTo(ox + wOld, y - W * .011); x.stroke();
+    }
+    const lh = lowHigh(p);
+    x.fillStyle = "rgba(233,243,255,.78)";
+    x.font = "600 " + mS + "px " + FF;
+    y += mS * 1.7;
+    x.fillText("⭐ " + p.rating.toFixed(1).replace(".",",") + " · " + num(p.reviews) + " Bewertungen", pad, y);
+    y += mS * 1.45;
+    let low = "📉 90-Tage-Tief " + eur(lh.low) + (p.price <= lh.low * 1.05 ? " · praktisch Bestpreis" : "");
+    if(x.measureText(low).width > W - pad * 2) low = "📉 90-Tage-Tief " + eur(lh.low);
+    x.fillText(low, pad, y);
+  } else {
+    x.fillStyle = "rgba(233,243,255,.75)";
+    x.font = "600 " + mS + "px " + FF;
+    y += W * .05;
+    x.fillText("90-Tage-Preisverlauf · Preisbremse · Blitzangebote", pad, y);
+  }
+
+  /* ---- Fußzeile ---- */
+  x.fillStyle = "#22f5ff";
+  x.font = "800 " + Math.round(W * .026) + "px " + FF;
+  x.fillText(campaignBase().replace(/^https?:\/\//,"").split("/")[0], pad, H - pad - W * .035);
+  x.fillStyle = "rgba(233,243,255,.45)";
+  x.font = "600 " + Math.round(W * .021) + "px " + FF;
+  x.fillText("Als Amazon-Partner verdienen wir an qualifizierten Verkäufen.", pad, H - pad);
+
+  c.toBlob(function(b){
+    if(!b){ toast("bad","Bild fehlgeschlagen","Der Browser hat die Ausgabe abgelehnt."); return; }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(b);
+    a.download = "dealhai-" + kind + "-" + (p ? p.id : "start") + ".png";
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1200);
+    track("bild", { pl:kind });
+    toast("ok","Bild erstellt", s[0] + "×" + s[1] + " px — fertig zum Hochladen.");
+  }, "image/png");
+}
+function roundRect(x, rx, ry, w, h, r){
+  x.beginPath();
+  x.moveTo(rx + r, ry);
+  x.arcTo(rx + w, ry, rx + w, ry + h, r);
+  x.arcTo(rx + w, ry + h, rx, ry + h, r);
+  x.arcTo(rx, ry + h, rx, ry, r);
+  x.arcTo(rx, ry, rx + w, ry, r);
+  x.closePath();
+}
+/* Zerlegt einen Text in Zeilen, die in maxW passen; der Rest wird gekürzt. */
+function layoutLines(x, text, maxW, maxLines){
+  const words = String(text).split(/\s+/).filter(Boolean);
+  const out = [];
+  let line = "";
+  for(let i = 0; i < words.length; i++){
+    const test = line ? line + " " + words[i] : words[i];
+    if(x.measureText(test).width > maxW && line){
+      out.push(line);
+      line = words[i];
+      if(out.length === maxLines - 1){
+        let rest = words.slice(i).join(" ");
+        if(x.measureText(rest).width > maxW){
+          while(rest.length > 4 && x.measureText(rest + "…").width > maxW) rest = rest.slice(0, -2);
+          rest += "…";
+        }
+        out.push(rest);
+        return out;
+      }
+    } else line = test;
+  }
+  if(line) out.push(line);
+  return out;
+}
+
+/* ============================================================
+   PLAYBOOK
+   ============================================================ */
+const PHASES = [
+  { t:"1 · Fundament", w:"Woche 1", items:[
+    ["Nische festlegen und aufschreiben","Ein Satz: für wen, welche Produktwelt, welcher Vorteil. Ohne diesen Satz wird jede spätere Entscheidung beliebig."],
+    ["Eigene Domain und Hosting einrichten","Partnerlinks brauchen eine dauerhafte Adresse. Statische Seite reicht — schnell und billig."],
+    ["Impressum und Datenschutzerklärung ausfüllen","Pflicht ab dem ersten öffentlichen Tag. Fehlt es, drohen Abmahnungen, bevor der erste Euro fließt."],
+    ["Partnerprogramm beantragen","Beim Antrag die Seite ehrlich beschreiben. Erst nach der Freigabe ernsthaft Reichweite aufbauen."],
+    ["Partner-Tag in den Einstellungen eintragen","Ohne eigenes Tag zählt kein Verkauf auf dein Konto."],
+    ["Werbehinweis an allen Stellen prüfen","Fußzeile, Produktfenster, jeder geteilte Beitrag. Kennzeichnung ist nicht verhandelbar."],
+    ["Katalog auf echte Produkte umstellen","Demo-Daten raus, eigene Produkte mit ASIN rein — über Einstellungen anlegen oder JSON importieren."],
+    ["Preisquelle klären","Preise dürfen nicht dauerhaft veraltet stehen. Entweder API-Anbindung oder Preisangaben ganz weglassen und nur verlinken."],
+    ["Vorschaubild und Favicon setzen","Ein geteilter Link ohne Bild bekommt einen Bruchteil der Klicks. Bild über die Kampagnen-Werkzeuge erzeugen."],
+    ["Ladezeit auf dem Handy messen","Über drei Sekunden verlierst du die Hälfte. Effekte notfalls abschalten."]
+  ]},
+  { t:"2 · Inhalte, die zum Kauf führen", w:"Woche 2–4", items:[
+    ["Zehn Kaufberater-Seiten planen","Je Kategorie eine. Das sind die Seiten, die kaufbereite Suchanfragen abfangen."],
+    ["Für jede Seite die Suchabsicht notieren","„Bestes X unter 300 €“ verkauft, „was ist X“ nicht. Nur das Erste bringt Provision."],
+    ["Drei Empfehlungen je Kategorie festlegen","Preis-Tipp, bestes Gesamtpaket, Premium. Mehr Auswahl senkt die Entscheidungsquote."],
+    ["Kaufkriterien ehrlich benennen","Auch was das Produkt nicht kann. Wer nur lobt, verliert Vertrauen — und Wiederkehrer."],
+    ["Vergleichstabelle je Kategorie ergänzen","Tabellen werden überdurchschnittlich oft bis zum Klick gelesen."],
+    ["Ratgeber zu Preisbremse und Preisverlauf schreiben","Das ist der Grund, wiederzukommen — und der einzige echte Unterschied zu tausend Deal-Seiten."],
+    ["Jede Seite mit einem klaren Klickziel abschließen","Ein Hauptknopf pro Abschnitt. Zwei gleichwertige Knöpfe halbieren die Klickrate."],
+    ["Struktur-Daten prüfen","Strukturierte Daten sorgen für Sterne und Preise im Suchergebnis — deutlich mehr Klicks."],
+    ["Interne Verlinkung setzen","Von jedem Ratgeber in mindestens zwei Kaufberater und umgekehrt."],
+    ["Redaktionsplan für 8 Wochen anlegen","Zwei Inhalte pro Woche schlagen zehn in der ersten Woche und dann nichts mehr."]
+  ]},
+  { t:"3 · Verteilung", w:"Woche 3–8", items:[
+    ["Zwei Kanäle auswählen, nicht fünf","Lieber Pinterest und ein Messenger-Kanal richtig als fünf halb."],
+    ["Pinterest: 3 Pins pro Tag aus dem Kampagnen-Werkzeug","Pins wirken über Monate — der einzige Kanal mit langer Halbwertszeit neben Suche."],
+    ["Messenger-Kanal starten (Telegram oder WhatsApp)","Direkter Draht ohne Algorithmus. Ein bis drei Deals täglich, nie mehr."],
+    ["Jeden Beitrag mit eigenen UTM-Parametern versehen","Sonst weißt du nie, welcher Kanal trägt. Link immer im Kampagnen-Werkzeug bauen."],
+    ["Kurzvideo-Format testen","Ein Deal, 20 Sekunden, Preisverlauf zeigen. Billig zu produzieren, hohe Reichweite."],
+    ["Newsletter mit wöchentlichem Rhythmus aufsetzen","Der einzige Kanal, der dir gehört. Affiliate-Links direkt in Mails sind allerdings meist untersagt — auf die eigene Seite verlinken."],
+    ["In zwei Communities dauerhaft mitlesen und beitragen","Ohne Eigenwerbung. Erst Ruf, dann Links — sonst Rauswurf."],
+    ["Feste Wochenzeiten für Verteilung blocken","Zwei Stunden, zwei Termine. Ohne Termin passiert es nicht."],
+    ["Saisonkalender anlegen","Grills im Frühjahr, Heizlüfter im Herbst, Aktionswochen im November. Inhalte vier Wochen vorher fertig haben."],
+    ["Bezahlte Werbung erst nach 500 organischen Klicks","Vorher weißt du nicht, welche Seite konvertiert — und verbrennst Geld."]
+  ]},
+  { t:"4 · Messen und verbessern", w:"laufend", items:[
+    ["Wöchentlich ins Cockpit schauen","Fünf Minuten. Klicks, Klickrate, beste Deals, beste Quelle."],
+    ["SubIDs im Partnerbericht auswerten","Dort steht, welche Platzierung wirklich Verkäufe brachte — nicht nur Klicks."],
+    ["Immer nur einen A/B-Test gleichzeitig laufen lassen","Zwei parallele Tests machen beide Ergebnisse wertlos."],
+    ["Test erst ab 300 Einblendungen je Variante bewerten","Vorher ist jedes Ergebnis Zufall."],
+    ["Seiten ohne Klicks nach 60 Tagen überarbeiten oder löschen","Tote Inhalte kosten Vertrauen und Zeit."],
+    ["Die drei stärksten Deals monatlich nachschärfen","Bessere Bilder, bessere Texte, aktuellere Preise — dort zahlt sich Arbeit am schnellsten aus."],
+    ["Absprungpunkte auf dem Handy prüfen","Die Mehrheit kommt mobil. Was dort hakt, kostet doppelt."],
+    ["Kennzahlen monatlich festhalten","Ohne Verlauf merkst du nicht, ob es aufwärts geht."]
+  ]},
+  { t:"5 · Bindung und Wiederkehr", w:"ab Woche 4", items:[
+    ["Preisbremse überall bewerben","Sie ist der Grund zurückzukommen — und der Auslöser für den späteren Kauf."],
+    ["Browser-Benachrichtigung im richtigen Moment anbieten","Nicht beim ersten Klick, sondern nachdem eine Bremse gesetzt wurde."],
+    ["Newsletter-Fenster erst beim Verlassen zeigen","Früher stört es und senkt die Klickrate."],
+    ["Merkliste und Deal-Korb sichtbar halten","Wer merkt, kommt wieder. Wer sofort kaufen wollte, klickt ohnehin."],
+    ["Wöchentliche Bestenliste als festen Termin etablieren","Wiederkehrende Formate schlagen Einzelbeiträge."],
+    ["Antworten auf Nachrichten innerhalb eines Tages","Communities tragen kleine Seiten weiter — aber nur bei Reaktion."],
+    ["Rückläufer messen","Wenn niemand wiederkommt, hilft mehr Reichweite nur kurz."],
+    ["Eigene Testberichte ergänzen, sobald möglich","Eigene Erfahrung ist das Einzige, was sich nicht kopieren lässt."]
+  ]},
+  { t:"6 · Skalieren und absichern", w:"ab Monat 3", items:[
+    ["Zweites Partnerprogramm ergänzen","Ein einziger Anbieter ist ein Klumpenrisiko — Sätze und Konten können sich ändern."],
+    ["Preise über eine offizielle Schnittstelle beziehen","Sobald Preise angezeigt werden, müssen sie aktuell sein. Das ist Pflicht, nicht Kür."],
+    ["Sicherung von Inhalten und Katalog einrichten","Ein Export pro Woche. Kostet Minuten, rettet Monate."],
+    ["Steuerliche Seite klären","Einnahmen sind steuerpflichtig; Gewerbe und Umsatzsteuer rechtzeitig regeln."],
+    ["Wiederkehrende Arbeiten dokumentieren","Was aufgeschrieben ist, kann später jemand anders machen."],
+    ["Gewinner-Kategorien ausbauen, Verlierer streichen","Zwei starke Kategorien tragen mehr als zwölf schwache."],
+    ["Kontosperren vorbeugen","Regeln des Programms jährlich lesen — Verstöße kosten rückwirkend alle Provisionen."],
+    ["Erst ab stabilem Ertrag bezahlte Reichweite ausbauen","Skaliert wird, was nachweislich trägt."]
+  ]}
+];
+function playKey(pi, ii){ return pi + "_" + ii; }
+function playToggle(pi, ii){
+  const k = playKey(pi, ii);
+  G.play[k] = !G.play[k];
+  gsave(); renderPlaybook();
+  const total = PHASES.reduce(function(s,p){ return s + p.items.length; }, 0);
+  const done = Object.keys(G.play).filter(function(x){ return G.play[x]; }).length;
+  if(done === total){ confetti(140); toast("ok","Playbook vollständig 🦈","Jetzt zählt nur noch Wiederholung."); }
+}
+function phaseToggle(i){
+  const el = document.getElementById("ph" + i);
+  if(el) el.classList.toggle("open");
+}
+function renderPlaybook(){
+  const box = document.getElementById("playBody"); if(!box) return;
+  const total = PHASES.reduce(function(s,p){ return s + p.items.length; }, 0);
+  const done = PHASES.reduce(function(s,p,pi){
+    return s + p.items.filter(function(_, ii){ return G.play[playKey(pi, ii)]; }).length;
+  }, 0);
+  box.innerHTML =
+    '<p class="hint">Der Plan in Arbeitsschritten. Abhaken speichert lokal — die Reihenfolge ist bewusst so gewählt: erst Fundament, dann Inhalte, dann Reichweite. Wer bei Schritt 3 anfängt, arbeitet umsonst.</p>' +
+    '<div class="funnel" style="margin:14px 0 18px"><div class="fr"><span style="width:150px">Fortschritt</span>' +
+      '<span class="fb"><i style="width:' + pct(done, total).toFixed(1) + '%"></i></span>' +
+      '<b style="width:70px;text-align:right;font-family:var(--fm);font-size:.8rem">' + done + '/' + total + '</b></div></div>' +
+    PHASES.map(function(p, pi){
+      const dn = p.items.filter(function(_, ii){ return G.play[playKey(pi, ii)]; }).length;
+      return '<div class="phase' + (dn < p.items.length ? " open" : "") + '" id="ph' + pi + '">' +
+        '<h4 onclick="phaseToggle(' + pi + ')">' + esc(p.t) +
+          '<span class="mini">' + esc(p.w) + '</span>' +
+          '<span class="pc2">' + dn + '/' + p.items.length + '</span></h4>' +
+        '<div class="items">' + p.items.map(function(it, ii){
+          const on = !!G.play[playKey(pi, ii)];
+          return '<div class="task' + (on ? " done" : "") + '" onclick="playToggle(' + pi + ',' + ii + ')">' +
+            '<span class="cb">' + (on ? "✓" : "") + '</span>' +
+            '<span class="tt"><b>' + esc(it[0]) + '</b><span>' + esc(it[1]) + '</span></span></div>';
+        }).join("") + '</div></div>';
+    }).join("");
+}
+
+/* ============================================================
+   HOCHRECHNUNG
+   ============================================================ */
+function renderCalc(){
+  const box = document.getElementById("calcGrid"); if(!box) return;
+  const f = [
+    ["vis","Besuche pro Monat", 100, 500000, 100],
+    ["ctr","Klickrate zu Amazon in %", 1, 40, 0.5],
+    ["cr","Kaufquote nach dem Klick in %", 1, 20, 0.5],
+    ["aov","Ø Warenkorb in €", 10, 500, 5]
+  ];
+  box.innerHTML = f.map(function(x){
+    return '<div><label for="c_' + x[0] + '">' + x[1] + '</label>' +
+      '<input class="ain" type="number" id="c_' + x[0] + '" min="' + x[2] + '" max="' + x[3] + '" step="' + x[4] + '" value="' + G.calc[x[0]] + '" oninput="setCalc(\'' + x[0] + '\',this.value)"></div>';
+  }).join("");
+  renderCalcOut();
+  renderComm();
+}
+function setCalc(k, v){
+  const n = parseFloat(v);
+  if(!isFinite(n) || n <= 0) return;
+  G.calc[k] = n; gsave(); renderCalcOut();
+}
+function avgComm(){
+  const ks = Object.keys(CATS);
+  return ks.reduce(function(s, k){ return s + commOf(k); }, 0) / ks.length;
+}
+function renderCalcOut(){
+  const box = document.getElementById("calcOut"); if(!box) return;
+  const c = G.calc, rate = avgComm();
+  function run(mult){
+    const clicks = c.vis * mult * (c.ctr / 100);
+    const orders = clicks * (c.cr / 100);
+    const rev = orders * c.aov;
+    return { clicks:clicks, orders:orders, rev:rev, com: rev * rate / 100 };
+  }
+  const mid = run(1), low = run(.5), high = run(2);
+  box.innerHTML =
+    '<div class="kpis">' +
+      '<div class="kpi"><b>' + num(Math.round(mid.clicks)) + '</b><span>Klicks zu Amazon / Monat</span></div>' +
+      '<div class="kpi"><b>' + num(Math.round(mid.orders)) + '</b><span>Bestellungen / Monat</span></div>' +
+      '<div class="kpi"><b>' + eur(mid.rev) + '</b><span>vermittelter Umsatz</span></div>' +
+      '<div class="kpi good"><b>' + eur(mid.com) + '</b><span>Provision (Ø ' + rate.toFixed(1).replace(".",",") + ' %)</span></div>' +
+    '</div>' +
+    '<div class="scen">' +
+      '<div class="sc"><b>' + eur(low.com) + '</b><span>zurückhaltend<br>halbe Reichweite</span></div>' +
+      '<div class="sc"><b style="color:var(--cy)">' + eur(mid.com) + '</b><span>Planwert<br>wie eingestellt</span></div>' +
+      '<div class="sc"><b style="color:var(--ok)">' + eur(high.com) + '</b><span>gut gelaufen<br>doppelte Reichweite</span></div>' +
+    '</div>' +
+    '<p class="hint" style="margin-top:12px">Pro 1.000 Besuche bleiben rechnerisch <b>' +
+      eur(mid.com / Math.max(1, c.vis / 1000)) + '</b> übrig. Das ist die Zahl, an der sich jeder Kanal messen lassen muss: ' +
+      'Kostet eine Kampagne mehr pro tausend Besucher, trägt sie sich nicht.</p>';
+}
+function renderComm(){
+  const box = document.getElementById("commBody"); if(!box) return;
+  box.innerHTML = '<table class="dtable"><thead><tr><th>Kategorie</th><th class="r">Satz in %</th><th class="r">bei ' +
+    eur(G.calc.aov) + ' Warenkorb</th></tr></thead><tbody>' +
+    Object.keys(CATS).map(function(k){
+      const v = commOf(k);
+      return '<tr><td>' + (CATS[k] || "") + ' ' + esc(k) + '</td>' +
+        '<td class="r"><input class="ain" style="width:80px;padding:5px 8px;text-align:right" type="number" min="0" max="20" step="0.5" value="' + v + '" oninput="setComm(\'' + esc(k) + '\',this.value)"></td>' +
+        '<td class="r">' + eur(G.calc.aov * v / 100) + '</td></tr>';
+    }).join("") + '</tbody></table>' +
+    '<p class="hint">Richtwerte, keine Zusage. Die gültigen Sätze stehen im Konto des Partnerprogramms und ändern sich gelegentlich — einmal im Quartal abgleichen.</p>';
+}
+function setComm(cat, v){
+  const n = parseFloat(v);
+  if(!isFinite(n) || n < 0) return;
+  G.comm[cat] = n; gsave(); renderCalcOut();
+}
+
+/* ============================================================
+   KAUFBERATER
+   ============================================================ */
+const CRIT = {
+  "Audio":["Wie lange hält der Akku mit eingeschalteter Geräuschunterdrückung?","Sitzt der Kopfhörer auch nach zwei Stunden noch bequem?","Lässt sich der Klang per App anpassen?","Ist Multipoint dabei, also zwei Geräte gleichzeitig?"],
+  "Technik":["Reicht die Anschlussvielfalt für deinen Arbeitsplatz?","Ist der Speicher später erweiterbar?","Wie laut wird das Gerät unter Last?","Wie lange gibt es noch Sicherheitsaktualisierungen?"],
+  "Gaming":["Passt die Verbindung zu deiner Konsole oder deinem Rechner?","Wie schwer ist das Gerät auf Dauer?","Gibt es Ersatzteile wie Schalter oder Polster?","Lässt sich die Beleuchtung abschalten?"],
+  "Haushalt":["Wie groß ist die Fläche, die wirklich bearbeitet werden soll?","Was kosten Filter oder Beutel pro Jahr?","Wie laut ist das Gerät in Dezibel?","Passt die Ladestation in den vorgesehenen Winkel?"],
+  "Küche":["Wie viele Personen kochst du regelmäßig?","Sind die Teile spülmaschinenfest?","Wie viel Platz braucht das Gerät auf der Arbeitsplatte?","Gibt es Zubehör nachzukaufen?"],
+  "Smart Home":["Funktioniert das Gerät mit deinem bestehenden System?","Braucht es eine Bridge oder ein Abo?","Was passiert bei Ausfall des Internets?","Wo werden Aufnahmen gespeichert?"],
+  "Fitness":["Passt das Gerät in den vorhandenen Platz — auch zusammengeklappt?","Wie hoch ist die maximale Belastung?","Ist eine App nötig und kostet sie extra?","Wie leise ist es für Mitbewohner?"],
+  "Büro":["Stimmen die Maße mit deinem Raum überein?","Wie lange ist die Garantie auf Mechanik?","Ist die Höhe für deine Körpergröße geeignet?","Lässt sich das Möbel später erweitern?"],
+  "Garten":["Wie groß ist die Fläche wirklich?","Sind Akkus mit vorhandenen Geräten kompatibel?","Wie ist die Lautstärke für Nachbarn?","Wie einfach ist die Winterlagerung?"],
+  "Beauty":["Passt der Aufsatz zu deinem Haut- oder Haartyp?","Was kosten Ersatzteile pro Jahr?","Ist das Gerät wasserfest?","Wie lange hält der Akku bei täglicher Nutzung?"],
+  "Auto":["Passt das Zubehör zu deinem Fahrzeugmodell?","Ist die Montage ohne Werkstatt möglich?","Funktioniert es auch bei Frost?","Ist die Speicherkarte im Lieferumfang?"],
+  "Werkzeug":["Passen die Akkus zu deinem vorhandenen System?","Reicht das Drehmoment für dein Vorhaben?","Ist ein Koffer dabei?","Wie steht es um Ersatzteile in fünf Jahren?"],
+  "Foto":["Passt das Bajonett zu vorhandenen Objektiven?","Wie gut ist die Bildstabilisierung?","Wie lange hält der Akku bei Video?","Ist ein zweiter Kartenschacht nötig?"],
+  "Haustier":["Passt die Größe zu Gewicht und Rasse?","Ist alles waschbar?","Funktioniert das Gerät ohne Abo?","Wie sicher ist der Verschluss?"],
+  "Mode":["Fällt die Größe größer oder kleiner aus?","Wie pflegeleicht ist das Material?","Passt es zu deinem Einsatzzweck bei Nässe?","Wie ist die Rückgabe geregelt?"],
+  "Baby":["Erfüllt das Produkt die aktuelle Sicherheitsnorm?","Wächst es mit oder ist es nach einem Jahr zu klein?","Sind Bezüge waschbar?","Passt es in dein Auto oder deinen Kofferraum?"]
+};
+const CRIT_STD = [
+  "Brauchst du das Gerät wirklich oder nur den Rabatt?",
+  "Wie sieht der Preisverlauf der letzten 90 Tage aus?",
+  "Was sagen die neuesten Bewertungen, nicht der Durchschnitt?",
+  "Wie einfach ist die Rückgabe, wenn es doch nicht passt?"
+];
+
+/* Wählt drei verschiedene Produkte aus. Reihenfolge der Zuteilung: erst der
+   Preis-Tipp, dann das Gesamtpaket, dann Premium — so bleibt der Preis-Tipp
+   auch in kleinen Kategorien wirklich der günstige. */
+function guideFor(cat){
+  const list = S.products.filter(function(p){ return p.cat === cat; });
+  if(list.length < 2) return null;
+  const used = {};
+  function take(sorted){
+    for(let i = 0; i < sorted.length; i++){
+      if(!used[sorted[i].id]){ used[sorted[i].id] = 1; return sorted[i]; }
+    }
+    return null;
+  }
+  const value = take(list.slice().sort(function(a,b){
+    return (a.price / Math.max(1, a.rating)) - (b.price / Math.max(1, b.rating));
+  }));
+  const best = take(list.slice().sort(function(a,b){ return score(b) - score(a); }));
+  const prem = take(list.slice().sort(function(a,b){ return b.price - a.price; }));
+  return { best:best, value:value, prem:prem, list:list };
+}
+function renderGuides(){
+  const box = document.getElementById("guides"); if(!box) return;
+  const cats = Object.keys(CATS).filter(function(c){
+    return S.products.filter(function(p){ return p.cat === c; }).length >= 2;
+  });
+  document.getElementById("guideHint").textContent = cats.length + " Kategorien · aktualisiert sich mit dem Katalog";
+  box.innerHTML = cats.map(function(c, i){
+    const g = guideFor(c);
+    const avg = g.list.reduce(function(s,p){ return s + discount(p); }, 0) / g.list.length;
+    return '<article class="guide" style="--h:' + (i * 37 % 360) + '" onclick="openGuide(\'' + esc(c) + '\')">' +
+      '<div class="ge">' + (CATS[c] || "🏷️") + '</div>' +
+      '<h4>' + esc(c) + ' kaufen</h4>' +
+      '<p><b style="color:var(--txt)">Empfehlung:</b> ' + esc((g.best || g.value).brand) + ' — ' +
+        esc((g.best || g.value).name.length > 46 ? (g.best || g.value).name.slice(0, 44) + "…" : (g.best || g.value).name) +
+        '. Preis-Tipp ab ' + eur(g.value.price) + '.</p>' +
+      '<div class="gm"><span>' + g.list.length + " Deals" + '</span><span>Ø −' + avg.toFixed(0) + ' %</span>' +
+      '<span>ab ' + eur(Math.min.apply(null, g.list.map(function(p){ return p.price; }))) + '</span></div>' +
+    '</article>';
+  }).join("");
+}
+function openGuide(cat){
+  const g = guideFor(cat); if(!g) return;
+  track("berater", { cat:cat });
+  document.getElementById("guideTitle").textContent = cat + " kaufen — die Kurzfassung";
+  const picks = [
+    ["Preis-Tipp", g.value, "Das beste Verhältnis aus Preis und Bewertung in dieser Kategorie."],
+    ["Bestes Gesamtpaket", g.best, "Höchster Hai-Score aus Rabatt, Bewertung, Anzahl der Bewertungen und Verkäufen."],
+    ["Premium", g.prem, "Wenn Ausstattung wichtiger ist als der Preis."]
+  ].filter(function(x){ return !!x[1]; });
+  const crit = CRIT[cat] || CRIT_STD;
+  const cheapest = g.list.slice().sort(function(a,b){ return a.price - b.price; })[0];
+  const bestOff = g.list.slice().sort(function(a,b){ return discount(b) - discount(a); })[0];
+
+  document.getElementById("guideBody").innerHTML =
+    '<p style="color:var(--muted);font-size:.92rem">Wir sortieren nicht nach Provision, sondern nach Rabatt, Bewertung und Preisverlauf. ' +
+    'Alle Links führen zu Amazon — als Amazon-Partner verdienen wir an qualifizierten Verkäufen, für dich ändert sich der Preis nicht.</p>' +
+
+    '<h4 style="font-size:.95rem;font-weight:800;margin:18px 0 10px">Unsere drei Empfehlungen</h4>' +
+    picks.map(function(x){
+      const p = x[1], lh = lowHigh(p);
+      return '<div class="pickrow">' +
+        '<span class="pe">' + p.emoji + '</span>' +
+        '<div class="pi"><span class="pk">' + esc(x[0]) + '</span>' +
+          '<b>' + esc(p.name) + '</b>' +
+          '<span>' + esc(x[2]) + '</span>' +
+          '<span class="mini">' + eur(p.price) + ' · −' + discount(p) + ' % · ⭐ ' +
+            p.rating.toFixed(1).replace(".",",") + ' · 90-Tage-Tief ' + eur(lh.low) + '</span>' +
+        '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:6px">' +
+          '<button class="btn p s" onclick="toAmazon(\'' + p.id + '\',\'berater\')">' + ctaLabel() + '</button>' +
+          '<button class="btn g s" onclick="closeAll();openProduct(\'' + p.id + '\')">👁️ Details</button>' +
+        '</div></div>';
+    }).join("") +
+
+    '<h4 style="font-size:.95rem;font-weight:800;margin:20px 0 8px">Fragen, die du vor dem Klick beantworten solltest</h4>' +
+    '<table class="spec">' + crit.map(function(q){
+      return '<tr><td style="width:26px">•</td><td>' + esc(q) + '</td></tr>';
+    }).join("") + '</table>' +
+
+    '<h4 style="font-size:.95rem;font-weight:800;margin:20px 0 8px">Zahlen zur Kategorie</h4>' +
+    '<table class="spec">' +
+      '<tr><td>Angebote im Katalog</td><td>' + g.list.length + '</td></tr>' +
+      '<tr><td>Günstigstes Angebot</td><td>' + esc(cheapest.name) + ' — ' + eur(cheapest.price) + '</td></tr>' +
+      '<tr><td>Höchster Nachlass</td><td>' + esc(bestOff.name) + ' — −' + discount(bestOff) + ' %</td></tr>' +
+      '<tr><td>Durchschnittliche Bewertung</td><td>' +
+        (g.list.reduce(function(s,p){ return s + p.rating; }, 0) / g.list.length).toFixed(2).replace(".",",") + ' von 5</td></tr>' +
+    '</table>' +
+
+    '<div class="pills" style="margin-top:18px">' +
+      '<button class="pill" onclick="closeAll();pickCat(\'' + esc(cat) + '\')">🛍️ Alle ' + esc(cat) + '-Deals ansehen</button>' +
+      '<button class="pill" onclick="closeAll();go(\'bremse\')">🛑 Preisbremse setzen</button>' +
+    '</div>';
+  openModal("mGuide");
+}
+
+/* ============================================================
+   STRUKTURIERTE DATEN
+   ============================================================ */
+function renderSeoJson(){
+  try{
+    const top = S.products.slice().sort(function(a,b){ return score(b) - score(a); }).slice(0, 12);
+    const items = top.map(function(p, i){
+      return { "@type":"ListItem", "position":i + 1, "item":{
+        "@type":"Product", "name":p.name, "category":p.cat,
+        "brand":{"@type":"Brand","name":p.brand},
+        "aggregateRating":{"@type":"AggregateRating","ratingValue":p.rating,"reviewCount":p.reviews},
+        "offers":{"@type":"Offer","price":p.price.toFixed(2),"priceCurrency":"EUR",
+          "availability": p.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"}
+      }};
+    });
+    const el = document.getElementById("ldItems");
+    if(el) el.textContent = JSON.stringify({"@context":"https://schema.org","@type":"ItemList",
+      "name":"Top-Deals bei DEALHAI","numberOfItems":items.length,"itemListElement":items});
+    const fq = document.getElementById("ldFaq");
+    if(fq) fq.textContent = JSON.stringify({"@context":"https://schema.org","@type":"FAQPage",
+      "mainEntity":FAQ.map(function(f){
+        return {"@type":"Question","name":f.q,"acceptedAnswer":{"@type":"Answer","text":f.a}};
+      })});
+  }catch(e){}
+}
+
+/* ============================================================
+   FENSTER DER BETREIBER-ZENTRALE
+   ============================================================ */
+function openGrow(tab){
+  fillCampaignDeals();
+  renderCockpit(); renderSources(); renderAB(); renderPlaybook(); renderCalc(); renderCampaign();
+  openModal("mGrow");
+  if(tab) growTab(tab);
+}
+function growTab(id){
+  const tabs = document.getElementById("growTabs");
+  if(tabs) Array.prototype.slice.call(tabs.children).forEach(function(b){
+    b.classList.toggle("on", b.dataset.g === id);
+  });
+  ["g1","g2","g3","g4","g5","g6"].forEach(function(k){
+    const el = document.getElementById(k);
+    if(el) el.classList.toggle("on", k === id);
+  });
+}
+
+/* ---------- Fenster beim Verlassen ---------- */
+function initExit(){
+  document.addEventListener("mouseout", function(e){
+    if(e.clientY > 0 || e.relatedTarget) return;
+    if(S.set.mail) return;
+    if(Date.now() - (G.lastExit || 0) < 3 * 864e5) return;
+    if(document.querySelector(".ov.on") || document.getElementById("cmdp").classList.contains("on")) return;
+    G.lastExit = Date.now(); gsave();
+    track("exitfenster", {});
+    openModal("mExit");
+  });
+}
+
+/* ---------- Start des Wachstums-Teils ---------- */
+function initGrowth(){
+  gload();
+  abInit();
+  G.last = detectSource();
+  if(!G.first) G.first = Object.assign({ t:Date.now() }, G.last);
+  G.visits++;
+  track("besuch", { s:G.last.src });
+  renderGuides();
+  renderSeoJson();
+  initExit();
+  const tabs = document.getElementById("growTabs");
+  if(tabs) Array.prototype.slice.call(tabs.children).forEach(function(b){
+    b.onclick = function(){ growTab(b.dataset.g); };
+  });
+  ["cmpChan","cmpName","cmpDeal","cmpBase"].forEach(function(id){
+    const el = document.getElementById(id);
+    if(el) el.addEventListener("input", renderCampaign);
+    if(el) el.addEventListener("change", renderCampaign);
+  });
+  gsave();
+}
+</script>
+
+<script>
+"use strict";
+/* ============================================================
    15) START
    ============================================================ */
 (function init(){
@@ -2652,6 +3970,7 @@ function sharkMode(){
   fillBrakeSelect();
   renderCatRow(); renderTicker(); renderFlash(); renderDotd(); renderCoupons();
   renderTop(); renderPosts(); renderFaq(); renderAlerts(); renderRadar();
+  initGrowth();
   refreshBadges(); applyAll(); heroStats();
   initReveal(); initSpy();
 
@@ -2749,6 +4068,8 @@ function sharkMode(){
     else if(k === "b") go("bremse");
     else if(k === "t") toggleTheme();
     else if(k === "r") spinWheel();
+    else if(k === "w") openGrow();
+    else if(k === "k") go("kaufberater");
     else if(k === "g"){
       const order = ["grid","list","compact"];
       const next = order[(order.indexOf(S.view) + 1) % order.length];
