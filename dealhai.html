@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#04070f">
-<title>DEALHAI — Wir beißen Preise klein 🦈</title>
+<title>DEALHAI — Wir beißen Preise klein </title>
 <meta name="description" content="DEALHAI jagt Rabatte: Blitzangebote, Preisbremse, Preiswecker, Preisverlauf, Gutscheine, Vergleich und Bestenlisten. Als Amazon-Partner verdienen wir an qualifizierten Verkäufen.">
 <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
 <meta name="author" content="DEALHAI">
@@ -37,25 +37,30 @@
    DEALHAI — Design-System
    ============================================================ */
 :root{
-  --abyss:#04070f; --deep:#080e1c;
-  --panel:rgba(13,21,40,.74); --panel2:rgba(24,34,60,.58); --panel3:rgba(30,42,72,.5);
-  --line:rgba(90,220,255,.16); --line2:rgba(90,220,255,.34);
-  --cy:#22f5ff; --mg:#ff2e93; --li:#b6ff36; --go:#ffc63d; --bad:#ff5f6d; --ok:#2bffa3;
-  --txt:#e9f3ff; --muted:#8ea7c9; --inv:#04070f;
-  --shadow:0 26px 70px rgba(0,0,0,.6);
-  --glow:0 0 0 1px rgba(34,245,255,.25), 0 10px 40px rgba(34,245,255,.18);
-  --r:18px; --r2:26px;
-  --ff:"Segoe UI",system-ui,-apple-system,"Inter",Roboto,Helvetica,sans-serif;
-  --fm:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  /* Tinte, Knochen, ein Signalton — mehr Farbe braucht eine Preisliste nicht. */
+  --abyss:#0b0c0e; --deep:#111316;
+  --panel:#131518; --panel2:#191c20; --panel3:#22262b;
+  --line:rgba(232,230,225,.11); --line2:rgba(232,230,225,.22);
+  --cy:#ff5a1f;            /* Signal — Akzent, Marke, aktive Zustände */
+  --mg:#c8380c;            /* Signal dunkel — Verläufe bleiben tonal */
+  --li:#d8d4c8;            /* Knochen — zweite Ebene */
+  --go:#e0a33c; --bad:#e2503f; --ok:#5fbf7f;
+  --txt:#e8e6e1; --muted:#8b8a85; --inv:#0b0c0e;
+  --shadow:0 18px 40px rgba(0,0,0,.5);
+  --glow:0 0 0 1px rgba(255,90,31,.4);
+  --r:3px; --r2:4px;
+  --ff:"Helvetica Neue",Helvetica,"Segoe UI",system-ui,-apple-system,Arial,sans-serif;
+  --fm:ui-monospace,"SF Mono",SFMono-Regular,"JetBrains Mono",Menlo,Consolas,monospace;
+  --rule:1px solid var(--line);
 }
 html[data-theme="light"]{
-  --abyss:#eef3fb; --deep:#e3ebf7;
-  --panel:rgba(255,255,255,.86); --panel2:rgba(236,243,253,.9); --panel3:rgba(226,236,250,.85);
-  --line:rgba(10,60,120,.14); --line2:rgba(10,60,120,.3);
-  --cy:#0091b0; --mg:#d6006e; --li:#4d8f00; --go:#a86a00; --bad:#d32333; --ok:#00925c;
-  --txt:#081426; --muted:#4a5f80; --inv:#ffffff;
-  --shadow:0 20px 50px rgba(15,40,90,.16);
-  --glow:0 0 0 1px rgba(0,145,176,.25), 0 10px 30px rgba(0,145,176,.16);
+  --abyss:#eeebe4; --deep:#e6e2d9;
+  --panel:#f7f5f0; --panel2:#eeebe3; --panel3:#e2ded3;
+  --line:rgba(20,18,12,.14); --line2:rgba(20,18,12,.28);
+  --cy:#d8420a; --mg:#a32f06; --li:#3b3a34; --go:#9a6c12; --bad:#b8331f; --ok:#2f7d4c;
+  --txt:#16150f; --muted:#6b6960; --inv:#f7f5f0;
+  --shadow:0 14px 30px rgba(40,35,20,.12);
+  --glow:0 0 0 1px rgba(216,66,10,.4);
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{scroll-behavior:smooth;overflow-x:clip}
@@ -70,34 +75,24 @@ img{max-width:100%}
 button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
 ::selection{background:var(--mg);color:#fff}
 
-/* ---------- Hintergrund: Tiefsee-Aurora + Raster + Grain ---------- */
-.bgfx{position:fixed;inset:0;z-index:-3;overflow:hidden;pointer-events:none}
-.blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;mix-blend-mode:screen}
-html[data-theme="light"] .blob{opacity:.35;mix-blend-mode:multiply}
-.b1{width:56vw;height:56vw;left:-14vw;top:-18vw;background:radial-gradient(circle,#22f5ff,transparent 62%);animation:drift1 26s ease-in-out infinite}
-.b2{width:48vw;height:48vw;right:-12vw;top:-6vw;background:radial-gradient(circle,#ff2e93,transparent 62%);animation:drift2 32s ease-in-out infinite}
-.b3{width:44vw;height:44vw;left:22vw;bottom:-22vw;background:radial-gradient(circle,#b6ff36,transparent 62%);animation:drift3 38s ease-in-out infinite}
-@keyframes drift1{50%{transform:translate(14vw,10vh) scale(1.15)}}
-@keyframes drift2{50%{transform:translate(-12vw,14vh) scale(1.2)}}
-@keyframes drift3{50%{transform:translate(10vw,-12vh) scale(1.1)}}
-.gridfx{position:fixed;inset:0;z-index:-2;pointer-events:none;opacity:.5;
-  background-image:linear-gradient(rgba(90,220,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(90,220,255,.07) 1px,transparent 1px);
-  background-size:64px 64px;mask-image:radial-gradient(ellipse at 50% 0%,#000 20%,transparent 78%)}
-.grain{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.055;
+/* ---------- Hintergrund: Messraster, Papierkorn, Vignette ---------- */
+.bgfx{position:fixed;inset:0;z-index:-3;overflow:hidden;pointer-events:none;
+  background:radial-gradient(ellipse 120% 80% at 50% -10%,rgba(255,90,31,.07),transparent 60%)}
+.blob{display:none}
+.gridfx{position:fixed;inset:0;z-index:-2;pointer-events:none;opacity:1;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:120px 120px;
+  mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.35) 40%,transparent 92%)}
+.grain{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.06;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E")}
-body.nofx .blob{animation:none}
-body.nofx *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+html[data-theme="light"] .grain{opacity:.14;mix-blend-mode:multiply}
+body.nofx .grain{display:none}
 
-/* ---------- Cursor-Spot ---------- */
-.spot{position:fixed;width:520px;height:520px;border-radius:50%;pointer-events:none;z-index:1;
-  background:radial-gradient(circle,rgba(34,245,255,.10),transparent 62%);transform:translate(-50%,-50%);
-  transition:opacity .4s;opacity:0}
-@media(hover:hover){.spot{opacity:1}}
-html[data-theme="light"] .spot{background:radial-gradient(circle,rgba(0,145,176,.10),transparent 62%)}
+/* ---------- Cursor-Spot: gestrichen ---------- */
+.spot{display:none}
 
 /* ---------- Scroll-Fortschritt ---------- */
-.progress{position:fixed;top:0;left:0;height:3px;width:0;z-index:200;
-  background:linear-gradient(90deg,var(--cy),var(--mg),var(--li));box-shadow:0 0 14px var(--cy)}
+.progress{position:fixed;top:0;left:0;height:2px;width:0;z-index:200;background:var(--cy)}
 
 /* ---------- Preloader ---------- */
 #pre{position:fixed;inset:0;z-index:400;background:var(--abyss);display:grid;place-items:center;
@@ -630,19 +625,324 @@ section.reveal{transform:none}
 .mini{font-size:.72rem;color:var(--muted);font-family:var(--fm)}
 .kbd{font-family:var(--fm);font-size:.72rem;border:1px solid var(--line2);border-radius:6px;padding:1px 6px;color:var(--muted)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ============================================================
+   ART DIRECTION — „Marktbericht"
+   Preisliste trifft Handelsterminal: Tinte, Knochenweiß, ein
+   Signalton. Kanten statt Rundungen, Linien statt Schatten,
+   tabellarische Ziffern statt Verläufe. Diese Schicht steht
+   bewusst am Ende und überschreibt das Grundgerüst darüber.
+   ============================================================ */
+
+/* ---------- Schrift ---------- */
+body{font-size:15px;letter-spacing:.01em;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4,h5{letter-spacing:-.025em}
+.mono,.spec td,.dtable td,.fvals,.cdown b,.kbd,.mini{font-variant-numeric:tabular-nums}
+.pnow,.pwas,.psave,.fp,.fw,.lp,.dotd .now,.kpi b,.stat b,.sc b{
+  font-family:var(--fm);font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+
+/* Versal-Etikett — das wiederkehrende Textelement der Seite */
+.lab{display:inline-block;font-size:.62rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--muted);font-family:var(--fm)}
+
+/* ---------- Kein Milchglas, keine Glut ---------- */
+header,.sugg,.modal,.mhead,.drawer,.toolbar,aside.filters,.card,.qb,.ov,.cmdbox{backdrop-filter:none!important}
+.card,.pcard,.flash,.modal,.drawer,.toolbar,aside.filters,.sugg{box-shadow:none}
+.pcard:hover{box-shadow:none}
+
+/* ---------- Kopfzeile ---------- */
+header{background:var(--abyss);border-bottom:1px solid var(--line2)}
+html[data-theme="light"] header{background:var(--abyss)}
+.hbar{padding:14px 18px;gap:16px}
+.brand .mark{width:38px;height:38px;border-radius:2px;background:var(--cy);box-shadow:none}
+.brand .mark::after{display:none}
+.brand .mark svg{width:26px;height:26px}
+.brand .wm b{font-size:1.15rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  background:none;-webkit-text-fill-color:var(--txt);color:var(--txt)}
+.brand .wm span{font-size:.56rem;letter-spacing:.3em;color:var(--muted);margin-top:2px}
+.searchwrap input{border-radius:2px;background:var(--panel2);border:1px solid var(--line2);padding:10px 46px 10px 38px}
+.searchwrap input:focus{border-color:var(--cy);box-shadow:none}
+.searchwrap .si{left:12px;display:flex}
+.searchwrap kbd{border-radius:2px}
+.ib{border-radius:2px;padding:9px 10px;background:transparent;border-color:var(--line2)}
+.ib:hover{border-color:var(--cy);color:var(--cy);transform:none;background:var(--panel2)}
+.ib .cnt{border-radius:2px;background:var(--cy);color:var(--inv);box-shadow:none;font-family:var(--fm);
+  top:-6px;right:-6px;height:16px;min-width:16px;font-size:.62rem}
+nav.main{gap:0;padding:0 18px;border-top:1px solid var(--line)}
+.nb{border-radius:0;padding:10px 14px;font-weight:600;font-size:.82rem;letter-spacing:.04em;
+  border:none;border-bottom:2px solid transparent;color:var(--muted)}
+.nb:hover{background:transparent;color:var(--txt)}
+.nb.on{background:transparent;color:var(--cy);border-bottom-color:var(--cy);box-shadow:none}
+
+/* ---------- Kursband statt Werbeticker ---------- */
+.ticker{background:var(--deep);color:var(--txt);border-bottom:1px solid var(--line);height:30px;
+  font-family:var(--fm);font-size:.72rem;font-weight:500;letter-spacing:0}
+html[data-theme="light"] .ticker{background:var(--deep)}
+.ticker .track{gap:0}
+.ticker .tp{display:inline-flex;align-items:center;gap:8px;padding:0 18px;border-right:1px solid var(--line)}
+.ticker .tp .s{color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-size:.66rem}
+.ticker .tp .v{font-variant-numeric:tabular-nums}
+.ticker .tp .d.up{color:var(--ok)} .ticker .tp .d.dn{color:var(--bad)}
+.ticker b{background:none;padding:0;border-radius:0}
+
+/* ---------- Abschnittsköpfe: nummerierte Linie ---------- */
+.sechead{align-items:flex-end;margin:64px 0 18px;padding-bottom:12px;border-bottom:1px solid var(--line2);gap:16px}
+.sechead h2{font-size:clamp(1.3rem,2.6vw,1.85rem);font-weight:800;letter-spacing:-.03em;text-transform:uppercase}
+.sechead p{font-size:.84rem;max-width:62ch}
+.kicker{border:none;border-radius:0;background:none;padding:0 0 6px;color:var(--muted);
+  font-family:var(--fm);font-size:.64rem;letter-spacing:.24em;font-weight:600}
+.kicker::before{content:attr(data-n) "  ";color:var(--cy)}
+.card{border-radius:var(--r2);background:var(--panel);border:1px solid var(--line);padding:20px}
+
+/* ---------- Hero ---------- */
+.hero{padding:56px 0 18px;gap:40px}
+.hero h1{font-size:clamp(2.6rem,8vw,5.6rem);font-weight:800;letter-spacing:-.045em;line-height:.9;text-transform:uppercase}
+.hero h1 .l1{background:none;-webkit-text-fill-color:var(--txt);color:var(--txt)}
+.hero h1 .l2{color:var(--muted)}
+.hero h1 .bite{color:var(--cy)}
+.hero h1 .bite::after{display:none}
+.hero .sub{font-size:.98rem;max-width:52ch;margin:22px 0 26px}
+.stats{gap:0;margin-top:34px;border-top:1px solid var(--line2)}
+.stat{flex:1;min-width:120px;padding:14px 16px 0 0;border-right:1px solid var(--line)}
+.stat:last-child{border-right:none}
+.stat b{font-size:1.5rem;background:none;-webkit-text-fill-color:var(--txt);color:var(--txt);font-weight:700}
+.stat span{font-size:.62rem;letter-spacing:.18em;color:var(--muted);font-weight:600}
+
+/* ---------- Schaltflächen ---------- */
+.btn{border-radius:2px;padding:12px 20px;font-size:.78rem;font-weight:700;letter-spacing:.1em;
+  font-family:var(--ff);transition:background .15s,color .15s,border-color .15s}
+.btn.p{background:var(--cy);color:var(--inv);box-shadow:none}
+.btn.p:hover{background:var(--txt);color:var(--abyss);transform:none;box-shadow:none}
+.btn.g{background:transparent;border:1px solid var(--line2);color:var(--txt)}
+.btn.g:hover{border-color:var(--txt);color:var(--txt);background:var(--panel2);transform:none}
+.btn.s{padding:8px 13px;font-size:.68rem;border-radius:2px}
+.btn svg{width:15px;height:15px}
+.pill{border-radius:2px;font-family:var(--fm);font-size:.72rem;font-weight:500;padding:6px 11px;
+  background:transparent;letter-spacing:.02em}
+.pill:hover{border-color:var(--txt);color:var(--txt);background:var(--panel2)}
+.pill.on{background:var(--cy);color:var(--inv);border-color:var(--cy)}
+.chip{border-radius:2px;font-family:var(--fm);font-weight:500;font-size:.72rem;background:var(--panel2)}
+.x{border-radius:2px}
+.x:hover{transform:none;background:var(--cy);color:var(--inv)}
+
+/* ---------- Deal des Tages ---------- */
+.dotd{border-radius:var(--r2);background:var(--panel);border:1px solid var(--line2);box-shadow:none;padding:22px}
+.dotd::before{display:none}
+.dotd .lbl{color:var(--cy);font-family:var(--fm);font-size:.62rem;letter-spacing:.24em}
+.dotd .now{font-size:2.1rem;font-weight:700}
+.dotd .off{background:var(--cy);color:var(--inv);border-radius:2px;font-family:var(--fm);font-weight:700}
+.cdown div{background:var(--panel2);border:1px solid var(--line);border-radius:2px}
+html[data-theme="light"] .cdown div{background:var(--panel2)}
+.cdown span{font-size:.56rem;letter-spacing:.16em}
+
+/* ---------- Produkt-Plate: generatives Muster statt Emoji ---------- */
+.plate{position:absolute;inset:0;overflow:hidden;background:var(--panel2)}
+.plate svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.plate .pw{position:absolute;right:0;bottom:0;padding:8px 10px;display:flex;align-items:flex-end;
+  justify-content:flex-end;gap:8px;font-family:var(--fm);font-size:.6rem;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);max-width:60%;text-align:right}
+.thumb{background:var(--panel2);aspect-ratio:5/4;font-size:0;border-bottom:1px solid var(--line)}
+.thumb::after{display:none}
+.thumb .em{display:none}
+.idx{position:absolute;top:9px;left:10px;z-index:2;font-family:var(--fm);font-size:.62rem;letter-spacing:.1em;
+  color:var(--muted)}
+.pcard:hover .plate svg .mv{transform:translateY(-6px)}
+.plate svg .mv{transition:transform .5s cubic-bezier(.2,.8,.3,1)}
+
+/* ---------- Produktkarten ---------- */
+.pcard{border-radius:var(--r2);background:var(--panel);border:1px solid var(--line);transform-style:flat}
+.pcard:hover{border-color:var(--line2);transform:none!important}
+.badges{top:auto;bottom:9px;left:9px;flex-direction:row;flex-wrap:wrap;max-width:calc(100% - 18px)}
+.bdg{border-radius:2px;font-family:var(--fm);font-size:.58rem;font-weight:600;letter-spacing:.1em;padding:2px 6px;
+  box-shadow:none;border:1px solid transparent}
+.bdg.off{background:var(--cy);color:var(--inv)}
+.bdg.best{background:transparent;color:var(--go);border-color:var(--go)}
+.bdg.new{background:transparent;color:var(--li);border-color:var(--line2)}
+.bdg.flash{background:var(--go);color:#231400}
+.bdg.alert{background:transparent;color:var(--cy);border-color:var(--cy)}
+.bdg.low{background:transparent;color:var(--bad);border-color:var(--bad)}
+.quick{top:8px;right:8px;gap:4px}
+.qb{width:30px;height:30px;border-radius:2px;background:var(--abyss);border-color:var(--line2);font-size:0}
+html[data-theme="light"] .qb{background:var(--panel)}
+.qb svg{width:15px;height:15px}
+.qb:hover{background:var(--cy);color:var(--inv);border-color:var(--cy);transform:none}
+.qb.on{background:var(--cy);color:var(--inv);border-color:var(--cy)}
+.pbody{padding:12px 14px 14px;gap:6px}
+.pbrand{color:var(--muted);font-family:var(--fm);font-size:.62rem;letter-spacing:.16em;font-weight:500}
+.pname{font-size:.88rem;font-weight:600;line-height:1.35}
+.prate{font-size:.72rem;font-family:var(--fm)}
+.pnow{font-size:1.3rem;font-weight:700}
+.psave{color:var(--ok);font-family:var(--fm)}
+.prime{color:var(--muted);font-family:var(--fm);font-size:.62rem;letter-spacing:.12em}
+.pfoot{gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.pfoot .btn{border-radius:2px;padding:9px 10px;font-size:.68rem}
+.grid{gap:14px}
+.grid.list .thumb{width:200px;border-bottom:none;border-right:1px solid var(--line)}
+
+/* Preis-Spur: 30-Tage-Verlauf direkt auf der Karte */
+.spark{display:block;width:100%;height:26px;margin-top:2px;overflow:visible}
+.spark path.ln{fill:none;stroke:var(--muted);stroke-width:1.2;vector-effect:non-scaling-stroke}
+.spark path.fl{fill:var(--cy);opacity:.09}
+.pcard:hover .spark path.ln{stroke:var(--cy)}
+.spark circle{fill:var(--cy)}
+.sparkrow{display:flex;align-items:center;gap:9px}
+.sparkrow .sl{font-family:var(--fm);font-size:.6rem;color:var(--muted);letter-spacing:.08em;white-space:nowrap}
+
+/* Kurswechsel blinkt kurz auf, wie im Handelsterminal */
+@keyframes tickdn{0%{background:rgba(226,80,63,.22)}100%{background:transparent}}
+@keyframes tickup{0%{background:rgba(95,191,127,.22)}100%{background:transparent}}
+.pprice.dn{animation:tickdn 1.4s ease-out}
+.pprice.up{animation:tickup 1.4s ease-out}
+
+/* ---------- Blitz-Karten ---------- */
+.flash{border-radius:var(--r2);background:var(--panel);border:1px solid var(--line);padding:0;overflow:hidden}
+.flash:hover{transform:none;border-color:var(--cy);box-shadow:none}
+.flash .fh{position:relative;aspect-ratio:16/9;border-bottom:1px solid var(--line);overflow:hidden}
+.flash .fb2{padding:12px 13px 14px}
+.flash .fe{display:none}
+.flash h4{font-size:.82rem;font-weight:600;height:2.7em}
+.flash .fp{font-size:1.1rem;color:var(--txt);font-family:var(--fm);font-weight:700}
+.flash .fw{font-family:var(--fm)}
+.tag{border-radius:2px;background:var(--cy);color:var(--inv);font-family:var(--fm);font-size:.58rem;
+  letter-spacing:.12em;font-weight:600;top:8px;right:8px}
+.bar{height:3px;border-radius:0;background:var(--panel3)}
+.bar i{background:var(--cy);border-radius:0}
+.flash .left{font-family:var(--fm);font-size:.62rem;letter-spacing:.06em}
+
+/* ---------- Werkzeugleiste, Filter ---------- */
+.toolbar{border-radius:var(--r2);background:var(--panel);border:1px solid var(--line);padding:10px 12px}
+select.sel{border-radius:2px;background:var(--panel2);font-family:var(--fm);font-size:.76rem;font-weight:500}
+.viewsw{border-radius:2px}
+.viewsw button.on{background:var(--cy);color:var(--inv)}
+.viewsw button svg{width:15px;height:15px;display:block}
+aside.filters{border-radius:var(--r2);background:var(--panel);border:1px solid var(--line);padding:16px}
+@media(max-width:1040px){aside.filters{border-radius:0}}
+.fgroup>h4{font-size:.62rem;letter-spacing:.2em;font-family:var(--fm);font-weight:600}
+.chk input{border-radius:2px}
+.chk input:checked{background:var(--cy);border-color:var(--cy)}
+.chk input:checked::after{color:var(--inv)}
+.chk:hover{color:var(--cy)}
+.chk .q{font-size:.68rem}
+.rng::-webkit-slider-thumb{border-radius:2px;background:var(--cy);box-shadow:none;border:1px solid var(--abyss);
+  width:14px;height:14px}
+.rng::-moz-range-thumb{border-radius:2px;background:var(--cy);border:1px solid var(--abyss);width:12px;height:12px}
+.dual .fill{background:var(--cy);border-radius:0}
+.dual .trk{border-radius:0}
+.bar,.trackbar,.ratebar .bb,.funnel .fr .fb,.prebar{border-radius:0}
+.swtch .tg{border-radius:2px;width:38px;height:20px}
+.swtch .tg::after{border-radius:1px;width:14px;height:14px}
+.swtch input:checked + .tg{background:var(--cy);border-color:var(--cy)}
+.swtch input:checked + .tg::after{left:20px;background:var(--inv)}
+.pager button{border-radius:2px;font-family:var(--fm);font-weight:500;background:transparent}
+.pager button.on{background:var(--cy);color:var(--inv);border-color:var(--cy)}
+
+/* ---------- Fenster ---------- */
+.ov{background:rgba(6,7,9,.82);backdrop-filter:none}
+html[data-theme="light"] .ov{background:rgba(40,36,26,.5)}
+.modal{border-radius:var(--r2);background:var(--abyss);border:1px solid var(--line2);transform:translateY(10px)}
+.mhead{border-radius:0;background:var(--abyss);padding:16px 20px;border-bottom:1px solid var(--line2)}
+.mhead h3{font-size:.92rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.bigthumb{border-radius:var(--r2);position:relative;overflow:hidden;background:var(--panel2);
+  border:1px solid var(--line);font-size:0;aspect-ratio:5/4}
+.bigthumb .em{display:none}
+.thumbs div{border-radius:2px;font-size:0;position:relative;overflow:hidden;aspect-ratio:1}
+.thumbs div:hover,.thumbs div.on{border-color:var(--cy);transform:none}
+.spec td{padding:9px 10px;font-size:.82rem}
+.spec td:first-child{font-family:var(--fm);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;font-weight:500}
+.spec td:last-child{font-variant-numeric:tabular-nums}
+.chart{border-radius:var(--r2);background:var(--panel2)}
+.tabs2{gap:0;border-bottom:1px solid var(--line2)}
+.tabs2 button{font-size:.7rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:10px 14px}
+.review{border-radius:var(--r2);background:var(--panel2)}
+.review .av{border-radius:2px;background:var(--panel3);color:var(--txt);font-family:var(--fm);font-weight:600}
+.affbox{border-radius:var(--r2);border-style:solid;border-color:var(--line2);font-size:.75rem}
+.drawer{border-radius:0;background:var(--abyss);border-left:1px solid var(--line2);box-shadow:none}
+.dhead h3,.dfoot{font-size:.95rem}
+.dhead h3{font-size:.88rem;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
+.li .lt{border-radius:2px;font-size:0;position:relative;overflow:hidden;background:var(--panel2);width:52px;height:52px}
+.li .lp{color:var(--txt);font-family:var(--fm);font-weight:700}
+.cmdbox{border-radius:var(--r2)}
+.cmdrow .cs{font-family:var(--fm);font-size:.68rem}
+
+/* ---------- Etiketten in Tabellen und Cockpit ---------- */
+.dtable th{font-family:var(--fm);font-size:.62rem;letter-spacing:.14em;font-weight:600}
+.kpi{border-radius:var(--r2);background:var(--panel2);border:1px solid var(--line)}
+.kpi b{font-size:1.35rem;font-weight:700}
+.kpi span{font-size:.62rem;letter-spacing:.12em;font-family:var(--fm)}
+.kpi.good b{color:var(--ok)} .kpi.warn b{color:var(--go)}
+.bars div{border-radius:0;background:var(--cy);opacity:.75}
+.bars div:hover{background:var(--txt);opacity:1}
+.funnel .fr .fb i{background:var(--cy)}
+.linkout,.postbox,.phase,.guide,.pickrow,.sc,.trustrow span{border-radius:var(--r2)}
+.trustrow span{font-family:var(--fm);font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;
+  border-radius:2px;background:transparent}
+.task .cb{border-radius:2px}
+.task.done .cb{background:var(--cy);color:var(--inv)}
+.pickrow .pi span.pk{border-radius:2px;background:var(--cy);color:var(--inv);font-family:var(--fm);letter-spacing:.14em}
+.abhint{font-family:var(--fm);font-size:.66rem;letter-spacing:.06em;color:var(--cy);font-weight:500}
+.guide .ge{font-size:0;width:34px;height:34px;color:var(--cy)}
+.guide .ge svg{width:34px;height:34px}
+.guide::after{display:none}
+.guide:hover{transform:none;box-shadow:none;border-color:var(--cy)}
+.guide h4{text-transform:uppercase;letter-spacing:.02em;font-size:.92rem}
+.guide .gm{font-size:.64rem;letter-spacing:.08em}
+.ain{border-radius:2px;font-family:var(--fm);font-size:.82rem}
+.coupon,.trow,.post,.radar .rrow,.alert{border-radius:var(--r2)}
+.coupon .cv{background:none;-webkit-text-fill-color:var(--cy);color:var(--cy);font-family:var(--fm);font-weight:700}
+.trow .rk{background:none;-webkit-text-fill-color:var(--cy);color:var(--cy);font-weight:600;font-size:1.1rem}
+.trow:hover{transform:none;border-color:var(--cy)}
+.post{overflow:hidden}
+.post:hover{transform:none;border-color:var(--cy)}
+.ph{font-size:0!important;position:relative;overflow:hidden}
+.toast{border-radius:var(--r2);background:var(--panel);border:1px solid var(--line2)}
+.toast .ti{font-size:0;width:16px;height:16px;color:var(--cy)}
+.toast .ti svg{width:16px;height:16px;display:block}
+.fab{border-radius:2px;background:var(--panel);border:1px solid var(--line2);font-size:0}
+.fab:hover{background:var(--cy);color:var(--inv);border-color:var(--cy);transform:none}
+.fab svg{width:17px;height:17px}
+.totop{border-radius:2px}
+.wheel,.hub{border-radius:50%}
+
+/* ---------- Vorspann ---------- */
+#pre{background:var(--abyss)}
+.finswim{font-size:0;animation:none;display:block;color:var(--cy)}
+.finswim svg{width:54px;height:54px;display:inline-block;animation:swim 1.6s ease-in-out infinite}
+.prebar{width:220px;height:2px;border-radius:0;background:var(--panel3)}
+.prebar i{background:var(--cy);border-radius:0}
+.preinner p{font-family:var(--fm);font-size:.66rem;letter-spacing:.28em}
+
+/* ---------- Rohdaten-Modus (Konami) ---------- */
+body.raw .pcard{outline:1px solid rgba(255,90,31,.45);outline-offset:-1px}
+body.raw .rawdata{display:block}
+.rawdata{display:none;position:absolute;top:8px;right:8px;z-index:4;font-family:var(--fm);font-size:.58rem;
+  line-height:1.5;text-align:right;color:var(--cy);background:rgba(11,12,14,.86);padding:5px 7px;
+  border:1px solid rgba(255,90,31,.45);letter-spacing:.04em}
+html[data-theme="light"] .rawdata{background:rgba(247,245,240,.9)}
+body.raw .gridfx{background-size:40px 40px;opacity:1}
+
+/* ---------- Feinschliff ---------- */
+::selection{background:var(--cy);color:var(--inv)}
+.sugg{border-radius:var(--r2);background:var(--abyss)}
+.sugg .row .e{font-size:0;width:34px;height:34px;position:relative;overflow:hidden;flex-shrink:0}
+.sugg .row .p{color:var(--txt);font-family:var(--fm);font-weight:700}
+.mini{letter-spacing:.02em}
+.hint{font-size:.76rem;line-height:1.6}
+@media(max-width:900px){
+  .stats{flex-wrap:wrap}
+  .stat{border-right:none;border-bottom:1px solid var(--line);min-width:calc(50% - 1px)}
+}
 </style>
 </head>
 <body>
 
 <div id="pre"><div class="preinner">
-  <div class="finswim">🦈</div>
+  <div class="finswim"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16.5c5 1.5 9.6.8 12.8-.8 2.2-1.1 3.2-2.4 3.2-2.4S15 5.5 9 2c1.8 6 .6 11.6-6 14.5z"/><path d="M3 16.5c5 1.5 9.6.8 12.8-.8-4.5-.5-8.3-2-11.3-4.7"/><circle cx="12.5" cy="9.5" r=".8" fill="currentColor"/></svg></div>
   <div class="prebar"><i></i></div>
-  <p>Der Hai riecht Rabatte …</p>
+  <p>Kurse werden geladen</p>
 </div></div>
 
-<div class="bgfx"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+<div class="bgfx"></div>
 <div class="gridfx"></div><div class="grain"></div>
-<div class="spot" id="spot"></div>
 <div class="progress" id="prog"></div>
 <canvas id="confetti"></canvas>
 <div class="toasts" id="toasts"></div>
@@ -664,34 +964,34 @@ section.reveal{transform:none}
     </div>
 
     <div class="searchwrap">
-      <span class="si">🔍</span>
-      <input id="q" type="text" placeholder="Wonach jagen wir heute? z. B. Kopfhörer, Kaffee, Monitor …"
+      <span class="si"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="width:16px;height:16px;display:block"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></span>
+      <input id="q" type="text" placeholder="Produkt, Marke oder Kategorie suchen"
              autocomplete="off" aria-label="Produktsuche">
       <kbd>/</kbd>
       <div class="sugg" id="sugg"></div>
     </div>
 
     <div class="hact">
-      <button class="ib" onclick="openCmd()" title="Befehle (Strg+K)">⌘</button>
-      <button class="ib" onclick="toggleTheme()" id="themeBtn" title="Design wechseln">🌙</button>
-      <button class="ib" onclick="openDrawer('cmp')" title="Vergleich">⚖️<span class="cnt hide" id="cCmp"></span></button>
-      <button class="ib" onclick="openDrawer('wish')" title="Merkliste">❤️<span class="cnt hide" id="cWish"></span></button>
-      <button class="ib" onclick="openDrawer('cart')" title="Deal-Korb">🛒<span class="cnt hide" id="cCart"></span></button>
-      <button class="ib" onclick="openModal('mSettings')" title="Einstellungen">⚙️</button>
+      <button class="ib mono" onclick="openCmd()" title="Befehle (Strg+K)" style="font-size:.72rem;letter-spacing:.08em">⌘K</button>
+      <button class="ib" onclick="toggleTheme()" id="themeBtn" title="Design wechseln" aria-label="Design wechseln"></button>
+      <button class="ib" onclick="openDrawer('cmp')" title="Vergleich" aria-label="Vergleich"><span class="ii" data-i="waage"></span><span class="cnt hide" id="cCmp"></span></button>
+      <button class="ib" onclick="openDrawer('wish')" title="Merkliste" aria-label="Merkliste"><span class="ii" data-i="herz"></span><span class="cnt hide" id="cWish"></span></button>
+      <button class="ib" onclick="openDrawer('cart')" title="Deal-Korb" aria-label="Deal-Korb"><span class="ii" data-i="korb"></span><span class="cnt hide" id="cCart"></span></button>
+      <button class="ib" onclick="openModal('mSettings')" title="Einstellungen" aria-label="Einstellungen"><span class="ii" data-i="zahnrad"></span></button>
     </div>
   </div>
   <nav class="main" id="navMain">
-    <button class="nb on" data-go="top">🦈 Start</button>
-    <button class="nb" data-go="blitz">⚡ Blitzangebote</button>
-    <button class="nb" data-go="shop">🛍️ Alle Deals</button>
-    <button class="nb" data-go="bremse">🛑 Preisbremse</button>
-    <button class="nb" data-go="gutscheine">🎟️ Gutscheine</button>
-    <button class="nb" data-go="roulette">🎰 Deal-Roulette</button>
-    <button class="nb" data-go="top10">🏆 Bestenliste</button>
-    <button class="nb" data-go="radar">📡 Preis-Radar</button>
-    <button class="nb" data-go="kaufberater">🧭 Kaufberater</button>
-    <button class="nb" data-go="ratgeber">📚 Ratgeber</button>
-    <button class="nb" data-go="faq">❓ FAQ</button>
+    <button class="nb on" data-go="top">Start</button>
+    <button class="nb" data-go="blitz">Blitzangebote</button>
+    <button class="nb" data-go="shop">Alle Deals</button>
+    <button class="nb" data-go="bremse">Preisbremse</button>
+    <button class="nb" data-go="gutscheine">Gutscheine</button>
+    <button class="nb" data-go="roulette">Roulette</button>
+    <button class="nb" data-go="top10">Bestenliste</button>
+    <button class="nb" data-go="radar">Preis-Radar</button>
+    <button class="nb" data-go="kaufberater">Kaufberater</button>
+    <button class="nb" data-go="ratgeber">Ratgeber</button>
+    <button class="nb" data-go="faq">FAQ</button>
   </nav>
 </header>
 
@@ -700,26 +1000,26 @@ section.reveal{transform:none}
 <!-- ================= HERO ================= -->
 <section id="top" class="hero">
   <div>
-    <span class="kicker">🦈 Amazon-Partner · täglich frische Beute</span>
+    <span class="kicker" data-n="00">Amazon-Partner · Kurse vom Riff</span>
     <h1>
       <span class="l1">WIR BEISSEN</span>
       <span class="l2">PREISE <span class="bite">KLEIN</span></span>
     </h1>
     <p class="sub">
-      <b>DEALHAI</b> durchkämmt das Riff nach Rabatten: <b>Preisbremse</b> mit Wunschpreis-Alarm,
-      Preisverlauf, Blitzangebote mit Countdown, Gutscheine, Vergleich und Bestenlisten —
-      alles in einer Seite. Kein Konto, keine Cookies-Falle.
+      Ein durchgestrichener Preis beweist gar nichts. <b>DEALHAI</b>zeigt zu jedem Angebot den
+      <b>Preisverlauf über 90 Tage</b> — und meldet sich per <b>Preisbremse</b>, sobald dein Wunschpreis
+      erreicht ist. Kein Konto, keine fremden Skripte, keine Cookie-Falle.
     </p>
     <div class="cta">
-      <button class="btn p" onclick="go('shop')">🛍️ Deals jagen</button>
-      <button class="btn g" onclick="go('bremse')">🛑 Preisbremse setzen</button>
-      <button class="btn g" onclick="spinWheel()">🎰 Zufalls-Deal</button>
+      <button class="btn p" onclick="go('shop')">Alle Kurse ansehen</button>
+      <button class="btn g" onclick="go('bremse')">Preisbremse setzen</button>
+      <button class="btn g" onclick="go('kaufberater')">Kaufberater</button>
     </div>
     <div class="stats">
-      <div class="stat"><b data-count="0" id="stDeals">0</b><span>Deals im Riff</span></div>
-      <div class="stat"><b data-count="0" id="stAvg">0</b><span>Ø Rabatt %</span></div>
+      <div class="stat"><b data-count="0" id="stDeals">0</b><span>Positionen</span></div>
+      <div class="stat"><b data-count="0" id="stAvg">0</b><span>Ø Nachlass %</span></div>
       <div class="stat"><b data-count="0" id="stSave">0</b><span>€ Sparpotenzial</span></div>
-      <div class="stat"><b data-count="0" id="stAlerts">0</b><span>Aktive Bremsen</span></div>
+      <div class="stat"><b data-count="0" id="stAlerts">0</b><span>Bremsen aktiv</span></div>
     </div>
   </div>
 
@@ -730,7 +1030,7 @@ section.reveal{transform:none}
 <section id="kategorien">
   <div class="sechead">
     <div>
-      <span class="kicker">Jagdgründe</span>
+      <span class="kicker" data-n="01">Segmente</span>
       <h2>Kategorien</h2>
     </div>
     <div class="sp"></div>
@@ -743,7 +1043,7 @@ section.reveal{transform:none}
 <section id="blitz">
   <div class="sechead">
     <div>
-      <span class="kicker">⚡ Nur kurz im Netz</span>
+      <span class="kicker" data-n="02">Befristet</span>
       <h2>Blitzangebote</h2>
       <p>Countdown läuft — wenn der Balken voll ist, ist die Beute weg.</p>
     </div>
@@ -757,18 +1057,18 @@ section.reveal{transform:none}
 <section id="shop">
   <div class="sechead">
     <div>
-      <span class="kicker">Das ganze Riff</span>
+      <span class="kicker" data-n="03">Gesamtliste</span>
       <h2>Alle Deals</h2>
       <p>Filtern, sortieren, vergleichen — und mit einem Klick zu Amazon.</p>
     </div>
     <div class="sp"></div>
-    <button class="btn g s" onclick="toggleFilters()" id="fBtn">🎛️ Filter</button>
+    <button class="btn g s" onclick="toggleFilters()" id="fBtn">Filter</button>
   </div>
 
   <div class="shop">
     <aside class="filters" id="filterPanel">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <b style="flex:1;font-size:.95rem">🎛️ Filter</b>
+        <b style="flex:1;font-size:.95rem">Filter</b>
         <button class="pill" onclick="resetFilters()">Reset</button>
         <button class="x" onclick="toggleFilters()" style="display:none" id="fClose">✕</button>
       </div>
@@ -786,7 +1086,7 @@ section.reveal{transform:none}
       </div>
 
       <div class="fgroup">
-        <h4>🛑 Preisbremse <span class="cv">▾</span></h4>
+        <h4>Preisbremse <span class="cv">▾</span></h4>
         <div class="fbody">
           <span class="mini">Zeige nur Deals bis maximal:</span>
           <input class="rng" type="range" id="brake" min="0" max="2000" step="5" value="2000">
@@ -825,12 +1125,12 @@ section.reveal{transform:none}
       <div class="fgroup">
         <h4>Merkmale <span class="cv">▾</span></h4>
         <div class="fbody">
-          <label class="swtch"><span>⚡ Prime-Versand</span><input type="checkbox" id="fPrime"><span class="tg"></span></label>
-          <label class="swtch"><span>🔥 Nur Blitzangebote</span><input type="checkbox" id="fFlash"><span class="tg"></span></label>
-          <label class="swtch"><span>🆕 Neu im Riff</span><input type="checkbox" id="fNew"><span class="tg"></span></label>
-          <label class="swtch"><span>🏅 Bestseller</span><input type="checkbox" id="fBest"><span class="tg"></span></label>
-          <label class="swtch"><span>📦 Auf Lager</span><input type="checkbox" id="fStock"><span class="tg"></span></label>
-          <label class="swtch"><span>🛑 Mit Preisbremse</span><input type="checkbox" id="fAlert"><span class="tg"></span></label>
+          <label class="swtch"><span>Prime-Versand</span><input type="checkbox" id="fPrime"><span class="tg"></span></label>
+          <label class="swtch"><span>Nur Blitzangebote</span><input type="checkbox" id="fFlash"><span class="tg"></span></label>
+          <label class="swtch"><span>Neu im Riff</span><input type="checkbox" id="fNew"><span class="tg"></span></label>
+          <label class="swtch"><span>Bestseller</span><input type="checkbox" id="fBest"><span class="tg"></span></label>
+          <label class="swtch"><span>Auf Lager</span><input type="checkbox" id="fStock"><span class="tg"></span></label>
+          <label class="swtch"><span>Mit Preisbremse</span><input type="checkbox" id="fAlert"><span class="tg"></span></label>
         </div>
       </div>
 
@@ -842,18 +1142,18 @@ section.reveal{transform:none}
 
     <div>
       <div class="toolbar">
-        <span class="res"><b id="resCount">0</b> Treffer</span>
+        <span class="res"><b id="resCount">0</b>Treffer</span>
         <div class="sp"></div>
         <select class="sel" id="sortSel" aria-label="Sortierung">
-          <option value="pop">🔥 Beliebtheit</option>
-          <option value="priceAsc">💶 Preis aufsteigend</option>
-          <option value="priceDesc">💰 Preis absteigend</option>
-          <option value="off">🏷️ Höchster Rabatt</option>
-          <option value="rate">⭐ Beste Bewertung</option>
-          <option value="new">🆕 Neueste zuerst</option>
-          <option value="value">🎯 Preis-Leistung</option>
-          <option value="save">💚 Größte Ersparnis</option>
-          <option value="az">🔤 A–Z</option>
+          <option value="pop">Beliebtheit</option>
+          <option value="priceAsc">Preis aufsteigend</option>
+          <option value="priceDesc">Preis absteigend</option>
+          <option value="off">Höchster Rabatt</option>
+          <option value="rate">Beste Bewertung</option>
+          <option value="new">Neueste zuerst</option>
+          <option value="value">Preis-Leistung</option>
+          <option value="save">Größte Ersparnis</option>
+          <option value="az">A–Z</option>
         </select>
         <select class="sel" id="perPage" aria-label="Pro Seite">
           <option value="12">12 / Seite</option>
@@ -862,9 +1162,9 @@ section.reveal{transform:none}
           <option value="999">Alle</option>
         </select>
         <div class="viewsw" id="viewSw">
-          <button data-v="grid" class="on" title="Raster">▦</button>
-          <button data-v="list" title="Liste">☰</button>
-          <button data-v="compact" title="Kompakt">⋯</button>
+          <button data-v="grid" class="on" title="Raster" aria-label="Raster"><span class="ii" data-i="raster"></span></button>
+          <button data-v="list" title="Liste" aria-label="Liste"><span class="ii" data-i="liste"></span></button>
+          <button data-v="compact" title="Kompakt" aria-label="Kompakt"><span class="ii" data-i="kompakt"></span></button>
         </div>
       </div>
       <div class="chips" id="chips"></div>
@@ -878,12 +1178,12 @@ section.reveal{transform:none}
 <section id="bremse">
   <div class="sechead">
     <div>
-      <span class="kicker">🛑 Das Herzstück</span>
+      <span class="kicker" data-n="04">Kernfunktion</span>
       <h2>Preisbremse</h2>
       <p>Wunschpreis nennen — der Hai schlägt an, sobald der Preis fällt.</p>
     </div>
     <div class="sp"></div>
-    <button class="btn g s" onclick="askNotify()">🔔 Browser-Alarm erlauben</button>
+    <button class="btn g s" onclick="askNotify()">Browser-Alarm erlauben</button>
   </div>
 
   <div class="card bremse">
@@ -895,7 +1195,7 @@ section.reveal{transform:none}
       <select class="sel" id="brSel" style="width:100%;margin:10px 0"></select>
       <div class="bigin">
         <input type="number" id="brPrice" placeholder="Wunschpreis in €" min="1" step="0.01">
-        <button class="btn p" onclick="addAlert()">🛑 Bremsen</button>
+        <button class="btn p" onclick="addAlert()">Bremsen</button>
       </div>
       <div class="pills" style="margin-top:11px">
         <button class="pill" onclick="quickBrake(.9)">−10 %</button>
@@ -920,7 +1220,7 @@ section.reveal{transform:none}
 <section id="gutscheine">
   <div class="sechead">
     <div>
-      <span class="kicker">🎟️ Aktionen</span>
+      <span class="kicker" data-n="05">Aktionen</span>
       <h2>Gutscheine &amp; Rabatt-Codes</h2>
       <p>Code kopieren, an der Kasse einlösen — solange der Countdown läuft.</p>
     </div>
@@ -931,22 +1231,22 @@ section.reveal{transform:none}
 <!-- ================= ROULETTE + RADAR ================= -->
 <div class="split">
   <section id="roulette">
-    <div class="sechead"><div><span class="kicker">🎰 Glücksjagd</span><h2>Deal-Roulette</h2></div></div>
+    <div class="sechead"><div><span class="kicker" data-n="06">Zufall</span><h2>Deal-Roulette</h2></div></div>
     <div class="card roul">
       <div style="position:relative">
-        <div class="needle">🔻</div>
-        <div class="wheel" id="wheel"><div class="seg"></div><div class="hub">🦈</div></div>
+        <div class="needle"><svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;color:var(--cy)"><path d="M12 20L3 5h18z"/></svg></div>
+        <div class="wheel" id="wheel"><div class="seg"></div><div class="hub"><span class="ii" data-i="wuerfel"></span></div></div>
       </div>
       <div>
         <p class="hint">Kein Bock auf Filtern? Dreh am Rad — der Hai sucht dir einen Deal aus.</p>
         <div class="roulout" id="roulOut"><p style="color:var(--muted);font-size:.9rem">Noch nichts gejagt.</p></div>
-        <button class="btn p" onclick="spinWheel()" id="spinBtn">🎰 Drehen</button>
+        <button class="btn p" onclick="spinWheel()" id="spinBtn">Drehen</button>
       </div>
     </div>
   </section>
 
   <section id="radar">
-    <div class="sechead"><div><span class="kicker"><span class="dot"></span> Live</span><h2>Preis-Radar</h2></div></div>
+    <div class="sechead"><div><span class="kicker" data-n="07">Live</span><h2>Preis-Radar</h2></div></div>
     <div class="card">
       <p class="hint" style="margin-bottom:12px">Jede Bewegung im Riff — Preise fallen und steigen in Echtzeit.</p>
       <div class="radar" id="radarList"></div>
@@ -958,16 +1258,16 @@ section.reveal{transform:none}
 <section id="top10">
   <div class="sechead">
     <div>
-      <span class="kicker">🏆 Bestenliste</span>
+      <span class="kicker" data-n="08">Rangfolge</span>
       <h2>Top 10 der Woche</h2>
       <p>Nach Beliebtheit, Rabatt und Bewertung gewichtet.</p>
     </div>
     <div class="sp"></div>
     <select class="sel" id="topMode">
-      <option value="score">🦈 Hai-Score</option>
-      <option value="off">🏷️ Rabatt</option>
-      <option value="rate">⭐ Bewertung</option>
-      <option value="pop">🔥 Verkäufe</option>
+      <option value="score">Hai-Score</option>
+      <option value="off">Rabatt</option>
+      <option value="rate">Bewertung</option>
+      <option value="pop">Verkäufe</option>
     </select>
   </div>
   <div class="toplist" id="topList"></div>
@@ -977,7 +1277,7 @@ section.reveal{transform:none}
 <section id="kaufberater">
   <div class="sechead">
     <div>
-      <span class="kicker">Für Leute, die schon wissen, was sie wollen</span>
+      <span class="kicker" data-n="09">Entscheidungshilfe</span>
       <h2>Kaufberater</h2>
       <p>Pro Kategorie drei Empfehlungen — Preis-Tipp, bestes Gesamtpaket, Premium. Mit Kaufkriterien und Fragen, die vor dem Klick zählen.</p>
     </div>
@@ -991,7 +1291,7 @@ section.reveal{transform:none}
 <section id="ratgeber">
   <div class="sechead">
     <div>
-      <span class="kicker">📚 Wissen</span>
+      <span class="kicker" data-n="10">Wissen</span>
       <h2>Ratgeber</h2>
       <p>Wie man wirklich spart — ohne auf Fake-Rabatte reinzufallen.</p>
     </div>
@@ -1002,7 +1302,7 @@ section.reveal{transform:none}
 <!-- ================= NEWSLETTER ================= -->
 <section id="newsletter" style="margin-top:52px">
   <div class="news">
-    <h3>🦈 Beute-Alarm per Mail</h3>
+    <h3>Beute-Alarm per Mail</h3>
     <p>Einmal pro Woche die fettesten Deals — keine Werbung, jederzeit kündbar.
        (Demo: die Adresse bleibt lokal in deinem Browser.)</p>
     <form class="nform" onsubmit="return subscribe(event)">
@@ -1015,7 +1315,7 @@ section.reveal{transform:none}
 
 <!-- ================= FAQ ================= -->
 <section id="faq">
-  <div class="sechead"><div><span class="kicker">❓ Fragen</span><h2>Häufige Fragen</h2></div></div>
+  <div class="sechead"><div><span class="kicker" data-n="11">Fragen</span><h2>Häufige Fragen</h2></div></div>
   <div id="faqList"></div>
 </section>
 
@@ -1049,7 +1349,7 @@ section.reveal{transform:none}
       <a onclick="openDrawer('wish')">Merkliste</a>
       <a onclick="go('kaufberater')">Kaufberater</a>
       <a onclick="openModal('mSettings')">Einstellungen</a>
-      <a onclick="openGrow()">🚀 Betreiber-Zentrale</a>
+      <a onclick="openGrow()">Betreiber-Zentrale</a>
       <a onclick="openCmd()">Befehlspalette</a>
     </div>
     <div class="fcol">
@@ -1062,32 +1362,32 @@ section.reveal{transform:none}
     </div>
   </div>
   <div class="disc">
-    <span>🦈 <b>Als Amazon-Partner verdienen wir an qualifizierten Verkäufen.</b>
+    <span> <b>Als Amazon-Partner verdienen wir an qualifizierten Verkäufen.</b>
       Alle Preise inkl. MwSt., zzgl. Versand. Preise und Verfügbarkeit können sich ändern —
       es gilt der Preis zum Kaufzeitpunkt auf Amazon.</span>
-    <span class="mini">© <span id="year"></span> DEALHAI · Demo-Katalog</span>
+    <span class="mini">© <span id="year"></span>DEALHAI · Demo-Katalog</span>
   </div>
 </footer>
 
-<button class="totop" id="totop" onclick="go('top')" title="Nach oben">↑</button>
+<button class="totop" id="totop" onclick="go('top')" title="Nach oben" aria-label="Nach oben"><span class="ii" data-i="pfeilhoch"></span></button>
 <div class="fabs">
-  <button class="fab" onclick="openGrow()" title="Betreiber-Zentrale (Umsatz, Kampagnen, Playbook)">🚀</button>
-  <button class="fab" onclick="spinWheel()" title="Zufalls-Deal">🎰</button>
-  <button class="fab" onclick="go('bremse')" title="Preisbremse">🛑</button>
-  <button class="fab" onclick="toggleFx()" id="fxBtn" title="Effekte an/aus">✨</button>
+  <button class="fab" onclick="openGrow()" title="Betreiber-Zentrale" aria-label="Betreiber-Zentrale"><span class="ii" data-i="rakete"></span></button>
+  <button class="fab" onclick="spinWheel()" title="Zufalls-Deal" aria-label="Zufalls-Deal"><span class="ii" data-i="wuerfel"></span></button>
+  <button class="fab" onclick="go('bremse')" title="Preisbremse" aria-label="Preisbremse"><span class="ii" data-i="glocke"></span></button>
+  <button class="fab" onclick="toggleFx()" id="fxBtn" title="Effekte an/aus" aria-label="Effekte an/aus"><span class="ii" data-i="funken"></span></button>
 </div>
 
 <!-- ================= DRAWERS ================= -->
 <div class="backdrop" id="backdrop" onclick="closeAll()"></div>
 
 <div class="drawer" id="dCart">
-  <div class="dhead"><h3>🛒 Deal-Korb</h3><button class="x" onclick="closeAll()">✕</button></div>
+  <div class="dhead"><h3>Deal-Korb</h3><button class="x" onclick="closeAll()">✕</button></div>
   <div class="dbody" id="cartBody"></div>
   <div class="dfoot" id="cartFoot"></div>
 </div>
 
 <div class="drawer" id="dWish">
-  <div class="dhead"><h3>❤️ Merkliste</h3><button class="x" onclick="closeAll()">✕</button></div>
+  <div class="dhead"><h3>Merkliste</h3><button class="x" onclick="closeAll()">✕</button></div>
   <div class="dbody" id="wishBody"></div>
   <div class="dfoot">
     <button class="btn g s" style="width:100%" onclick="clearWish()">Liste leeren</button>
@@ -1095,7 +1395,7 @@ section.reveal{transform:none}
 </div>
 
 <div class="drawer" id="dCmp" style="width:min(720px,100%)">
-  <div class="dhead"><h3>⚖️ Vergleich</h3><button class="x" onclick="closeAll()">✕</button></div>
+  <div class="dhead"><h3>Vergleich</h3><button class="x" onclick="closeAll()">✕</button></div>
   <div class="dbody" id="cmpBody"></div>
   <div class="dfoot">
     <button class="btn g s" style="width:100%" onclick="clearCmp()">Vergleich leeren</button>
@@ -1109,7 +1409,7 @@ section.reveal{transform:none}
 </div></div>
 
 <div class="ov" id="mSettings"><div class="modal" style="max-width:600px">
-  <div class="mhead"><h3>⚙️ Einstellungen</h3><button class="x" onclick="closeAll()">✕</button></div>
+  <div class="mhead"><h3>Einstellungen</h3><button class="x" onclick="closeAll()">✕</button></div>
   <div class="mbody">
     <h4 style="font-size:.95rem;font-weight:800;margin-bottom:6px">Amazon-Partnerprogramm</h4>
     <p class="hint">Dein Partner-Tag wird an jeden Amazon-Link angehängt.</p>
@@ -1130,25 +1430,25 @@ section.reveal{transform:none}
       <a onclick="openGrow('g1')" style="color:var(--cy);cursor:pointer">→ Cockpit öffnen</a></p>
 
     <h4 style="font-size:.95rem;font-weight:800;margin:20px 0 6px">Darstellung</h4>
-    <label class="swtch"><span>🌙 Dunkles Design</span><input type="checkbox" id="setDark" checked><span class="tg"></span></label>
-    <label class="swtch"><span>✨ Effekte &amp; Animationen</span><input type="checkbox" id="setFx" checked><span class="tg"></span></label>
-    <label class="swtch"><span>🔊 Klick-Sounds</span><input type="checkbox" id="setSound"><span class="tg"></span></label>
-    <label class="swtch"><span>📡 Live-Preisbewegung simulieren</span><input type="checkbox" id="setLive" checked><span class="tg"></span></label>
+    <label class="swtch"><span>Dunkles Design</span><input type="checkbox" id="setDark" checked><span class="tg"></span></label>
+    <label class="swtch"><span>Effekte &amp; Animationen</span><input type="checkbox" id="setFx" checked><span class="tg"></span></label>
+    <label class="swtch"><span>Klick-Sounds</span><input type="checkbox" id="setSound"><span class="tg"></span></label>
+    <label class="swtch"><span>Live-Preisbewegung simulieren</span><input type="checkbox" id="setLive" checked><span class="tg"></span></label>
 
     <h4 style="font-size:.95rem;font-weight:800;margin:20px 0 6px">Eigene Produkte</h4>
     <p class="hint">Katalog als JSON exportieren, bearbeiten und wieder einspielen — so wird aus der Demo dein Shop.</p>
     <div class="pills" style="margin-top:10px">
-      <button class="pill" onclick="exportJSON()">⬇️ Export</button>
-      <button class="pill" onclick="document.getElementById('impFile').click()">⬆️ Import</button>
-      <button class="pill" onclick="openModal('mAdd')">➕ Produkt anlegen</button>
-      <button class="pill" onclick="resetAll()">♻️ Alles zurücksetzen</button>
+      <button class="pill" onclick="exportJSON()">Export</button>
+      <button class="pill" onclick="document.getElementById('impFile').click()">Import</button>
+      <button class="pill" onclick="openModal('mAdd')">Produkt anlegen</button>
+      <button class="pill" onclick="resetAll()">Alles zurücksetzen</button>
     </div>
     <input type="file" id="impFile" accept="application/json" style="display:none" onchange="importJSON(this)">
   </div>
 </div></div>
 
 <div class="ov" id="mAdd"><div class="modal" style="max-width:560px">
-  <div class="mhead"><h3>➕ Eigenes Produkt</h3><button class="x" onclick="closeAll()">✕</button></div>
+  <div class="mhead"><h3>Eigenes Produkt</h3><button class="x" onclick="closeAll()">✕</button></div>
   <div class="mbody">
     <div class="split" style="gap:12px">
       <div><label class="sr" for="aName">Name</label><input id="aName" placeholder="Produktname" class="ain"></div>
@@ -1156,7 +1456,7 @@ section.reveal{transform:none}
       <div><label class="sr" for="aPrice">Preis €</label><input id="aPrice" type="number" step="0.01" placeholder="99.99" class="ain"></div>
       <div><label class="sr" for="aOld">UVP €</label><input id="aOld" type="number" step="0.01" placeholder="149.99" class="ain"></div>
       <div><label class="sr" for="aCat">Kategorie</label><input id="aCat" placeholder="Technik" class="ain"></div>
-      <div><label class="sr" for="aEmo">Emoji</label><input id="aEmo" placeholder="🎧" class="ain"></div>
+      <div><label class="flab" for="aEmo">Kurzkennung</label><input id="aEmo" placeholder="optional" class="ain"></div>
       <div><label class="sr" for="aAsin">ASIN (optional)</label><input id="aAsin" placeholder="B0XXXXXXX" class="ain"></div>
       <div><label class="sr" for="aRate">Bewertung 1–5</label><input id="aRate" type="number" step="0.1" min="1" max="5" placeholder="4.5" class="ain"></div>
     </div>
@@ -1175,7 +1475,7 @@ section.reveal{transform:none}
 </div></div>
 
 <div class="ov" id="mHelp"><div class="modal" style="max-width:520px">
-  <div class="mhead"><h3>⌨️ Tastenkürzel</h3><button class="x" onclick="closeAll()">✕</button></div>
+  <div class="mhead"><h3>Tastenkürzel</h3><button class="x" onclick="closeAll()">✕</button></div>
   <div class="mbody">
     <table class="spec">
       <tr><td>Suche fokussieren</td><td><span class="kbd">/</span></td></tr>
@@ -1189,7 +1489,7 @@ section.reveal{transform:none}
       <tr><td>Kaufberater</td><td><span class="kbd">K</span></td></tr>
       <tr><td>Betreiber-Zentrale</td><td><span class="kbd">W</span></td></tr>
       <tr><td>Alles schließen</td><td><span class="kbd">Esc</span></td></tr>
-      <tr><td>Hai-Modus 🦈</td><td><span class="kbd">↑↑↓↓←→←→BA</span></td></tr>
+      <tr><td>Hai-Modus </td><td><span class="kbd">↑↑↓↓←→←→BA</span></td></tr>
     </table>
   </div>
 </div></div>
@@ -1202,18 +1502,18 @@ section.reveal{transform:none}
 <!-- ================= BETREIBER-ZENTRALE ================= -->
 <div class="ov" id="mGrow"><div class="modal" style="max-width:980px">
   <div class="mhead">
-    <h3>🚀 Betreiber-Zentrale</h3>
+    <h3>Betreiber-Zentrale</h3>
     <span class="mini" style="margin-left:auto">alles lokal · kein Server</span>
     <button class="x" onclick="closeAll()">✕</button>
   </div>
   <div class="mbody">
     <div class="tabs2" id="growTabs">
-      <button class="on" data-g="g1">📊 Cockpit</button>
-      <button data-g="g2">🧭 Quellen</button>
-      <button data-g="g3">🚀 Kampagnen</button>
-      <button data-g="g4">🧪 A/B-Tests</button>
-      <button data-g="g5">✅ Playbook</button>
-      <button data-g="g6">💶 Hochrechnung</button>
+      <button class="on" data-g="g1">Cockpit</button>
+      <button data-g="g2">Quellen</button>
+      <button data-g="g3">Kampagnen</button>
+      <button data-g="g4">A/B-Tests</button>
+      <button data-g="g5">Playbook</button>
+      <button data-g="g6">Hochrechnung</button>
     </div>
 
     <div class="pane on" id="g1"><div id="cockpitBody"></div></div>
@@ -1253,11 +1553,11 @@ section.reveal{transform:none}
         <b class="mini">Kampagnen-Link (auf deine Seite, nicht direkt zu Amazon)</b>
         <div class="mono" id="cmpUrl" style="word-break:break-all;margin:6px 0 10px"></div>
         <div class="pills">
-          <button class="pill" onclick="copyCampaign()">📋 Link kopieren</button>
-          <button class="pill" onclick="openCampaign()">↗️ Öffnen</button>
-          <button class="pill" onclick="makeCard('pin')">🖼️ Pin-Bild (1000×1500)</button>
-          <button class="pill" onclick="makeCard('og')">🖼️ Vorschaubild (1200×630)</button>
-          <button class="pill" onclick="makeCard('story')">🖼️ Story (1080×1920)</button>
+          <button class="pill" onclick="copyCampaign()">Link kopieren</button>
+          <button class="pill" onclick="openCampaign()">Öffnen</button>
+          <button class="pill" onclick="makeCard('pin')">Pin-Bild (1000×1500)</button>
+          <button class="pill" onclick="makeCard('og')">Vorschaubild (1200×630)</button>
+          <button class="pill" onclick="makeCard('story')">Story (1080×1920)</button>
         </div>
       </div>
       <h4 style="font-size:.95rem;font-weight:800;margin:20px 0 6px">Fertige Beitragstexte</h4>
@@ -1279,12 +1579,12 @@ section.reveal{transform:none}
 </div></div>
 
 <div class="ov" id="mExit"><div class="modal" style="max-width:520px">
-  <div class="mhead"><h3>🦈 Kurz bevor du gehst …</h3><button class="x" onclick="closeAll()">✕</button></div>
+  <div class="mhead"><h3>Kurz bevor du gehst …</h3><button class="x" onclick="closeAll()">✕</button></div>
   <div class="mbody">
     <p style="font-size:.95rem">Der beste Preis kommt selten dann, wenn man gerade schaut. Setz eine <b>Preisbremse</b> — der Hai meldet sich, sobald dein Wunschpreis erreicht ist.</p>
     <div class="pills" style="margin-top:14px">
-      <button class="pill" onclick="closeAll();go('bremse')">🛑 Preisbremse setzen</button>
-      <button class="pill" onclick="closeAll();go('blitz')">⚡ Blitzangebote</button>
+      <button class="pill" onclick="closeAll();go('bremse')">Preisbremse setzen</button>
+      <button class="pill" onclick="closeAll();go('blitz')">Blitzangebote</button>
     </div>
     <h4 style="font-size:.95rem;font-weight:800;margin:20px 0 6px">Oder die Deals per Mail</h4>
     <form onsubmit="subscribe(event)" style="display:flex;gap:9px;flex-wrap:wrap">
@@ -1337,8 +1637,8 @@ section.reveal{transform:none}
 .pickrow .pi span.mini{margin-top:6px;color:var(--txt);opacity:.85}
 @media(max-width:600px){
   .pickrow{flex-wrap:wrap}
-  .pickrow > div:last-child{flex-direction:row!important;width:100%}
-  .pickrow > div:last-child .btn{flex:1;justify-content:center}
+  .pickrow >div:last-child{flex-direction:row!important;width:100%}
+  .pickrow >div:last-child .btn{flex:1;justify-content:center}
 }
 
 /* ---------- Cockpit ---------- */
@@ -1370,8 +1670,8 @@ section.reveal{transform:none}
 
 /* ---------- Playbook ---------- */
 .phase{border:1px solid var(--line);border-radius:var(--r);background:var(--panel2);margin-bottom:12px;overflow:hidden}
-.phase > h4{padding:13px 16px;font-size:.92rem;font-weight:850;cursor:pointer;display:flex;align-items:center;gap:10px}
-.phase > h4 .pc2{margin-left:auto;font-family:var(--fm);font-size:.74rem;color:var(--muted);font-weight:600}
+.phase >h4{padding:13px 16px;font-size:.92rem;font-weight:850;cursor:pointer;display:flex;align-items:center;gap:10px}
+.phase >h4 .pc2{margin-left:auto;font-family:var(--fm);font-size:.74rem;color:var(--muted);font-weight:600}
 .phase .items{padding:0 16px 14px;display:none}
 .phase.open .items{display:block}
 .task{display:flex;gap:11px;padding:9px 0;border-top:1px solid var(--line);cursor:pointer;align-items:flex-start}
@@ -1410,9 +1710,9 @@ section.reveal{transform:none}
    1) KATALOG
    ============================================================ */
 const CATS = {
-  "Audio":"🎧","Technik":"💻","Gaming":"🎮","Haushalt":"🏠","Küche":"🍳","Smart Home":"💡",
-  "Fitness":"🏋️","Büro":"🪑","Garten":"🌱","Beauty":"💄","Auto":"🚗","Werkzeug":"🔧",
-  "Foto":"📷","Haustier":"🐾","Mode":"👟","Baby":"🍼"
+  "Audio":"","Technik":"","Gaming":"","Haushalt":"","Küche":"","Smart Home":"",
+  "Fitness":"","Büro":"","Garten":"","Beauty":"","Auto":"","Werkzeug":"",
+  "Foto":"","Haustier":"","Mode":"","Baby":""
 };
 
 /* P(name, marke, kategorie, preis, uvp, sterne, bewertungen, emoji, prime, tags, verkäufe, alterTage, lager) */
@@ -1420,86 +1720,86 @@ function P(n,b,c,p,o,r,rv,e,pr,tg,sold,age,stock){
   return {n:n,b:b,c:c,p:p,o:o,r:r,rv:rv,e:e,pr:!!pr,tg:tg,sold:sold,age:age,stock:stock};
 }
 const RAW = [
-  P("Over-Ear Kopfhörer mit aktivem Noise-Cancelling","Sony","Audio",279,419.99,4.7,18432,"🎧",1,["ANC","Bluetooth","Reise"],9800,34,42),
-  P("True-Wireless In-Ears mit Transparenzmodus","Apple","Audio",199,279,4.6,52310,"🎵",1,["ANC","Bluetooth"],14200,12,120),
-  P("Bluetooth-Partybox 240 W mit Lichtshow","JBL","Audio",229,329,4.5,7321,"🔊",1,["Party","Akku"],3100,58,18),
-  P("Studio-Mikrofon USB-C mit Popschutz","Rode","Audio",119,159,4.8,4102,"🎙️",1,["Streaming","USB"],1850,90,60),
-  P("Plattenspieler mit Vorverstärker","Audio-Technica","Audio",169,229,4.6,3312,"🎛️",0,["Vinyl","Retro"],920,140,7),
-  P("Soundbar 3.1 mit drahtlosem Subwoofer","Samsung","Audio",299,499,4.4,9910,"📺",1,["Heimkino","Dolby"],2600,21,25),
+  P("Over-Ear Kopfhörer mit aktivem Noise-Cancelling","Sony","Audio",279,419.99,4.7,18432,"",1,["ANC","Bluetooth","Reise"],9800,34,42),
+  P("True-Wireless In-Ears mit Transparenzmodus","Apple","Audio",199,279,4.6,52310,"",1,["ANC","Bluetooth"],14200,12,120),
+  P("Bluetooth-Partybox 240 W mit Lichtshow","JBL","Audio",229,329,4.5,7321,"",1,["Party","Akku"],3100,58,18),
+  P("Studio-Mikrofon USB-C mit Popschutz","Rode","Audio",119,159,4.8,4102,"",1,["Streaming","USB"],1850,90,60),
+  P("Plattenspieler mit Vorverstärker","Audio-Technica","Audio",169,229,4.6,3312,"",0,["Vinyl","Retro"],920,140,7),
+  P("Soundbar 3.1 mit drahtlosem Subwoofer","Samsung","Audio",299,499,4.4,9910,"",1,["Heimkino","Dolby"],2600,21,25),
 
-  P("14\" Notebook mit 16 GB RAM und 1 TB SSD","Lenovo","Technik",699,899,4.5,6210,"💻",1,["Homeoffice","SSD"],4100,17,31),
-  P("27\" 4K-Monitor mit USB-C Docking","LG","Technik",379,529,4.6,4820,"🖥️",1,["4K","USB-C"],2900,45,14),
-  P("Mechanische Tastatur mit Hot-Swap-Switches","Keychron","Technik",89.99,129,4.7,11230,"⌨️",1,["Gaming","RGB"],7600,9,88),
-  P("Powerbank 20.000 mAh mit 65 W USB-C PD","Anker","Technik",44.99,69.99,4.8,31200,"🔋",1,["Reise","Schnellladen"],18900,63,240),
-  P("Tablet 11\" mit Stift und Tastatur-Cover","Samsung","Technik",449,649,4.5,8320,"📱",1,["Stift","Android"],3300,28,19),
-  P("NAS-Festplatte 8 TB für Dauerbetrieb","Seagate","Technik",159,219,4.6,5210,"💾",0,["Backup","NAS"],1400,110,52),
-  P("Mesh-WLAN-System Wi-Fi 6 (3er-Set)","TP-Link","Technik",179,249,4.4,6740,"📶",1,["WLAN","Mesh"],2200,52,36),
-  P("Dokumentenscanner mit Duplex-Einzug","Brother","Technik",229,299,4.3,1810,"🖨️",0,["Büro","Scan"],640,175,9),
+  P("14\"Notebook mit 16 GB RAM und 1 TB SSD","Lenovo","Technik",699,899,4.5,6210,"",1,["Homeoffice","SSD"],4100,17,31),
+  P("27\" 4K-Monitor mit USB-C Docking","LG","Technik",379,529,4.6,4820,"",1,["4K","USB-C"],2900,45,14),
+  P("Mechanische Tastatur mit Hot-Swap-Switches","Keychron","Technik",89.99,129,4.7,11230,"",1,["Gaming","RGB"],7600,9,88),
+  P("Powerbank 20.000 mAh mit 65 W USB-C PD","Anker","Technik",44.99,69.99,4.8,31200,"",1,["Reise","Schnellladen"],18900,63,240),
+  P("Tablet 11\" mit Stift und Tastatur-Cover","Samsung","Technik",449,649,4.5,8320,"",1,["Stift","Android"],3300,28,19),
+  P("NAS-Festplatte 8 TB für Dauerbetrieb","Seagate","Technik",159,219,4.6,5210,"",0,["Backup","NAS"],1400,110,52),
+  P("Mesh-WLAN-System Wi-Fi 6 (3er-Set)","TP-Link","Technik",179,249,4.4,6740,"",1,["WLAN","Mesh"],2200,52,36),
+  P("Dokumentenscanner mit Duplex-Einzug","Brother","Technik",229,299,4.3,1810,"",0,["Büro","Scan"],640,175,9),
 
-  P("Gaming-Maus 26.000 DPI kabellos","Logitech","Gaming",99,149,4.7,22400,"🖱️",1,["Gaming","Wireless"],9900,23,74),
-  P("Controller mit Rückseitentasten (Pro)","Xbox","Gaming",139,179,4.6,15900,"🎮",1,["Konsole","Pro"],5400,66,22),
-  P("Gaming-Headset 7.1 mit Mikrofonarm","SteelSeries","Gaming",119,169,4.5,8910,"🎧",1,["Gaming","Surround"],4200,38,45),
-  P("Konsolen-SSD 2 TB mit Kühlkörper","WD","Gaming",149,229,4.8,12800,"⚡",1,["SSD","PS5"],6700,15,58),
-  P("Gaming-Stuhl mit Lendenwirbelstütze","Secretlab","Gaming",399,529,4.4,6100,"🪑",0,["Ergonomie"],1500,88,11),
-  P("VR-Brille 128 GB mit Controllern","Meta","Gaming",349,549,4.3,19200,"🥽",1,["VR","Standalone"],4800,7,16),
+  P("Gaming-Maus 26.000 DPI kabellos","Logitech","Gaming",99,149,4.7,22400,"",1,["Gaming","Wireless"],9900,23,74),
+  P("Controller mit Rückseitentasten (Pro)","Xbox","Gaming",139,179,4.6,15900,"",1,["Konsole","Pro"],5400,66,22),
+  P("Gaming-Headset 7.1 mit Mikrofonarm","SteelSeries","Gaming",119,169,4.5,8910,"",1,["Gaming","Surround"],4200,38,45),
+  P("Konsolen-SSD 2 TB mit Kühlkörper","WD","Gaming",149,229,4.8,12800,"",1,["SSD","PS5"],6700,15,58),
+  P("Gaming-Stuhl mit Lendenwirbelstütze","Secretlab","Gaming",399,529,4.4,6100,"",0,["Ergonomie"],1500,88,11),
+  P("VR-Brille 128 GB mit Controllern","Meta","Gaming",349,549,4.3,19200,"",1,["VR","Standalone"],4800,7,16),
 
-  P("Saugroboter mit Wischfunktion und Absaugstation","Roborock","Haushalt",479,799,4.6,14300,"🤖",1,["Roboter","Smart"],5600,19,13),
-  P("Akku-Staubsauger 60 Min Laufzeit","Dyson","Haushalt",399,649,4.5,21100,"🧹",1,["Akku","Beutellos"],6800,41,27),
-  P("Luftreiniger für 90 m² mit HEPA-13","Philips","Haushalt",219,329,4.7,7300,"🌬️",1,["Allergie","HEPA"],2400,55,33),
-  P("Dampfbügelstation 7,5 bar","Tefal","Haushalt",179,269,4.4,5120,"👔",1,["Dampf"],1900,120,29),
-  P("Waschsauger für Polster und Teppich","Kärcher","Haushalt",289,399,4.5,3410,"🧼",0,["Reinigung"],1100,150,8),
+  P("Saugroboter mit Wischfunktion und Absaugstation","Roborock","Haushalt",479,799,4.6,14300,"",1,["Roboter","Smart"],5600,19,13),
+  P("Akku-Staubsauger 60 Min Laufzeit","Dyson","Haushalt",399,649,4.5,21100,"",1,["Akku","Beutellos"],6800,41,27),
+  P("Luftreiniger für 90 m² mit HEPA-13","Philips","Haushalt",219,329,4.7,7300,"",1,["Allergie","HEPA"],2400,55,33),
+  P("Dampfbügelstation 7,5 bar","Tefal","Haushalt",179,269,4.4,5120,"",1,["Dampf"],1900,120,29),
+  P("Waschsauger für Polster und Teppich","Kärcher","Haushalt",289,399,4.5,3410,"",0,["Reinigung"],1100,150,8),
 
-  P("Espressomaschine mit Siebträger und Mahlwerk","De'Longhi","Küche",549,749,4.5,9800,"☕",1,["Kaffee","Barista"],3200,26,15),
-  P("Heißluftfritteuse 8 L Dual-Zone","Ninja","Küche",179,249,4.8,34100,"🍟",1,["Airfryer","Familie"],15600,11,96),
-  P("Küchenmaschine 1200 W mit Zubehör-Set","Kenwood","Küche",329,469,4.6,7210,"🥣",1,["Backen"],2100,73,21),
-  P("Standmixer 1600 W für Smoothies","Vitamix","Küche",399,549,4.7,6420,"🥤",0,["Smoothie","Profi"],1700,99,12),
-  P("Wasserkocher mit Temperaturwahl","Bosch","Küche",49.99,79.99,4.5,12400,"🫖",1,["Tee"],8300,47,180),
-  P("Messerset Damast 6-teilig mit Block","Zwilling","Küche",229,349,4.7,4100,"🔪",1,["Kochen","Geschenk"],1300,130,17),
-  P("Kontaktgrill mit Temperatursensor","Tefal","Küche",139,199,4.4,8900,"🥩",1,["Grill"],3900,84,40),
+  P("Espressomaschine mit Siebträger und Mahlwerk","De'Longhi","Küche",549,749,4.5,9800,"",1,["Kaffee","Barista"],3200,26,15),
+  P("Heißluftfritteuse 8 L Dual-Zone","Ninja","Küche",179,249,4.8,34100,"",1,["Airfryer","Familie"],15600,11,96),
+  P("Küchenmaschine 1200 W mit Zubehör-Set","Kenwood","Küche",329,469,4.6,7210,"",1,["Backen"],2100,73,21),
+  P("Standmixer 1600 W für Smoothies","Vitamix","Küche",399,549,4.7,6420,"",0,["Smoothie","Profi"],1700,99,12),
+  P("Wasserkocher mit Temperaturwahl","Bosch","Küche",49.99,79.99,4.5,12400,"",1,["Tee"],8300,47,180),
+  P("Messerset Damast 6-teilig mit Block","Zwilling","Küche",229,349,4.7,4100,"",1,["Kochen","Geschenk"],1300,130,17),
+  P("Kontaktgrill mit Temperatursensor","Tefal","Küche",139,199,4.4,8900,"",1,["Grill"],3900,84,40),
 
-  P("Smarte Glühbirnen E27 (4er-Pack, Matter)","Philips Hue","Smart Home",89.99,129,4.6,17800,"💡",1,["Matter","Licht"],7900,29,150),
-  P("Video-Türklingel mit Akku und 2K","Ring","Smart Home",129,199,4.4,15200,"🔔",1,["Sicherheit","Kamera"],5100,36,44),
-  P("Smart-Thermostat mit Heizkörper-Set","tado°","Smart Home",199,279,4.3,6900,"🌡️",1,["Heizung","Sparen"],2300,68,26),
-  P("Innenkamera 2K mit Nachtsicht","Eufy","Smart Home",44.99,69.99,4.5,11200,"📹",1,["Kamera","Haustier"],6400,22,110),
-  P("Smarter Türschloss-Antrieb mit Bridge","Nuki","Smart Home",249,329,4.4,5300,"🔐",0,["Sicherheit"],1200,105,10),
+  P("Smarte Glühbirnen E27 (4er-Pack, Matter)","Philips Hue","Smart Home",89.99,129,4.6,17800,"",1,["Matter","Licht"],7900,29,150),
+  P("Video-Türklingel mit Akku und 2K","Ring","Smart Home",129,199,4.4,15200,"",1,["Sicherheit","Kamera"],5100,36,44),
+  P("Smart-Thermostat mit Heizkörper-Set","tado°","Smart Home",199,279,4.3,6900,"",1,["Heizung","Sparen"],2300,68,26),
+  P("Innenkamera 2K mit Nachtsicht","Eufy","Smart Home",44.99,69.99,4.5,11200,"",1,["Kamera","Haustier"],6400,22,110),
+  P("Smarter Türschloss-Antrieb mit Bridge","Nuki","Smart Home",249,329,4.4,5300,"",0,["Sicherheit"],1200,105,10),
 
-  P("Verstellbare Kurzhantel 2×24 kg","Bowflex","Fitness",349,499,4.6,7800,"🏋️",1,["Krafttraining"],2000,50,14),
-  P("Laufband klappbar mit App-Steuerung","Sportstech","Fitness",549,799,4.3,3900,"🏃",0,["Cardio"],820,140,6),
+  P("Verstellbare Kurzhantel 2×24 kg","Bowflex","Fitness",349,499,4.6,7800,"",1,["Krafttraining"],2000,50,14),
+  P("Laufband klappbar mit App-Steuerung","Sportstech","Fitness",549,799,4.3,3900,"",0,["Cardio"],820,140,6),
   P("Smartwatch mit EKG und GPS","Garmin","Fitness",329,449,4.7,18900,"⌚",1,["GPS","Schlaf"],6100,16,38),
-  P("Massagepistole mit 6 Aufsätzen","Theragun","Fitness",199,299,4.5,9400,"💆",1,["Regeneration"],3400,60,49),
-  P("Faszienrolle-Set mit Ball und Band","Blackroll","Fitness",39.99,59.99,4.6,12100,"🧘",1,["Mobility"],7100,190,220),
+  P("Massagepistole mit 6 Aufsätzen","Theragun","Fitness",199,299,4.5,9400,"",1,["Regeneration"],3400,60,49),
+  P("Faszienrolle-Set mit Ball und Band","Blackroll","Fitness",39.99,59.99,4.6,12100,"",1,["Mobility"],7100,190,220),
 
-  P("Ergonomischer Bürostuhl mit Netzrücken","Herman Miller","Büro",899,1249,4.7,4300,"🪑",0,["Ergonomie","Rücken"],700,77,5),
-  P("Höhenverstellbarer Schreibtisch 160×80","Flexispot","Büro",379,529,4.6,9100,"🧰",1,["Stehen","Homeoffice"],2500,33,20),
-  P("Monitorarm für zwei Bildschirme","Ergotron","Büro",189,259,4.5,6200,"🖇️",1,["Platzsparen"],1800,95,31),
-  P("Aktenvernichter P-4 Partikelschnitt","Fellowes","Büro",129,179,4.3,2400,"🗄️",0,["DSGVO"],560,160,12),
+  P("Ergonomischer Bürostuhl mit Netzrücken","Herman Miller","Büro",899,1249,4.7,4300,"",0,["Ergonomie","Rücken"],700,77,5),
+  P("Höhenverstellbarer Schreibtisch 160×80","Flexispot","Büro",379,529,4.6,9100,"",1,["Stehen","Homeoffice"],2500,33,20),
+  P("Monitorarm für zwei Bildschirme","Ergotron","Büro",189,259,4.5,6200,"",1,["Platzsparen"],1800,95,31),
+  P("Aktenvernichter P-4 Partikelschnitt","Fellowes","Büro",129,179,4.3,2400,"",0,["DSGVO"],560,160,12),
 
-  P("Akku-Rasenmäher 40 V mit 2 Akkus","Bosch","Garten",399,559,4.5,5600,"🌱",0,["Akku","Garten"],1400,120,9),
-  P("Hochdruckreiniger 150 bar mit Flächenreiniger","Kärcher","Garten",229,319,4.6,14700,"💦",1,["Reinigung"],4300,102,28),
-  P("Pflanzkübel-Set mit Bewässerungssystem","Lechuza","Garten",89.99,129,4.4,3100,"🪴",1,["Balkon"],1600,210,64),
+  P("Akku-Rasenmäher 40 V mit 2 Akkus","Bosch","Garten",399,559,4.5,5600,"",0,["Akku","Garten"],1400,120,9),
+  P("Hochdruckreiniger 150 bar mit Flächenreiniger","Kärcher","Garten",229,319,4.6,14700,"",1,["Reinigung"],4300,102,28),
+  P("Pflanzkübel-Set mit Bewässerungssystem","Lechuza","Garten",89.99,129,4.4,3100,"",1,["Balkon"],1600,210,64),
 
-  P("Gesichtsreinigungsbürste mit Schallwellen","Foreo","Beauty",129,189,4.4,8200,"💄",1,["Pflege","Geschenk"],3700,44,52),
-  P("Haartrockner mit Ionen-Technologie","Dyson","Beauty",349,479,4.6,16400,"💇",1,["Styling"],4900,71,23),
-  P("Elektrische Zahnbürste mit 4 Aufsteckköpfen","Oral-B","Beauty",79.99,139,4.7,42100,"🪥",1,["Zahnpflege","Familie"],21000,25,300),
+  P("Gesichtsreinigungsbürste mit Schallwellen","Foreo","Beauty",129,189,4.4,8200,"",1,["Pflege","Geschenk"],3700,44,52),
+  P("Haartrockner mit Ionen-Technologie","Dyson","Beauty",349,479,4.6,16400,"",1,["Styling"],4900,71,23),
+  P("Elektrische Zahnbürste mit 4 Aufsteckköpfen","Oral-B","Beauty",79.99,139,4.7,42100,"",1,["Zahnpflege","Familie"],21000,25,300),
 
-  P("Dashcam 4K mit Parkmodus","Nextbase","Auto",179,249,4.4,7100,"🚗",1,["Sicherheit"],2700,56,41),
-  P("Starthilfe-Powerbank 2000 A","Noco","Auto",119,169,4.7,13900,"🔌",1,["Winter","Notfall"],5900,111,77),
-  P("Akku-Schrauber-Set 18 V mit 60 Bits","Makita","Werkzeug",149,219,4.7,11800,"🔧",1,["Heimwerken"],4600,80,55),
-  P("Werkzeugkoffer 108-teilig","Wera","Werkzeug",189,259,4.8,6300,"🧰",1,["Profi","Geschenk"],2100,133,24),
-  P("Systemkamera 24 MP mit Kit-Objektiv","Sony","Foto",799,1099,4.6,5400,"📷",0,["Foto","Video"],1500,49,7),
-  P("Gimbal-Stabilisator für Smartphones","DJI","Foto",129,179,4.5,9700,"🎥",1,["Video","Reise"],3800,30,46),
-  P("Automatischer Futterspender mit Kamera","PetLibro","Haustier",119,169,4.4,6800,"🐾",1,["Katze","Hund"],2900,64,35),
-  P("Orthopädisches Hundebett XL","Knuffelwuff","Haustier",79.99,119,4.6,4200,"🐕",1,["Komfort"],1700,145,58),
-  P("Laufschuh mit Carbonplatte","Nike","Mode",159,219,4.5,10200,"👟",1,["Running"],4400,20,67),
-  P("Wasserdichte Wanderjacke 3-Lagen","Jack Wolfskin","Mode",129,199,4.4,7300,"🧥",1,["Outdoor"],3100,86,72),
-  P("Kinderwagen 3-in-1 mit Babyschale","Cybex","Baby",549,799,4.6,4900,"🍼",0,["Familie"],900,58,8),
-  P("Babyphone mit Kamera und App","Philips Avent","Baby",179,239,4.5,8600,"👶",1,["Sicherheit"],3200,93,30)
+  P("Dashcam 4K mit Parkmodus","Nextbase","Auto",179,249,4.4,7100,"",1,["Sicherheit"],2700,56,41),
+  P("Starthilfe-Powerbank 2000 A","Noco","Auto",119,169,4.7,13900,"",1,["Winter","Notfall"],5900,111,77),
+  P("Akku-Schrauber-Set 18 V mit 60 Bits","Makita","Werkzeug",149,219,4.7,11800,"",1,["Heimwerken"],4600,80,55),
+  P("Werkzeugkoffer 108-teilig","Wera","Werkzeug",189,259,4.8,6300,"",1,["Profi","Geschenk"],2100,133,24),
+  P("Systemkamera 24 MP mit Kit-Objektiv","Sony","Foto",799,1099,4.6,5400,"",0,["Foto","Video"],1500,49,7),
+  P("Gimbal-Stabilisator für Smartphones","DJI","Foto",129,179,4.5,9700,"",1,["Video","Reise"],3800,30,46),
+  P("Automatischer Futterspender mit Kamera","PetLibro","Haustier",119,169,4.4,6800,"",1,["Katze","Hund"],2900,64,35),
+  P("Orthopädisches Hundebett XL","Knuffelwuff","Haustier",79.99,119,4.6,4200,"",1,["Komfort"],1700,145,58),
+  P("Laufschuh mit Carbonplatte","Nike","Mode",159,219,4.5,10200,"",1,["Running"],4400,20,67),
+  P("Wasserdichte Wanderjacke 3-Lagen","Jack Wolfskin","Mode",129,199,4.4,7300,"",1,["Outdoor"],3100,86,72),
+  P("Kinderwagen 3-in-1 mit Babyschale","Cybex","Baby",549,799,4.6,4900,"",0,["Familie"],900,58,8),
+  P("Babyphone mit Kamera und App","Philips Avent","Baby",179,239,4.5,8600,"",1,["Sicherheit"],3200,93,30)
 ];
 
 /* ---------- Deterministischer Zufall (für Preisverlauf & Co.) ---------- */
 function seeded(seed){
-  let s = seed >>> 0;
-  return function(){ s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  let s = seed >>>0;
+  return function(){ s = (s * 1664525 + 1013904223) >>>0; return s / 4294967296; };
 }
 
 /* ---------- Produkte aufbereiten ---------- */
@@ -1529,7 +1829,7 @@ function history(price, old, i){
   let v = old * (0.82 + rnd() * 0.16);
   for (let d = 0; d < 90; d++){
     v += (rnd() - 0.48) * old * 0.028;
-    if (rnd() > 0.955) v -= old * 0.07;
+    if (rnd() >0.955) v -= old * 0.07;
     v = Math.min(old * 1.02, Math.max(price * 0.86, v));
     pts.push(+v.toFixed(2));
   }
@@ -1541,9 +1841,9 @@ function specsFor(x, rnd){
     "Marke": x.b,
     "Kategorie": x.c,
     "Versand": x.pr ? "Prime · morgen geliefert" : "Standard · 2–4 Tage",
-    "Verfügbarkeit": x.stock > 20 ? "Auf Lager" : (x.stock > 0 ? "Nur noch " + x.stock + " Stück" : "Ausverkauft"),
+    "Verfügbarkeit": x.stock >20 ? "Auf Lager" : (x.stock >0 ? "Nur noch " + x.stock + "Stück" : "Ausverkauft"),
     "Rückgabe": "30 Tage kostenlos",
-    "Garantie": (1 + Math.floor(rnd() * 3)) + " Jahre",
+    "Garantie": (1 + Math.floor(rnd() * 3)) + "Jahre",
     "Artikelgewicht": (0.2 + rnd() * 6).toFixed(1).replace(".", ",") + " kg"
   };
   s["Tags"] = x.tg.join(", ");
@@ -1562,31 +1862,31 @@ const COUPONS = [
 
 /* ---------- Ratgeber ---------- */
 const POSTS = [
-  {t:"Fake-Rabatte erkennen: So prüfst du die UVP",k:"Basiswissen",e:"🕵️",h:190,
+  {t:"Fake-Rabatte erkennen: So prüfst du die UVP",k:"Basiswissen",ic:"kurve",h:190,
    x:"Ein durchgestrichener Preis ist kein Beweis. Wir zeigen, wie du mit dem Preisverlauf herausfindest, ob der Deal wirklich einer ist.",
-   b:["<b>1. Preisverlauf statt UVP.</b> Die UVP ist eine Empfehlung des Herstellers — sie sagt nichts darüber aus, was das Produkt in den letzten Wochen tatsächlich gekostet hat. Öffne bei jedem Deal den Reiter <i>Preisverlauf</i> und schau dir das 90-Tage-Tief an.",
-      "<b>2. Der 30-Tage-Bestpreis.</b> Seit der Preisangaben-Verordnung müssen Händler bei Rabatten den niedrigsten Preis der letzten 30 Tage angeben. Weicht die Werbung davon ab, ist Vorsicht angesagt.",
+   b:["<b>1. Preisverlauf statt UVP.</b>Die UVP ist eine Empfehlung des Herstellers — sie sagt nichts darüber aus, was das Produkt in den letzten Wochen tatsächlich gekostet hat. Öffne bei jedem Deal den Reiter <i>Preisverlauf</i>und schau dir das 90-Tage-Tief an.",
+      "<b>2. Der 30-Tage-Bestpreis.</b>Seit der Preisangaben-Verordnung müssen Händler bei Rabatten den niedrigsten Preis der letzten 30 Tage angeben. Weicht die Werbung davon ab, ist Vorsicht angesagt.",
       "<b>3. Rabatt-Höhe einordnen.</b> −70 % auf Zubehör unbekannter Marken ist ein Warnsignal, −15 % auf einen aktuellen Bestseller dagegen oft ein echter Deal.",
-      "<b>4. Bewertungen lesen, nicht zählen.</b> 40.000 Bewertungen mit 4,7 Sternen sind wertlos, wenn die letzten 50 Rezensionen von Defekten berichten. Sortiere nach <i>neueste zuerst</i>.",
-      "<b>5. Preisbremse setzen statt hetzen.</b> Wer wartet, zahlt fast immer weniger. Trage deinen Wunschpreis ein und lass dich benachrichtigen — der nächste Deal-Zyklus kommt bestimmt."]},
-  {t:"Blitzangebote: Wann sich Warten wirklich lohnt",k:"Strategie",e:"⚡",h:330,
+      "<b>4. Bewertungen lesen, nicht zählen.</b>40.000 Bewertungen mit 4,7 Sternen sind wertlos, wenn die letzten 50 Rezensionen von Defekten berichten. Sortiere nach <i>neueste zuerst</i>.",
+      "<b>5. Preisbremse setzen statt hetzen.</b>Wer wartet, zahlt fast immer weniger. Trage deinen Wunschpreis ein und lass dich benachrichtigen — der nächste Deal-Zyklus kommt bestimmt."]},
+  {t:"Blitzangebote: Wann sich Warten wirklich lohnt",k:"Strategie",ic:"blitz",h:330,
    x:"Countdown, Balken, Restbestand — Blitzangebote sind auf Druck gebaut. Diese Regeln schützen vor Fehlkäufen.",
-   b:["<b>Der Balken lügt manchmal.</b> Der Fortschrittsbalken zeigt oft nicht den echten Lagerbestand, sondern die Zeit. Lass dich davon nicht treiben.",
-      "<b>Die 24-Stunden-Regel.</b> Bei allem über 100 € gilt: in die Merkliste legen, einen Tag warten. Was du danach immer noch willst, ist selten ein Fehlkauf.",
-      "<b>Saison schlägt Rabatt.</b> Grills sind im September günstig, Heizlüfter im April, Elektronik rund um die großen Aktionswochen im Herbst.",
-      "<b>Warenkorb-Trick.</b> Lege den Artikel in den Korb, statt sofort zu kaufen. Preisänderungen siehst du dort direkt — und der Kaufimpuls verfliegt."]},
-  {t:"Preisbremse richtig einstellen",k:"Anleitung",e:"🛑",h:110,
+   b:["<b>Der Balken lügt manchmal.</b>Der Fortschrittsbalken zeigt oft nicht den echten Lagerbestand, sondern die Zeit. Lass dich davon nicht treiben.",
+      "<b>Die 24-Stunden-Regel.</b>Bei allem über 100 € gilt: in die Merkliste legen, einen Tag warten. Was du danach immer noch willst, ist selten ein Fehlkauf.",
+      "<b>Saison schlägt Rabatt.</b>Grills sind im September günstig, Heizlüfter im April, Elektronik rund um die großen Aktionswochen im Herbst.",
+      "<b>Warenkorb-Trick.</b>Lege den Artikel in den Korb, statt sofort zu kaufen. Preisänderungen siehst du dort direkt — und der Kaufimpuls verfliegt."]},
+  {t:"Preisbremse richtig einstellen",k:"Anleitung",ic:"glocke",h:110,
    x:"Zu ehrgeizig gesetzt, schlägt die Bremse nie an. Zu zaghaft, und du zahlst drauf. So findest du die richtige Marke.",
-   b:["<b>Orientiere dich am 90-Tage-Tief.</b> Setze dein Ziel etwa 3–5 % über dem historischen Tiefstpreis — dann schlägt die Bremse realistisch an.",
-      "<b>Mehrere Bremsen, ein Bedarf.</b> Brauchst du <i>irgendeinen</i> guten Kopfhörer, setze Bremsen auf drei Modelle. Der erste Treffer gewinnt.",
-      "<b>Browser-Alarm erlauben.</b> Nur dann meldet sich der Hai auch, wenn der Tab im Hintergrund liegt.",
+   b:["<b>Orientiere dich am 90-Tage-Tief.</b>Setze dein Ziel etwa 3–5 % über dem historischen Tiefstpreis — dann schlägt die Bremse realistisch an.",
+      "<b>Mehrere Bremsen, ein Bedarf.</b>Brauchst du <i>irgendeinen</i>guten Kopfhörer, setze Bremsen auf drei Modelle. Der erste Treffer gewinnt.",
+      "<b>Browser-Alarm erlauben.</b>Nur dann meldet sich der Hai auch, wenn der Tab im Hintergrund liegt.",
       "<b>Bremse nach dem Kauf löschen</b> — sonst jagst du Preisen hinterher, die dich nicht mehr interessieren."]},
-  {t:"Affiliate-Links: Was das für dich bedeutet",k:"Transparenz",e:"🤝",h:20,
+  {t:"Affiliate-Links: Was das für dich bedeutet",k:"Transparenz",ic:"teilen",h:20,
    x:"Warum diese Seite kostenlos ist, was wir verdienen — und was sich für dich dadurch ändert (Spoiler: nichts am Preis).",
-   b:["<b>Wie es funktioniert.</b> Klickst du auf einen Amazon-Link und kaufst, erhalten wir eine Provision vom Händler. Der Preis für dich bleibt exakt derselbe.",
-      "<b>Warum wir es kennzeichnen.</b> Werbung muss als solche erkennbar sein — deshalb steht der Hinweis in der Fußzeile, im Produktfenster und hier.",
-      "<b>Was wir nicht tun.</b> Wir sortieren Produkte nicht nach Provisionshöhe. Die Rangfolge entsteht aus Preis, Rabatt, Bewertung und Beliebtheit.",
-      "<b>Demo-Hinweis.</b> Dieser Katalog ist ein Beispiel-Datensatz. Die Links führen zur Amazon-Suche mit dem in den Einstellungen hinterlegten Partner-Tag."]}
+   b:["<b>Wie es funktioniert.</b>Klickst du auf einen Amazon-Link und kaufst, erhalten wir eine Provision vom Händler. Der Preis für dich bleibt exakt derselbe.",
+      "<b>Warum wir es kennzeichnen.</b>Werbung muss als solche erkennbar sein — deshalb steht der Hinweis in der Fußzeile, im Produktfenster und hier.",
+      "<b>Was wir nicht tun.</b>Wir sortieren Produkte nicht nach Provisionshöhe. Die Rangfolge entsteht aus Preis, Rabatt, Bewertung und Beliebtheit.",
+      "<b>Demo-Hinweis.</b>Dieser Katalog ist ein Beispiel-Datensatz. Die Links führen zur Amazon-Suche mit dem in den Einstellungen hinterlegten Partner-Tag."]}
 ];
 
 /* ---------- FAQ ---------- */
@@ -1596,10 +1896,223 @@ const FAQ = [
   {q:"Woher kommen die Preise?",a:"In dieser Demo stammen Katalog und Preisbewegungen aus einem eingebauten Beispiel-Datensatz, der live simuliert wird. In einer echten Installation werden Preise über die Amazon Product Advertising API oder einen eigenen Feed eingespielt."},
   {q:"Brauche ich ein Konto?",a:"Nein. Merkliste, Deal-Korb, Vergleich, Preisbremsen und Einstellungen speichern wir ausschließlich in deinem Browser (localStorage). Es gibt keinen Server, der mitliest."},
   {q:"Was bedeutet der Hai-Score?",a:"Ein gewichteter Wert aus Rabatthöhe, Bewertung, Anzahl der Bewertungen und Verkaufszahlen. Er hilft, echte Schnäppchen von lauten Rabatt-Versprechen zu trennen."},
-  {q:"Kann ich meinen eigenen Partner-Tag verwenden?",a:"Ja. Unter Einstellungen ⚙️ trägst du dein Partner-Tag und die gewünschte Amazon-Domain ein. Jeder Produktlink wird dann damit erzeugt."},
-  {q:"Kann ich eigene Produkte einpflegen?",a:"Ja — über Einstellungen ⚙️ kannst du Produkte anlegen sowie den kompletten Katalog als JSON exportieren und wieder importieren."},
+  {q:"Kann ich meinen eigenen Partner-Tag verwenden?",a:"Ja. Unter Einstellungen  trägst du dein Partner-Tag und die gewünschte Amazon-Domain ein. Jeder Produktlink wird dann damit erzeugt."},
+  {q:"Kann ich eigene Produkte einpflegen?",a:"Ja — über Einstellungen  kannst du Produkte anlegen sowie den kompletten Katalog als JSON exportieren und wieder importieren."},
   {q:"Warum sehe ich keine Produktfotos?",a:"Der Demo-Katalog kommt ohne externe Bilder aus, damit die Seite überall und offline funktioniert. Jedes Produkt bekommt stattdessen eine eigene Farb-Signatur. Mit echten Feed-Daten treten dort die Händlerbilder an ihre Stelle."}
 ];
+</script>
+
+<script>
+"use strict";
+/* ============================================================
+   17) ZEICHENSATZ & PLATTEN
+
+   Emojis sind der schnellste Weg, eine Seite wie einen Entwurf
+   aussehen zu lassen. Deshalb: ein eigener Strich-Zeichensatz und
+   für jedes Produkt eine gestochene Platte statt eines Bildchens.
+   Das Muster gehört zur Kategorie, die Variante zum Produkt —
+   so wird der Katalog wiedererkennbar, ohne bunt zu werden.
+   ============================================================ */
+
+const ICONS = {
+  suche:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+  korb:'<path d="M3 5h2l2.2 10.4a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 2-1.6L20 8H6"/><circle cx="10" cy="20" r="1.2"/><circle cx="17" cy="20" r="1.2"/>',
+  herz:'<path d="M12 20s-7-4.4-7-9.3A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 2.7C19 15.6 12 20 12 20z"/>',
+  waage:'<path d="M12 4v16M5 8h14M5 8l-2.5 6h5zM19 8l2.5 6h-5z"/><path d="M8 20h8"/>',
+  glocke:'<path d="M18 15V10a6 6 0 1 0-12 0v5l-1.5 2.5h15z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  teilen:'<circle cx="17" cy="6" r="2.4"/><circle cx="7" cy="12" r="2.4"/><circle cx="17" cy="18" r="2.4"/><path d="M9.2 10.9l5.7-3.4M9.2 13.1l5.7 3.4"/>',
+  auge:'<path d="M2.5 12S6 6 12 6s9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/><circle cx="12" cy="12" r="2.6"/>',
+  zahnrad:'<circle cx="12" cy="12" r="3"/><path d="M12 3v2.4M12 18.6V21M3 12h2.4M18.6 12H21M5.6 5.6l1.7 1.7M16.7 16.7l1.7 1.7M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7"/>',
+  kreuz:'<path d="M6 6l12 12M18 6L6 18"/>',
+  blitz:'<path d="M13 2L4 14h6l-1 8 9-12h-6z"/>',
+  etikett:'<path d="M3 12.5V4h8.5L21 13.5 12.5 22z"/><circle cx="7.5" cy="7.5" r="1.3"/>',
+  uhr:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5.2l3.2 2"/>',
+  kurve:'<path d="M4 19V5M4 19h16"/><path d="M7 15l3.5-4 3 2.6L20 7"/>',
+  raster:'<rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/>',
+  liste:'<path d="M4 6h16M4 12h16M4 18h16"/>',
+  kompakt:'<rect x="4" y="5" width="6" height="6"/><rect x="14" y="5" width="6" height="6"/><rect x="4" y="13" width="6" height="6"/><rect x="14" y="13" width="6" height="6"/><path d="M4 5h16"/>',
+  filter:'<path d="M4 5h16l-6 7v6l-4 2v-8z"/>',
+  pfeilhoch:'<path d="M12 19V5M6 11l6-6 6 6"/>',
+  extern:'<path d="M14 5h5v5M19 5l-7 7"/><path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/>',
+  haken:'<path d="M5 12.5l4.5 4.5L19 7"/>',
+  wuerfel:'<rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="15" r="1.2"/><circle cx="15" cy="9" r="1.2"/><circle cx="9" cy="15" r="1.2"/>',
+  rakete:'<path d="M12 3c3.5 2.2 5.5 6 5.5 10l-2.8 3h-5.4L6.5 13C6.5 9 8.5 5.2 12 3z"/><circle cx="12" cy="10" r="1.8"/><path d="M9.3 17.5C8 19 7.6 20.4 7.6 21c1.2 0 2.4-.6 3.4-1.6M14.7 17.5c1.3 1.5 1.7 2.9 1.7 3.5-1.2 0-2.4-.6-3.4-1.6"/>',
+  buch:'<path d="M4 5.5A2 2 0 0 1 6 4h5v16H6a2 2 0 0 0-2 1.2z"/><path d="M20 5.5A2 2 0 0 0 18 4h-5v16h5a2 2 0 0 1 2 1.2z"/>',
+  kompass:'<circle cx="12" cy="12" r="8.5"/><path d="M15 9l-2 5-4 2 2-5z"/>',
+  frage:'<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.2 2.9c-.5.2-.8.7-.8 1.2v.5"/><circle cx="12" cy="17" r=".7" fill="currentColor"/>',
+  ticket:'<path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1.5a2.5 2.5 0 0 0 0 5V16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-1.5a2.5 2.5 0 0 0 0-5z"/><path d="M13 6v12" stroke-dasharray="2 2.5"/>',
+  pokal:'<path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4.5v1.5A3 3 0 0 0 7.5 10M17 6h2.5v1.5a3 3 0 0 1-3 2.5"/><path d="M12 14v3M8.5 20h7l-1-3h-5z"/>',
+  radar:'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12l5.5-4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',
+  sonne:'<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4"/>',
+  mond:'<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>',
+  funken:'<path d="M12 4l1.6 4.4L18 10l-4.4 1.6L12 16l-1.6-4.4L6 10l4.4-1.6z"/><path d="M18.5 16.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/>',
+  hai:'<path d="M3 16.5c5 1.5 9.6.8 12.8-.8 2.2-1.1 3.2-2.4 3.2-2.4S15 5.5 9 2c1.8 6 .6 11.6-6 14.5z"/><path d="M3 16.5c5 1.5 9.6.8 12.8-.8-4.5-.5-8.3-2-11.3-4.7"/><circle cx="12.5" cy="9.5" r=".8" fill="currentColor"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  minus:'<path d="M5 12h14"/>',
+  papierkorb:'<path d="M4 7h16M9.5 7V5h5v2M6 7l1 13h10l1-13"/>',
+  kopieren:'<rect x="8" y="8" width="12" height="12" rx="1.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4H5.5A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/>',
+  runter:'<path d="M12 4v12M7 12l5 5 5-5M4 20h16"/>',
+  hoch:'<path d="M12 20V8M7 12l5-5 5 5M4 4h16"/>',
+  kreis:'<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v4h-4"/>',
+  brief:'<rect x="3" y="5.5" width="18" height="13" rx="1.5"/><path d="M3.5 6.5l8.5 6 8.5-6"/>',
+  info:'<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><circle cx="12" cy="8" r=".8" fill="currentColor"/>',
+  warnung:'<path d="M12 4l8.5 15h-17z"/><path d="M12 10v4"/><circle cx="12" cy="16.6" r=".7" fill="currentColor"/>',
+  stopp:'<circle cx="12" cy="12" r="8.5"/><rect x="9" y="9" width="6" height="6"/>',
+  stern:'<path d="M12 4l2.4 5.2 5.6.7-4.1 3.9 1.1 5.6L12 16.7 6.9 19.4 8 13.8 4 9.9l5.6-.7z"/>',
+  paket:'<path d="M12 3l8 4.2v9.6L12 21l-8-4.2V7.2z"/><path d="M4 7.2l8 4.3 8-4.3M12 11.5V21"/>',
+  karte:'<rect x="3" y="6" width="18" height="12" rx="1.5"/><path d="M3 10h18"/>'
+};
+function ico(n, extra){
+  const d = ICONS[n];
+  if(!d) return "";
+  return '<svg class="ic ' + (extra || "") + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+         'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
+}
+
+/* ---------- Kategorie-Zeichen ---------- */
+const CATICON = {
+  "Audio":'<path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="13" width="4" height="7" rx="1.4"/><rect x="17" y="13" width="4" height="7" rx="1.4"/>',
+  "Technik":'<rect x="3" y="5" width="18" height="11" rx="1.5"/><path d="M2 19h20"/>',
+  "Gaming":'<rect x="2.5" y="8" width="19" height="9" rx="4"/><path d="M7 10.5v3M5.5 12h3"/><circle cx="16" cy="11.5" r="1"/><circle cx="18" cy="13.8" r="1"/>',
+  "Haushalt":'<path d="M4 11l8-6.5 8 6.5"/><path d="M6.5 9.6V19h11V9.6"/><path d="M10 19v-5h4v5"/>',
+  "Küche":'<path d="M5 10h14l-1.2 9.5H6.2z"/><path d="M8 10V6.5a4 4 0 0 1 8 0V10"/>',
+  "Smart Home":'<path d="M9.5 18h5M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z"/>',
+  "Fitness":'<path d="M3 12h18"/><rect x="4" y="8.5" width="3.5" height="7" rx="1"/><rect x="16.5" y="8.5" width="3.5" height="7" rx="1"/><path d="M8.5 10.5v3M15.5 10.5v3"/>',
+  "Büro":'<path d="M5 20v-6h14v6"/><path d="M7 14V6.5A2.5 2.5 0 0 1 9.5 4h5A2.5 2.5 0 0 1 17 6.5V14"/><path d="M4 20h16"/>',
+  "Garten":'<path d="M12 21V10"/><path d="M12 12c-4.5 0-7-2.5-7-7 4.5 0 7 2.5 7 7z"/><path d="M12 15c4 0 6.5-2 6.5-6-4 0-6.5 2-6.5 6z"/>',
+  "Beauty":'<path d="M12 3.5S6 10 6 14.2A6 6 0 0 0 18 14C18 10 12 3.5 12 3.5z"/>',
+  "Auto":'<path d="M4 16v3M20 16v3"/><path d="M3 16v-3l2-5h14l2 5v3z"/><circle cx="7.5" cy="16" r="1.6"/><circle cx="16.5" cy="16" r="1.6"/>',
+  "Werkzeug":'<path d="M15.5 3.5a5 5 0 0 0-4.6 6.9L3.5 17.7l2.8 2.8 7.3-7.4a5 5 0 0 0 6.9-4.6l-3.2 3.2-2.9-.8-.8-2.9z"/>',
+  "Foto":'<rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13.5" r="4"/><path d="M8.5 7l1.5-3h4l1.5 3"/>',
+  "Haustier":'<ellipse cx="12" cy="16" rx="3.6" ry="3"/><ellipse cx="6.5" cy="11" rx="1.9" ry="2.3"/><ellipse cx="17.5" cy="11" rx="1.9" ry="2.3"/><ellipse cx="10" cy="7" rx="1.8" ry="2.2"/><ellipse cx="15" cy="7" rx="1.8" ry="2.2"/>',
+  "Mode":'<path d="M9 4l3 2 3-2 5 3-2.5 4L15 10v10H9V10l-2.5 1L4 7z"/>',
+  "Baby":'<circle cx="12" cy="12" r="8.5"/><circle cx="9.3" cy="10.5" r=".9" fill="currentColor"/><circle cx="14.7" cy="10.5" r=".9" fill="currentColor"/><path d="M9 15.2a4 4 0 0 0 6 0"/>'
+};
+function catIcon(cat, cls){
+  const d = CATICON[cat] || ICONS.paket;
+  return '<svg class="ic ' + (cls || "") + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+         'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
+}
+
+/* ============================================================
+   PLATTEN — jedes Produkt bekommt ein eigenes graviertes Muster
+   ============================================================ */
+const PATFAM = {
+  "Audio":"wellen", "Technik":"raster", "Gaming":"balken", "Haushalt":"bogen",
+  "Küche":"punkte", "Smart Home":"strahlen", "Fitness":"balken", "Büro":"raster",
+  "Garten":"hoehen", "Beauty":"bogen", "Auto":"streifen", "Werkzeug":"streifen",
+  "Foto":"punkte", "Haustier":"hoehen", "Mode":"wellen", "Baby":"strahlen"
+};
+function plateSVG(p){
+  const seedNum = (p.id.replace(/\D/g,"") | 0) + p.name.length * 7 + p.brand.length * 13;
+  const rnd = seeded(seedNum * 2654435761 % 2147483647);
+  const fam = PATFAM[p.cat] || "streifen";
+  const W = 200, H = 160;
+  const A = 'stroke="currentColor" fill="none" vector-effect="non-scaling-stroke"';
+  let g = "";
+
+  if(fam === "streifen"){
+    const rot = -60 + Math.floor(rnd() * 120), step = 7 + Math.floor(rnd() * 7);
+    for(let i = -H; i < W + H; i += step){
+      const w = (i % (step * 4) === 0) ? 1.6 : .6;
+      g += '<line x1="' + i + '" y1="-40" x2="' + i + '" y2="' + (H + 40) + '" ' + A + ' stroke-width="' + w + '" opacity=".5"/>';
+    }
+    g = '<g transform="rotate(' + rot + ' 100 80)">' + g + '</g>';
+  }
+  else if(fam === "punkte"){
+    const step = 12 + Math.floor(rnd() * 6);
+    for(let y = step / 2; y < H; y += step){
+      for(let x = step / 2; x < W; x += step){
+        const r = .6 + (1 - (x / W)) * 2.6 * (.5 + rnd() * .6);
+        g += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + r.toFixed(2) + '" fill="currentColor" opacity=".45"/>';
+      }
+    }
+  }
+  else if(fam === "bogen"){
+    const cx = 20 + rnd() * 160, cy = rnd() > .5 ? -10 : H + 10;
+    for(let r = 18; r < 260; r += 13){
+      g += '<circle cx="' + cx.toFixed(0) + '" cy="' + cy.toFixed(0) + '" r="' + r + '" ' + A +
+           ' stroke-width="' + (r % 52 === 18 ? 1.5 : .6) + '" opacity=".45"/>';
+    }
+  }
+  else if(fam === "wellen"){
+    const amp = 5 + rnd() * 9, per = 26 + rnd() * 22;
+    for(let y = 10; y < H; y += 11){
+      let d = "M0 " + y.toFixed(1);
+      for(let x = 0; x <= W; x += 8){
+        d += "L" + x + " " + (y + Math.sin((x / per) + y / 14) * amp).toFixed(2);
+      }
+      g += '<path d="' + d + '" ' + A + ' stroke-width=".7" opacity=".45"/>';
+    }
+  }
+  else if(fam === "raster"){
+    const step = 16 + Math.floor(rnd() * 10);
+    for(let x = 0; x <= W; x += step) g += '<line x1="' + x + '" y1="0" x2="' + x + '" y2="' + H + '" ' + A + ' stroke-width=".6" opacity=".4"/>';
+    for(let y = 0; y <= H; y += step) g += '<line x1="0" y1="' + y + '" x2="' + W + '" y2="' + y + '" ' + A + ' stroke-width=".6" opacity=".4"/>';
+    for(let i = 0; i < 5; i++){
+      const cx2 = Math.floor(rnd() * (W / step)) * step, cy2 = Math.floor(rnd() * (H / step)) * step;
+      g += '<rect x="' + cx2 + '" y="' + cy2 + '" width="' + step + '" height="' + step + '" fill="currentColor" opacity=".13"/>';
+    }
+  }
+  else if(fam === "balken"){
+    const n = 14 + Math.floor(rnd() * 10), bw = W / n;
+    for(let i = 0; i < n; i++){
+      const h = 16 + rnd() * (H - 30);
+      g += '<rect class="mv" x="' + (i * bw + bw * .18).toFixed(1) + '" y="' + (H - h).toFixed(1) +
+           '" width="' + (bw * .64).toFixed(1) + '" height="' + h.toFixed(1) + '" fill="currentColor" opacity=".16"/>';
+    }
+  }
+  else { /* strahlen */
+    const cx = rnd() > .5 ? 0 : W, cy = H;
+    for(let a = 0; a <= 90; a += 4.5){
+      const rad = (cx === 0 ? -a : 180 + a) * Math.PI / 180;
+      g += '<line x1="' + cx + '" y1="' + cy + '" x2="' + (cx + Math.cos(rad) * 300).toFixed(1) +
+           '" y2="' + (cy + Math.sin(rad) * 300).toFixed(1) + '" ' + A + ' stroke-width=".7" opacity=".4"/>';
+    }
+  }
+
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid slice" ' +
+         'style="color:var(--txt);opacity:.34">' + g + '</svg>' +
+         '<svg viewBox="0 0 24 24" style="position:absolute;left:50%;top:46%;width:34%;height:auto;' +
+         'transform:translate(-50%,-50%);color:var(--cy);opacity:.85" fill="none" stroke="currentColor" ' +
+         'stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round">' +
+         (CATICON[p.cat] || ICONS.paket) + '</svg>';
+}
+function plate(p, wordmark){
+  return '<div class="plate">' + plateSVG(p) +
+    (wordmark === false ? "" : '<div class="pw">' + esc(p.brand) + '</div>') + '</div>';
+}
+
+/* ---------- Preis-Spur ---------- */
+function sparkSVG(p, days){
+  const d = p.hist.slice(-(days || 30));
+  const min = Math.min.apply(null, d), max = Math.max.apply(null, d);
+  const span = Math.max(.01, max - min);
+  const W = 100, H = 26;
+  const pts = d.map(function(v, i){
+    return [(i / (d.length - 1) * W).toFixed(2), (H - 2 - ((v - min) / span) * (H - 4)).toFixed(2)];
+  });
+  const line = pts.map(function(q, i){ return (i ? "L" : "M") + q[0] + " " + q[1]; }).join("");
+  const fill = line + "L" + W + " " + H + "L0 " + H + "Z";
+  const last = pts[pts.length - 1];
+  return '<svg class="spark" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">' +
+    '<path class="fl" d="' + fill + '"/><path class="ln" d="' + line + '"/>' +
+    '<circle cx="' + last[0] + '" cy="' + last[1] + '" r="1.6"/></svg>';
+}
+
+/* Platzhalter im Markup mit Zeichen füllen — hält das HTML lesbar. */
+function fillIcons(){
+  const list = document.querySelectorAll(".ii[data-i]");
+  for(let i = 0; i < list.length; i++){
+    if(!list[i].innerHTML) list[i].innerHTML = ico(list[i].dataset.i);
+  }
+}
+
+/* ---------- Katalognummer ---------- */
+function catNo(p){
+  const n = (p.id.replace(/\D/g,"") | 0) + 1;
+  return (n < 10 ? "00" : n < 100 ? "0" : "") + n;
+}
 </script>
 
 <script>
@@ -1658,7 +2171,7 @@ const $$ = function(s){ return Array.prototype.slice.call(document.querySelector
 
 function stars(r){
   const full = Math.floor(r), half = r - full >= .5;
-  return "★".repeat(full) + (half ? "⯨" : "") + "☆".repeat(5 - full - (half ? 1 : 0));
+  return "★".repeat(full) + (half ? "⯨" : "") + "".repeat(5 - full - (half ? 1 : 0));
 }
 function discount(p){ return Math.max(0, Math.round((1 - p.price / p.old) * 100)); }
 function score(p){
@@ -1686,7 +2199,7 @@ function toAmazon(id, placement){
   ping(); markSeen(id);
   if(typeof track === "function") track("out", { id:p.id, cat:p.cat, price:p.price, pl:placement || "unbekannt" });
   window.open(amazonLink(p, placement), "_blank", "noopener");
-  toast("ok","🦈 Ab zu Amazon","Partner-Tag: " + (S.set.tag || "dealhai-21"));
+  toast("ok","Ab zu Amazon","Partner-Tag: " + (S.set.tag || "dealhai-21"));
 }
 
 /* ---------- Sound ---------- */
@@ -1707,9 +2220,10 @@ function ping(freq){
 function toast(kind, title, text){
   const wrap = $("#toasts");
   const el = document.createElement("div");
-  const ico = {ok:"✅",warn:"⚠️",bad:"⛔",info:"🦈"}[kind] || "🦈";
+  const mark = {ok:"haken",warn:"warnung",bad:"stopp",info:"info"}[kind] || "info";
   el.className = "toast " + (kind === "info" ? "" : kind);
-  el.innerHTML = '<span class="ti">' + ico + '</span><div class="tc"><b>' + esc(title) + '</b>' +
+  el.innerHTML = '<span class="ti">' + (typeof ico === "function" ? ico(mark) : "") + '</span>' +
+                 '<div class="tc"><b>' + esc(title) + '</b>' +
                  (text ? '<span>' + esc(text) + '</span>' : '') + '</div>';
   wrap.appendChild(el);
   setTimeout(function(){ el.classList.add("out"); setTimeout(function(){ el.remove(); }, 320); }, 4200);
@@ -1720,13 +2234,15 @@ const cvs = document.getElementById("confetti"), ctx = cvs.getContext("2d");
 let parts = [];
 function fitCanvas(){ cvs.width = innerWidth; cvs.height = innerHeight; }
 addEventListener("resize", fitCanvas); fitCanvas();
+/* Kein Partykonfetti, sondern Papierstreifen wie aus einem Fernschreiber. */
 function confetti(n){
   if(!S.set.fx) return;
-  const cols = ["#22f5ff","#ff2e93","#b6ff36","#ffc63d","#ffffff"];
+  const cols = ["#ff5a1f", "#d8d4c8", "#8b8a85"];
   for(let i = 0; i < (n || 90); i++){
-    parts.push({ x: innerWidth/2 + (Math.random()-.5)*260, y: innerHeight*.35,
-      vx:(Math.random()-.5)*11, vy:-(4+Math.random()*11), r:3+Math.random()*6,
-      c:cols[(Math.random()*cols.length)|0], a:1, rot:Math.random()*6.28, vr:(Math.random()-.5)*.3 });
+    parts.push({ x: innerWidth/2 + (Math.random()-.5)*300, y: innerHeight*.34,
+      vx:(Math.random()-.5)*9, vy:-(3+Math.random()*10), r:2+Math.random()*3,
+      len:8+Math.random()*16,
+      c:cols[(Math.random()*cols.length)|0], a:1, rot:Math.random()*6.28, vr:(Math.random()-.5)*.24 });
   }
   if(parts.length) requestAnimationFrame(drawConf);
 }
@@ -1736,7 +2252,7 @@ function drawConf(){
   parts.forEach(function(p){
     p.x += p.vx; p.y += p.vy; p.vy += .32; p.vx *= .99; p.a -= .006; p.rot += p.vr;
     ctx.save(); ctx.globalAlpha = Math.max(0,p.a); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
-    ctx.fillStyle = p.c; ctx.fillRect(-p.r/2, -p.r/2, p.r, p.r*1.7); ctx.restore();
+    ctx.fillStyle = p.c; ctx.fillRect(-p.r/2, -(p.len||8)/2, p.r, p.len || 8); ctx.restore();
   });
   if(parts.length) requestAnimationFrame(drawConf); else ctx.clearRect(0,0,cvs.width,cvs.height);
 }
@@ -1751,8 +2267,8 @@ function matches(p){
     const hay = (p.name + " " + p.brand + " " + p.cat + " " + p.tags.join(" ")).toLowerCase();
     if(hay.indexOf(q) === -1) return false;
   }
-  if(p.price < f.min || p.price > f.max) return false;
-  if(p.price > f.brake) return false;
+  if(p.price < f.min || p.price >f.max) return false;
+  if(p.price >f.brake) return false;
   if(discount(p) < f.minOff) return false;
   if(f.cats.length && f.cats.indexOf(p.cat) === -1) return false;
   if(f.brands.length && f.brands.indexOf(p.brand) === -1) return false;
@@ -1780,7 +2296,7 @@ const SORTS = {
 function applyAll(){
   S.filtered = S.products.filter(matches).sort(SORTS[S.sort] || SORTS.pop);
   const maxPage = Math.max(1, Math.ceil(S.filtered.length / S.per));
-  if(S.page > maxPage) S.page = maxPage;
+  if(S.page >maxPage) S.page = maxPage;
   renderGrid(); renderChips(); renderPager();
   $("#resCount").textContent = num(S.filtered.length);
 }
@@ -1788,41 +2304,47 @@ function applyAll(){
 function cardHTML(p, i){
   const off = discount(p), saved = p.old - p.price;
   const hasAlert = S.alerts.some(function(a){ return a.id === p.id; });
+  const lh = lowHigh(p);
   const badges = [];
-  if(off > 0) badges.push('<span class="bdg off">−' + off + ' %</span>');
-  if(p.flash) badges.push('<span class="bdg flash">⚡ Blitz</span>');
-  if(isBest(p)) badges.push('<span class="bdg best">🏅 Bestseller</span>');
-  if(isNewP(p)) badges.push('<span class="bdg new">🆕 Neu</span>');
-  if(hasAlert) badges.push('<span class="bdg alert">🛑 Bremse</span>');
-  if(p.stock > 0 && p.stock <= 10) badges.push('<span class="bdg low">Nur ' + p.stock + '</span>');
+  if(off >0) badges.push('<span class="bdg off">−' + off + '%</span>');
+  if(p.flash) badges.push('<span class="bdg flash">Blitz</span>');
+  if(isBest(p)) badges.push('<span class="bdg best">Bestseller</span>');
+  if(isNewP(p)) badges.push('<span class="bdg new">Neu</span>');
+  if(hasAlert) badges.push('<span class="bdg alert">Bremse</span>');
+  if(p.stock >0 && p.stock <= 10) badges.push('<span class="bdg low">Rest ' + p.stock + '</span>');
   const inWish = S.wish.indexOf(p.id) !== -1, inCmp = S.cmp.indexOf(p.id) !== -1;
   return '' +
-  '<article class="pcard" style="--h:' + p.hue + ';animation-delay:' + Math.min(i*22,420) + 'ms" data-id="' + p.id + '">' +
+  '<article class="pcard" style="animation-delay:' + Math.min(i*18,360) + 'ms" data-id="' + p.id + '">' +
     '<div class="thumb" onclick="openProduct(\'' + p.id + '\')">' +
+      plate(p) +
+      '<span class="idx">' + catNo(p) + '</span>' +
       '<div class="badges">' + badges.join("") + '</div>' +
+      '<div class="rawdata">Score ' + score(p).toFixed(0) + '<br>Verk. ' + num(p.sold) +
+        '<br>Lager ' + p.stock + '<br>Alter ' + p.age + ' T</div>' +
       '<div class="quick">' +
-        '<button class="qb ' + (inWish?"on":"") + '" title="Merken" onclick="event.stopPropagation();toggleWish(\'' + p.id + '\')">' + (inWish?"❤️":"🤍") + '</button>' +
-        '<button class="qb ' + (inCmp?"on":"") + '" title="Vergleichen" onclick="event.stopPropagation();toggleCmp(\'' + p.id + '\')">⚖️</button>' +
-        '<button class="qb" title="Preisbremse" onclick="event.stopPropagation();brakeFor(\'' + p.id + '\')">🛑</button>' +
-        '<button class="qb" title="In den Deal-Korb" onclick="event.stopPropagation();addCart(\'' + p.id + '\')">🛒</button>' +
-        '<button class="qb" title="Teilen" onclick="event.stopPropagation();share(\'' + p.id + '\')">🔗</button>' +
+        '<button class="qb ' + (inWish?"on":"") + '" title="Merken" aria-label="Merken" onclick="event.stopPropagation();toggleWish(\'' + p.id + '\')">' + ico("herz") + '</button>' +
+        '<button class="qb ' + (inCmp?"on":"") + '" title="Vergleichen" aria-label="Vergleichen" onclick="event.stopPropagation();toggleCmp(\'' + p.id + '\')">' + ico("waage") + '</button>' +
+        '<button class="qb" title="Preisbremse" aria-label="Preisbremse" onclick="event.stopPropagation();brakeFor(\'' + p.id + '\')">' + ico("glocke") + '</button>' +
+        '<button class="qb" title="In den Deal-Korb" aria-label="In den Deal-Korb" onclick="event.stopPropagation();addCart(\'' + p.id + '\')">' + ico("korb") + '</button>' +
+        '<button class="qb" title="Teilen" aria-label="Teilen" onclick="event.stopPropagation();share(\'' + p.id + '\')">' + ico("teilen") + '</button>' +
       '</div>' +
-      '<span class="em">' + p.emoji + '</span>' +
     '</div>' +
     '<div class="pbody">' +
       '<span class="pbrand">' + esc(p.brand) + ' · ' + esc(p.cat) + '</span>' +
       '<h3 class="pname" onclick="openProduct(\'' + p.id + '\')" style="cursor:pointer">' + esc(p.name) + '</h3>' +
       '<div class="prate"><span class="stars">' + stars(p.rating) + '</span>' +
         '<b>' + p.rating.toFixed(1).replace(".",",") + '</b><span>(' + num(p.reviews) + ')</span>' +
-        (p.prime ? '<span class="prime" style="margin-left:auto">⚡ Prime</span>' : '') + '</div>' +
-      '<div class="pprice"><span class="pnow">' + eur(p.price) + '</span>' +
-        (off > 0 ? '<span class="pwas">' + eur(p.old) + '</span><span class="psave">−' + eur(saved) + '</span>' : '') +
-      '</div>' +
+        (p.prime ? '<span class="prime" style="margin-left:auto">Prime</span>' : '') + '</div>' +
+      '<div class="sparkrow">' + sparkSVG(p, 30) +
+        '<span class="sl">30 T<br>Tief ' + eur(lh.low) + '</span></div>' +
       (typeof abCardHint === "function" ? abCardHint(p) : "") +
+      '<div class="pprice"><span class="pnow">' + eur(p.price) + '</span>' +
+        (off >0 ? '<span class="pwas">' + eur(p.old) + '</span><span class="psave">−' + eur(saved) + '</span>' : '') +
+      '</div>' +
       '<div class="pfoot">' +
-        '<button class="btn g s" onclick="openProduct(\'' + p.id + '\')">👁️ Details</button>' +
+        '<button class="btn g s" onclick="openProduct(\'' + p.id + '\')">' + ico("auge") + ' Details</button>' +
         '<button class="btn p s" onclick="toAmazon(\'' + p.id + '\',\'karte\')">' +
-          (typeof ctaLabel === "function" ? ctaLabel() : "🛒 Zum Angebot") + '</button>' +
+          (typeof ctaLabel === "function" ? ctaLabel() : "Zum Angebot") + '</button>' +
       '</div>' +
     '</div>' +
   '</article>';
@@ -1831,7 +2353,7 @@ function renderGrid(){
   const g = $("#grid");
   g.className = "grid " + S.view;
   if(!S.filtered.length){
-    g.innerHTML = '<div class="empty" style="grid-column:1/-1"><span class="e">🦈</span>' +
+    g.innerHTML = '<div class="empty" style="grid-column:1/-1"><span class="e"></span>' +
       '<b style="font-size:1.1rem">Nichts gefunden</b><p>Der Hai hat das Riff abgesucht — nimm ein paar Filter weg.</p>' +
       '<button class="btn g s" style="margin-top:14px" onclick="resetFilters()">Filter zurücksetzen</button></div>';
     return;
@@ -1867,14 +2389,14 @@ function renderChips(){
   const f = S.f, c = [];
   if(S.q) c.push(["Suche: " + S.q, "q"]);
   const cap = f.cap || 2000;
-  if(f.min > 0 || f.max < cap) c.push(["Preis " + eur(f.min) + "–" + eur(f.max), "price"]);
-  if(f.brake < cap) c.push(["🛑 Bremse ≤ " + eur(f.brake), "brake"]);
-  if(f.minOff > 0) c.push(["ab −" + f.minOff + " %", "minOff"]);
-  f.cats.forEach(function(x){ c.push([(CATS[x]||"") + " " + x, "cat:" + x]); });
+  if(f.min >0 || f.max < cap) c.push(["Preis " + eur(f.min) + "–" + eur(f.max), "price"]);
+  if(f.brake < cap) c.push(["Bremse ≤ " + eur(f.brake), "brake"]);
+  if(f.minOff >0) c.push(["ab −" + f.minOff + " %", "minOff"]);
+  f.cats.forEach(function(x){ c.push([x, "cat:" + x]); });
   f.brands.forEach(function(x){ c.push([x, "brand:" + x]); });
   f.tags.forEach(function(x){ c.push(["#" + x, "tag:" + x]); });
   if(f.rating) c.push(["★ " + String(f.rating).replace(".",",") + "+", "rating"]);
-  [["prime","⚡ Prime"],["flash","🔥 Blitz"],["isNew","🆕 Neu"],["best","🏅 Bestseller"],["stock","📦 Auf Lager"],["alert","🛑 Mit Bremse"]]
+  [["prime","Prime"],["flash","Blitz"],["isNew","Neu"],["best","Bestseller"],["stock","Auf Lager"],["alert","Mit Bremse"]]
     .forEach(function(pair){ if(f[pair[0]]) c.push([pair[1], pair[0]]); });
   $("#chips").innerHTML = c.length
     ? c.map(function(x){ return '<span class="chip">' + esc(x[0]) + '<button onclick="dropChip(\'' + x[1] + '\')">✕</button></span>'; }).join("") +
@@ -1908,7 +2430,7 @@ function buildFilterUI(){
   $("#fCats").innerHTML = cats.map(function(c){
     const n = S.products.filter(function(p){ return p.cat === c; }).length;
     return '<label class="chk"><input type="checkbox" data-cat="' + esc(c) + '">' +
-           '<span class="n">' + (CATS[c]||"🏷️") + ' ' + esc(c) + '</span><span class="q">' + n + '</span></label>';
+           '<span class="n">' + esc(c) + '</span><span class="q">' + n + '</span></label>';
   }).join("");
   const brands = uniq(S.products.map(function(p){ return p.brand; })).sort();
   $("#fBrands").innerHTML = brands.map(function(b){
@@ -1971,7 +2493,7 @@ function resetFilters(){
 function toggleFilters(){
   const p = $("#filterPanel"); p.classList.toggle("open");
   $("#backdrop").classList.toggle("on", p.classList.contains("open"));
-  $("#fClose").style.display = innerWidth <= 1040 ? "block" : "none";
+  const fc = $("#fClose"); if(fc) fc.style.display = innerWidth <= 1040 ? "block" : "none";
 }
 function renderCatRow(){
   $("#catRow").innerHTML = Object.keys(CATS).filter(function(c){
@@ -1980,7 +2502,7 @@ function renderCatRow(){
     const on = S.f.cats.indexOf(c) !== -1;
     const n = S.products.filter(function(p){ return p.cat === c; }).length;
     return '<button class="catcard ' + (on?"on":"") + '" onclick="pickCat(\'' + c + '\')">' +
-           '<span class="ce">' + CATS[c] + '</span>' + esc(c) + '<span class="mini">' + n + '</span></button>';
+           '<span class="ce">' + catIcon(c) + '</span>' + esc(c) + '<span class="mini">' + n + '</span></button>';
   }).join("");
 }
 function pickCat(c){
@@ -2018,57 +2540,58 @@ function productHTML(p){
   return '' +
   '<div class="mgrid">' +
     '<div>' +
-      '<div class="bigthumb" style="--h:' + p.hue + '"><span class="em">' + p.emoji + '</span></div>' +
+      '<div class="bigthumb">' + plate(p) + '<span class="idx">Kat.-Nr. ' + catNo(p) + '</span></div>' +
       '<div class="thumbs">' +
-        '<div class="on">' + p.emoji + '</div><div>📦</div><div>' + (CATS[p.cat]||"🏷️") + '</div><div>🦈</div>' +
+        '<div class="on">' + catIcon(p.cat) + '</div><div>' + ico("paket") + '</div>' +
+        '<div>' + ico("kurve") + '</div><div>' + ico("etikett") + '</div>' +
       '</div>' +
-      '<div class="affbox">🔗 <b>Werbelink</b> — führt zu Amazon. Als Amazon-Partner verdienen wir an qualifizierten Verkäufen. Für dich ändert sich der Preis nicht.</div>' +
+      '<div class="affbox"> <b>Werbelink</b> — führt zu Amazon. Als Amazon-Partner verdienen wir an qualifizierten Verkäufen. Für dich ändert sich der Preis nicht.</div>' +
     '</div>' +
     '<div>' +
-      '<span class="pbrand">' + esc(p.brand) + ' · ' + esc(p.cat) + (p.prime ? ' · <span class="prime">⚡ Prime</span>' : '') + '</span>' +
+      '<span class="pbrand">' + esc(p.brand) + ' · ' + esc(p.cat) + (p.prime ? ' · <span class="prime">Prime</span>' : '') + '</span>' +
       '<h2 style="font-size:1.35rem;font-weight:850;line-height:1.25;margin:6px 0">' + esc(p.name) + '</h2>' +
       '<div class="prate" style="font-size:.88rem"><span class="stars">' + stars(p.rating) + '</span>' +
         '<b>' + p.rating.toFixed(1).replace(".",",") + '</b><span>· ' + num(p.reviews) + ' Bewertungen</span></div>' +
       '<div class="pprice" style="margin:14px 0 4px">' +
         '<span class="pnow" style="font-size:2.1rem">' + eur(p.price) + '</span>' +
-        (off > 0 ? '<span class="pwas">' + eur(p.old) + '</span><span class="bdg off">−' + off + ' %</span>' : '') +
+        (off >0 ? '<span class="pwas">' + eur(p.old) + '</span><span class="bdg off">−' + off + ' %</span>' : '') +
       '</div>' +
       '<p class="mini">Du sparst ' + eur(p.old - p.price) + ' gegenüber der UVP · ' +
-        (p.stock > 0 ? (p.stock <= 10 ? '<b style="color:var(--bad)">nur noch ' + p.stock + ' Stück</b>' : 'auf Lager') : '<b>ausverkauft</b>') + '</p>' +
+        (p.stock >0 ? (p.stock <= 10 ? '<b style="color:var(--bad)">nur noch ' + p.stock + ' Stück</b>' : 'auf Lager') : '<b>ausverkauft</b>') + '</p>' +
 
       '<div class="card" style="padding:13px 15px;margin:14px 0;background:var(--panel2)">' +
         '<div style="display:flex;justify-content:space-between;font-size:.84rem"><span>90-Tage-Tief <b>' + eur(lh.low) + '</b></span>' +
         '<span>Höchstpreis <b>' + eur(lh.high) + '</b></span></div>' +
         '<div class="trackbar" style="margin-top:9px"><i style="width:' + dist + '%"></i></div>' +
-        '<span class="mini">' + (dist < 12 ? '🦈 Nahe am Tiefstpreis — jetzt zuschlagen!' :
+        '<span class="mini">' + (dist < 12 ? ' Nahe am Tiefstpreis — jetzt zuschlagen!' :
            (dist < 45 ? 'Guter Zeitpunkt, aber es ging schon günstiger.' : 'Warten lohnt sich vermutlich.')) + '</span>' +
       '</div>' +
 
-      '<p class="mini" style="margin-top:6px">🕒 Preis-Stand: ' + new Date().toLocaleTimeString("de-DE") +
+      '<p class="mini" style="margin-top:6px">Preis-Stand: ' + new Date().toLocaleTimeString("de-DE") +
         ' · Preise und Verfügbarkeit können sich jederzeit ändern. Es gilt der Preis auf Amazon zum Kaufzeitpunkt.</p>' +
 
       '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px">' +
         '<button class="btn p" onclick="toAmazon(\'' + p.id + '\',\'detail\')">' +
-          (typeof ctaLabel === "function" ? ctaLabel() : "🛒 Bei Amazon ansehen") + '</button>' +
-        '<button class="btn g" onclick="brakeFor(\'' + p.id + '\')">' + (hasAlert ? '🛑 Bremse ändern' : '🛑 Preisbremse') + '</button>' +
+          (typeof ctaLabel === "function" ? ctaLabel() : "Bei Amazon ansehen") + '</button>' +
+        '<button class="btn g" onclick="brakeFor(\'' + p.id + '\')">' + (hasAlert ? ' Bremse ändern' : ' Preisbremse') + '</button>' +
         '<button class="btn g" onclick="toggleWish(\'' + p.id + '\');openProduct(\'' + p.id + '\')">' +
-          (S.wish.indexOf(p.id) !== -1 ? '❤️ Gemerkt' : '🤍 Merken') + '</button>' +
-        '<button class="btn g" onclick="toggleCmp(\'' + p.id + '\')">⚖️ Vergleichen</button>' +
-        '<button class="btn g" onclick="share(\'' + p.id + '\')">🔗 Teilen</button>' +
+          (S.wish.indexOf(p.id) !== -1 ? ' Gemerkt' : ' Merken') + '</button>' +
+        '<button class="btn g" onclick="toggleCmp(\'' + p.id + '\')">Vergleichen</button>' +
+        '<button class="btn g" onclick="share(\'' + p.id + '\')">Teilen</button>' +
       '</div>' +
 
       '<div class="trustrow">' +
-        '<span>🔒 Kauf direkt bei Amazon</span>' +
-        '<span>↩️ 30 Tage Rückgabe</span>' +
-        '<span>💶 Kein Aufpreis für dich</span>' +
-        '<span>🛑 Preisbremse statt Impulskauf</span>' +
+        '<span>Kauf direkt bei Amazon</span>' +
+        '<span>↩ 30 Tage Rückgabe</span>' +
+        '<span>Kein Aufpreis für dich</span>' +
+        '<span>Preisbremse statt Impulskauf</span>' +
       '</div>' +
 
       '<div class="tabs2">' +
-        '<button class="on" onclick="pTabs(this,\'t1\')">📈 Preisverlauf</button>' +
-        '<button onclick="pTabs(this,\'t2\')">⭐ Bewertungen</button>' +
-        '<button onclick="pTabs(this,\'t3\')">📋 Details</button>' +
-        '<button onclick="pTabs(this,\'t4\')">🔀 Alternativen</button>' +
+        '<button class="on" onclick="pTabs(this,\'t1\')">Preisverlauf</button>' +
+        '<button onclick="pTabs(this,\'t2\')">Bewertungen</button>' +
+        '<button onclick="pTabs(this,\'t3\')">Details</button>' +
+        '<button onclick="pTabs(this,\'t4\')">Alternativen</button>' +
       '</div>' +
       '<div class="pane on" id="t1">' +
         '<div class="chart" id="chartBox"></div>' +
@@ -2087,7 +2610,7 @@ function productHTML(p){
       '</table></div>' +
       '<div class="pane" id="t4">' + (rec.length ? rec.map(function(r){
           return '<div class="li" style="--h:' + r.hue + '" onclick="openProduct(\'' + r.id + '\')">' +
-                 '<div class="lt">' + r.emoji + '</div><div class="lm"><b>' + esc(r.name) + '</b>' +
+                 '<div class="lt">' + plate(r, false) + '</div><div class="lm"><b>' + esc(r.name) + '</b>' +
                  '<span>' + esc(r.brand) + ' · −' + discount(r) + ' %</span></div>' +
                  '<span class="lp">' + eur(r.price) + '</span></div>';
         }).join("") : '<p class="mini">Keine Alternativen in dieser Kategorie.</p>') + '</div>' +
@@ -2110,7 +2633,7 @@ function drawChart(p){
   const sy = function(v){ return h - pad - (v - min) / Math.max(.01, max - min) * (h - pad*2.4); };
   let line = "", area = "M" + sx(0) + "," + h + " ";
   d.forEach(function(v,i){ line += (i ? "L" : "M") + sx(i).toFixed(1) + "," + sy(v).toFixed(1) + " "; area += "L" + sx(i).toFixed(1) + "," + sy(v).toFixed(1) + " "; });
-  area += "L" + sx(d.length-1) + "," + h + " Z";
+  area += "L" + sx(d.length-1) + "," + h + "Z";
   const lowI = d.indexOf(min);
   box.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '" preserveAspectRatio="none">' +
     '<defs><linearGradient id="gr" x1="0" y1="0" x2="0" y2="1">' +
@@ -2149,7 +2672,7 @@ function markSeen(id){
 function share(id){
   const p = byId(id); if(!p) return;
   const url = location.origin + location.pathname + "#deal=" + id;
-  const txt = "🦈 DEALHAI: " + p.name + " für " + eur(p.price) + " (−" + discount(p) + " %)";
+  const txt = "DEALHAI: " + p.name + " für " + eur(p.price) + " (−" + discount(p) + " %)";
   if(navigator.share){ navigator.share({title:"DEALHAI", text:txt, url:url}).catch(function(){}); return; }
   copy(url); toast("ok","Link kopiert", txt);
 }
@@ -2166,7 +2689,7 @@ function copy(t){
    6) KORB, MERKLISTE, VERGLEICH
    ============================================================ */
 function badge(id, n){
-  const el = $(id); el.textContent = n > 0 ? n : ""; el.classList.toggle("hide", n === 0);
+  const el = $(id); el.textContent = n >0 ? n : ""; el.classList.toggle("hide", n === 0);
 }
 function refreshBadges(){
   badge("#cCart", Object.keys(S.cart).reduce(function(a,k){ return a + S.cart[k]; }, 0));
@@ -2189,7 +2712,7 @@ function renderCart(){
   const ids = Object.keys(S.cart);
   const body = $("#cartBody"), foot = $("#cartFoot");
   if(!ids.length){
-    body.innerHTML = '<div class="empty"><span class="e">🛒</span><b>Korb ist leer</b><p>Der Hai hat noch nichts erbeutet.</p></div>';
+    body.innerHTML = '<div class="empty"><span class="e"></span><b>Korb ist leer</b><p>Der Hai hat noch nichts erbeutet.</p></div>';
     foot.innerHTML = '<button class="btn g s" style="width:100%" onclick="closeAll();go(\'shop\')">Deals ansehen</button>';
     return;
   }
@@ -2198,11 +2721,11 @@ function renderCart(){
     const p = byId(id); if(!p) return "";
     const q = S.cart[id]; sum += p.price * q; uvp += p.old * q;
     return '<div class="li" style="--h:' + p.hue + '">' +
-      '<div class="lt">' + p.emoji + '</div>' +
+      '<div class="lt">' + plate(p, false) + '</div>' +
       '<div class="lm"><b>' + esc(p.name) + '</b><span>' + esc(p.brand) + '</span>' +
         '<div class="qty"><button onclick="setQty(\'' + id + '\',-1)">−</button><span>' + q + '</span>' +
         '<button onclick="setQty(\'' + id + '\',1)">+</button>' +
-        '<button onclick="setQty(\'' + id + '\',-' + q + ')" title="Entfernen" style="margin-left:6px">🗑</button></div></div>' +
+        '<button onclick="setQty(\'' + id + '\',-' + q + ')" title="Entfernen" style="margin-left:6px"></button></div></div>' +
       '<span class="lp">' + eur(p.price * q) + '</span></div>';
   }).join("");
   const save1 = uvp - sum;
@@ -2210,7 +2733,7 @@ function renderCart(){
     '<div class="sumrow"><span>UVP gesamt</span><span style="text-decoration:line-through;color:var(--muted)">' + eur(uvp) + '</span></div>' +
     '<div class="sumrow"><span>Ersparnis</span><span class="g">−' + eur(save1) + '</span></div>' +
     '<div class="sumrow tot"><span>Summe</span><span>' + eur(sum) + '</span></div>' +
-    '<button class="btn p" style="width:100%;justify-content:center;margin-top:12px" onclick="openAllCart()">🦈 Alle bei Amazon öffnen</button>' +
+    '<button class="btn p" style="width:100%;justify-content:center;margin-top:12px" onclick="openAllCart()">Alle bei Amazon öffnen</button>' +
     '<p class="mini" style="text-align:center;margin-top:8px">Werbelinks · Preis auf Amazon maßgeblich</p>';
 }
 function openAllCart(){
@@ -2223,25 +2746,25 @@ function openAllCart(){
       window.open(amazonLink(p, "korb"), "_blank", "noopener");
     }, i * 260);
   });
-  toast("info","Tabs öffnen …", ids.length + " Produkt(e) — Popup-Blocker ggf. erlauben.");
+  toast("info","Tabs öffnen …", ids.length + "Produkt(e) — Popup-Blocker ggf. erlauben.");
 }
 function toggleWish(id){
   const i = S.wish.indexOf(id);
-  if(i === -1){ S.wish.push(id); toast("ok","Gemerkt ❤️", byId(id).name); confetti(18); }
+  if(i === -1){ S.wish.push(id); toast("ok","Gemerkt ", byId(id).name); confetti(18); }
   else { S.wish.splice(i,1); toast("info","Entfernt", byId(id).name); }
   save(); refreshBadges(); renderWish(); applyAll(); ping(600);
 }
 function renderWish(){
   const b = $("#wishBody");
-  if(!S.wish.length){ b.innerHTML = '<div class="empty"><span class="e">❤️</span><b>Noch nichts gemerkt</b><p>Tippe auf das Herz an einem Deal.</p></div>'; return; }
+  if(!S.wish.length){ b.innerHTML = '<div class="empty"><span class="e"></span><b>Noch nichts gemerkt</b><p>Tippe auf das Herz an einem Deal.</p></div>'; return; }
   b.innerHTML = S.wish.map(function(id){
     const p = byId(id); if(!p) return "";
-    return '<div class="li" style="--h:' + p.hue + '"><div class="lt" onclick="openProduct(\'' + id + '\')" style="cursor:pointer">' + p.emoji + '</div>' +
+    return '<div class="li"><div class="lt" onclick="openProduct(\'' + id + '\')" style="cursor:pointer">' + plate(p, false) + '</div>' +
       '<div class="lm"><b onclick="openProduct(\'' + id + '\')" style="cursor:pointer">' + esc(p.name) + '</b>' +
       '<span>−' + discount(p) + ' % · ' + esc(p.brand) + '</span>' +
-      '<div class="qty"><button onclick="addCart(\'' + id + '\')" title="In den Korb">🛒</button>' +
-      '<button onclick="brakeFor(\'' + id + '\')" title="Preisbremse">🛑</button>' +
-      '<button onclick="toggleWish(\'' + id + '\')" title="Entfernen">🗑</button></div></div>' +
+      '<div class="qty"><button onclick="addCart(\'' + id + '\')" title="In den Korb"></button>' +
+      '<button onclick="brakeFor(\'' + id + '\')" title="Preisbremse"></button>' +
+      '<button onclick="toggleWish(\'' + id + '\')" title="Entfernen"></button></div></div>' +
       '<span class="lp">' + eur(p.price) + '</span></div>';
   }).join("");
 }
@@ -2258,7 +2781,7 @@ function toggleCmp(id){
 function clearCmp(){ S.cmp = []; save(); refreshBadges(); renderCmp(); applyAll(); }
 function renderCmp(){
   const b = $("#cmpBody");
-  if(!S.cmp.length){ b.innerHTML = '<div class="empty"><span class="e">⚖️</span><b>Vergleich leer</b><p>Bis zu 4 Produkte nebeneinander stellen.</p></div>'; return; }
+  if(!S.cmp.length){ b.innerHTML = '<div class="empty"><span class="e"></span><b>Vergleich leer</b><p>Bis zu 4 Produkte nebeneinander stellen.</p></div>'; return; }
   const ps = S.cmp.map(byId).filter(Boolean);
   const best = { price: Math.min.apply(null, ps.map(function(p){ return p.price; })),
                  rate: Math.max.apply(null, ps.map(function(p){ return p.rating; })),
@@ -2271,14 +2794,14 @@ function renderCmp(){
     ["Bewertung", function(p){ return '<b style="color:' + (p.rating === best.rate ? "var(--ok)" : "inherit") + '">' + p.rating.toFixed(1).replace(".",",") + ' ★</b><br><span class="mini">' + num(p.reviews) + '</span>'; }],
     ["Hai-Score", function(p){ return '<b style="color:' + (score(p) === best.sc ? "var(--ok)" : "inherit") + '">' + score(p).toFixed(0) + '</b>'; }],
     ["90-Tage-Tief", function(p){ return eur(lowHigh(p).low); }],
-    ["Prime", function(p){ return p.prime ? "⚡ ja" : "—"; }],
-    ["Lager", function(p){ return p.stock > 0 ? p.stock + " Stück" : "—"; }],
+    ["Prime", function(p){ return p.prime ? " ja" : "—"; }],
+    ["Lager", function(p){ return p.stock >0 ? p.stock + "Stück" : "—"; }],
     ["Marke", function(p){ return esc(p.brand); }],
-    ["Kategorie", function(p){ return (CATS[p.cat]||"") + " " + esc(p.cat); }]
+    ["Kategorie", function(p){ return esc(p.cat); }]
   ];
   b.innerHTML = '<div style="overflow-x:auto"><table class="spec" style="min-width:' + (140 + ps.length * 150) + 'px">' +
     '<tr><td></td>' + ps.map(function(p){
-      return '<td style="text-align:center"><div style="font-size:2rem">' + p.emoji + '</div>' +
+      return '<td style="text-align:center"><div style="position:relative;height:74px;overflow:hidden;border:1px solid var(--line)">' + plate(p, false) + '</div>' +
              '<b style="font-size:.82rem;display:block;line-height:1.25">' + esc(p.name.slice(0,42)) + '</b>' +
              '<button class="pill" style="margin-top:6px" onclick="toggleCmp(\'' + p.id + '\')">✕</button></td>';
     }).join("") + '</tr>' +
@@ -2295,7 +2818,7 @@ function renderCmp(){
    ============================================================ */
 function fillBrakeSelect(){
   $("#brSel").innerHTML = S.products.slice().sort(function(a,b){ return a.name.localeCompare(b.name,"de"); })
-    .map(function(p){ return '<option value="' + p.id + '">' + esc(p.emoji + " " + p.name + " — " + eur(p.price)) + '</option>'; }).join("");
+    .map(function(p){ return '<option value="' + p.id + '">' + esc(p.name + " — " + eur(p.price)) + '</option>'; }).join("");
 }
 function brakeFor(id){
   const p = byId(id); if(!p) return;
@@ -2317,7 +2840,7 @@ function addAlert(){
   const ex = S.alerts.find(function(a){ return a.id === id; });
   if(ex) ex.target = target; else S.alerts.push({ id:id, target:target, start:p.price, since:Date.now(), hit:false });
   save(); renderAlerts(); refreshBadges(); applyAll(); confetti(40); ping(760);
-  toast("ok","Bremse gesetzt 🛑", p.name + " ab " + eur(target));
+  toast("ok","Bremse gesetzt ", p.name + " ab " + eur(target));
 }
 function delAlert(id){
   S.alerts = S.alerts.filter(function(a){ return a.id !== id; });
@@ -2327,7 +2850,7 @@ function renderAlerts(){
   const el = $("#alertList");
   $("#alertCount").textContent = S.alerts.length + " aktiv";
   if(!S.alerts.length){
-    el.innerHTML = '<div class="empty" style="padding:32px 10px"><span class="e">🛑</span><b>Keine Bremse gesetzt</b>' +
+    el.innerHTML = '<div class="empty" style="padding:32px 10px"><span class="e"></span><b>Keine Bremse gesetzt</b>' +
       '<p>Wähle links ein Produkt und nenne deinen Wunschpreis.</p></div>';
     return;
   }
@@ -2336,10 +2859,10 @@ function renderAlerts(){
     const done = p.price <= a.target;
     const prog = Math.max(0, Math.min(100, (a.start - p.price) / Math.max(.01, a.start - a.target) * 100));
     return '<div class="alertcard ' + (done ? "hit" : "") + '" style="--h:' + p.hue + '">' +
-      '<div class="lt" style="width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:1.5rem;background:var(--panel3)">' + p.emoji + '</div>' +
+      '<div class="lt" style="width:46px;height:46px">' + plate(p, false) + '</div>' +
       '<div class="am"><b>' + esc(p.name) + '</b>' +
         '<span>jetzt <b style="color:var(--cy)">' + eur(p.price) + '</b> · Ziel ' + eur(a.target) +
-        (done ? ' · <b style="color:var(--ok)">erreicht! 🎉</b>' : ' · noch ' + eur(p.price - a.target)) + '</span>' +
+        (done ? ' · <b style="color:var(--ok)">erreicht! </b>' : ' · noch ' + eur(p.price - a.target)) + '</span>' +
         '<div class="trackbar"><i style="width:' + prog.toFixed(0) + '%"></i></div></div>' +
       '<div style="display:flex;flex-direction:column;gap:5px">' +
         (done ? '<button class="btn p s" onclick="toAmazon(\'' + p.id + '\')">Kaufen</button>' : '') +
@@ -2350,7 +2873,7 @@ function renderAlerts(){
 function askNotify(){
   if(!("Notification" in window)){ toast("warn","Nicht unterstützt","Dein Browser kennt keine Benachrichtigungen."); return; }
   Notification.requestPermission().then(function(r){
-    toast(r === "granted" ? "ok" : "warn", r === "granted" ? "Alarm aktiv 🔔" : "Nicht erlaubt",
+    toast(r === "granted" ? "ok" : "warn", r === "granted" ? "Alarm aktiv " : "Nicht erlaubt",
       r === "granted" ? "Der Hai meldet sich auch im Hintergrund." : "Du bekommst Meldungen weiterhin auf der Seite.");
   });
 }
@@ -2366,13 +2889,22 @@ function notify(title, body){
 /* ============================================================
    8) LIVE-SIMULATION, RADAR, TICKER
    ============================================================ */
-function updateCardPrice(p){
+function updateCardPrice(p, before){
   const card = document.querySelector('.pcard[data-id="' + p.id + '"]');
   if(card){
     const now = card.querySelector(".pnow"); if(now) now.textContent = eur(p.price);
     const was = card.querySelector(".pwas"); if(was) was.textContent = eur(p.old);
     const sv = card.querySelector(".psave"); if(sv) sv.textContent = "−" + eur(p.old - p.price);
-    const bo = card.querySelector(".bdg.off"); if(bo) bo.textContent = "−" + discount(p) + " %";
+    const bo = card.querySelector(".bdg.off"); if(bo) bo.textContent = "−" + discount(p) + "%";
+    const sp = card.querySelector(".sparkrow"); if(sp) sp.innerHTML = sparkSVG(p, 30) +
+      '<span class="sl">30 T<br>Tief ' + eur(lowHigh(p).low) + '</span>';
+    /* Kurswechsel kurz aufblinken lassen — der einzige Moment, in dem die Seite blinkt. */
+    const row = card.querySelector(".pprice");
+    if(row && before != null && before !== p.price){
+      row.classList.remove("up","dn");
+      void row.offsetWidth;
+      row.classList.add(p.price < before ? "dn" : "up");
+    }
   }
 }
 function simulateTick(force){
@@ -2386,9 +2918,9 @@ function simulateTick(force){
     np = +np.toFixed(2);
     if(Math.abs(np - before) < 0.01) continue;
     p.price = np;
-    p.hist.push(np); if(p.hist.length > 90) p.hist.shift();
+    p.hist.push(np); if(p.hist.length >90) p.hist.shift();
     pushRadar(p, before);
-    updateCardPrice(p);
+    updateCardPrice(p, before);
     checkAlerts(p, before);
   }
   renderAlerts(); renderDotd(); renderFlash(); renderTop();
@@ -2414,22 +2946,32 @@ function renderRadar(){
 function checkAlerts(p, before){
   S.alerts.forEach(function(a){
     if(a.id !== p.id) return;
-    if(p.price <= a.target && before > a.target){
+    if(p.price <= a.target && before >a.target){
       a.hit = true; save();
-      toast("ok","🛑 Preisbremse ausgelöst!", p.name + " ist jetzt " + eur(p.price) + " (Ziel " + eur(a.target) + ")");
-      notify("DEALHAI 🦈 Preisbremse!", p.name + " kostet jetzt " + eur(p.price));
+      toast("ok","Preisbremse ausgelöst!", p.name + " ist jetzt " + eur(p.price) + " (Ziel " + eur(a.target) + ")");
+      notify("DEALHAI  Preisbremse!", p.name + " kostet jetzt " + eur(p.price));
       confetti(120); ping(980);
     }
   });
 }
+/* Kursband — Kürzel, Preis, Veränderung. Wie ein Handelsticker,
+   nur dass hier fallende Kurse die guten Nachrichten sind. */
+function tickerSymbol(p){
+  const b = p.brand.replace(/[^A-Za-zÄÖÜäöü]/g,"").slice(0,3).toUpperCase();
+  const c = p.cat.replace(/[^A-Za-zÄÖÜäöü]/g,"").slice(0,2).toUpperCase();
+  return b + "." + c;
+}
 function renderTicker(){
-  const best = S.products.slice().sort(function(a,b){ return discount(b) - discount(a); }).slice(0,10);
+  const best = S.products.slice().sort(function(a,b){ return discount(b) - discount(a); }).slice(0,14);
   const items = best.map(function(p){
-    return '🦈 ' + esc(p.name.slice(0,44)) + ' <b>−' + discount(p) + ' %</b> ' + eur(p.price);
+    const d = discount(p);
+    return '<span class="tp"><span class="s">' + esc(tickerSymbol(p)) + '</span>' +
+           '<span class="v">' + eur(p.price) + '</span>' +
+           '<span class="d dn">▼ ' + d + ',0 %</span></span>';
   });
-  items.push("🛑 Preisbremse setzen und nie wieder zu viel zahlen");
-  items.push("🎟️ Gutschein <b>HAIBEISST10</b> — 10 % auf Audio");
-  $("#tickTrack").innerHTML = items.concat(items).map(function(t){ return "<span>" + t + "</span>"; }).join("");
+  items.push('<span class="tp"><span class="s">Hinweis</span><span class="v">Preisbremse setzen statt Preisen hinterherjagen</span></span>');
+  items.push('<span class="tp"><span class="s">Code</span><span class="v">HAIBEISST10</span><span class="d up">−10 % Audio</span></span>');
+  $("#tickTrack").innerHTML = items.concat(items).join("");
 }
 
 /* ============================================================
@@ -2448,14 +2990,16 @@ function renderFlash(){
   const el = $("#flashRail"); if(!el) return;
   el.innerHTML = list.map(function(p){
     const left = Math.max(0, p.flashEnd - Date.now());
-    return '<div class="flash" data-fid="' + p.id + '" style="--h:' + p.hue + '" onclick="openProduct(\'' + p.id + '\')">' +
-      '<span class="tag">−' + discount(p) + ' %</span>' +
-      '<div class="fe">' + p.emoji + '</div>' +
-      '<h4>' + esc(p.name) + '</h4>' +
-      '<div class="fp">' + eur(p.price) + '</div>' +
-      '<div class="fw">' + eur(p.old) + '</div>' +
-      '<div class="bar"><i style="width:' + p.claimed + '%"></i></div>' +
-      '<span class="left">' + p.claimed + ' % weg · noch <b class="mono cd">' + hms(left) + '</b></span>' +
+    return '<div class="flash" data-fid="' + p.id + '" onclick="openProduct(\'' + p.id + '\')">' +
+      '<div class="fh">' + plate(p, false) + '<span class="tag">−' + discount(p) + '%</span>' +
+        '<span class="idx">' + catNo(p) + '</span></div>' +
+      '<div class="fb2">' +
+        '<h4>' + esc(p.name) + '</h4>' +
+        '<div style="display:flex;align-items:baseline;gap:8px"><div class="fp">' + eur(p.price) + '</div>' +
+        '<div class="fw">' + eur(p.old) + '</div></div>' +
+        '<div class="bar"><i style="width:' + p.claimed + '%"></i></div>' +
+        '<span class="left">' + p.claimed + ' % weg · noch <b class="mono cd">' + hms(left) + '</b></span>' +
+      '</div>' +
     '</div>';
   }).join("");
 }
@@ -2482,24 +3026,23 @@ function renderDotd(){
   const left = end - new Date();
   const s = Math.floor(left / 1000);
   const parts = [["Std", Math.floor(s/3600)], ["Min", Math.floor((s%3600)/60)], ["Sek", s%60]];
+  const lh = lowHigh(p);
   $("#dotd").innerHTML =
-    '<span class="lbl">🏆 Deal des Tages</span>' +
-    '<div style="display:flex;gap:16px;align-items:center;margin-top:8px">' +
-      '<span class="emo">' + p.emoji + '</span>' +
-      '<div style="flex:1;min-width:0">' +
-        '<h3>' + esc(p.name) + '</h3>' +
-        '<span class="mini">' + esc(p.brand) + ' · ' + stars(p.rating) + ' ' + p.rating.toFixed(1).replace(".",",") + '</span>' +
-        '<div class="prices"><span class="now">' + eur(p.price) + '</span>' +
-        '<span class="was">' + eur(p.old) + '</span><span class="off">−' + discount(p) + ' %</span></div>' +
-      '</div>' +
-    '</div>' +
+    '<span class="lbl">Deal des Tages</span>' +
+    '<div style="position:relative;aspect-ratio:16/7;overflow:hidden;border:1px solid var(--line);margin:10px 0 14px">' +
+      plate(p) + '<span class="idx">Kat.-Nr. ' + catNo(p) + '</span></div>' +
+    '<h3>' + esc(p.name) + '</h3>' +
+    '<span class="mini">' + esc(p.brand) + ' · ' + stars(p.rating) + ' ' + p.rating.toFixed(1).replace(".",",") +
+      ' · 30-Tage-Tief ' + eur(lh.low) + '</span>' +
+    '<div class="prices"><span class="now">' + eur(p.price) + '</span>' +
+      '<span class="was">' + eur(p.old) + '</span><span class="off">−' + discount(p) + '%</span></div>' +
     '<div class="cdown">' + parts.map(function(x){
       return '<div><b>' + String(x[1]).padStart(2,"0") + '</b><span>' + x[0] + '</span></div>';
-    }).join("") + '<div style="flex:1;display:grid;place-items:center;font-size:.78rem;color:var(--muted)">bis Mitternacht</div></div>' +
+    }).join("") + '<div style="flex:1;display:grid;place-items:center" class="mini">bis Mitternacht</div></div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-      '<button class="btn p s" onclick="toAmazon(\'' + p.id + '\')">🛒 Zum Deal</button>' +
-      '<button class="btn g s" onclick="openProduct(\'' + p.id + '\')">👁️ Details</button>' +
-      '<button class="btn g s" onclick="brakeFor(\'' + p.id + '\')">🛑 Bremse</button>' +
+      '<button class="btn p s" onclick="toAmazon(\'' + p.id + '\',\'dealdestages\')">' + ico("extern") + ' Zum Deal</button>' +
+      '<button class="btn g s" onclick="openProduct(\'' + p.id + '\')">' + ico("auge") + ' Details</button>' +
+      '<button class="btn g s" onclick="brakeFor(\'' + p.id + '\')">' + ico("glocke") + ' Bremse</button>' +
     '</div>';
 }
 
@@ -2518,7 +3061,7 @@ function renderCoupons(){
     '</div>';
   }).join("");
 }
-function copyCode(c){ copy(c); confetti(30); ping(820); toast("ok","Code kopiert 🎟️", c + " — an der Kasse einlösen."); }
+function copyCode(c){ copy(c); confetti(30); ping(820); toast("ok","Code kopiert ", c + " — an der Kasse einlösen."); }
 let spinning = false, wheelRot = 0;
 function spinWheel(){
   if(spinning) return;
@@ -2532,13 +3075,13 @@ function spinWheel(){
     const p = (pool.length ? pool : S.products)[(Math.random() * (pool.length || S.products.length)) | 0];
     const out = $("#roulOut");
     if(out) out.innerHTML =
-      '<div class="li" style="--h:' + p.hue + '"><div class="lt">' + p.emoji + '</div>' +
+      '<div class="li"><div class="lt">' + plate(p, false) + '</div>' +
       '<div class="lm"><b>' + esc(p.name) + '</b><span>' + esc(p.brand) + ' · −' + discount(p) + ' % · ' + stars(p.rating) + '</span></div>' +
       '<span class="lp">' + eur(p.price) + '</span></div>' +
-      '<div style="display:flex;gap:8px;margin:10px 0"><button class="btn p s" onclick="toAmazon(\'' + p.id + '\')">🛒 Zu Amazon</button>' +
-      '<button class="btn g s" onclick="openProduct(\'' + p.id + '\')">👁️ Details</button></div>';
+      '<div style="display:flex;gap:8px;margin:10px 0"><button class="btn p s" onclick="toAmazon(\'' + p.id + '\')">Zu Amazon</button>' +
+      '<button class="btn g s" onclick="openProduct(\'' + p.id + '\')">Details</button></div>';
     confetti(70); ping(900);
-    toast("ok","🎰 Beute!", p.name + " für " + eur(p.price));
+    toast("ok","Beute!", p.name + " für " + eur(p.price));
   }, 4500);
 }
 function renderTop(){
@@ -2551,7 +3094,7 @@ function renderTop(){
     const v = { score: score(p), off: discount(p), rate: p.rating, pop: p.sold }[mode];
     const w = Math.max(6, v / maxv * 100);
     return '<div class="trow" onclick="openProduct(\'' + p.id + '\')">' +
-      '<span class="rk">#' + (i+1) + '</span><span class="te">' + p.emoji + '</span>' +
+      '<span class="rk">' + (i+1 < 10 ? "0" : "") + (i+1) + '</span><span class="te">' + catIcon(p.cat) + '</span>' +
       '<div class="tm"><b>' + esc(p.name) + '</b>' +
         '<span class="mini">' + esc(p.brand) + ' · −' + discount(p) + ' % · ' + p.rating.toFixed(1).replace(".",",") + ' ★ · ' + num(p.sold) + ' verkauft</span>' +
         '<div class="mb"><i data-w="' + w.toFixed(0) + '"></i></div></div>' +
@@ -2564,18 +3107,18 @@ function renderTop(){
 function renderPosts(){
   $("#posts").innerHTML = POSTS.map(function(p,i){
     return '<article class="post" style="--h:' + p.h + '" onclick="openPost(' + i + ')">' +
-      '<div class="ph">' + p.e + '</div>' +
+      '<div class="ph">' + ico(p.ic || "buch") + '</div>' +
       '<div class="pc"><span>' + esc(p.k) + '</span><h4>' + esc(p.t) + '</h4><p>' + esc(p.x) + '</p></div></article>';
   }).join("");
 }
 function openPost(i){
   const p = POSTS[i];
   $("#postTitle").textContent = p.t;
-  $("#postBody").innerHTML = '<div style="font-size:3rem">' + p.e + '</div>' +
+  $("#postBody").innerHTML = '<div style="color:var(--cy);width:40px;height:40px">' + ico(p.ic || "buch") + '</div>' +
     '<span class="kicker" style="margin:8px 0 12px">' + esc(p.k) + '</span>' +
     '<p style="color:var(--muted);margin-bottom:14px">' + esc(p.x) + '</p>' +
     p.b.map(function(t){ return '<p style="margin-bottom:12px">' + t + '</p>'; }).join("") +
-    '<button class="btn p" style="margin-top:10px" onclick="closeAll();go(\'bremse\')">🛑 Preisbremse ausprobieren</button>';
+    '<button class="btn p" style="margin-top:10px" onclick="closeAll();go(\'bremse\')">Preisbremse ausprobieren</button>';
   openModal("mPost");
 }
 function renderFaq(){
@@ -2592,13 +3135,13 @@ function subscribe(e){
   const v = input ? input.value.trim() : "";
   if(!v) return false;
   S.set.mail = v; save();
-  $("#nlState").textContent = "✅ Eingetragen als " + v + " (nur lokal gespeichert).";
+  $("#nlState").textContent = "Eingetragen als " + v + " (nur lokal gespeichert).";
   if(input) input.value = "";
   if($("#nlMail")) $("#nlMail").value = "";
   if(typeof track === "function") track("mail", {});
   if($("#mExit").classList.contains("on")) closeAll();
   confetti(80); ping(900);
-  toast("ok","Willkommen im Rudel 🦈","Beute-Alarm ist aktiv.");
+  toast("ok","Willkommen im Rudel ","Beute-Alarm ist aktiv.");
   return false;
 }
 </script>
@@ -2642,7 +3185,7 @@ function toggleTheme(){
   const light = document.documentElement.getAttribute("data-theme") === "light";
   document.documentElement.setAttribute("data-theme", light ? "dark" : "light");
   S.set.dark = light; save();
-  $("#themeBtn").textContent = light ? "🌙" : "☀️";
+  $("#themeBtn").innerHTML = ico(light ? "mond" : "sonne");
   $("#setDark").checked = light;
   ping(500);
 }
@@ -2650,9 +3193,9 @@ function toggleFx(){
   S.set.fx = !S.set.fx;
   document.body.classList.toggle("nofx", !S.set.fx);
   $("#setFx").checked = S.set.fx;
-  $("#fxBtn").textContent = S.set.fx ? "✨" : "🚫";
+  $("#fxBtn").innerHTML = ico(S.set.fx ? "funken" : "kreuz");
   save();
-  toast("info", S.set.fx ? "Effekte an ✨" : "Effekte aus", S.set.fx ? "" : "Ruhiger Modus für schwache Geräte.");
+  toast("info", S.set.fx ? "Effekte an" : "Effekte aus", S.set.fx ? "" : "Ruhiger Modus für schwache Geräte.");
 }
 function syncSettings(){
   $("#setTag").value = S.set.tag;
@@ -2693,7 +3236,7 @@ function importJSON(input){
       setupFlash(); buildFilterUI(); fillBrakeSelect(); renderCatRow(); renderTicker();
       renderFlash(); renderDotd(); renderTop(); renderAlerts(); refreshBadges(); applyAll(); heroStats();
       save();
-      toast("ok","Katalog geladen", d.products.length + " Produkte importiert.");
+      toast("ok","Katalog geladen", d.products.length + "Produkte importiert.");
     }catch(e){
       toast("bad","Import fehlgeschlagen", "Bitte eine gültige DEALHAI-JSON wählen.");
     }
@@ -2707,7 +3250,7 @@ function addProduct(){
   if(!name || !price){ toast("bad","Angaben fehlen","Name und Preis sind Pflicht."); return; }
   const old = parseFloat(g("aOld")) || price * 1.35;
   const raw = { n:name, b:g("aBrand") || "Eigene Marke", c:g("aCat") || "Technik", p:price, o:old,
-                r:parseFloat(g("aRate")) || 4.5, rv:Math.floor(50 + Math.random()*900), e:g("aEmo") || "📦",
+                r:parseFloat(g("aRate")) || 4.5, rv:Math.floor(50 + Math.random()*900), e:g("aEmo") || "",
                 pr:true, tg:["Eigen"], sold:Math.floor(100 + Math.random()*900), age:1, stock:25, asin:g("aAsin") || null };
   const p = buildProducts([raw])[0];
   p.id = "c" + Date.now(); p.custom = true;
@@ -2724,25 +3267,25 @@ function resetAll(){
 }
 function openInfo(k){
   const T = {
-    affiliate: ["🤝 Affiliate-Hinweis",
+    affiliate: ["Affiliate-Hinweis",
       "<p><b>Als Amazon-Partner verdienen wir an qualifizierten Verkäufen.</b></p>" +
       "<p style='margin-top:10px'>Diese Seite enthält Werbelinks zu Amazon. Klickst du auf einen solchen Link und kaufst dort ein, erhalten wir eine Provision vom Händler. <b>Für dich ändert sich der Preis dadurch nicht</b> — du zahlst exakt denselben Betrag wie ohne Link.</p>" +
       "<p style='margin-top:10px'>Die Reihenfolge der Produkte richtet sich nach Preis, Rabatt, Bewertung und Beliebtheit — nicht nach der Höhe der Provision. Amazon und das Amazon-Logo sind Marken von Amazon.com, Inc. oder seinen verbundenen Unternehmen.</p>"],
-    impressum: ["📄 Impressum",
+    impressum: ["Impressum",
       "<p>Angaben gemäß § 5 DDG:</p><table class='spec'>" +
       "<tr><td>Betreiber</td><td>Max Mustermann</td></tr>" +
       "<tr><td>Anschrift</td><td>Musterstraße 1, 12345 Musterstadt</td></tr>" +
       "<tr><td>E-Mail</td><td>kontakt@example.com</td></tr>" +
       "<tr><td>Verantwortlich</td><td>Max Mustermann (§ 18 Abs. 2 MStV)</td></tr></table>" +
       "<p class='mini' style='margin-top:12px'>Platzhalter-Angaben einer Demo-Seite. Vor einem echten Betrieb durch die eigenen Daten ersetzen.</p>"],
-    datenschutz: ["🔒 Datenschutz",
+    datenschutz: ["Datenschutz",
       "<p>Diese Seite kommt ohne Tracking, ohne Analyse-Werkzeuge und ohne Werbe-Cookies aus.</p>" +
       "<table class='spec'><tr><td>Gespeichert wird</td><td>Merkliste, Deal-Korb, Vergleich, Preisbremsen, Einstellungen</td></tr>" +
       "<tr><td>Wo</td><td>Ausschließlich lokal in deinem Browser (localStorage)</td></tr>" +
       "<tr><td>Übertragung</td><td>Keine — es gibt keinen Server, der Daten empfängt</td></tr>" +
-      "<tr><td>Löschen</td><td>Einstellungen ⚙️ → „Alles zurücksetzen“</td></tr></table>" +
+      "<tr><td>Löschen</td><td>Einstellungen  → „Alles zurücksetzen“</td></tr></table>" +
       "<p style='margin-top:10px'>Beim Klick auf einen Amazon-Link gelten die Datenschutzbestimmungen von Amazon.</p>"],
-    preise: ["🏷️ Preisangaben",
+    preise: ["Preisangaben",
       "<p>Alle Preise verstehen sich inklusive gesetzlicher Mehrwertsteuer, zuzüglich Versandkosten.</p>" +
       "<p style='margin-top:10px'>Preise und Verfügbarkeit können sich jederzeit ändern. <b>Maßgeblich ist ausschließlich der Preis, der zum Zeitpunkt des Kaufs auf Amazon angezeigt wird.</b></p>" +
       "<p style='margin-top:10px'>Durchgestrichene Preise sind unverbindliche Preisempfehlungen des Herstellers (UVP). Der angezeigte Preisverlauf zeigt die Entwicklung der letzten 90 Tage und hilft dir, echte Rabatte von Schein-Rabatten zu unterscheiden.</p>"]
@@ -2757,29 +3300,29 @@ function openInfo(k){
    12) BEFEHLSPALETTE & TASTATUR
    ============================================================ */
 const CMDS = [
-  {i:"🛍️", t:"Alle Deals",       k:"shop",  a:function(){ go("shop"); }},
-  {i:"⚡", t:"Blitzangebote",     k:"blitz", a:function(){ go("blitz"); }},
-  {i:"🛑", t:"Preisbremse",       k:"bremse",a:function(){ go("bremse"); }},
-  {i:"🎟️", t:"Gutscheine",       k:"coupon",a:function(){ go("gutscheine"); }},
-  {i:"🎰", t:"Deal-Roulette drehen",k:"spin",a:function(){ go("roulette"); spinWheel(); }},
-  {i:"🏆", t:"Bestenliste",       k:"top",   a:function(){ go("top10"); }},
-  {i:"📡", t:"Preis-Radar",       k:"radar", a:function(){ go("radar"); }},
-  {i:"🛒", t:"Deal-Korb öffnen",  k:"cart",  a:function(){ openDrawer("cart"); }},
-  {i:"❤️", t:"Merkliste öffnen",  k:"wish",  a:function(){ openDrawer("wish"); }},
-  {i:"⚖️", t:"Vergleich öffnen",  k:"cmp",   a:function(){ openDrawer("cmp"); }},
-  {i:"⚙️", t:"Einstellungen",     k:"set",   a:function(){ openModal("mSettings"); }},
-  {i:"🌙", t:"Design wechseln",   k:"theme", a:function(){ toggleTheme(); }},
-  {i:"✨", t:"Effekte an/aus",    k:"fx",    a:function(){ toggleFx(); }},
-  {i:"💶", t:"Sortieren: Preis aufsteigend", k:"sortprice", a:function(){ $("#sortSel").value="priceAsc"; S.sort="priceAsc"; applyAll(); go("shop"); }},
-  {i:"🏷️", t:"Sortieren: höchster Rabatt",  k:"sortoff",   a:function(){ $("#sortSel").value="off"; S.sort="off"; applyAll(); go("shop"); }},
-  {i:"♻️", t:"Filter zurücksetzen", k:"reset", a:function(){ resetFilters(); }},
-  {i:"⌨️", t:"Tastenkürzel",      k:"help",  a:function(){ openModal("mHelp"); }},
-  {i:"🧭", t:"Kaufberater",       k:"guide", a:function(){ go("kaufberater"); }},
-  {i:"🚀", t:"Betreiber-Zentrale", k:"cockpit umsatz kampagne playbook", a:function(){ openGrow(); }},
-  {i:"📊", t:"Cockpit: Zahlen ansehen", k:"stats kpi", a:function(){ openGrow("g1"); }},
-  {i:"🚀", t:"Kampagnen-Link bauen", k:"utm link kampagne", a:function(){ openGrow("g3"); }},
-  {i:"✅", t:"Wachstums-Playbook", k:"plan checkliste", a:function(){ openGrow("g5"); }},
-  {i:"💶", t:"Umsatz hochrechnen", k:"rechner provision", a:function(){ openGrow("g6"); }}
+  {i:"", t:"Alle Deals",       k:"shop",  a:function(){ go("shop"); }},
+  {i:"", t:"Blitzangebote",     k:"blitz", a:function(){ go("blitz"); }},
+  {i:"", t:"Preisbremse",       k:"bremse",a:function(){ go("bremse"); }},
+  {i:"", t:"Gutscheine",       k:"coupon",a:function(){ go("gutscheine"); }},
+  {i:"", t:"Deal-Roulette drehen",k:"spin",a:function(){ go("roulette"); spinWheel(); }},
+  {i:"", t:"Bestenliste",       k:"top",   a:function(){ go("top10"); }},
+  {i:"", t:"Preis-Radar",       k:"radar", a:function(){ go("radar"); }},
+  {i:"", t:"Deal-Korb öffnen",  k:"cart",  a:function(){ openDrawer("cart"); }},
+  {i:"", t:"Merkliste öffnen",  k:"wish",  a:function(){ openDrawer("wish"); }},
+  {i:"", t:"Vergleich öffnen",  k:"cmp",   a:function(){ openDrawer("cmp"); }},
+  {i:"", t:"Einstellungen",     k:"set",   a:function(){ openModal("mSettings"); }},
+  {i:"", t:"Design wechseln",   k:"theme", a:function(){ toggleTheme(); }},
+  {i:"", t:"Effekte an/aus",    k:"fx",    a:function(){ toggleFx(); }},
+  {i:"", t:"Sortieren: Preis aufsteigend", k:"sortprice", a:function(){ $("#sortSel").value="priceAsc"; S.sort="priceAsc"; applyAll(); go("shop"); }},
+  {i:"", t:"Sortieren: höchster Rabatt",  k:"sortoff",   a:function(){ $("#sortSel").value="off"; S.sort="off"; applyAll(); go("shop"); }},
+  {i:"", t:"Filter zurücksetzen", k:"reset", a:function(){ resetFilters(); }},
+  {i:"", t:"Tastenkürzel",      k:"help",  a:function(){ openModal("mHelp"); }},
+  {i:"", t:"Kaufberater",       k:"guide", a:function(){ go("kaufberater"); }},
+  {i:"", t:"Betreiber-Zentrale", k:"cockpit umsatz kampagne playbook", a:function(){ openGrow(); }},
+  {i:"", t:"Cockpit: Zahlen ansehen", k:"stats kpi", a:function(){ openGrow("g1"); }},
+  {i:"", t:"Kampagnen-Link bauen", k:"utm link kampagne", a:function(){ openGrow("g3"); }},
+  {i:"", t:"Wachstums-Playbook", k:"plan checkliste", a:function(){ openGrow("g5"); }},
+  {i:"", t:"Umsatz hochrechnen", k:"rechner provision", a:function(){ openGrow("g6"); }}
 ];
 let cmdSel = 0, cmdRows = [];
 function openCmd(){
@@ -2795,13 +3338,13 @@ function renderCmd(q){
   const prods = q ? S.products.filter(function(p){
       return (p.name + " " + p.brand).toLowerCase().indexOf(q) !== -1;
     }).slice(0,6).map(function(p){
-      return {i:p.emoji, t:p.name, s:eur(p.price), a:function(){ closeAll(); openProduct(p.id); }};
+      return {i:catIcon(p.cat), t:p.name, s:eur(p.price), a:function(){ closeAll(); openProduct(p.id); }};
     }) : [];
   cmdRows = cmds.concat(prods); cmdSel = 0;
   $("#cmdList").innerHTML = cmdRows.length ? cmdRows.map(function(r,i){
     return '<div class="cmdrow ' + (i === 0 ? "sel" : "") + '" data-i="' + i + '">' +
       '<span class="ci">' + r.i + '</span><span>' + esc(r.t) + '</span><span class="cs">' + esc(r.s) + '</span></div>';
-  }).join("") : '<div class="cmdrow"><span class="ci">🦈</span><span>Nichts gefunden</span></div>';
+  }).join("") : '<div class="cmdrow"><span class="ci"></span><span>Nichts gefunden</span></div>';
   $$("#cmdList .cmdrow").forEach(function(el){
     el.onclick = function(){ const r = cmdRows[+el.dataset.i]; if(r){ $("#cmdp").classList.remove("on"); r.a(); } };
   });
@@ -2827,7 +3370,7 @@ function renderSugg(){
   if(!hits.length){ box.classList.remove("on"); return; }
   suggSel = -1;
   box.innerHTML = hits.map(function(p,i){
-    return '<div class="row" data-id="' + p.id + '"><span class="e">' + p.emoji + '</span>' +
+    return '<div class="row" data-id="' + p.id + '"><span class="e">' + plate(p, false) + '</span>' +
       '<span class="t"><b>' + esc(p.name) + '</b><span>' + esc(p.brand) + ' · ' + esc(p.cat) + ' · −' + discount(p) + ' %</span></span>' +
       '<span class="p">' + eur(p.price) + '</span></div>';
   }).join("");
@@ -2874,22 +3417,15 @@ function initSpy(){
   ids.forEach(function(id){ const el = document.getElementById(id); if(el) io.observe(el); });
 }
 let konami = [], KSEQ = "ArrowUp,ArrowUp,ArrowDown,ArrowDown,ArrowLeft,ArrowRight,ArrowLeft,ArrowRight,b,a";
+/* Konami-Code: Rohdaten-Modus. Legt Messraster und Kennzahlen offen —
+   nützlich beim Sortieren des Katalogs und deutlich weniger albern
+   als ein Regen aus Haien. */
 function sharkMode(){
-  S.sharkMode = true;
-  confetti(260);
-  for(let i = 0; i < 18; i++){
-    setTimeout(function(){
-      const f = document.createElement("div");
-      f.textContent = "🦈";
-      f.style.cssText = "position:fixed;z-index:340;font-size:" + (28 + Math.random()*44) + "px;left:-80px;top:" +
-        (Math.random()*80+5) + "vh;pointer-events:none;transition:transform 3.2s linear,opacity .6s";
-      document.body.appendChild(f);
-      requestAnimationFrame(function(){ f.style.transform = "translateX(" + (innerWidth + 160) + "px)"; });
-      setTimeout(function(){ f.remove(); }, 3400);
-    }, i * 180);
-  }
-  toast("ok","🦈 HAI-MODUS","Das ganze Riff gehört dir.");
-  ping(1200);
+  S.sharkMode = !document.body.classList.contains("raw");
+  document.body.classList.toggle("raw", S.sharkMode);
+  toast(S.sharkMode ? "ok" : "info", S.sharkMode ? "Rohdaten sichtbar" : "Rohdaten aus",
+    S.sharkMode ? "Score, Verkäufe, Lager und Alter je Position." : "Zurück zur Schauseite.");
+  ping(S.sharkMode ? 1100 : 500);
 }
 </script>
 
@@ -2999,7 +3535,7 @@ let gTimer = null;
 function track(e, d){
   const a = G.last || { src:"direkt", camp:"ohne" };
   G.ev.push({ t:Date.now(), e:e, s:a.src || "direkt", c:a.camp || "ohne", d:d || {} });
-  if(G.ev.length > 900) G.ev = G.ev.slice(-900);
+  if(G.ev.length >900) G.ev = G.ev.slice(-900);
   if(e === "out"){ abClick("cta"); abClick("hint"); }
   clearTimeout(gTimer);
   gTimer = setTimeout(gsave, 400);
@@ -3012,9 +3548,9 @@ function track(e, d){
    ============================================================ */
 const AB_TESTS = {
   cta: { t:"Text auf dem Klick-Knopf", v:[
-    {k:"a", l:"🛒 Zum Angebot"},
-    {k:"b", l:"💰 Preis prüfen"},
-    {k:"c", l:"🦈 Deal sichern"}
+    {k:"a", l:"Zum Angebot"},
+    {k:"b", l:"Preis prüfen"},
+    {k:"c", l:"Deal sichern"}
   ]},
   hint: { t:"Tiefpreis-Hinweis auf der Karte", v:[
     {k:"a", l:"ohne Hinweis"},
@@ -3049,15 +3585,15 @@ function ctaLabel(){
   abShow("cta");
   const v = abVar("cta");
   const f = AB_TESTS.cta.v.filter(function(x){ return x.k === v; })[0];
-  return f ? f.l : "🛒 Zum Angebot";
+  return f ? f.l : "Zum Angebot";
 }
 function abCardHint(p){
   abShow("hint");
   if(abVar("hint") !== "b") return "";
   const lh = lowHigh(p);
-  const over = lh.low > 0 ? (p.price / lh.low - 1) * 100 : 100;
-  if(over <= 3)  return '<div class="abhint">🔻 Auf 90-Tage-Tiefstand</div>';
-  if(over <= 12) return '<div class="abhint">📉 Nur ' + over.toFixed(0) + ' % über dem 90-Tage-Tief</div>';
+  const over = lh.low >0 ? (p.price / lh.low - 1) * 100 : 100;
+  if(over <= 3)  return '<div class="abhint">▼ auf 90-Tage-Tiefstand</div>';
+  if(over <= 12) return '<div class="abhint">▼ nur ' + over.toFixed(0) + ' % über dem 90-Tage-Tief</div>';
   return '<div class="abhint" style="color:var(--muted)">⏳ War schon für ' + eur(lh.low) + ' zu haben</div>';
 }
 
@@ -3081,7 +3617,7 @@ function estEarn(list){
     return s + pr * cr * commOf(x.d && x.d.cat) / 100;
   }, 0);
 }
-function pct(a, b){ return b > 0 ? (a / b * 100) : 0; }
+function pct(a, b){ return b >0 ? (a / b * 100) : 0; }
 
 function renderCockpit(){
   const box = document.getElementById("cockpitBody"); if(!box) return;
@@ -3155,9 +3691,9 @@ function renderCockpit(){
       : '<p class="hint">Noch keine Ausgangsklicks erfasst. Öffne einen Deal und klick auf „Zum Angebot“ — dann füllt sich diese Liste.</p>') +
 
     '<div class="pills" style="margin-top:18px">' +
-      '<button class="pill" onclick="exportStats()">⬇️ Zahlen als JSON</button>' +
-      '<button class="pill" onclick="exportCsv()">⬇️ Ereignisse als CSV</button>' +
-      '<button class="pill" onclick="resetStats()">♻️ Zähler zurücksetzen</button>' +
+      '<button class="pill" onclick="exportStats()">Zahlen als JSON</button>' +
+      '<button class="pill" onclick="exportCsv()">Ereignisse als CSV</button>' +
+      '<button class="pill" onclick="resetStats()">Zähler zurücksetzen</button>' +
     '</div>' +
     '<p class="hint" style="margin-top:10px">Erfasst werden nur anonyme Zähler im eigenen Browser — keine Kennungen, kein Versand, kein fremder Dienst. Letzte 30 Tage: ' +
       num(cnt(d30,"out")) + ' Klicks.</p>';
@@ -3202,7 +3738,7 @@ function renderSources(){
       : '<p class="hint" style="margin-top:14px">Noch nichts erfasst.</p>') +
     '<div class="linkout" style="margin-top:16px">' +
       '<b class="mini">So testest du die Zuordnung</b>' +
-      '<p class="mini" style="margin-top:6px">Seite mit <span class="mono">?utm_source=pinterest&amp;utm_medium=pin&amp;utm_campaign=airfryer</span> aufrufen — ' +
+      '<p class="mini" style="margin-top:6px">Seite mit <span class="mono">?utm_source=pinterest&amp;utm_medium=pin&amp;utm_campaign=airfryer</span>aufrufen — ' +
       'die Herkunft steht danach oben und hängt an jedem Amazon-Link als SubID.</p>' +
       '<div class="mono" style="margin-top:8px;word-break:break-all">Beispiel-SubID: ' + esc(subId(S.products[0], "karte")) + '</div>' +
     '</div>';
@@ -3229,10 +3765,10 @@ function renderAB(){
             '<td class="r"><button class="pill" onclick="abSwitch(\'' + t + '\',\'' + x.k + '\')">testen</button></td></tr>';
         }).join("") + '</tbody></table>' +
         '<p class="hint">' + (enough
-          ? '📌 Genug Daten: Variante <b>' + best.k.toUpperCase() + '</b> führt. Übernimm sie fest und starte den nächsten Test.'
+          ? ' Genug Daten: Variante <b>' + best.k.toUpperCase() + '</b>führt. Übernimm sie fest und starte den nächsten Test.'
           : '⏳ Noch zu wenig Daten für ein Urteil — weiter laufen lassen.') + '</p>';
     }).join("") +
-    '<div class="pills" style="margin-top:18px"><button class="pill" onclick="abReset()">♻️ Testzähler zurücksetzen</button></div>' +
+    '<div class="pills" style="margin-top:18px"><button class="pill" onclick="abReset()">Testzähler zurücksetzen</button></div>' +
     '<div class="linkout" style="margin-top:16px"><b class="mini">Nächste sinnvolle Tests</b>' +
       '<p class="mini" style="margin-top:6px">1. Preis groß vs. Ersparnis groß · 2. Blitzangebote oben vs. Bestenliste oben · ' +
       '3. Kaufberater vor Produktliste · 4. Newsletter-Fenster nach 30 s vs. beim Verlassen. Immer nur einen Test gleichzeitig.</p></div>';
@@ -3308,7 +3844,7 @@ function renderCampaign(){
   const chan = document.getElementById("cmpChan").value;
   document.getElementById("cmpPosts").innerHTML = postTexts(p, url, chan).map(function(b, i){
     return '<div class="postbox"><h5>' + b.i + ' ' + esc(b.t) +
-      '<button class="pill" style="margin-left:auto" onclick="copyPost(' + i + ')">📋 kopieren</button></h5>' +
+      '<button class="pill" style="margin-left:auto" onclick="copyPost(' + i + ')">kopieren</button></h5>' +
       '<pre id="pt' + i + '">' + esc(b.x) + '</pre></div>';
   }).join("");
 }
@@ -3391,7 +3927,7 @@ function makeCard(kind){
   const c = document.createElement("canvas");
   c.width = s[0]; c.height = s[1];
   const x = c.getContext("2d");
-  const W = c.width, H = c.height, wide = W > H;
+  const W = c.width, H = c.height, wide = W >H;
   const FF = "Segoe UI, system-ui, -apple-system, sans-serif";
   const FE = "'Segoe UI Emoji', 'Noto Color Emoji', " + FF;
   const pad = Math.round(W * .075);
@@ -3413,7 +3949,7 @@ function makeCard(kind){
   /* ---- Kopfzeile ---- */
   x.textAlign = "left"; x.textBaseline = "alphabetic";
   x.font = Math.round(W * .036) + "px " + FE;
-  x.fillText("🦈", pad, pad + W * .035);
+  x.fillText("", pad, pad + W * .035);
   x.fillStyle = "#22f5ff";
   x.font = "800 " + Math.round(W * .034) + "px " + FF;
   x.fillText("DEALHAI", pad + W * .055, pad + W * .033);
@@ -3422,7 +3958,7 @@ function makeCard(kind){
   x.fillText("Preise klein beißen", pad + W * .055, pad + W * .066);
 
   /* ---- Rabatt-Plakette ---- */
-  if(p && discount(p) > 0){
+  if(p && discount(p) >0){
     const bw = W * .25, bh = W * .085, bx = W - pad - bw, by = pad;
     const gb = x.createLinearGradient(bx, by, bx + bw, by + bh);
     gb.addColorStop(0, "#22f5ff"); gb.addColorStop(1, "#ff2e93");
@@ -3450,9 +3986,11 @@ function makeCard(kind){
   const top = pad + W * .13, bot = H - pad - W * .12;
   let y = top + Math.max(0, (bot - top - blockH) / 2) + emS;
 
-  x.fillStyle = "#ffffff";
-  x.font = emS + "px " + FE;
-  x.fillText(p ? p.emoji : "🦈", pad, y);
+  x.fillStyle = "#ff5a1f";
+  x.font = "800 " + Math.round(emS * .34) + "px " + FF;
+  x.fillText((p ? p.cat : "Deals").toUpperCase(), pad, y - emS * .3);
+  x.strokeStyle = "rgba(255,90,31,.85)"; x.lineWidth = Math.max(2, W * .006);
+  x.beginPath(); x.moveTo(pad, y); x.lineTo(pad + W * .14, y); x.stroke();
 
   y += gapA;
   x.fillStyle = "#e9f3ff";
@@ -3465,7 +4003,7 @@ function makeCard(kind){
     x.font = "900 " + pS + "px " + FF;
     x.fillText(eur(p.price), pad, y);
     const wNow = x.measureText(eur(p.price)).width;
-    if(p.old > p.price){
+    if(p.old >p.price){
       const ox = pad + wNow + W * .035;
       x.fillStyle = "rgba(233,243,255,.5)";
       x.font = "600 " + Math.round(W * .032) + "px " + FF;
@@ -3480,10 +4018,10 @@ function makeCard(kind){
     x.fillStyle = "rgba(233,243,255,.78)";
     x.font = "600 " + mS + "px " + FF;
     y += mS * 1.7;
-    x.fillText("⭐ " + p.rating.toFixed(1).replace(".",",") + " · " + num(p.reviews) + " Bewertungen", pad, y);
+    x.fillText(" " + p.rating.toFixed(1).replace(".",",") + " · " + num(p.reviews) + "Bewertungen", pad, y);
     y += mS * 1.45;
-    let low = "📉 90-Tage-Tief " + eur(lh.low) + (p.price <= lh.low * 1.05 ? " · praktisch Bestpreis" : "");
-    if(x.measureText(low).width > W - pad * 2) low = "📉 90-Tage-Tief " + eur(lh.low);
+    let low = " 90-Tage-Tief " + eur(lh.low) + (p.price <= lh.low * 1.05 ? " · praktisch Bestpreis" : "");
+    if(x.measureText(low).width >W - pad * 2) low = " 90-Tage-Tief " + eur(lh.low);
     x.fillText(low, pad, y);
   } else {
     x.fillStyle = "rgba(233,243,255,.75)";
@@ -3527,13 +4065,13 @@ function layoutLines(x, text, maxW, maxLines){
   let line = "";
   for(let i = 0; i < words.length; i++){
     const test = line ? line + " " + words[i] : words[i];
-    if(x.measureText(test).width > maxW && line){
+    if(x.measureText(test).width >maxW && line){
       out.push(line);
       line = words[i];
       if(out.length === maxLines - 1){
         let rest = words.slice(i).join(" ");
-        if(x.measureText(rest).width > maxW){
-          while(rest.length > 4 && x.measureText(rest + "…").width > maxW) rest = rest.slice(0, -2);
+        if(x.measureText(rest).width >maxW){
+          while(rest.length >4 && x.measureText(rest + "…").width >maxW) rest = rest.slice(0, -2);
           rest += "…";
         }
         out.push(rest);
@@ -3623,7 +4161,7 @@ function playToggle(pi, ii){
   gsave(); renderPlaybook();
   const total = PHASES.reduce(function(s,p){ return s + p.items.length; }, 0);
   const done = Object.keys(G.play).filter(function(x){ return G.play[x]; }).length;
-  if(done === total){ confetti(140); toast("ok","Playbook vollständig 🦈","Jetzt zählt nur noch Wiederholung."); }
+  if(done === total){ confetti(140); toast("ok","Playbook vollständig ","Jetzt zählt nur noch Wiederholung."); }
 }
 function phaseToggle(i){
   const el = document.getElementById("ph" + i);
@@ -3684,7 +4222,10 @@ function avgComm(){
 }
 function renderCalcOut(){
   const box = document.getElementById("calcOut"); if(!box) return;
-  const c = G.calc, rate = avgComm();
+  const c = G.calc || { vis:20000, ctr:9, cr:5, aov:70 };
+  let rate = 3;
+  try { rate = avgComm() || 3; } catch(e) { rate = 3; }
+  if(!isFinite(rate)) rate = 3;
   function run(mult){
     const clicks = c.vis * mult * (c.ctr / 100);
     const orders = clicks * (c.cr / 100);
@@ -3705,16 +4246,17 @@ function renderCalcOut(){
       '<div class="sc"><b style="color:var(--ok)">' + eur(high.com) + '</b><span>gut gelaufen<br>doppelte Reichweite</span></div>' +
     '</div>' +
     '<p class="hint" style="margin-top:12px">Pro 1.000 Besuche bleiben rechnerisch <b>' +
-      eur(mid.com / Math.max(1, c.vis / 1000)) + '</b> übrig. Das ist die Zahl, an der sich jeder Kanal messen lassen muss: ' +
+      eur(mid.com / Math.max(1, c.vis / 1000)) + '</b>übrig. Das ist die Zahl, an der sich jeder Kanal messen lassen muss: ' +
       'Kostet eine Kampagne mehr pro tausend Besucher, trägt sie sich nicht.</p>';
 }
 function renderComm(){
   const box = document.getElementById("commBody"); if(!box) return;
+  const aov = (G.calc && G.calc.aov) || 70;
   box.innerHTML = '<table class="dtable"><thead><tr><th>Kategorie</th><th class="r">Satz in %</th><th class="r">bei ' +
-    eur(G.calc.aov) + ' Warenkorb</th></tr></thead><tbody>' +
+    eur(aov) + ' Warenkorb</th></tr></thead><tbody>' +
     Object.keys(CATS).map(function(k){
       const v = commOf(k);
-      return '<tr><td>' + (CATS[k] || "") + ' ' + esc(k) + '</td>' +
+      return '<tr><td>' + esc(k) + '</td>' +
         '<td class="r"><input class="ain" style="width:80px;padding:5px 8px;text-align:right" type="number" min="0" max="20" step="0.5" value="' + v + '" oninput="setComm(\'' + esc(k) + '\',this.value)"></td>' +
         '<td class="r">' + eur(G.calc.aov * v / 100) + '</td></tr>';
     }).join("") + '</tbody></table>' +
@@ -3779,17 +4321,17 @@ function renderGuides(){
   const cats = Object.keys(CATS).filter(function(c){
     return S.products.filter(function(p){ return p.cat === c; }).length >= 2;
   });
-  document.getElementById("guideHint").textContent = cats.length + " Kategorien · aktualisiert sich mit dem Katalog";
+  document.getElementById("guideHint").textContent = cats.length + "Kategorien · aktualisiert sich mit dem Katalog";
   box.innerHTML = cats.map(function(c, i){
     const g = guideFor(c);
     const avg = g.list.reduce(function(s,p){ return s + discount(p); }, 0) / g.list.length;
     return '<article class="guide" style="--h:' + (i * 37 % 360) + '" onclick="openGuide(\'' + esc(c) + '\')">' +
-      '<div class="ge">' + (CATS[c] || "🏷️") + '</div>' +
+      '<div class="ge">' + catIcon(c) + '</div>' +
       '<h4>' + esc(c) + ' kaufen</h4>' +
       '<p><b style="color:var(--txt)">Empfehlung:</b> ' + esc((g.best || g.value).brand) + ' — ' +
-        esc((g.best || g.value).name.length > 46 ? (g.best || g.value).name.slice(0, 44) + "…" : (g.best || g.value).name) +
+        esc((g.best || g.value).name.length >46 ? (g.best || g.value).name.slice(0, 44) + "…" : (g.best || g.value).name) +
         '. Preis-Tipp ab ' + eur(g.value.price) + '.</p>' +
-      '<div class="gm"><span>' + g.list.length + " Deals" + '</span><span>Ø −' + avg.toFixed(0) + ' %</span>' +
+      '<div class="gm"><span>' + g.list.length + "Deals" + '</span><span>Ø −' + avg.toFixed(0) + ' %</span>' +
       '<span>ab ' + eur(Math.min.apply(null, g.list.map(function(p){ return p.price; }))) + '</span></div>' +
     '</article>';
   }).join("");
@@ -3815,16 +4357,16 @@ function openGuide(cat){
     picks.map(function(x){
       const p = x[1], lh = lowHigh(p);
       return '<div class="pickrow">' +
-        '<span class="pe">' + p.emoji + '</span>' +
+        '<span class="pe" style="position:relative;width:60px;height:60px;flex:none;overflow:hidden;border:1px solid var(--line)">' + plate(p, false) + '</span>' +
         '<div class="pi"><span class="pk">' + esc(x[0]) + '</span>' +
           '<b>' + esc(p.name) + '</b>' +
           '<span>' + esc(x[2]) + '</span>' +
-          '<span class="mini">' + eur(p.price) + ' · −' + discount(p) + ' % · ⭐ ' +
+          '<span class="mini">' + eur(p.price) + ' · −' + discount(p) + ' % ·  ' +
             p.rating.toFixed(1).replace(".",",") + ' · 90-Tage-Tief ' + eur(lh.low) + '</span>' +
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:6px">' +
           '<button class="btn p s" onclick="toAmazon(\'' + p.id + '\',\'berater\')">' + ctaLabel() + '</button>' +
-          '<button class="btn g s" onclick="closeAll();openProduct(\'' + p.id + '\')">👁️ Details</button>' +
+          '<button class="btn g s" onclick="closeAll();openProduct(\'' + p.id + '\')">Details</button>' +
         '</div></div>';
     }).join("") +
 
@@ -3843,8 +4385,8 @@ function openGuide(cat){
     '</table>' +
 
     '<div class="pills" style="margin-top:18px">' +
-      '<button class="pill" onclick="closeAll();pickCat(\'' + esc(cat) + '\')">🛍️ Alle ' + esc(cat) + '-Deals ansehen</button>' +
-      '<button class="pill" onclick="closeAll();go(\'bremse\')">🛑 Preisbremse setzen</button>' +
+      '<button class="pill" onclick="closeAll();pickCat(\'' + esc(cat) + '\')">Alle ' + esc(cat) + '-Deals ansehen</button>' +
+      '<button class="pill" onclick="closeAll();go(\'bremse\')">Preisbremse setzen</button>' +
     '</div>';
   openModal("mGuide");
 }
@@ -3861,7 +4403,7 @@ function renderSeoJson(){
         "brand":{"@type":"Brand","name":p.brand},
         "aggregateRating":{"@type":"AggregateRating","ratingValue":p.rating,"reviewCount":p.reviews},
         "offers":{"@type":"Offer","price":p.price.toFixed(2),"priceCurrency":"EUR",
-          "availability": p.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"}
+          "availability": p.stock >0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"}
       }};
     });
     const el = document.getElementById("ldItems");
@@ -3898,7 +4440,7 @@ function growTab(id){
 /* ---------- Fenster beim Verlassen ---------- */
 function initExit(){
   document.addEventListener("mouseout", function(e){
-    if(e.clientY > 0 || e.relatedTarget) return;
+    if(e.clientY >0 || e.relatedTarget) return;
     if(S.set.mail) return;
     if(Date.now() - (G.lastExit || 0) < 3 * 864e5) return;
     if(document.querySelector(".ov.on") || document.getElementById("cmdp").classList.contains("on")) return;
@@ -3959,17 +4501,18 @@ function initGrowth(){
 
   /* Design & Effekte anwenden */
   document.documentElement.setAttribute("data-theme", S.set.dark ? "dark" : "light");
-  $("#themeBtn").textContent = S.set.dark ? "🌙" : "☀️";
+  $("#themeBtn").textContent = S.set.dark ? "" : "";
   document.body.classList.toggle("nofx", !S.set.fx);
-  $("#fxBtn").textContent = S.set.fx ? "✨" : "🚫";
+  $("#fxBtn").textContent = S.set.fx ? "" : "";
   $("#year").textContent = new Date().getFullYear();
-  if(S.set.mail) $("#nlState").textContent = "✅ Eingetragen als " + S.set.mail + " (nur lokal gespeichert).";
+  if(S.set.mail) $("#nlState").textContent = "Eingetragen als " + S.set.mail + " (nur lokal gespeichert).";
 
   setupFlash();
   buildFilterUI();
   fillBrakeSelect();
   renderCatRow(); renderTicker(); renderFlash(); renderDotd(); renderCoupons();
   renderTop(); renderPosts(); renderFaq(); renderAlerts(); renderRadar();
+  fillIcons();
   initGrowth();
   refreshBadges(); applyAll(); heroStats();
   initReveal(); initSpy();
@@ -4029,7 +4572,7 @@ function initGrowth(){
     .forEach(function(pair){
       $("#" + pair[0]).addEventListener("change", function(){ S.f[pair[1]] = this.checked; S.page = 1; applyAll(); });
     });
-  $$(".fgroup > h4").forEach(function(h){
+  $$(".fgroup >h4").forEach(function(h){
     h.onclick = function(){ h.parentNode.classList.toggle("closed"); };
   });
 
@@ -4041,7 +4584,7 @@ function initGrowth(){
   $("#setSound").addEventListener("change", function(){ S.set.sound = this.checked; save(); if(this.checked) ping(880); });
   $("#setLive").addEventListener("change", function(){
     S.set.live = this.checked; save();
-    toast("info", this.checked ? "Live-Preise an 📡" : "Live-Preise aus", this.checked ? "Das Riff bewegt sich wieder." : "Preise bleiben stehen.");
+    toast("info", this.checked ? "Live-Preise an " : "Live-Preise aus", this.checked ? "Das Riff bewegt sich wieder." : "Preise bleiben stehen.");
   });
 
   /* ---------- Navigation ---------- */
@@ -4077,7 +4620,7 @@ function initGrowth(){
       $$("#viewSw button").forEach(function(x){ x.classList.toggle("on", x.dataset.v === next); });
     }
     konami.push(e.key);
-    if(konami.length > 10) konami.shift();
+    if(konami.length >10) konami.shift();
     if(konami.join(",") === KSEQ && !S.sharkMode) sharkMode();
   });
 
@@ -4087,12 +4630,12 @@ function initGrowth(){
 
   /* ---------- Maus & Scroll ---------- */
   addEventListener("mousemove", function(e){
-    const s = $("#spot"); s.style.left = e.clientX + "px"; s.style.top = e.clientY + "px";
+    const s = $("#spot"); if(s) { s.style.left = e.clientX + "px"; s.style.top = e.clientY + "px"; }
   });
   addEventListener("scroll", function(){
     const h = document.documentElement.scrollHeight - innerHeight;
-    $("#prog").style.width = (h > 0 ? (scrollY / h * 100) : 0) + "%";
-    $("#totop").classList.toggle("on", scrollY > 700);
+    const p = $("#prog"); if(p) p.style.width = (h >0 ? (scrollY / h * 100) : 0) + "%";
+    const t = $("#totop"); if(t) t.classList.toggle("on", scrollY >700);
   }, {passive:true});
 
   /* ---------- Karten-Neigung (3D) ---------- */
@@ -4116,10 +4659,10 @@ function initGrowth(){
     renderDotd();
     $$("[data-cend]").forEach(function(el){
       const left = +el.dataset.cend - Date.now();
-      el.textContent = left > 0 ? "läuft ab in " + hms(left) : "abgelaufen";
+      el.textContent = left >0 ? "läuft ab in " + hms(left) : "abgelaufen";
     });
     const now = new Date();
-    $("#flashClock").textContent = "🕒 " + now.toLocaleTimeString("de-DE");
+    $("#flashClock").textContent = " " + now.toLocaleTimeString("de-DE");
   }, 1000);
   setInterval(function(){ simulateTick(); }, 5200);
   setTimeout(function(){ simulateTick(true); }, 1600);
@@ -4132,7 +4675,7 @@ function initGrowth(){
   setTimeout(function(){
     $("#pre").classList.add("gone");
     setTimeout(function(){ $("#pre").style.display = "none"; }, 700);
-    toast("info","🦈 Willkommen bei DEALHAI","Drücke „/“ zum Suchen oder Strg+K für alle Befehle.");
+    toast("info","Willkommen bei DEALHAI","Drücke „/“ zum Suchen oder Strg+K für alle Befehle.");
   }, 950);
 })();
 </script>
