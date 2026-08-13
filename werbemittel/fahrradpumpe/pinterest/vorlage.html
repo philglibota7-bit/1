@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>SQUELLY — Pinterest, fünf Pins</title>
+<style>
+/*FONTS*/
+:root{
+  --navy:#14315c; --navy-d:#0d2749; --blue:#3a8ccd; --blue-l:#6fb2e4;
+  --sky:#d5eef8; --ink-soft:#4e6785;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#2a2a2a;display:flex;flex-wrap:wrap;gap:30px;padding:30px;align-items:flex-start}
+
+/* ============================================================
+   Pinterest: 1000 x 1500 (2:3). Wird als schmaler Daumennagel
+   ausgespielt — die Schlagzeile muss auch bei 236 px Breite
+   lesbar bleiben, deshalb durchweg größere Schrift als im Feed.
+   ============================================================ */
+.pin{
+  width:1000px;height:1500px;position:relative;overflow:hidden;flex-shrink:0;
+  font-family:'Barlow',system-ui,sans-serif;color:var(--navy);
+  background:linear-gradient(178deg,#eef4f9 0%,#e4edf4 44%,#dae5ee 62%,#cfdce7 100%);
+  isolation:isolate;
+}
+.surface{position:absolute;left:0;right:0;bottom:0;height:30%;z-index:0;
+  background:linear-gradient(180deg,#c9d8e4 0%,#d6e2ec 22%,#dfe8f0 100%)}
+.surface::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.85) 30%,rgba(255,255,255,.85) 70%,transparent)}
+.sun{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:
+    radial-gradient(44% 32% at 84% 10%, rgba(255,227,196,.9) 0%, rgba(255,227,196,0) 68%),
+    radial-gradient(64% 38% at 92% 40%, rgba(255,214,170,.4) 0%, rgba(255,214,170,0) 70%)}
+.cool{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(52% 40% at 2% 76%, rgba(58,140,205,.26) 0%, rgba(58,140,205,0) 70%)}
+.tex{position:absolute;inset:-6%;z-index:1;opacity:.15;pointer-events:none;
+  -webkit-mask-image:radial-gradient(62% 52% at 46% 44%,#000,transparent 82%);
+  mask-image:radial-gradient(62% 52% at 46% 44%,#000,transparent 82%)}
+.tex svg{width:100%;height:100%}
+.vig{position:absolute;inset:0;z-index:7;pointer-events:none;
+  background:radial-gradient(76% 66% at 50% 44%, transparent 58%, rgba(28,54,88,.15) 100%)}
+
+.stage{position:absolute;z-index:3}
+.stage img{width:100%;height:100%;object-fit:contain;display:block;
+  filter:drop-shadow(-14px 24px 28px rgba(18,40,70,.32))}
+.contact{position:absolute;z-index:2;border-radius:50%;
+  background:radial-gradient(closest-side, rgba(22,45,76,.42), rgba(22,45,76,0) 76%)}
+.fx{position:absolute;z-index:2;pointer-events:none}
+.fx svg{width:100%;height:100%;display:block;overflow:visible}
+.fx .aura{position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle,rgba(58,140,205,.24) 0%,rgba(58,140,205,.09) 36%,rgba(58,140,205,0) 64%)}
+
+.inner{position:relative;z-index:5;display:flex;flex-direction:column;height:100%;padding:64px 62px 56px}
+
+/* ---------- Markenzeile ---------- */
+.top{display:flex;align-items:center;gap:14px}
+.logo{width:46px;height:auto;display:block;border-radius:3px;
+  box-shadow:0 3px 12px rgba(20,49,92,.18)}
+.wm{font-family:'Barlow Semi Condensed';font-weight:800;font-size:28px;letter-spacing:.19em;
+  text-indent:.19em}
+.tag{margin-left:auto;font-weight:600;font-size:16px;letter-spacing:.14em;text-transform:uppercase;
+  color:#7a5a38;background:#fff;border:1px solid rgba(255,206,158,.95);
+  padding:8px 15px;border-radius:99px;box-shadow:0 3px 12px rgba(120,80,40,.14)}
+
+.said{font-size:27px;font-weight:500;color:var(--ink-soft);line-height:1.38;max-width:20ch}
+.head{font-family:'Barlow Semi Condensed';font-weight:800;line-height:.93;
+  letter-spacing:-.012em;text-transform:uppercase}
+.head .big{color:var(--blue)}
+
+.pf{display:flex;align-items:center;gap:11px;
+  background:rgba(255,255,255,.88);border:1px solid rgba(255,255,255,.95);
+  border-radius:99px;padding:13px 22px 13px 16px;font-size:22px;font-weight:600;
+  box-shadow:0 4px 16px rgba(20,49,92,.1)}
+.pf svg{width:19px;height:19px;color:var(--blue);flex-shrink:0}
+.proof{display:flex;flex-direction:column;align-items:flex-start;gap:11px}
+
+.cta{display:inline-flex;align-items:center;justify-content:center;gap:14px;
+  background:var(--navy);color:#fff;font-weight:700;font-size:31px;padding:24px 42px;
+  border-radius:99px;box-shadow:0 12px 30px rgba(20,49,92,.34);white-space:nowrap}
+.cta svg{width:25px;height:25px}
+.note{font-size:16px;color:#6d8299;line-height:1.4;max-width:46ch}
+.foot{display:flex;flex-direction:column;align-items:flex-start;gap:14px;margin-top:auto}
+
+/* ============================================================
+   Fünf eigenständige Aufteilungen — auf Pinterest steht ein Pin
+   neben fremden Pins, nicht neben den eigenen. Jeder darf anders
+   gebaut sein, solange Farbe, Schrift und Zeichen gleich bleiben.
+   ============================================================ */
+
+/* --- P1: klassisch, Produkt in der Mitte --- */
+#p1 .said{margin-top:46px}
+#p1 .head{font-size:112px;margin-top:18px;max-width:10ch}
+#p1 .stage{right:44px;bottom:404px;width:520px;height:520px}
+#p1 .contact{right:118px;bottom:376px;width:372px;height:62px}
+#p1 .fx{left:150px;bottom:432px;width:660px;height:660px}
+#p1 .proof{margin-top:auto;margin-bottom:26px}
+
+/* --- P2: Titelband oben --- */
+#p2 .band{position:absolute;top:0;left:0;right:0;height:474px;z-index:4;
+  background:linear-gradient(168deg,var(--navy) 0%,#1b4174 60%,#20518f 100%);
+  padding:60px 62px;display:flex;flex-direction:column}
+#p2 .band .wm,#p2 .band .head{color:#fff}
+#p2 .band .tag{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.4);color:#ffe1c4}
+#p2 .band .head{font-size:104px;margin-top:auto;max-width:11ch}
+#p2 .band .head .big{color:var(--sky)}
+#p2 .inner{padding-top:520px}
+#p2 .said{max-width:22ch}
+#p2 .stage{right:56px;bottom:372px;width:474px;height:474px}
+#p2 .contact{right:126px;bottom:348px;width:336px;height:56px}
+#p2 .fx{left:120px;bottom:396px;width:600px;height:600px}
+#p2 .proof{margin-top:34px}
+
+/* --- P3: Zahlen gestapelt --- */
+#p3 .head{font-size:82px;margin-top:40px;max-width:13ch}
+#p3 .zahlen{margin-top:44px;display:flex;flex-direction:column;gap:22px}
+#p3 .zahlen div{display:flex;align-items:baseline;gap:20px;
+  border-top:1px solid rgba(20,49,92,.16);padding-top:20px}
+#p3 .zahlen b{font-family:'Barlow Semi Condensed';font-weight:800;font-size:96px;
+  line-height:.9;color:var(--blue);letter-spacing:-.02em;min-width:200px}
+#p3 .zahlen span{font-size:25px;font-weight:600;color:var(--ink-soft);line-height:1.25}
+#p3 .stage{right:-30px;bottom:238px;width:430px;height:430px}
+#p3 .contact{right:44px;bottom:216px;width:300px;height:52px}
+#p3 .fx{left:150px;bottom:262px;width:540px;height:540px;opacity:.7}
+
+/* --- P4: Produkt im Rahmen --- */
+#p4 .said{margin-top:40px}
+#p4 .head{font-size:96px;margin-top:16px;max-width:11ch}
+#p4 .rahmen{position:relative;z-index:4;margin-top:34px;height:530px;border-radius:26px;
+  background:linear-gradient(168deg,#fff 0%,#f4f9fc 58%,#e7f1f8 100%);
+  border:1px solid rgba(255,255,255,.9);
+  box-shadow:0 22px 54px rgba(18,40,70,.22), inset 0 1px 0 #fff;overflow:hidden}
+#p4 .rahmen img{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:430px;height:430px;object-fit:contain;
+  filter:drop-shadow(-12px 20px 24px rgba(18,40,70,.3))}
+#p4 .rahmen .fx{left:50%;top:50%;transform:translate(-50%,-50%);width:520px;height:520px;z-index:-1}
+#p4 .proof{margin-top:30px}
+#p4 .foot{margin-top:20px}
+
+/* --- P5: Checkliste --- */
+#p5 .head{font-size:100px;margin-top:42px;max-width:10ch}
+#p5 .liste{margin-top:40px;display:flex;flex-direction:column;gap:0}
+#p5 .liste div{display:flex;gap:22px;align-items:flex-start;padding:24px 0;
+  border-bottom:1px solid rgba(20,49,92,.14)}
+#p5 .liste b{font-family:'Barlow Semi Condensed';font-weight:800;font-size:52px;
+  color:var(--blue);line-height:1;min-width:60px}
+#p5 .liste span{font-size:26px;font-weight:600;line-height:1.32;color:var(--navy);padding-top:5px}
+#p5 .stage{right:-56px;bottom:196px;width:396px;height:396px}
+#p5 .contact{right:24px;bottom:178px;width:274px;height:48px}
+#p5 .fx{left:250px;bottom:216px;width:500px;height:500px;opacity:.66}
+
+.cap{color:#bbb;font-family:monospace;font-size:13px;width:100%;margin-bottom:-20px}
+</style>
+</head>
+<body>
+<!--PINS-->
+</body>
+</html>
