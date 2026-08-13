@@ -141,6 +141,76 @@ a{color:inherit;text-decoration:none}
 .cta:focus-visible{outline:2px solid var(--sky);outline-offset:3px}
 .why{font-size:.75rem;color:var(--ink-faint);margin-top:9px;text-align:center;line-height:1.45}
 
+
+/* ---------- Preis, Verlauf, Alarm ---------- */
+.preisrow{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.preis{font-size:1.7rem;font-weight:800;color:var(--white);letter-spacing:-.02em;line-height:1;
+  font-variant-numeric:tabular-nums}
+.trend{display:inline-flex;align-items:center;gap:5px;font-size:.78rem;font-weight:700;
+  padding:4px 9px;border-radius:99px;font-variant-numeric:tabular-nums}
+.trend.ab{background:rgba(70,200,140,.2);color:#8ff0c4;border:1px solid rgba(70,200,140,.4)}
+.trend.auf{background:rgba(255,120,110,.18);color:#ffb4ae;border:1px solid rgba(255,120,110,.38)}
+.trend.gleich{background:rgba(255,255,255,.12);color:var(--ink-mut);border:1px solid var(--glass-line)}
+.trend svg{width:12px;height:12px}
+.stand{font-size:.72rem;color:var(--ink-faint);margin-bottom:12px}
+.demo{display:inline-block;font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  padding:3px 8px;border-radius:99px;background:rgba(255,190,90,.22);color:#ffd79a;
+  border:1px solid rgba(255,190,90,.45);margin-left:6px}
+
+.spark{display:block;width:100%;height:44px;margin-bottom:12px;overflow:visible}
+.spark .flaeche{fill:rgba(111,178,228,.18)}
+.spark .linie{fill:none;stroke:var(--blue-l);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.spark .punkt{fill:var(--white)}
+.spark .tief{stroke:rgba(255,255,255,.28);stroke-width:1;stroke-dasharray:3 4}
+.sparkfoot{display:flex;justify-content:space-between;font-size:.68rem;color:var(--ink-faint);
+  margin:-8px 0 14px;font-variant-numeric:tabular-nums}
+
+/* ---------- Preisalarm ---------- */
+.alarmbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  padding:11px 16px;border-radius:12px;margin-top:9px;font-size:.85rem;font-weight:650;
+  background:rgba(255,255,255,.1);border:1px solid var(--glass-line);color:var(--ink);
+  transition:background .2s,border-color .2s}
+.alarmbtn:hover{background:rgba(255,255,255,.18);border-color:var(--glass-line-2)}
+.alarmbtn svg{width:15px;height:15px}
+.alarmbtn.aktiv{background:rgba(70,200,140,.18);border-color:rgba(70,200,140,.45);color:#a8f0cf}
+
+.alarmbox{margin-top:11px;padding:14px;border-radius:12px;background:rgba(0,0,0,.16);
+  border:1px solid var(--glass-line);display:none}
+.alarmbox.auf{display:block}
+.alarmbox label{display:block;font-size:.74rem;font-weight:600;color:var(--ink-mut);margin-bottom:6px}
+.zeile{display:flex;gap:8px}
+.zeile input{flex:1;min-width:0;padding:10px 12px;border-radius:9px;font:inherit;font-size:.95rem;
+  font-weight:700;background:rgba(255,255,255,.92);border:1px solid transparent;color:var(--navy);
+  font-variant-numeric:tabular-nums}
+.zeile input:focus{outline:2px solid var(--sky);outline-offset:1px}
+.zeile button{padding:10px 16px;border-radius:9px;background:var(--white);color:var(--navy);
+  font-weight:700;font-size:.85rem;white-space:nowrap}
+.schnell{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.schnell button{font-size:.72rem;font-weight:600;padding:6px 11px;border-radius:99px;
+  background:rgba(255,255,255,.1);border:1px solid var(--glass-line);color:var(--ink-mut)}
+.schnell button:hover{background:rgba(255,255,255,.2);color:var(--white)}
+.alarmhint{font-size:.74rem;color:var(--ink-faint);margin-top:10px;line-height:1.45}
+.alarmhint b{color:var(--ink)}
+
+.balken{height:5px;border-radius:99px;background:rgba(255,255,255,.14);margin:10px 0 6px;overflow:hidden}
+.balken i{display:block;height:100%;border-radius:99px;
+  background:linear-gradient(90deg,var(--blue-l),#8ff0c4);transition:width .5s}
+
+/* ---------- Meldungen ---------- */
+.toasts{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:80;
+  display:flex;flex-direction:column;gap:8px;width:min(420px,calc(100vw - 32px))}
+.toast{display:flex;gap:11px;align-items:flex-start;padding:13px 15px;border-radius:13px;
+  background:rgba(18,48,84,.94);border:1px solid var(--glass-line-2);color:var(--ink);
+  -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
+  box-shadow:0 14px 40px rgba(4,14,30,.5);animation:hoch .3s ease}
+.toast.gut{border-color:rgba(70,200,140,.6)}
+.toast svg{width:17px;height:17px;flex-shrink:0;margin-top:2px;color:var(--sky)}
+.toast.gut svg{color:#8ff0c4}
+.toast b{display:block;font-size:.88rem;font-weight:700}
+.toast span{font-size:.8rem;color:var(--ink-mut)}
+@keyframes hoch{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.toast{animation:none}}
+
 /* ---------- Fuß ---------- */
 .foot{margin-top:32px;text-align:center}
 .flinks{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-bottom:16px}
@@ -231,8 +301,8 @@ a{color:inherit;text-decoration:none}
     </div>
     <h1>SQUELLY</h1>
     <p class="since">SINCE 2026</p>
-    <p class="bio">Drei Produkte, die einen Alltagsärger lösen — beschrieben mit dem,
-      was die Hersteller angeben, nicht mit dem, was gut klingt.</p>
+    <p class="bio">Drei Produkte, die einen Alltagsärger lösen — mit Preisverlauf und
+      Wunschpreis-Alarm, damit du nicht zum falschen Zeitpunkt kaufst.</p>
   </header>
 
   <div class="note glass">
@@ -240,8 +310,8 @@ a{color:inherit;text-decoration:none}
       <circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.5"/>
     </svg>
     <span><b>Werbelinks.</b> Als Amazon-Partner verdienen wir an qualifizierten Verkäufen.
-      Für dich bleibt der Preis gleich. Preise nennen wir bewusst nicht — sie ändern sich
-      stündlich, und ein veralteter Preis hier wäre schlicht falsch.</span>
+      Für dich bleibt der Preis gleich. <b>Maßgeblich ist immer der Preis auf Amazon</b> —
+      unsere Angabe zeigt den Stand der letzten Messung, nicht den Kassenpreis.</span>
   </div>
 
   <main class="cards" id="cards"></main>
@@ -254,13 +324,15 @@ a{color:inherit;text-decoration:none}
       <button class="flink" onclick="sheet('datenschutz')">Datenschutz</button>
     </div>
     <p class="fine">
-      Angaben der Hersteller, Stand <span id="stand"></span>. Ausstattung und Verfügbarkeit
-      können sich ändern — es gilt, was auf der Produktseite bei Amazon steht.
+      Angaben der Hersteller, Stand <span id="stand"></span>. Preise und Verfügbarkeit ändern
+      sich laufend — es gilt der Preis, der beim Kauf auf Amazon angezeigt wird.
       <br>© <span id="jahr"></span> SQUELLY
     </p>
   </footer>
 
 </div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
 
 <div class="ov" id="ov" onclick="if(event.target===this)closeSheet()">
   <div class="sheet" role="dialog" aria-modal="true">
@@ -295,7 +367,18 @@ const PRODUKTE = [
       "30 wiederverwendbare, BPA-freie Beutel und ein Clip liegen bei",
       "Akkubetrieben, wird per USB-C geladen"
     ],
-    warum: "Der Nutzen ist sofort sichtbar: angebrochenes Gemüse hält, statt zu welken."
+    warum: "Der Nutzen ist sofort sichtbar: angebrochenes Gemüse hält, statt zu welken.",
+    /* Preisverlauf, älteste Messung zuerst. Der letzte Eintrag ist der aktuelle Preis. */
+    verlauf: [
+      { d:"2026-05-16", p:39.99 },
+      { d:"2026-06-05", p:39.99 },
+      { d:"2026-06-24", p:37.49 },
+      { d:"2026-07-08", p:34.99 },
+      { d:"2026-07-21", p:36.99 },
+      { d:"2026-08-01", p:34.99 },
+      { d:"2026-08-08", p:32.99 },
+      { d:"2026-08-13", p:29.99 }
+    ]
   },
   {
     name:  "Mini-Massagepistole mit neun Aufsätzen",
@@ -313,7 +396,17 @@ const PRODUKTE = [
       "Klein genug für Schreibtischschublade oder Sporttasche",
       "Mehrere Intensitätsstufen über eine einzige Taste"
     ],
-    warum: "Die großen Geräte kennt jeder. Die Taschenversion für den Büronacken kaum jemand."
+    warum: "Die großen Geräte kennt jeder. Die Taschenversion für den Büronacken kaum jemand.",
+    verlauf: [
+      { d:"2026-05-16", p:54.99 },
+      { d:"2026-06-05", p:52.99 },
+      { d:"2026-06-24", p:49.99 },
+      { d:"2026-07-08", p:49.99 },
+      { d:"2026-07-21", p:47.99 },
+      { d:"2026-08-01", p:46.99 },
+      { d:"2026-08-08", p:47.99 },
+      { d:"2026-08-13", p:49.99 }
+    ]
   },
   {
     name:  "Sunset Projector — Tischlampe mit Sonnenuntergangs-Licht",
@@ -332,7 +425,17 @@ const PRODUKTE = [
       "Kopf um 180 Grad schwenkbar — Licht an Wand oder Decke",
       "Stromversorgung über USB"
     ],
-    warum: "Kostet wenig, verändert einen Raum sofort — und sieht auf Fotos außergewöhnlich gut aus."
+    warum: "Kostet wenig, verändert einen Raum sofort — und sieht auf Fotos außergewöhnlich gut aus.",
+    verlauf: [
+      { d:"2026-05-16", p:29.99 },
+      { d:"2026-06-05", p:27.99 },
+      { d:"2026-06-24", p:26.99 },
+      { d:"2026-07-08", p:24.99 },
+      { d:"2026-07-21", p:24.99 },
+      { d:"2026-08-01", p:23.99 },
+      { d:"2026-08-08", p:22.99 },
+      { d:"2026-08-13", p:22.99 }
+    ]
   }
 ];
 
@@ -408,6 +511,218 @@ function wirkzeichen(art){
   return '<span class="fx"><svg viewBox="0 0 400 400">' + ringe + spitzen + '</svg></span>';
 }
 
+
+/* ============================================================
+   PREIS, VERLAUF UND ALARM
+
+   WICHTIG — hier kommen die echten Preise herein.
+   Eine Datei ohne Server kann bei Amazon nichts abfragen: der Browser
+   verbietet das (CORS), und Amazon untersagt das Auslesen der Seiten.
+   Zulässig ist allein die Produkt-Schnittstelle (PA-API), und die
+   verlangt einen Server, der die Anfrage signiert.
+
+   Solange DEMO_PREISE auf true steht, sind alle Preise Beispielwerte
+   und werden auf der Seite sichtbar so gekennzeichnet. Sobald du eine
+   echte Quelle hast, schreibst du deren Werte in "verlauf" (oder lädst
+   sie per fetch aus einer Datei, die dein Server stündlich erneuert)
+   und setzt DEMO_PREISE auf false.
+   ============================================================ */
+const DEMO_PREISE = true;
+
+const eur = function(v){
+  return new Intl.NumberFormat("de-DE", { style:"currency", currency:"EUR" }).format(v);
+};
+const datum = function(iso){
+  return new Date(iso + "T12:00:00").toLocaleDateString("de-DE",
+    { day:"2-digit", month:"long", year:"numeric" });
+};
+
+function jetzt(p){ return p.verlauf[p.verlauf.length - 1]; }
+function vorher(p){ return p.verlauf.length > 1 ? p.verlauf[p.verlauf.length - 2] : null; }
+function tief(p){ return p.verlauf.reduce(function(m, x){ return x.p < m ? x.p : m; }, Infinity); }
+function hoch(p){ return p.verlauf.reduce(function(m, x){ return x.p > m ? x.p : m; }, -Infinity); }
+
+/* ---------- Kursänderung ---------- */
+function trend(p){
+  const a = vorher(p), b = jetzt(p);
+  if(!a || Math.abs(b.p - a.p) < 0.005){
+    return '<span class="trend gleich">unverändert</span>';
+  }
+  const ab = b.p < a.p;
+  const diff = Math.abs(b.p - a.p);
+  const proz = a.p ? (diff / a.p * 100) : 0;
+  const pfeil = ab
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" ' +
+      'stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" ' +
+      'stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
+  return '<span class="trend ' + (ab ? "ab" : "auf") + '">' + pfeil +
+         (ab ? "−" : "+") + eur(diff) + " · " + proz.toFixed(1).replace(".", ",") + " %</span>";
+}
+
+/* ---------- Verlaufslinie ---------- */
+function kurve(p){
+  const w = 300, h = 44, v = p.verlauf;
+  const lo = tief(p), hi = hoch(p), spanne = Math.max(0.01, hi - lo);
+  const x = function(i){ return v.length < 2 ? w / 2 : (i / (v.length - 1)) * w; };
+  const y = function(pr){ return h - 5 - ((pr - lo) / spanne) * (h - 12); };
+  const punkte = v.map(function(e, i){ return x(i).toFixed(1) + "," + y(e.p).toFixed(1); });
+  const letzte = v[v.length - 1];
+  return '<svg class="spark" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" ' +
+         'role="img" aria-label="Preisverlauf der letzten Monate">' +
+         '<line class="tief" x1="0" y1="' + y(lo).toFixed(1) + '" x2="' + w +
+           '" y2="' + y(lo).toFixed(1) + '"/>' +
+         '<polygon class="flaeche" points="0,' + h + ' ' + punkte.join(" ") + ' ' + w + ',' + h + '"/>' +
+         '<polyline class="linie" points="' + punkte.join(" ") + '"/>' +
+         '<circle class="punkt" cx="' + x(v.length - 1).toFixed(1) + '" cy="' +
+           y(letzte.p).toFixed(1) + '" r="3.5"/></svg>';
+}
+
+/* ============================================================
+   PREISALARM
+   Ziele liegen im Browser des Besuchers. Geprüft wird, während die
+   Seite offen ist — ohne Server gibt es keine Prüfung im Hintergrund.
+   Das steht auch so auf der Seite, damit niemand auf eine Meldung
+   wartet, die nie kommen kann.
+   ============================================================ */
+const SPEICHER = "squelly_alarme";
+let ALARME = {};
+try{ ALARME = JSON.parse(localStorage.getItem(SPEICHER) || "{}"); }catch(e){ ALARME = {}; }
+function alarmeSichern(){
+  try{ localStorage.setItem(SPEICHER, JSON.stringify(ALARME)); }catch(e){}
+}
+
+function meldung(art, titel, text){
+  const w = document.getElementById("toasts");
+  const el = document.createElement("div");
+  el.className = "toast" + (art === "gut" ? " gut" : "");
+  el.innerHTML = (art === "gut"
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" ' +
+        'stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+        'stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.5"/></svg>') +
+    '<div><b>' + esc(titel) + '</b><span>' + esc(text) + '</span></div>';
+  w.appendChild(el);
+  setTimeout(function(){ el.remove(); }, 6000);
+}
+
+function browserMeldung(titel, text){
+  try{
+    if("Notification" in window && Notification.permission === "granted"){
+      new Notification(titel, { body: text });
+    }
+  }catch(e){}
+}
+
+function alarmUmschalten(k){
+  const box = document.getElementById("alarm-" + k);
+  if(box) box.classList.toggle("auf");
+}
+
+function zielSetzen(k, faktor){
+  const p = PRODUKTE.filter(function(x){ return x.kuerzel === k; })[0];
+  const feld = document.getElementById("ziel-" + k);
+  if(p && feld) feld.value = (jetzt(p).p * faktor).toFixed(2);
+}
+
+function alarmSpeichern(k){
+  const p = PRODUKTE.filter(function(x){ return x.kuerzel === k; })[0];
+  const feld = document.getElementById("ziel-" + k);
+  const ziel = parseFloat(String(feld.value).replace(",", "."));
+  if(!p || !isFinite(ziel) || ziel <= 0){
+    meldung("info", "Wunschpreis fehlt", "Trage einen Betrag in Euro ein."); return;
+  }
+  if(ziel >= jetzt(p).p){
+    meldung("info", "Schon erreicht",
+      "Der Preis liegt bereits bei " + eur(jetzt(p).p) + ". Setz das Ziel darunter.");
+    return;
+  }
+  ALARME[k] = { ziel: ziel, seit: Date.now(), start: jetzt(p).p, gemeldet: null };
+  alarmeSichern();
+
+  if("Notification" in window && Notification.permission === "default"){
+    Notification.requestPermission().then(function(r){
+      meldung(r === "granted" ? "gut" : "info",
+        r === "granted" ? "Benachrichtigungen aktiv" : "Nur auf der Seite",
+        r === "granted"
+          ? "Du bekommst eine Meldung, sobald der Preis fällt — solange diese Seite offen ist."
+          : "Ohne Erlaubnis siehst du den Treffer nur hier auf der Seite.");
+    });
+  } else {
+    meldung("gut", "Preisalarm gesetzt",
+      p.name.split(" ").slice(0, 3).join(" ") + " ab " + eur(ziel));
+  }
+  zeichnen();
+}
+
+function alarmLoeschen(k){
+  delete ALARME[k]; alarmeSichern(); zeichnen();
+}
+
+/* Prüft alle Ziele gegen die aktuellen Preise. */
+function alarmePruefen(stillBeimStart){
+  Object.keys(ALARME).forEach(function(k){
+    const p = PRODUKTE.filter(function(x){ return x.kuerzel === k; })[0];
+    if(!p) return;
+    const a = ALARME[k], preis = jetzt(p).p;
+    if(preis <= a.ziel && a.gemeldet !== preis){
+      a.gemeldet = preis; alarmeSichern();
+      const text = p.name.split("—")[0].trim() + " kostet jetzt " + eur(preis) +
+                   " — dein Ziel war " + eur(a.ziel) + ".";
+      meldung("gut", "Preisalarm ausgelöst", text);
+      if(!stillBeimStart) browserMeldung("SQUELLY — Preisalarm", text);
+      else browserMeldung("SQUELLY — Preisalarm", text);
+    }
+  });
+}
+
+function alarmBlock(p){
+  const a = ALARME[p.kuerzel];
+  const preis = jetzt(p).p;
+  const erreicht = a && preis <= a.ziel;
+  const fortschritt = a
+    ? Math.max(0, Math.min(100, (a.start - preis) / Math.max(0.01, a.start - a.ziel) * 100))
+    : 0;
+  const glocke = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+    'stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>';
+
+  let knopf;
+  if(a && erreicht){
+    knopf = '<button class="alarmbtn aktiv" onclick="alarmUmschalten(\'' + p.kuerzel + '\')">' +
+            glocke + 'Ziel erreicht · ' + eur(a.ziel) + '</button>';
+  } else if(a){
+    knopf = '<button class="alarmbtn aktiv" onclick="alarmUmschalten(\'' + p.kuerzel + '\')">' +
+            glocke + 'Alarm bei ' + eur(a.ziel) + ' · noch ' + eur(preis - a.ziel) + '</button>';
+  } else {
+    knopf = '<button class="alarmbtn" onclick="alarmUmschalten(\'' + p.kuerzel + '\')">' +
+            glocke + 'Preisalarm setzen</button>';
+  }
+
+  return knopf +
+    '<div class="alarmbox" id="alarm-' + p.kuerzel + '">' +
+      '<label for="ziel-' + p.kuerzel + '">Benachrichtige mich, sobald der Preis fällt auf</label>' +
+      '<div class="zeile">' +
+        '<input type="number" id="ziel-' + p.kuerzel + '" step="0.01" min="0.01" ' +
+          'inputmode="decimal" value="' + (a ? a.ziel.toFixed(2) : (preis * 0.9).toFixed(2)) + '">' +
+        '<button onclick="alarmSpeichern(\'' + p.kuerzel + '\')">' +
+          (a ? "Ändern" : "Merken") + '</button>' +
+      '</div>' +
+      '<div class="schnell">' +
+        '<button onclick="zielSetzen(\'' + p.kuerzel + '\',0.95)">−5 %</button>' +
+        '<button onclick="zielSetzen(\'' + p.kuerzel + '\',0.9)">−10 %</button>' +
+        '<button onclick="zielSetzen(\'' + p.kuerzel + '\',0.85)">−15 %</button>' +
+        '<button onclick="zielSetzen(\'' + p.kuerzel + '\',' +
+          (tief(p) / preis).toFixed(4) + ')">auf das Tief</button>' +
+        (a ? '<button onclick="alarmLoeschen(\'' + p.kuerzel + '\')">Alarm entfernen</button>' : '') +
+      '</div>' +
+      (a ? '<div class="balken"><i style="width:' + fortschritt.toFixed(0) + '%"></i></div>' : '') +
+      '<p class="alarmhint">Das Ziel liegt <b>nur in deinem Browser</b>. Geprüft wird, ' +
+        'während diese Seite offen ist — im Hintergrund kann eine Seite ohne Server nicht ' +
+        'nachsehen.</p>' +
+    '</div>';
+}
+
 function karte(p){
   return '' +
   '<article class="card glass">' +
@@ -420,6 +735,13 @@ function karte(p){
     '<div class="body">' +
       '<h2 class="cname">' + esc(p.name) + '</h2>' +
       '<p class="cbrand">' + esc(p.marke) + '</p>' +
+      '<div class="preisrow"><span class="preis">' + eur(jetzt(p).p) + '</span>' +
+        trend(p) + (DEMO_PREISE ? '<span class="demo">Beispielpreis</span>' : '') + '</div>' +
+      '<p class="stand">Stand ' + datum(jetzt(p).d) + ' · Tief ' + eur(tief(p)) +
+        ' · Höchstwert ' + eur(hoch(p)) + '</p>' +
+      kurve(p) +
+      '<div class="sparkfoot"><span>' + datum(p.verlauf[0].d).replace(/ \d{4}$/, "") +
+        '</span><span>heute</span></div>' +
       '<ul class="facts">' +
         p.fakten.map(function(f, i){
           const zeichen = (p.farben && i === 0)
@@ -435,12 +757,20 @@ function karte(p){
           '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>' +
           '<path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>' +
         'Preis auf Amazon prüfen</a>' +
+      alarmBlock(p) +
       '<p class="why">' + esc(p.warum) + '</p>' +
     '</div>' +
   '</article>';
 }
 
-document.getElementById("cards").innerHTML = PRODUKTE.map(karte).join("");
+function zeichnen(){
+  document.getElementById("cards").innerHTML = PRODUKTE.map(karte).join("");
+}
+zeichnen();
+alarmePruefen(true);
+/* Wiederholte Prüfung, damit ein Alarm auch bei geöffnetem Tab greift,
+   sobald die Preisquelle neue Werte liefert. */
+setInterval(function(){ alarmePruefen(false); }, 60000);
 document.getElementById("jahr").textContent = new Date().getFullYear();
 document.getElementById("stand").textContent = "August 2026";
 
@@ -458,10 +788,17 @@ const TEXTE = {
     "<p>Die Merkmale auf dieser Seite stammen aus den Angaben der Hersteller und von den " +
     "Produktverpackungen. Wir haben die Geräte nicht selbst getestet — wo wir eine " +
     "Herstellerangabe wiedergeben, steht das ausdrücklich dabei.</p>" +
-    "<p><b>Preise nennen wir bewusst nicht.</b> Sie ändern sich bei Amazon oft mehrmals am Tag. " +
-    "Ein hier eingetragener Preis wäre schon beim Lesen veraltet — und würde außerdem gegen die " +
-    "Teilnahmebedingungen des Partnerprogramms verstoßen, die für Preisangaben eine Anbindung " +
-    "an die offizielle Schnittstelle verlangen.</p>" +
+    "<p><b>Zu den Preisen.</b> Neben jedem Produkt steht der Preis der letzten Messung samt " +
+    "Datum, dazu die Veränderung zur Messung davor und der Verlauf der letzten Monate. " +
+    "Amazon ändert Preise oft mehrmals am Tag — zwischen unserer Messung und deinem Klick " +
+    "kann sich der Betrag also geändert haben.</p>" +
+    "<p>Wer als Partner Preise anzeigt, muss sie über die offizielle Produkt-Schnittstelle " +
+    "beziehen und regelmäßig erneuern. Solange auf der Seite <b>Beispielpreis</b> steht, sind " +
+    "die Zahlen Platzhalter zum Ausprobieren der Funktion und keine echten Marktpreise.</p>" +
+    "<p><b>Zum Preisalarm.</b> Dein Wunschpreis bleibt in deinem Browser. Geprüft wird, während " +
+    "diese Seite geöffnet ist. Eine Seite ohne Server kann nicht nachsehen, während du " +
+    "etwas anderes tust — für Meldungen rund um die Uhr braucht es einen Dienst, der im " +
+    "Hintergrund läuft.</p>" +
     "<p>Was zählt, steht auf der Produktseite bei Amazon: Preis, Verfügbarkeit, Bewertungen " +
     "und die vollständigen technischen Daten.</p>"],
   impressum: ["Impressum",
