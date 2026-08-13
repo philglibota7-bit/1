@@ -74,4 +74,5 @@ for a in ADS:
 tpl=open(d+'ads4.template.html',encoding='utf-8').read()
 out=tpl.replace('/*FONTS*/',open(d+'fonts.css',encoding='utf-8').read()).replace('<!--ADS-->',"\n".join(teile))
 open(d+'ads4.html','w',encoding='utf-8').write(out)
-print('ads4.html',round(len(out)/1024),'KB')
+open(d+'ads4-hoch.html','w',encoding='utf-8').write(out.replace('<body>','<body class="hoch">'))
+print('ads4.html',round(len(out)/1024),'KB  +  ads4-hoch.html')

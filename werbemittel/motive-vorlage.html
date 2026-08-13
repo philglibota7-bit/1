@@ -87,6 +87,23 @@ body{background:#2a2a2a;display:flex;flex-direction:column;align-items:center;ga
 .dots i{width:15px;height:15px;border-radius:50%;background:var(--c);display:block;
   box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
 
+
+/* ============================================================
+   Hochformat 1080 x 1350. Belegt im Feed mehr Fläche als das Quadrat.
+   ============================================================ */
+body.hoch .ad{height:1350px}
+body.hoch .surface{height:30%}
+body.hoch .inner{padding:74px 66px 64px}
+body.hoch .said{margin-top:52px;font-size:27px}
+body.hoch .head{font-size:112px;margin-top:16px}
+body.hoch .pf{font-size:20px;padding:11px 20px 11px 14px}
+body.hoch .cta{font-size:30px;padding:23px 40px}
+body.hoch #ad1 .stage{right:-46px;bottom:312px;width:672px;height:672px}
+body.hoch #ad2 .stage{right:-28px;bottom:322px;width:634px;height:634px}
+body.hoch #ad3 .stage{right:22px;bottom:316px;width:548px;height:736px}
+body.hoch #ad3 .glow{left:436px;top:96px;width:764px;height:764px}
+body.hoch #ad3 .glowfloor{left:470px;bottom:250px;width:700px;height:220px}
+
 /* ---------- Inhalt ---------- */
 .inner{position:relative;z-index:5;display:flex;flex-direction:column;height:100%;
   padding:62px 64px 54px}
