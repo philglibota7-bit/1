@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQUELLY — Kampagnen-Links</title>
+<style>
+:root{
+  --navy:#14315c; --blue:#3a8ccd; --sky:#d5eef8; --ground:#eef4f9;
+  --line:#c9d8e4; --mut:#5c7591;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--ground);
+  color:var(--navy);line-height:1.55;padding:32px 20px 60px}
+.wrap{max-width:760px;margin:0 auto}
+h1{font-size:1.5rem;font-weight:800;letter-spacing:-.01em}
+.lead{color:var(--mut);font-size:.92rem;margin:8px 0 26px;max-width:64ch}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:16px}
+h2{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);
+  font-weight:700;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+label{display:block;font-size:.76rem;font-weight:600;color:var(--mut);margin-bottom:5px}
+input,select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:7px;
+  font:inherit;font-size:.9rem;background:#fff;color:var(--navy)}
+input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px;border-color:var(--blue)}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{text-align:left;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);
+  padding:0 0 8px;font-weight:700}
+td{padding:11px 10px 11px 0;border-top:1px solid #e6eef5;vertical-align:top}
+td:last-child{padding-right:0;width:1%;white-space:nowrap}
+.url{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;word-break:break-all;
+  color:var(--navy);line-height:1.5}
+.sub{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--mut);
+  margin-top:4px}
+button{font:inherit;font-size:.8rem;font-weight:650;padding:8px 14px;border-radius:7px;
+  border:1px solid var(--navy);background:var(--navy);color:#fff;cursor:pointer}
+button:hover{background:#0f2749}
+button.g{background:#fff;color:var(--navy)}
+button.g:hover{background:var(--sky)}
+.hinweis{font-size:.8rem;color:var(--mut);background:#fff;border:1px solid var(--line);
+  border-left:3px solid var(--blue);border-radius:8px;padding:14px 16px;margin-top:20px}
+.hinweis b{color:var(--navy)}
+.ok{color:#2f7d4c;font-size:.78rem;font-weight:650}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Kampagnen-Links</h1>
+  <p class="lead">Jede Anzeige braucht ihre eigene Adresse. Die Herkunft steckt in der Adresse,
+    landet auf der SQUELLY-Seite im Amazon-Link und taucht im Provisionsbericht wieder auf —
+    daran siehst du, welches Motiv verkauft hat und welches nur Klicks kostet.</p>
+
+  <div class="card">
+    <h2>Einstellungen</h2>
+    <div class="grid">
+      <div>
+        <label for="basis">Adresse deiner Seite</label>
+        <input id="basis" value="https://philglibota7-bit.github.io/1/squelly.html">
+      </div>
+      <div>
+        <label for="kampagne">Kampagne</label>
+        <input id="kampagne" value="Herbst Start" placeholder="z. B. Herbst Start">
+      </div>
+      <div>
+        <label for="kanal">Kanal</label>
+        <select id="kanal">
+          <option value="instagram|paid">Instagram — bezahlt</option>
+          <option value="facebook|paid">Facebook — bezahlt</option>
+          <option value="instagram|organisch">Instagram — Beitrag</option>
+          <option value="tiktok|paid">TikTok — bezahlt</option>
+          <option value="pinterest|pin">Pinterest — Pin</option>
+          <option value="whatsapp|nachricht">WhatsApp — Nachricht</option>
+          <option value="bio|link">Profil-Link (Bio)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Fertige Adressen</h2>
+    <table>
+      <thead><tr><th>Motiv</th><th></th></tr></thead>
+      <tbody id="zeilen"></tbody>
+    </table>
+  </div>
+
+  <p class="hinweis">
+    <b>Warum nicht direkt zu Amazon?</b> Das Partnerprogramm untersagt Partnerlinks in bezahlter
+    Werbung. Der Weg Anzeige → deine Seite → Amazon ist der zulässige — und du behältst die
+    Klickdaten, die dir Amazon sonst nie zeigt.
+  </p>
+
+<script>
+"use strict";
+/* Dieselbe Kürzung wie auf der SQUELLY-Seite, damit die Vorschau
+   der SubID wirklich dem entspricht, was später bei Amazon ankommt. */
+const kurz = function(v, n){
+  return String(v || "").toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, n || 12);
+};
+
+const MOTIVE = [
+  { name: "Vakuumierer",     datei: "vakuumierer",     kuerzel: "vakuumierer" },
+  { name: "Massagepistole",  datei: "massagepistole",  kuerzel: "massagepistole" },
+  { name: "Sunset-Lampe",    datei: "sunset-lampe",    kuerzel: "lampe" }
+];
+/* Kurze Namen, weil die Kennung im Provisionsbericht begrenzt ist:
+   "1080x1080" und "1080x1350" würden auf denselben Rest gekürzt und
+   wären dort nicht mehr auseinanderzuhalten. */
+const FORMATE = [
+  { kuerzel: "quad", label: "1080 x 1080" },
+  { kuerzel: "hoch", label: "1080 x 1350" }
+];
+
+function bauen(){
+  const basis = document.getElementById("basis").value.trim();
+  const kampagne = document.getElementById("kampagne").value.trim();
+  const [quelle, medium] = document.getElementById("kanal").value.split("|");
+  const tb = document.getElementById("zeilen");
+  tb.innerHTML = "";
+
+  MOTIVE.forEach(function(m){
+    FORMATE.forEach(function(f){
+      const inhalt = m.datei + "-" + f.kuerzel;
+      const u = basis + (basis.indexOf("?") === -1 ? "?" : "&") +
+        "utm_source=" + encodeURIComponent(quelle) +
+        "&utm_medium=" + encodeURIComponent(medium) +
+        "&utm_campaign=" + encodeURIComponent(kampagne) +
+        "&utm_content=" + encodeURIComponent(inhalt);
+      const sub = ["sq", kurz(quelle), kurz(kampagne, 16) || "ohne",
+                   kurz(inhalt, 22), m.kuerzel].join("-").slice(0, 100);
+
+      const tr = document.createElement("tr");
+      const td1 = document.createElement("td");
+      td1.innerHTML = '<b>' + m.name + '</b> · ' + f.label +
+        '<div class="url">' + u.replace(/&/g, "&amp;").replace(/</g, "&lt;") + '</div>' +
+        '<div class="sub">im Provisionsbericht: ' + sub + '</div>';
+      const td2 = document.createElement("td");
+      const b = document.createElement("button");
+      b.textContent = "Kopieren";
+      b.onclick = function(){
+        navigator.clipboard.writeText(u).then(function(){
+          const alt = b.textContent; b.textContent = "Kopiert"; b.className = "g";
+          setTimeout(function(){ b.textContent = alt; b.className = ""; }, 1400);
+        });
+      };
+      td2.appendChild(b);
+      tr.appendChild(td1); tr.appendChild(td2);
+      tb.appendChild(tr);
+    });
+  });
+}
+
+["basis", "kampagne", "kanal"].forEach(function(id){
+  document.getElementById(id).addEventListener("input", bauen);
+  document.getElementById(id).addEventListener("change", bauen);
+});
+bauen();
+</script>
+</div>
+</body>
+</html>
