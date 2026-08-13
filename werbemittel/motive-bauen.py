@@ -38,6 +38,40 @@ ADS=[
    kopf='16 Farben,<br><span class="big">ein Schalter.</span>',
    belege=["16 Farben, vier Lichtmodi","Fernbedienung liegt bei","Kopf um 180° schwenkbar"]),
 ]
+
+# --- Wirkmotive als SVG ---------------------------------------------------
+def sog():
+    """Luft wird eingezogen: gleiche Ringsprache wie beim Impuls, aber
+    gefüllte Spitzen zeigen nach innen und drehen die Leserichtung um."""
+    import math
+    ringe = "".join(
+        '<circle cx="200" cy="200" r="%d" fill="none" stroke="#2f7ec0" stroke-width="%s" '
+        'stroke-opacity="%s"/>' % (r, sw, op)
+        for r, sw, op in [(72,"1.7","0.14"),(116,"2","0.2"),(158,"2.4","0.3"),(198,"3","0.42")])
+    spitzen = ""
+    # Um 22,5 Grad versetzt: so liegt keine Spitze auf der Senkrechten des Geräts,
+    # wo sie durch den weißen Korpus durchscheinen würde.
+    for i in range(8):
+        w = 22.5 + i * 45
+        rad = math.radians(w)
+        x, y = 200 + math.cos(rad) * 158, 200 + math.sin(rad) * 158
+        spitzen += ('<path d="M0,0 L15,-8.5 L15,8.5 Z" fill="#2f7ec0" fill-opacity=".46" '
+                    'transform="translate(%.1f %.1f) rotate(%.1f)"/>' % (x, y, w))
+    return ('<div class="fx"><div class="aura"></div>'
+            '<svg viewBox="0 0 400 400">%s%s</svg></div>' % (ringe, spitzen))
+
+def impuls():
+    """Schläge pro Minute: Ringe laufen nach außen aus."""
+    ringe = "".join(
+        '<circle cx="200" cy="200" r="%d" fill="none" stroke="#2f7ec0" stroke-width="%s" '
+        'stroke-opacity="%s"/>' % (r, sw, op)
+        for r, sw, op in [(66,"3","0.42"),(104,"2.4","0.3"),(146,"2","0.2"),
+                          (190,"1.7","0.13")])
+    return ('<div class="fx"><div class="aura"></div>'
+            '<svg viewBox="0 0 400 400">%s</svg></div>' % ringe)
+
+WIRKUNG = {"ad1": sog, "ad2": impuls}
+
 bilder=json.load(open(d+'bilder-ad.json'))
 teile=[DEFS]
 for a in ADS:
@@ -49,7 +83,8 @@ for a in ADS:
         return '<span class="pf">%s%s</span>' % (HAKEN, b)
     belege="".join(chip(i,b) for i,b in enumerate(a["belege"]))
     img=bilder[a["bild"]]
-    glow = ('<div class="glow"></div><div class="glowfloor"></div>' if a["id"]=="ad3" else "")
+    glow = ('<div class="glow"></div><div class="glowfloor"></div>' if a["id"]=="ad3"
+            else WIRKUNG[a["id"]]())
     teile.append('''<div class="cap">%(id)s — %(tag)s</div>
 <div class="ad" id="%(id)s">
   <div class="surface"></div>

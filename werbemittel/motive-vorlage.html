@@ -82,6 +82,30 @@ body{background:#2a2a2a;display:flex;flex-direction:column;align-items:center;ga
   background:radial-gradient(closest-side, rgba(255,152,96,.34), rgba(255,152,96,0) 76%);
   filter:blur(8px)}
 
+
+/* ============================================================
+   Wirkmotive — jedes Blatt bekommt sein eigenes Zeichen.
+   Lampe: Licht strahlt ab. Vakuumierer: Luft wird eingezogen.
+   Massagepistole: Impulse schlagen aus.
+   Alle drei sind Kreise um den Wirkpunkt des Geräts, damit die
+   Serie zusammengehört, ohne dass ein Blatt wie das andere aussieht.
+   ============================================================ */
+.fx{position:absolute;z-index:2;pointer-events:none}
+.fx svg{width:100%;height:100%;display:block;overflow:visible}
+
+/* Sog: Ringe verdichten sich nach innen, Pfeile zeigen zur Düse */
+#ad1 .fx{left:355px;bottom:120px;width:560px;height:560px}
+#ad1 .fx .aura{position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle,rgba(58,140,205,.30) 0%,rgba(58,140,205,.13) 38%,rgba(58,140,205,0) 66%)}
+
+/* Impuls: Ringe laufen nach außen und werden schwächer */
+#ad2 .fx{left:300px;bottom:290px;width:700px;height:700px}
+#ad2 .fx .aura{position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle,rgba(58,140,205,.26) 0%,rgba(58,140,205,.1) 34%,rgba(58,140,205,0) 62%)}
+
+body.hoch #ad1 .fx{left:350px;bottom:340px;width:600px;height:600px}
+body.hoch #ad2 .fx{left:296px;bottom:470px;width:760px;height:760px}
+
 /* ---------- Farbpunkte ---------- */
 .dots{display:inline-flex;gap:5px;margin-right:4px}
 .dots i{width:15px;height:15px;border-radius:50%;background:var(--c);display:block;
