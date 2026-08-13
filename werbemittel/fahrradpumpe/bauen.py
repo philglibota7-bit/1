@@ -74,42 +74,46 @@ def zahlenblock(werte):
 BILDER = json.load(open(d + 'pumpe-bilder.json'))
 
 VARIANTEN = [
+  # Alle Angaben stammen von der amazon.de-Produktseite dieses Geräts
+  # (439 g, 13,4 x 6,6 x 5 cm, 4,5 Sterne, Bestseller Nr. 1, 10.000+ gekauft,
+  # UVP 30,99 EUR, -23 %). Die Werte des schlanken Stab-Modells - 35 Sekunden,
+  # 25 Reifen, 150 PSI - gelten hier NICHT und wurden entfernt.
   dict(id="va", tag="Fahrrad", bild="hand", anteil=0.78,
-       alt="Elektrische Fahrradpumpe von AstroAI mit Digitalanzeige, in einer Hand gehalten",
-       said='Der platte Reifen merkt sich immer den Morgen, an dem du es eilig hast.',
-       kopf='80 PSI in<br><span class="big">35 Sekunden.</span>',
-       belege=["Bis 150 PSI, Anzeige auf 1 PSI genau",
-               "Fünf Voreinstellungen: Stadt, MTB, Rennrad, Fatbike, frei",
-               "Passt in die Trikottasche — 380 Gramm"]),
+       alt="Kompakte elektrische Luftpumpe von AstroAI mit Digitalanzeige",
+       said='Die Standpumpe steht im Keller. Der platte Reifen steht am Bahnhof.',
+       kopf='439 Gramm.<br><span class="big">Passt überall.</span>',
+       belege=["13,4 x 6,6 x 5 cm — Satteltasche, Rucksack, Handschuhfach",
+               "Digitalanzeige mit Druckvorwahl",
+               "LED-Licht für die Panne im Dunkeln"]),
   dict(id="vb", tag="Fahrrad", bild="set", anteil=0.6,
-       alt="Elektrische Fahrradpumpe mit Schlauch, Ventiladaptern, USB-C-Kabel und Aufbewahrungsbeutel",
-       said='Einmal laden reicht für die ganze Familie — und den Nachbarn.',
-       kopf='Einmal laden,<br><span class="big">25 Reifen.</span>',
-       belege=["Schlauch, Adapter, Beutel und USB-C-Kabel liegen bei",
-               "Lädt per USB-C, wie alles andere auch",
-               "LED-Licht mit drei Modi für die Panne im Dunkeln"]),
+       alt="Kompakte elektrische Luftpumpe von AstroAI mit Zubehör",
+       said='Über zehntausend Leute haben sie schon gekauft.',
+       kopf='4,5 Sterne.<br><span class="big">10.000+ verkauft.</span>',
+       belege=["Bestseller Nr. 1 bei Reifendruckkompressoren",
+               "Für Fahrrad, E-Bike und Auto",
+               "LED-Licht ist eingebaut"]),
   dict(id="vc", tag="Fahrrad", bild="hand", anteil=0.5,
-       alt="Elektrische Fahrradpumpe von AstroAI mit Digitalanzeige, in einer Hand gehalten",
-       said='Drei Ventilarten, drei Adapter, keine Ausreden mehr.',
-       kopf='<span>Presta.</span><span>Schrader.</span><span class="b2">Dunlop.</span>',
-       belege=["Alle drei Adapter sind dabei",
-               "Auch für E-Bike, Motorrad und Bälle",
-               "Zwei Anzeigen: Sollwert und Istwert gleichzeitig"]),
+       alt="Kompakte elektrische Luftpumpe von AstroAI mit Digitalanzeige",
+       said='Am Rahmen, in der Satteltasche oder im Rucksack.',
+       kopf='<span>Mobil.</span><span class="b2">Kompakt.</span><span>Dabei.</span>',
+       belege=["Passt an den Fahrradrahmen",
+               "Verschwindet in jeder Satteltasche",
+               "Wiegt weniger als eine volle Trinkflasche"]),
   dict(id="vd", tag="Fahrrad", bild="hand", anteil=0.66,
-       alt="Elektrische Fahrradpumpe von AstroAI mit Digitalanzeige, in einer Hand gehalten",
+       alt="Kompakte elektrische Luftpumpe von AstroAI mit Digitalanzeige",
        said='Die Standpumpe im Keller hat ihren letzten Einsatz hinter sich.',
        kopf='Kein Treten<br><span class="big">mehr nötig.</span>',
        belege=["Motor macht die Arbeit, du hältst nur",
-               "Abschaltung beim eingestellten Druck",
-               "Kein Nachmessen — die Anzeige zeigt mit"]),
+               "Druck einstellen, Gerät schaltet selbst ab",
+               "Anzeige zeigt mit — kein Nachmessen"]),
   dict(id="ve", tag="Fahrrad", bild="hand", anteil=0.85,
-       alt="Elektrische Fahrradpumpe von AstroAI mit Digitalanzeige, in einer Hand gehalten",
+       alt="Kompakte elektrische Luftpumpe von AstroAI mit Digitalanzeige",
        said='Wenn du schon weißt, was du suchst:',
        kopf='Die Zahlen, die zählen.',
-       zahlen=[("150", "PSI Höchstdruck"), ("35", "Sekunden auf 80 PSI"),
-               ("25", "Reifen pro Ladung")],
-       belege=["Presta, Schrader und Dunlop im Set",
-               "Zwei Anzeigen: Sollwert und Istwert"]),
+       zahlen=[("439", "Gramm"), ("13,4", "Zentimeter lang"),
+               ("4,5", "Sterne bei Amazon")],
+       belege=["Bestseller Nr. 1 in seiner Kategorie",
+               "Digitalanzeige mit Druckvorwahl"]),
 ]
 
 teile = [DEFS]
@@ -121,6 +125,7 @@ for v in VARIANTEN:
   %(bogen)s
   %(tex)s
   <div class="sun"></div><div class="cool"></div>
+  <div class="contact"></div>
   <div class="stage"><img src="%(img)s" alt="%(alt)s"></div>
   <div class="vig"></div>
   <div class="inner">
