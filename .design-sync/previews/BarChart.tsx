@@ -109,15 +109,6 @@ export function DiagrammMitKennzahlUndFazit() {
           tone="warning"
           footnote="Zielwert: 8,0 % — Vorjahr: 10,6 %"
         />
-        <KpiTile
-          label="Durchschnittliche Betriebstreue"
-          value="8,4"
-          unit="Jahre"
-          delta="+0,3 Jahre"
-          trend="up"
-          tone="blue"
-          footnote="Pflegedienst, alle drei Standorte"
-        />
         <Callout title="Zu beachten" tone="warning" compact>
           Zwei Drittel der Abgänge erfolgen in den ersten 18 Monaten — das Einarbeitungskonzept
           wird 2026 überarbeitet.

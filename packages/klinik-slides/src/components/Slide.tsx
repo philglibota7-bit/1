@@ -71,6 +71,7 @@ export function Slide({
           "ksl-slide__body",
           align === "center" && "ksl-slide__body--center",
           flush && "ksl-slide__body--flush",
+          showLogo && "ksl-slide__body--haslogo",
         )}
       >
         {(kicker || title) && (

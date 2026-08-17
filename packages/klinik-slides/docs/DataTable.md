@@ -32,8 +32,12 @@ Hervorhebung einzelner Zeilen und Summenzeile.
 
 ## Hinweise
 
-- Auf Folien lesbar bis etwa zehn Zeilen und sechs Spalten. Darüber aufteilen
-  oder auf `BarChart` wechseln.
+- **Höhenbudget:** mit Überschrift und Fußzeile passen etwa **sechs Datenzeilen
+  plus Summenzeile** auf eine Folie, mit `dense` etwa acht. Jede zusätzliche
+  Angabe kostet eine Zeile: Einleitungssatz, Fußnote, Quellenzeile,
+  Hinweisbox darunter. Mehr Zeilen werden am Folienrand abgeschnitten —
+  lieber aufteilen oder auf `BarChart` wechseln.
+- Sechs Spalten sind die Obergrenze, danach wird die Schrift für den Saal zu klein.
 - Zahlenspalten immer `align: "right"` — dann fluchten die Ziffern, die Schrift
   läuft ohnehin mit gleichbreiten Ziffern.
 - `highlightRows` (Index ab 0) für die Zeile, um die es im Vortrag geht;

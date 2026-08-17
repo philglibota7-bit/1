@@ -30,6 +30,9 @@ Kurze, tragende Aussagen ohne Details:
 
 - Höchstens sechs Punkte pro Folie, pro Punkt eine Aussage. Was Erklärung
   braucht, gehört in `detail`, nicht in einen längeren Hauptsatz.
+- **Höhenbudget:** sechs Punkte gelten *ohne* Zweitzeilen. Mit `detail` an jedem
+  Punkt passen **vier bis fünf**, und ein `lead` an der Folie kostet einen
+  weiteren Punkt. Überzähliges wird am Folienrand abgeschnitten.
 - Aufzählungszeichen: `check` für Erreichtes und Maßnahmen, `number` für Abläufe
   und Reihenfolgen, `arrow` für Schlussfolgerungen, `dot` für neutrale Listen.
 - `columns={2}` erst ab etwa sechs Punkten — vorher entsteht nur eine Lücke.

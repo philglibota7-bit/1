@@ -67,7 +67,7 @@ export function ContentSlide({
         </div>
       )}
 
-      <div className="ksl-slide__body">
+      <div className={cx("ksl-slide__body", showLogo && "ksl-slide__body--haslogo")}>
         <header className="ksl-slide__header">
           {kicker && <span className="ksl-kicker">{kicker}</span>}
           <h2 className="ksl-slide__title">{title}</h2>

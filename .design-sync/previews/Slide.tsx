@@ -154,12 +154,11 @@ export function TiefblaueKernaussage() {
   );
 }
 
-/** Zartblaue Variante mit Schmuckfläche: vier Etappen als Hinweisboxen. */
+/** Zartblaue Variante: vier Etappen als Hinweisboxen, mittig gesetzt. */
 export function FahrplanZartblau() {
   return (
     <Slide
       variant="muted"
-      decor
       kicker="Projektvorhaben"
       title="Der Umbau der Notaufnahme läuft in vier Etappen"
       align="center"

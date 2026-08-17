@@ -43,6 +43,12 @@
   background: var(--k-blue-50);
 }
 
+/* Auf zartblauem Grund wäre die Schmuckfläche in --k-blue-50 unsichtbar
+   (identische Farbe) — eine Stufe dunkler hält die Prop wirksam. */
+.ksl-slide--muted.ksl-slide--decor::after {
+  background: var(--k-blue-100);
+}
+
 .ksl-slide--blue {
   color: #fff;
   background: linear-gradient(148deg, var(--k-blue) 0%, var(--k-blue-900) 100%);
@@ -80,6 +86,10 @@
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
+  /* Schutzgrenze: zu hoher Inhalt bleibt im Textkörper und schiebt sich nicht
+     über Fußnote und Fußzeile. Abgeschnittener Inhalt ist schlecht, aber
+     übereinanderliegender Text ist unlesbar. */
+  overflow: hidden;
   padding: var(--k-slide-py) var(--k-slide-px);
 }
 
@@ -89,6 +99,13 @@
 
 .ksl-slide__body--flush {
   padding: 0;
+}
+
+/* Das Logo ist absolut positioniert und reserviert keinen Platz. Ohne diesen
+   Freiraum läuft eine Überschrift als Aussagesatz (ab etwa 40 Zeichen) durch die
+   Wortmarke — und Aussagesätze sind der dokumentierte Regelfall. */
+.ksl-slide__body--haslogo .ksl-slide__header {
+  padding-right: 17cqw;
 }
 
 /* --------------------------------------------------------------------------
@@ -169,10 +186,13 @@
 }
 
 /* Inhalt im verbleibenden Raum vertikal mittig — auf 16:9 sitzt der Inhalt
-   sonst als Block unter der Überschrift und lässt unten eine leere Bahn. */
+   sonst als Block unter der Überschrift und lässt unten eine leere Bahn.
+   `safe` ist hier nicht optional: bei Inhalt, der höher ist als der verbleibende
+   Raum, läuft echte Zentrierung nach BEIDEN Seiten über und schiebt sich über
+   Einleitungssatz und Überschrift. `safe center` dockt in diesem Fall oben an. */
 .ksl-slide__content--middle {
-  justify-content: center;
-  align-content: center;
+  justify-content: safe center;
+  align-content: safe center;
 }
 
 .ksl-footnote {
@@ -974,14 +994,18 @@
 }
 
 /* Beschriftung am linken Ende: rechts kollidiert sie mit der Wertebeschriftung
-   des letzten Balkens, sobald dieser über dem Zielwert liegt. */
+   des letzten Balkens, sobald dieser über dem Zielwert liegt. Der helle Träger
+   hält sie lesbar, wenn die Ziellinie tief liegt und Balken dahinter stehen. */
 .ksl-bars__target-label {
   position: absolute;
   top: -1.55cqw;
   left: 0;
+  padding: 0 0.31cqw;
   font-size: var(--k-fs-caption);
   font-weight: var(--k-weight-semibold);
   color: var(--k-red-700);
+  background: var(--k-surface);
+  border-radius: 0.16cqw;
 }
 
 .ksl-bars--horizontal {

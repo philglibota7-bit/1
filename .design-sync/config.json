@@ -8,5 +8,6 @@
   "cssEntry": "dist/klinik-slides.css",
   "extraFonts": ["dist/fonts.css"],
   "docsDir": "docs",
+  "readmeHeader": ".design-sync/conventions.md",
   "guidelinesGlob": ["docs/guides/**/*.md"]
 }

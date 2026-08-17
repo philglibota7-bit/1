@@ -7,8 +7,6 @@ export function FallzahlenJeFachabteilung() {
       align="top"
       kicker="Kapitel 2 — Leistungsentwicklung"
       title="Die Innere Medizin trägt den größten Teil des Zuwachses"
-      lead="Sieben Fachabteilungen, stationäre Fälle im Vergleich zum Vorjahr."
-      footnote="Ohne ambulante Fälle und Begleitpersonen."
       footerLabel="Qualitätsbericht 2025"
       pageNumber={9}
       showLogo
@@ -32,6 +30,7 @@ export function FallzahlenJeFachabteilung() {
         ]}
         highlightRows={[0]}
         totalRow={{ abt: "Gesamt", y24: "11.976", y25: "12.480", delta: "+4,2 %", vwd: "4,3 Tage" }}
+        dense
         source="Quelle: Medizincontrolling, Stand 31.12.2025"
         zebra
       />
@@ -63,15 +62,10 @@ export function PflegestellenJeStation() {
             { st: "Innere 1 — Kardiologie", betten: "32", soll: "24,0", ist: "20,5", offen: "3,5", quote: "85,4 %" },
             { st: "Innere 2 — Gastroenterologie", betten: "28", soll: "21,0", ist: "19,0", offen: "2,0", quote: "90,5 %" },
             { st: "Intensivstation Haus Mitte", betten: "14", soll: "28,0", ist: "21,5", offen: "6,5", quote: "76,8 %" },
-            { st: "Chirurgie 1", betten: "30", soll: "22,5", ist: "21,0", offen: "1,5", quote: "93,3 %" },
-            { st: "Chirurgie 2", betten: "26", soll: "19,5", ist: "18,0", offen: "1,5", quote: "92,3 %" },
             { st: "Geriatrie", betten: "36", soll: "29,0", ist: "23,0", offen: "6,0", quote: "79,3 %" },
-            { st: "Gynäkologie und Geburtshilfe", betten: "22", soll: "17,0", ist: "16,0", offen: "1,0", quote: "94,1 %" },
-            { st: "Neurologie", betten: "24", soll: "18,0", ist: "16,5", offen: "1,5", quote: "91,7 %" },
-            { st: "Kurzliegerbereich", betten: "16", soll: "11,0", ist: "10,0", offen: "1,0", quote: "90,9 %" },
           ]}
-          highlightRows={[2, 5]}
-          totalRow={{ st: "Gesamt", betten: "228", soll: "190,0", ist: "165,5", offen: "24,5", quote: "87,1 %" }}
+          highlightRows={[2, 3]}
+          totalRow={{ st: "Gesamt", betten: "110", soll: "102,0", ist: "84,0", offen: "18,0", quote: "82,4 %" }}
           source="Quelle: Pflegedirektion, Stichtag 31.12.2025"
           dense
         />

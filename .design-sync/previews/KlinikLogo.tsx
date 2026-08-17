@@ -60,6 +60,7 @@ export function MarkenvariantenHell() {
     <Slide
       kicker="Marke"
       title="Die Wortmarke in drei Ausführungen"
+      align="center"
       footerLabel="Corporate Design — Bausteine"
     >
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--k-sp-6)" }}>
@@ -109,6 +110,7 @@ export function MarkeAufTiefblauerFolie() {
       variant="blue"
       kicker="Marke"
       title="Weiße Wortmarke auf tiefblauen Folien"
+      align="center"
       footerLabel="Corporate Design — Bausteine"
       showLogo
     >

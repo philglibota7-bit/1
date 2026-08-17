@@ -6,7 +6,6 @@ export function MassnahmenHaekchen() {
     <ContentSlide
       kicker="Kapitel 4 — Krankenhaushygiene"
       title="Fünf Maßnahmen des Hygieneplans sind vollständig umgesetzt"
-      lead="Die Umsetzung wurde im Dezember 2025 in allen drei Häusern auditiert."
       footnote="Auditbericht Krankenhaushygiene, Stand 11.12.2025."
       footerLabel="Qualitätsbericht 2025"
       pageNumber={14}
@@ -47,7 +46,6 @@ export function AblaufUndBeteiligte() {
     <ContentSlide
       kicker="Kapitel 3 — Zentrale Notaufnahme"
       title="Die Ersteinschätzung folgt seit Mai 2025 fünf festen Schritten"
-      lead="Der Ablauf gilt einheitlich in allen drei Häusern."
       columns={2}
       footnote="Verfahrensanweisung ZNA-04, Version 3.0."
       footerLabel="Qualitätsbericht 2025"

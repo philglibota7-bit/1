@@ -51,7 +51,7 @@ export function ZweiDiagrammeNebeneinander() {
         title="Haus Mitte — Zugänge je Quartal"
         caption="Das vierte Quartal trägt den Zuwachs: Grippewelle und zwei zusätzliche Belegbetten."
         source="Quelle: Notaufnahmeregister"
-        height="16cqw"
+        height="13cqw"
       >
         <BarChart
           max={3600}
@@ -67,7 +67,7 @@ export function ZweiDiagrammeNebeneinander() {
         title="Haus Süd — Zugänge je Quartal"
         caption="Gleichmäßige Auslastung ohne Winterspitze — die Grundlast bleibt bei etwa 1.900 Zugängen."
         source="Quelle: Notaufnahmeregister"
-        height="16cqw"
+        height="13cqw"
       >
         <BarChart
           max={3600}

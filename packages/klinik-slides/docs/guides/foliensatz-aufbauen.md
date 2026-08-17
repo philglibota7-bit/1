@@ -118,3 +118,9 @@ gleich durchziehen; Titel-, Kapitel- und Abschlussfolien bleiben ohne.
 - **Zahlen deutsch formatieren**: Tausenderpunkt, Dezimalkomma, Einheit über
   `unit` statt im Wert.
 - **Quelle und Datenstand** gehören auf jede Datenfolie (`source`, `footnote`).
+- **Höhenbudget beachten.** Unter dem Kopfbereich bleiben etwa 40–43 cqw; ein
+  zweizeiliger Titel kostet rund 4,5 cqw. Überlauf wird lautlos abgeschnitten,
+  zuerst Summenzeile und Quellenangabe. Also: KPI-Reihe **oder** Tabelle mit
+  Summenzeile — nicht beides auf einer Folie. Bei `showLogo` hält der Kopfbereich
+  rechts Platz für die Marke frei, die Überschrift wird dort entsprechend früher
+  umbrochen.

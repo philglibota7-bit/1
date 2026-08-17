@@ -23,8 +23,10 @@ datenlastigen Folien am stärksten.
 
 - `quote` ohne Anführungszeichen übergeben — das große Anführungszeichen setzt
   die Folie selbst.
-- Zwei bis drei Zeilen sind das Maximum. Längere Zitate kürzen und die Auslassung
-  mit „…“ kennzeichnen, statt die Schrift zu verkleinern.
+- Bis zu vier Zeilen tragen (der Zitattext nutzt etwa 60 % der Folienbreite, ein
+  Satz wie das Beispiel oben läuft dadurch vierzeilig). Was darüber hinausgeht,
+  kürzen und die Auslassung mit „…“ kennzeichnen, statt die Schrift zu
+  verkleinern.
 - `role` beantwortet, warum diese Stimme zählt: Funktion oder Erhebung
   („Patientenbefragung 2025, n = 412“).
 - `tone="blue"` für den stärkeren Auftritt, etwa als Übergang in ein neues

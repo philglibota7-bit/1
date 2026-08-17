@@ -36,6 +36,10 @@ optional `logoSrc`:
   Kontrast.
 - `size` ist in Folienbreiten-Prozent (`cqw`) angegeben, damit die Marke mit der
   Folie skaliert. Standard 2,6 ≈ 33 px bei Folienbreite 1280 px.
+- Sinnvolle Stufen für die **Textmarke**: `2.6` im Folienkopf, `3` auf Titel- und
+  Abschlussfolie, ab `4.2` als eigenständige Auszeichnung. Kleinere Abstufungen
+  sind kaum wahrnehmbar, weil ohne `src` nur die Schriftgröße skaliert — bei der
+  echten Logodatei greift `size` dagegen unmittelbar als Bildhöhe.
 - Das Logo gehört einmal pro Folie oben rechts — nicht zusätzlich in die Fußzeile.
   Auf Titel- und Abschlussfolie ist es bereits gesetzt.
 - Wort- und Bildmarke nicht nachbauen oder verändern: Farbe, Schnitt und

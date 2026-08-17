@@ -54,13 +54,74 @@ aus. Deshalb rendert jede Vorschaudatei ihren Baustein innerhalb einer Folie.
 Wer künftig eine Vorschau ohne Folienrahmen schreibt, produziert eine
 scheinbar kaputte Karte.
 
+## Höhenbudget der Folie — die häufigste Fehlerquelle
+
+16:9 ist knapp. Unter dem Kopfbereich bleiben etwa **40–43 cqw**; ein zweizeiliger
+Titel kostet rund 4,5 cqw, jede Zusatzangabe (Einleitungssatz, Fußnote,
+Quellenzeile, Hinweisbox) etwa eine Zeile. Im Review lief das bei sechs von
+achtzehn Kombinationsfolien über — Tabellenzeilen und Hinweisboxen schoben sich
+über Fußnote und Fußzeile.
+
+Zwei Konsequenzen, beide eingebaut:
+
+- `.ksl-slide__body` hat jetzt `overflow: hidden`. Zu hoher Inhalt wird
+  abgeschnitten statt über die Fußzeile gezeichnet — abgeschnitten ist schlecht,
+  übereinanderliegender Text ist unlesbar.
+- Die Grenzwerte stehen in `docs/DataTable.md`, `docs/BulletList.md`,
+  `docs/Slide.md` und im Leitfaden: **sechs Datenzeilen plus Summe** (mit `dense`
+  acht), **vier bis fünf Aufzählungspunkte mit Zweitzeilen**, KPI-Reihe **oder**
+  Tabelle mit Summenzeile — nicht beides.
+
+Wer eine Folie überfüllt, sieht keinen Fehler im Build und keine Warnung im
+Capture. Nur der Screenshot zeigt es. Deshalb: nach jeder inhaltlichen Änderung
+an einer Vorschau das Sheet ansehen.
+
+## Behobene Designfehler (nicht wieder einbauen)
+
+- **Titel lief in die Wortmarke.** `.ksl-slide__logo` ist absolut positioniert;
+  der Kopfbereich reservierte keinen Platz. Ab etwa 40 Zeichen — also bei jedem
+  Aussagesatz — überlappten Titel und Marke. Behoben über
+  `.ksl-slide__body--haslogo .ksl-slide__header { padding-right: 17cqw }`, gesetzt
+  von `Slide` und `ContentSlide`, wenn `showLogo` aktiv ist.
+- **Zentrierter Inhalt lief nach oben über.** `justify-content: center` überläuft
+  bei zu hohem Inhalt nach **beiden** Seiten und schob den Inhaltsbereich über
+  Einleitungssatz und Überschrift. Behoben mit `justify-content: safe center`
+  (`safe` ist hier zwingend, nicht kosmetisch).
+- **Balkendiagramm skalierte falsch.** Werte- und Achsenbeschriftung lagen im
+  Balkenfluss und stauchten ihn; die Ziellinie lag dadurch auf einer anderen
+  Skala als die Balken. Behoben: Balken absolut im Zeichenbereich, Wert an der
+  Balkenspitze, Achsenbeschriftungen in eigener Zeile darunter.
+- **`decor` war auf `variant="muted"` unsichtbar** (Schmuckfläche und
+  Folienhintergrund beide `--k-blue-50`). Behoben mit `--k-blue-100` auf muted.
+- **Ziellinien-Beschriftung war unlesbar**, wenn die Ziellinie tief liegt und ein
+  Balken dahinter steht. Behoben mit hellem Träger hinter der Beschriftung.
+- **Weiße Folien hatten keine erkennbare Kante** — auf hellem Grund (Vorschau,
+  Übersicht, Handout) schwebte der Inhalt. Behoben mit einem sehr feinen
+  Schatten auf `.ksl-slide`.
+
+## Offene Punkte (bewusst nicht umgesetzt)
+
+- **Kopf oben, Inhalt mittig ist auf `Slide` nicht ausdrückbar.** `align="center"`
+  zentriert den ganzen Textkörper einschließlich Kicker, Titel und Akzentlinie.
+  `ContentSlide` trennt das (fester Kopf, `align` nur für den Inhalt); für `Slide`
+  wäre eine zusätzliche Prop `contentAlign` die saubere Lösung.
+- **Die Größenachse der Text-Wortmarke ist kaum wahrnehmbar**, weil ohne `src`
+  nur die Schriftgröße skaliert. Statt die Platzhaltermarke aufwendiger zu bauen,
+  nennt `docs/KlinikLogo.md` jetzt brauchbare Stufen (2,6 / 3 / ab 4,2). Mit der
+  echten Logodatei greift `size` unmittelbar als Bildhöhe — das Thema löst sich
+  damit von selbst.
+
 ## Bekannte Warnungen im Render-Check
 
-- `[RENDER_THIN] … mounted text is just "<Name>"` erscheint für jede Komponente
-  **ohne** eigene Vorschaudatei (Platzhalter-Kachel). Nach dem Authoring aller
-  13 Komponenten darf diese Warnung nicht mehr auftreten — wenn doch, ist eine
+Der aktuelle Stand ist **warnungsfrei** — alle 13 Komponenten haben eine eigene
+Vorschaudatei, `package-validate.mjs` läuft ohne eine einzige `!`-Zeile durch.
+Jede neue Warnung ist damit wirklich neu. Zwei Zeilen zur Einordnung:
+
+- `[RENDER_THIN] … mounted text is just "<Name>"` erscheint nur für Komponenten
+  **ohne** eigene Vorschaudatei (Platzhalter-Kachel). Tritt sie auf, ist eine
   `.tsx` nicht kompiliert (Build-Log: `! preview build failed: <Name>`).
 - `tokens: 65 defined, 59 referenced` ist der gesunde Zustand.
+- `tokens/` im Upload-Paket ist leer — beabsichtigt, siehe Gotcha oben.
 
 ## Upload
 
