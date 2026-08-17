@@ -1,0 +1,92 @@
+/* ==========================================================================
+   Klinik-Präsentation — Design-Tokens
+   Farbbasis: Logo "DIE KLINIKEN Landkreis Schwäbisch Hall"
+   Stil: Modern-Clean (viel Weißraum, große Typografie, Rot nur als Akzent)
+
+   Größen sind in `cqw` (Container-Query-Breite) notiert: eine Folie ist der
+   Container, dadurch skaliert eine Folie proportional mit ihrer Breite —
+   als Vollbild ebenso wie als kleine Vorschaukarte. Die px-Werte in den
+   Kommentaren gelten bei der Referenzbreite 1280px (16:9).
+   ========================================================================== */
+
+:root,
+.ksl-scope {
+  /* --- Marke: Blau ------------------------------------------------------ */
+  --k-blue-900: #002647;
+  --k-blue-800: #003462;
+  --k-blue: #00417b;          /* Primärfarbe, aus dem Logo-Schriftzug */
+  --k-blue-600: #1c5f9e;
+  --k-blue-400: #5e92bf;
+  --k-blue-200: #b9d2e6;
+  --k-blue-100: #e3eef7;
+  --k-blue-50: #f2f7fb;
+
+  /* --- Marke: Rot (Akzent, sparsam einsetzen) --------------------------- */
+  --k-red: #e2001a;           /* Akzentfarbe, aus "Landkreis Schwäbisch Hall" */
+  --k-red-700: #b00015;
+  --k-red-100: #fbdce0;
+  --k-red-50: #fdf1f3;
+
+  /* --- Neutraltöne ------------------------------------------------------ */
+  --k-ink: #14202c;           /* Fließtext auf hellem Grund */
+  --k-ink-700: #3b4b5b;
+  --k-ink-500: #67798b;       /* Sekundärtext, Beschriftungen */
+  --k-ink-300: #9dacba;
+  --k-line: #dce4ec;
+  --k-line-strong: #c0cdd9;
+  --k-surface: #ffffff;
+  --k-surface-muted: #f6fafd;
+
+  /* --- Statusfarben (Kennzahlen, Hinweise) ----------------------------- */
+  --k-ok: #0e7a54;
+  --k-ok-50: #eaf6f1;
+  --k-warn: #b26a00;
+  --k-warn-50: #fcf4e6;
+  --k-crit: #c2001a;
+  --k-crit-50: #fdf1f3;
+
+  /* --- Typografie ------------------------------------------------------- */
+  --k-font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --k-fs-display: 5.2cqw;     /* 66px — Titelfolie */
+  --k-fs-h1: 3.44cqw;         /* 44px — Folienüberschrift */
+  --k-fs-h2: 2.5cqw;          /* 32px — Kapitel, große Zahlen im Text */
+  --k-fs-h3: 1.8cqw;          /* 23px — Blocktitel */
+  --k-fs-body: 1.56cqw;       /* 20px — Fließtext auf Folien */
+  --k-fs-small: 1.33cqw;      /* 17px — Detailzeilen, Tabellen */
+  --k-fs-caption: 1.09cqw;    /* 14px — Quellen, Fußnoten */
+  --k-fs-eyebrow: 1.17cqw;    /* 15px — Kicker über der Überschrift */
+  --k-fs-kpi: 4.2cqw;         /* 54px — Kennzahlenwert */
+  --k-lh-tight: 1.08;
+  --k-lh-heading: 1.18;
+  --k-lh-body: 1.5;
+  --k-tracking-eyebrow: 0.12em;
+  --k-weight-regular: 400;
+  --k-weight-medium: 500;
+  --k-weight-semibold: 600;
+  --k-weight-bold: 700;
+
+  /* --- Abstände --------------------------------------------------------- */
+  --k-sp-1: 0.31cqw;          /* 4px */
+  --k-sp-2: 0.63cqw;          /* 8px */
+  --k-sp-3: 0.94cqw;          /* 12px */
+  --k-sp-4: 1.25cqw;          /* 16px */
+  --k-sp-5: 1.88cqw;          /* 24px */
+  --k-sp-6: 2.5cqw;           /* 32px */
+  --k-sp-7: 3.44cqw;          /* 44px */
+  --k-sp-8: 5cqw;             /* 64px */
+
+  /* --- Formen ----------------------------------------------------------- */
+  --k-radius-sm: 0.47cqw;     /* 6px */
+  --k-radius: 0.94cqw;        /* 12px */
+  --k-radius-lg: 1.56cqw;     /* 20px */
+  --k-border: 0.08cqw;        /* 1px */
+  --k-rule: 0.31cqw;          /* 4px — rote Akzentlinie */
+  --k-shadow-soft: 0 0.08cqw 0.23cqw rgba(16, 32, 48, 0.06);
+  --k-shadow: 0 0.08cqw 0.16cqw rgba(16, 32, 48, 0.05), 0 0.78cqw 2.2cqw rgba(16, 32, 48, 0.07);
+
+  /* --- Folienmaße ------------------------------------------------------- */
+  --k-slide-ratio: 16 / 9;
+  --k-slide-max: 1280px;
+  --k-slide-px: 5.94cqw;      /* 76px seitlicher Folienrand */
+  --k-slide-py: 4.38cqw;      /* 56px oberer/unterer Folienrand */
+}

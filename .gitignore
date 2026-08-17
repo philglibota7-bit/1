@@ -1,0 +1,11 @@
+# Abhängigkeiten und Build-Ausgaben
+node_modules/
+packages/*/dist/
+
+# design-sync: gestagte Konverter-Skripte, generiertes Upload-Paket, Maschinenzustand
+.ds-sync/
+ds-bundle/
+ds-bundle-klinik-praesentation.zip
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
