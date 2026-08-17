@@ -704,12 +704,18 @@ function alarmSpeichern(k){
   alarmeSichern();
 
   if("Notification" in window && Notification.permission === "default"){
+    /* In eingebetteten Ansichten verweigert der Browser die Frage rundheraus.
+       Der Alarm ist da trotzdem gesetzt — dann eben nur auf der Seite. */
     Notification.requestPermission().then(function(r){
       meldung(r === "granted" ? "gut" : "info",
         r === "granted" ? "Benachrichtigungen aktiv" : "Nur auf der Seite",
         r === "granted"
           ? "Du bekommst eine Meldung, sobald der Preis fällt — solange diese Seite offen ist."
           : "Ohne Erlaubnis siehst du den Treffer nur hier auf der Seite.");
+    }).catch(function(){
+      meldung("info", "Nur auf der Seite",
+        "Dein Browser lässt hier keine Benachrichtigungen zu. Der Alarm greift, " +
+        "solange diese Seite offen ist.");
     });
   } else {
     meldung("gut", "Preisalarm gesetzt",

@@ -31,14 +31,17 @@ await step('SubID-Vorschau stimmt mit der Seite überein', async () => {
   const s = await pg.evaluate(() => document.querySelector('#zeilen .sub').textContent);
   if (!/sq-instagram-herbststart-vakuumiererquad-vakuumierer/.test(s)) throw new Error(s);
 });
-await step('Pinterest zeigt die neun Pins und keine Feed-Motive', async () => {
+await step('Pinterest zeigt alle Pins und keine Feed-Motive', async () => {
   await pg.selectOption('#kanal', 'pinterest|pin|pin');
   await pg.waitForTimeout(250);
   const n = await zeilen();
-  if (n !== 9) throw new Error(n + ' Zeilen');
+  if (n !== 18) throw new Error(n + ' Zeilen (erwartet 3x3 + 9 der Pumpe)');
   const u = await pg.evaluate(() => document.querySelector('#zeilen .url').textContent);
   if (!/utm_source=pinterest/.test(u) || !/utm_medium=pin/.test(u)) throw new Error(u);
-  if (!/utm_content=pumpe-pin-1-nachtfahrt/.test(u)) throw new Error(u);
+  if (!/utm_content=vakuumierer-pin-plakat/.test(u)) throw new Error(u);
+  const alle = await pg.evaluate(() =>
+    [...document.querySelectorAll('#zeilen .url')].map(x => /utm_content=([^&]+)/.exec(x.textContent)[1]));
+  if (!alle.some(a => a === 'pumpe-pin-1-nachtfahrt')) throw new Error('Pumpenpins fehlen');
 });
 await step('Jeder Pin bleibt im Provisionsbericht unterscheidbar', async () => {
   const subs = await pg.evaluate(() =>
@@ -51,7 +54,7 @@ await step('Profil-Link zeigt alle Motive zusammen', async () => {
   await pg.selectOption('#kanal', 'bio|link|alle');
   await pg.waitForTimeout(250);
   const n = await zeilen();
-  if (n !== 20) throw new Error(n + ' Zeilen (erwartet 6 + 14)');
+  if (n !== 29) throw new Error(n + ' Zeilen (erwartet 6 + 9 + 14)');
 });
 await step('Sammelkopie liefert eine vollständige Tabelle', async () => {
   const t = await pg.evaluate(() => {
@@ -61,7 +64,7 @@ await step('Sammelkopie liefert eine vollständige Tabelle', async () => {
     return new Promise(r => setTimeout(() => r(g), 60));
   });
   const z = t.trim().split('\n');
-  if (z.length !== 21) throw new Error(z.length + ' Zeilen inkl. Kopf');
+  if (z.length !== 30) throw new Error(z.length + ' Zeilen inkl. Kopf');
   if (z[0] !== 'Motiv\tFormat\tAdresse\tSubID') throw new Error('Kopfzeile: ' + z[0]);
   if (z[1].split('\t').length !== 4) throw new Error('Spalten: ' + z[1]);
 });

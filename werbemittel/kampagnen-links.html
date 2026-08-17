@@ -131,10 +131,24 @@ const feed = function(buchstabe, name){
            label: "Feed " + buchstabe.toUpperCase() + " · " + name + ", 1080 x 1080" };
 };
 
+/* Drei Bauformen, für alle Produkte außer der Pumpe dieselben. */
+const BAUFORM = ["plakat", "anleitung", "karte"];
+const pins = function(){
+  return BAUFORM.map(function(b){
+    return { art: "pin", inhalt: "-pin-" + b, label: "Pin · " + b + ", 1000 x 1500" };
+  });
+};
+const mitPins = function(){ return FEED.concat(pins()); };
+
 const MOTIVE = [
-  { name: "Vakuumierer",    datei: "vakuumierer",    kuerzel: "vakuumierer", stuecke: FEED },
-  { name: "Massagepistole", datei: "massagepistole", kuerzel: "massagepistole", stuecke: FEED },
-  { name: "Sunset-Lampe",   datei: "sunset-lampe",   kuerzel: "lampe", stuecke: FEED },
+  { name: "Vakuumierer",    datei: "vakuumierer",    kuerzel: "vakuumierer",
+    stuecke: mitPins() },
+  { name: "Massagepistole", datei: "massagepistole", kuerzel: "massagepistole",
+    stuecke: mitPins() },
+  /* Die Feed-Motive heißen "sunset-lampe", die Pins nur "lampe" — so wie
+     die Dateien selbst. */
+  { name: "Sunset-Lampe",   datei: "sunset-lampe",   kuerzel: "lampe",
+    pinDatei: "lampe", stuecke: mitPins() },
   { name: "Fahrradpumpe",   datei: "fahrradpumpe",   kuerzel: "pumpe",
     /* Die Pins tragen "pumpe" statt "fahrradpumpe", sonst frisst der
        Produktname die Kürzung auf und die neun Entwürfe sehen im Bericht
