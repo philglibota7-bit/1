@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQUELLY — Pinterest-Texte zur Fahrradpumpe</title>
+<style>
+:root{
+  --navy:#14315c; --blue:#3a8ccd; --sky:#d5eef8; --ground:#eef4f9;
+  --line:#c9d8e4; --mut:#5c7591; --warn:#b4632a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--ground);
+  color:var(--navy);line-height:1.55;padding:32px 20px 60px}
+.wrap{max-width:880px;margin:0 auto}
+h1{font-size:1.5rem;font-weight:800;letter-spacing:-.01em}
+.lead{color:var(--mut);font-size:.92rem;margin:8px 0 26px;max-width:70ch}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:16px}
+h2{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);
+  font-weight:700;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+label{display:block;font-size:.76rem;font-weight:600;color:var(--mut);margin-bottom:5px}
+input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:7px;
+  font:inherit;font-size:.9rem;background:#fff;color:var(--navy)}
+input:focus{outline:2px solid var(--blue);outline-offset:-1px;border-color:var(--blue)}
+button{font:inherit;font-size:.78rem;font-weight:650;padding:7px 13px;border-radius:7px;
+  border:1px solid var(--navy);background:var(--navy);color:#fff;cursor:pointer}
+button:hover{background:#0f2749}
+button.g{background:#fff;color:var(--navy)}
+button.g:hover{background:var(--sky)}
+
+.pin{display:grid;grid-template-columns:150px 1fr;gap:20px;padding:22px 0;
+  border-top:1px solid #e6eef5}
+.pin:first-child{border-top:none;padding-top:0}
+.pin img{width:100%;height:auto;border-radius:9px;border:1px solid var(--line);display:block;
+  background:#fff}
+.pin .datei{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.66rem;color:var(--mut);
+  margin-top:7px;word-break:break-all;line-height:1.4}
+.feld{margin-bottom:14px}
+.feld:last-child{margin-bottom:0}
+.kopf{display:flex;align-items:baseline;gap:9px;margin-bottom:5px}
+.kopf h3{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);
+  font-weight:700}
+.zaehler{font-size:.68rem;color:var(--mut);font-variant-numeric:tabular-nums}
+.zaehler.eng{color:var(--warn);font-weight:700}
+.kopf button{margin-left:auto;padding:4px 10px;font-size:.7rem}
+.text{font-size:.88rem;line-height:1.5;white-space:pre-wrap}
+.text.klein{font-size:.8rem;color:var(--mut)}
+.url{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.74rem;word-break:break-all;
+  line-height:1.5}
+.brett{display:inline-block;font-size:.7rem;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;background:var(--sky);color:var(--navy);padding:5px 11px;
+  border-radius:99px;margin-bottom:12px}
+.leiste{display:flex;align-items:center;gap:14px;margin-top:18px;padding-top:14px;
+  border-top:1px solid #e6eef5}
+.leiste span{font-size:.78rem;color:var(--mut);margin-right:auto}
+.hinweis{font-size:.8rem;color:var(--mut);background:#fff;border:1px solid var(--line);
+  border-left:3px solid var(--blue);border-radius:8px;padding:14px 16px;margin-top:20px}
+.hinweis b{color:var(--navy)}
+.hinweis + .hinweis{margin-top:12px}
+@media (max-width:620px){ .pin{grid-template-columns:1fr} .pin img{max-width:220px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Pinterest-Texte zur Fahrradpumpe</h1>
+  <p class="lead">Neun fertige Pins liegen als Bild daneben — hier stehen Titel, Beschreibung,
+    Alternativtext und die eigene Adresse dazu. Pinterest lässt 100 Zeichen im Titel und 500 in
+    der Beschreibung zu; die Zähler schlagen an, bevor abgeschnitten wird.</p>
+
+  <div class="card">
+    <h2>Einstellungen</h2>
+    <div class="grid">
+      <div>
+        <label for="basis">Adresse deiner Seite</label>
+        <input id="basis" value="https://philglibota7-bit.github.io/1/squelly.html">
+      </div>
+      <div>
+        <label for="kampagne">Kampagne</label>
+        <input id="kampagne" value="Herbst Start" placeholder="z. B. Herbst Start">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Die neun Pins</h2>
+    <div id="pins"></div>
+    <div class="leiste">
+      <span id="zahl"></span>
+      <button class="g" id="alle">Alles als Tabelle kopieren</button>
+    </div>
+  </div>
+
+  <p class="hinweis">
+    <b>Warum der Umweg über die eigene Seite?</b> Das Partnerprogramm untersagt Partnerlinks in
+    bezahlter Werbung. Pin → SQUELLY-Seite → Amazon ist der zulässige Weg, und die Herkunft aus
+    der Adresse landet später im Provisionsbericht — so siehst du, welcher Entwurf gezogen hat.
+  </p>
+  <p class="hinweis">
+    <b>Kennzeichnung.</b> Jede Beschreibung endet mit „Anzeige“. Auch wenn der Pin auf die eigene
+    Seite führt und nicht direkt zu Amazon: Die Seite verdient am Klick, und das gehört
+    hingeschrieben.
+  </p>
+
+<script>
+"use strict";
+/* Dieselbe Kürzung wie auf der SQUELLY-Seite und im Linkwerkzeug, damit die
+   Vorschau der SubID dem entspricht, was später bei Amazon ankommt. */
+const kurz = function(v, n){
+  return String(v || "").toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, n || 12);
+};
+
+/* Alle Angaben stammen von der amazon.de-Produktseite dieses Geräts:
+   439 g, 13,4 x 6,6 x 5 cm, Digitalanzeige mit Druckvorwahl und
+   Abschaltautomatik, eingebautes LED-Licht, Halterung für den Rahmen,
+   für Fahrrad, E-Bike und Auto, 4,5 Sterne, 10.000+ gekauft. */
+const PINS = [
+  { nr: 1, name: "nachtfahrt", brett: "Fahrrad & Pendeln",
+    titel: "Panne um halb zehn? Diese Mini-Luftpumpe hat ihr Licht schon dabei",
+    text: "Im Dunkeln hilft kein Gefühl im Daumen. Die kompakte elektrische Luftpumpe von " +
+          "AstroAI hat ein LED eingebaut und leuchtet dir das Ventil aus, während sie pumpt. " +
+          "Wunschdruck vorher einstellen — beim Zielwert schaltet sie von allein ab. 439 g, " +
+          "13,4 x 6,6 x 5 cm, für Fahrrad, E-Bike und Auto.",
+    alt: "Kompakte schwarze elektrische Luftpumpe mit leuchtender Digitalanzeige in einem " +
+         "Lichtkegel vor dunkelblauem Hintergrund" },
+
+  { nr: 2, name: "riss", brett: "Fahrradzubehör",
+    titel: "13,4 x 6,6 x 5 cm: die Luftpumpe, die in jede Satteltasche passt",
+    text: "Maßblatt statt Werbespruch: 13,4 cm lang, 6,6 cm breit, 5 cm tief, 439 g schwer. " +
+          "Das ist die ganze elektrische Luftpumpe — mit Digitalanzeige, Druckvorwahl und " +
+          "eingebautem LED-Licht. Sie ersetzt die Standpumpe im Keller und nimmt in der " +
+          "Satteltasche kaum Platz weg.",
+    alt: "Technische Zeichnung einer kompakten elektrischen Luftpumpe mit Maßlinien für 13,4 " +
+         "mal 6,6 mal 5 Zentimeter auf blauem Millimeterraster" },
+
+  { nr: 3, name: "schnitt", brett: "Fahrrad & Pendeln",
+    titel: "Nie wieder treten: Knopf drücken statt Standpumpe schleppen",
+    text: "Treten, bis der Arm brennt — das war die alte Art, den Reifen vollzukriegen. Bei " +
+          "dieser elektrischen Luftpumpe stellst du den Wunschdruck ein, drückst einen Knopf " +
+          "und sie schaltet beim Zielwert selbst ab. Der Motor macht die Arbeit, du hältst " +
+          "nur. Für Fahrrad, E-Bike und Auto.",
+    alt: "Geteiltes Bild: oben durchgestrichen die alte Handpumpen-Mühe, unten die " +
+         "elektrische Luftpumpe auf blauem Grund" },
+
+  { nr: 4, name: "plakat", brett: "Fahrradzubehör",
+    titel: "439 Gramm — so wenig wiegt der Ersatz für deine Standpumpe",
+    text: "Weniger als eine volle Trinkflasche, und trotzdem pumpt sie Fahrrad, E-Bike und " +
+          "Auto auf. 13,4 cm lang, Digitalanzeige mit Druckvorwahl, LED-Licht eingebaut, " +
+          "4,5 Sterne bei über 10.000 Käufen. Die Standpumpe darf im Keller bleiben.",
+    alt: "Plakat mit der großen Zahl 439 Gramm und der kompakten elektrischen Luftpumpe in " +
+         "einem dünnen Kreis auf cremefarbenem Grund" },
+
+  { nr: 5, name: "anleitung", brett: "Fahrrad reparieren",
+    titel: "Reifen voll in drei Schritten — ohne Muskelkraft",
+    text: "1. Ventilkopf aufschrauben, egal ob Fahrrad, E-Bike oder Auto. 2. Wunschdruck an " +
+          "der Digitalanzeige vorwählen. 3. Knopf drücken — sie pumpt und schaltet beim " +
+          "Zielwert selbst ab. Kein Nachmessen, kein Treten. 439 g, passt in die " +
+          "Satteltasche, LED-Licht ist eingebaut.",
+    alt: "Anleitung in drei nummerierten Schritten neben einem Foto der kompakten " +
+         "elektrischen Luftpumpe" },
+
+  { nr: 6, name: "plaetze", brett: "Fahrrad & Pendeln",
+    titel: "Drei Plätze, an denen die Mini-Luftpumpe einfach mitfährt",
+    text: "Am Rahmen in der Halterung, in der Satteltasche, im Rucksack — bei 13,4 cm und " +
+          "439 g stört sie nirgends. Genau deshalb ist sie dabei, wenn der Reifen leer ist, " +
+          "und nicht zu Hause im Keller. Digitalanzeige mit Druckvorwahl, Abschaltautomatik, " +
+          "LED-Licht, für Fahrrad, E-Bike und Auto.",
+    alt: "Drei Fotos untereinander: die Luftpumpe in der Rahmenhalterung, auf dem Weg in " +
+         "eine Satteltasche und in einen Rucksack" },
+
+  { nr: 7, name: "groesse", brett: "Fahrradzubehör",
+    titel: "Kaum größer als dein Handy: elektrische Luftpumpe für unterwegs",
+    text: "Ein Foto beantwortet die Größenfrage schneller als jede Zahl — die Pumpe steht " +
+          "neben einem Smartphone und überragt es kaum. 13,4 x 6,6 x 5 cm, 439 g. Und sie " +
+          "ersetzt trotzdem die Standpumpe: Wunschdruck einstellen, sie pumpt und schaltet " +
+          "beim Zielwert selbst ab.",
+    alt: "Die kompakte elektrische Luftpumpe steht neben einem Smartphone und ist kaum " +
+         "größer als dieses" },
+
+  { nr: 8, name: "szene", brett: "Fahrrad & Pendeln",
+    titel: "Sie wartet am Rad, nicht im Keller",
+    text: "In der Halterung am Rahmen fährt die elektrische Luftpumpe einfach mit — dort, wo " +
+          "der platte Reifen passiert, und nicht dort, wo die Standpumpe steht. Druck " +
+          "vorwählen, sie schaltet beim Zielwert selbst ab. LED-Licht eingebaut, für " +
+          "Fahrrad, E-Bike und Auto, 439 g.",
+    alt: "Die kompakte elektrische Luftpumpe steckt in ihrer Halterung am Rahmen eines " +
+         "Fahrrads" },
+
+  { nr: 9, name: "tafel", brett: "Fahrrad reparieren",
+    titel: "Was eine elektrische Mini-Luftpumpe dir im Alltag abnimmt",
+    text: "Ein Gerät statt drei Pumpen im Haus: Fahrrad, E-Bike und Auto. Wunschdruck " +
+          "vorwählen, sie schaltet beim Zielwert selbst ab — kein Nachmessen. LED-Licht für " +
+          "die Panne im Dunkeln. 439 Gramm, weniger als eine volle Trinkflasche, und sie " +
+          "verschwindet in der Satteltasche.",
+    alt: "Foto einer Hand, die die Luftpumpe in eine Satteltasche steckt, darunter vier " +
+         "Kacheln mit ihren Aufgaben" }
+];
+
+const KENNZEICHEN = "Anzeige · Als Amazon-Partner verdienen wir an qualifizierten Verkäufen.";
+const GRENZE = { titel: 100, text: 500, alt: 500 };
+
+function datei(p){
+  return "squelly-pumpe-pin-" + p.nr + "-" + p.name + "-1000x1500.png";
+}
+function beschreibung(p){
+  return p.text + " " + KENNZEICHEN;
+}
+/* Gleiche Bauart wie im Linkwerkzeug, hier fest auf Pinterest. */
+function adresse(p){
+  const basis = document.getElementById("basis").value.trim();
+  const kampagne = document.getElementById("kampagne").value.trim();
+  const inhalt = "pumpe-pin-" + p.nr + "-" + p.name;
+  return basis + (basis.indexOf("?") === -1 ? "?" : "&") +
+    "utm_source=pinterest&utm_medium=pin" +
+    "&utm_campaign=" + encodeURIComponent(kampagne) +
+    "&utm_content=" + encodeURIComponent(inhalt);
+}
+
+function kopieren(el, text){
+  el.onclick = function(){
+    navigator.clipboard.writeText(typeof text === "function" ? text() : text).then(function(){
+      const alt = el.textContent, klasse = el.className;
+      el.textContent = "Kopiert"; el.className = "g";
+      setTimeout(function(){ el.textContent = alt; el.className = klasse; }, 1400);
+    });
+  };
+  return el;
+}
+
+function feld(titel, inhalt, grenze, klasse){
+  const d = document.createElement("div");
+  d.className = "feld";
+  const kopf = document.createElement("div");
+  kopf.className = "kopf";
+  const h = document.createElement("h3");
+  h.textContent = titel;
+  kopf.appendChild(h);
+  if(grenze){
+    const z = document.createElement("span");
+    z.className = "zaehler" + (inhalt.length > grenze ? " eng" : "");
+    z.textContent = inhalt.length + " / " + grenze;
+    kopf.appendChild(z);
+  }
+  const k = document.createElement("button");
+  k.className = "g"; k.textContent = "Kopieren";
+  kopf.appendChild(kopieren(k, inhalt));
+  const t = document.createElement("div");
+  t.className = "text" + (klasse ? " " + klasse : "");
+  t.textContent = inhalt;
+  d.appendChild(kopf); d.appendChild(t);
+  return d;
+}
+
+function bauen(){
+  const ziel = document.getElementById("pins");
+  ziel.innerHTML = "";
+  let eng = 0;
+
+  PINS.forEach(function(p){
+    const b = beschreibung(p);
+    if(p.titel.length > GRENZE.titel || b.length > GRENZE.text || p.alt.length > GRENZE.alt) eng++;
+
+    const zeile = document.createElement("div");
+    zeile.className = "pin";
+
+    const links = document.createElement("div");
+    const img = document.createElement("img");
+    img.src = datei(p); img.alt = p.alt; img.loading = "lazy";
+    const nam = document.createElement("div");
+    nam.className = "datei"; nam.textContent = datei(p);
+    links.appendChild(img); links.appendChild(nam);
+
+    const rechts = document.createElement("div");
+    const brett = document.createElement("span");
+    brett.className = "brett"; brett.textContent = "Pinnwand: " + p.brett;
+    rechts.appendChild(brett);
+    rechts.appendChild(feld("Titel", p.titel, GRENZE.titel));
+    rechts.appendChild(feld("Beschreibung", b, GRENZE.text));
+    rechts.appendChild(feld("Alternativtext", p.alt, GRENZE.alt, "klein"));
+    const u = feld("Zieladresse", adresse(p), 0, "klein");
+    u.querySelector(".text").className = "url";
+    rechts.appendChild(u);
+
+    zeile.appendChild(links); zeile.appendChild(rechts);
+    ziel.appendChild(zeile);
+  });
+
+  document.getElementById("zahl").textContent = eng
+    ? eng + " Pin(s) über der Zeichengrenze"
+    : PINS.length + " Pins, alle innerhalb der Zeichengrenzen";
+}
+
+kopieren(document.getElementById("alle"), function(){
+  return ["Datei\tPinnwand\tTitel\tBeschreibung\tAlternativtext\tZieladresse"]
+    .concat(PINS.map(function(p){
+      return [datei(p), p.brett, p.titel, beschreibung(p), p.alt, adresse(p)].join("\t");
+    })).join("\n");
+});
+
+["basis", "kampagne"].forEach(function(id){
+  document.getElementById(id).addEventListener("input", bauen);
+});
+bauen();
+</script>
+</div>
+</body>
+</html>
