@@ -19,7 +19,8 @@ await step('Preis, Stand und Beispiel-Kennzeichnung je Karte', async () => {
     stand: c.querySelector('.stand')?.textContent,
     demo: !!c.querySelector('.demo')
   })));
-  if (d.length !== 3) throw new Error(d.length + ' Karten');
+  const soll = await pg.evaluate(() => PRODUKTE.length);
+  if (d.length !== soll) throw new Error(d.length + ' Karten zu ' + soll + ' Produkten');
   d.forEach(x => {
     if (!/€/.test(x.preis || '')) throw new Error('kein Preis: ' + JSON.stringify(x));
     if (!/Stand .*Tief .*Höchstwert/.test(x.stand || '')) throw new Error('Stand unvollständig: ' + x.stand);

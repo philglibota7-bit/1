@@ -41,6 +41,12 @@ button.g:hover{background:var(--sky)}
   border-left:3px solid var(--blue);border-radius:8px;padding:14px 16px;margin-top:20px}
 .hinweis b{color:var(--navy)}
 .ok{color:#2f7d4c;font-size:.78rem;font-weight:650}
+tr.gruppe td{border-top:none;padding:18px 0 4px;font-size:.7rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--blue);font-weight:700}
+tr.gruppe:first-child td{padding-top:0}
+.leiste{display:flex;align-items:center;gap:14px;margin-top:16px;padding-top:14px;
+  border-top:1px solid #e6eef5}
+.zahl{font-size:.78rem;color:var(--mut);margin-right:auto}
 </style>
 </head>
 <body>
@@ -64,14 +70,16 @@ button.g:hover{background:var(--sky)}
       </div>
       <div>
         <label for="kanal">Kanal</label>
+        <!-- Drittes Feld: welche Motive zu diesem Kanal gehören. Ein Pin im
+             Hochformat hat im Instagram-Feed nichts verloren und umgekehrt. -->
         <select id="kanal">
-          <option value="instagram|paid">Instagram — bezahlt</option>
-          <option value="facebook|paid">Facebook — bezahlt</option>
-          <option value="instagram|organisch">Instagram — Beitrag</option>
-          <option value="tiktok|paid">TikTok — bezahlt</option>
-          <option value="pinterest|pin">Pinterest — Pin</option>
-          <option value="whatsapp|nachricht">WhatsApp — Nachricht</option>
-          <option value="bio|link">Profil-Link (Bio)</option>
+          <option value="instagram|paid|feed">Instagram — bezahlt</option>
+          <option value="facebook|paid|feed">Facebook — bezahlt</option>
+          <option value="instagram|organisch|feed">Instagram — Beitrag</option>
+          <option value="tiktok|paid|feed">TikTok — bezahlt</option>
+          <option value="pinterest|pin|pin">Pinterest — Pin</option>
+          <option value="whatsapp|nachricht|alle">WhatsApp — Nachricht</option>
+          <option value="bio|link|alle">Profil-Link (Bio)</option>
         </select>
       </div>
     </div>
@@ -79,10 +87,14 @@ button.g:hover{background:var(--sky)}
 
   <div class="card">
     <h2>Fertige Adressen</h2>
+    <!-- Ohne Kopfzeile: die Zwischenüberschrift je Produkt beschriftet sich selbst. -->
     <table>
-      <thead><tr><th>Motiv</th><th></th></tr></thead>
       <tbody id="zeilen"></tbody>
     </table>
+    <div class="leiste">
+      <span class="zahl" id="zahl"></span>
+      <button class="g" id="alle">Alle als Tabelle kopieren</button>
+    </div>
   </div>
 
   <p class="hinweis">
@@ -99,29 +111,57 @@ const kurz = function(v, n){
   return String(v || "").toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, n || 12);
 };
 
-const MOTIVE = [
-  { name: "Vakuumierer",     datei: "vakuumierer",     kuerzel: "vakuumierer" },
-  { name: "Massagepistole",  datei: "massagepistole",  kuerzel: "massagepistole" },
-  { name: "Sunset-Lampe",    datei: "sunset-lampe",    kuerzel: "lampe" }
+/* Kurze Kennungen, weil der Platz im Provisionsbericht begrenzt ist:
+   "1080x1080" und "1080x1350" würden auf denselben Rest gekürzt und wären
+   dort nicht mehr auseinanderzuhalten. Aus demselben Grund tragen die Pins
+   ihre Nummer — "nachtfahrt" und "riss" sind kurz, aber die Nummer bleibt
+   auch dann lesbar, wenn ein späterer Name lang wird.
+   utm_content ist bewusst der Dateiname ohne Maße: eine Zeile im Bericht
+   zeigt damit unmittelbar auf die Bilddatei, die den Klick gebracht hat. */
+const FEED = [
+  { art: "feed", inhalt: "-quad", label: "Feed, 1080 x 1080" },
+  { art: "feed", inhalt: "-hoch", label: "Feed, 1080 x 1350" }
 ];
-/* Kurze Namen, weil die Kennung im Provisionsbericht begrenzt ist:
-   "1080x1080" und "1080x1350" würden auf denselben Rest gekürzt und
-   wären dort nicht mehr auseinanderzuhalten. */
-const FORMATE = [
-  { kuerzel: "quad", label: "1080 x 1080" },
-  { kuerzel: "hoch", label: "1080 x 1350" }
+const pin = function(nr, name){
+  return { art: "pin", inhalt: "-pin-" + nr + "-" + name,
+           label: "Pin " + nr + " · " + name + ", 1000 x 1500" };
+};
+const feed = function(buchstabe, name){
+  return { art: "feed", inhalt: "-" + buchstabe + "-" + name,
+           label: "Feed " + buchstabe.toUpperCase() + " · " + name + ", 1080 x 1080" };
+};
+
+const MOTIVE = [
+  { name: "Vakuumierer",    datei: "vakuumierer",    kuerzel: "vakuumierer", stuecke: FEED },
+  { name: "Massagepistole", datei: "massagepistole", kuerzel: "massagepistole", stuecke: FEED },
+  { name: "Sunset-Lampe",   datei: "sunset-lampe",   kuerzel: "lampe", stuecke: FEED },
+  { name: "Fahrradpumpe",   datei: "fahrradpumpe",   kuerzel: "pumpe",
+    /* Die Pins tragen "pumpe" statt "fahrradpumpe", sonst frisst der
+       Produktname die Kürzung auf und die neun Entwürfe sehen im Bericht
+       gleich aus. */
+    pinDatei: "pumpe",
+    stuecke: [
+      feed("a", "tempo"), feed("b", "lieferumfang"), feed("c", "ventile"),
+      feed("d", "gespiegelt"), feed("e", "zahlen"),
+      pin(1, "nachtfahrt"), pin(2, "riss"), pin(3, "schnitt"), pin(4, "plakat"),
+      pin(5, "anleitung"), pin(6, "plaetze"), pin(7, "groesse"), pin(8, "szene"),
+      pin(9, "tafel")
+    ] }
 ];
 
-function bauen(){
+/* Ein Datensatz je Zeile, damit Tabelle und Sammelkopie aus derselben
+   Quelle kommen und nicht auseinanderlaufen können. */
+function adressen(){
   const basis = document.getElementById("basis").value.trim();
   const kampagne = document.getElementById("kampagne").value.trim();
-  const [quelle, medium] = document.getElementById("kanal").value.split("|");
-  const tb = document.getElementById("zeilen");
-  tb.innerHTML = "";
-
+  const teile = document.getElementById("kanal").value.split("|");
+  const quelle = teile[0], medium = teile[1], art = teile[2];
+  const out = [];
   MOTIVE.forEach(function(m){
-    FORMATE.forEach(function(f){
-      const inhalt = m.datei + "-" + f.kuerzel;
+    m.stuecke.forEach(function(s){
+      if(art !== "alle" && s.art !== art) return;
+      const stamm = (s.art === "pin" && m.pinDatei) ? m.pinDatei : m.datei;
+      const inhalt = stamm + s.inhalt;
       const u = basis + (basis.indexOf("?") === -1 ? "?" : "&") +
         "utm_source=" + encodeURIComponent(quelle) +
         "&utm_medium=" + encodeURIComponent(medium) +
@@ -129,27 +169,63 @@ function bauen(){
         "&utm_content=" + encodeURIComponent(inhalt);
       const sub = ["sq", kurz(quelle), kurz(kampagne, 16) || "ohne",
                    kurz(inhalt, 22), m.kuerzel].join("-").slice(0, 100);
-
-      const tr = document.createElement("tr");
-      const td1 = document.createElement("td");
-      td1.innerHTML = '<b>' + m.name + '</b> · ' + f.label +
-        '<div class="url">' + u.replace(/&/g, "&amp;").replace(/</g, "&lt;") + '</div>' +
-        '<div class="sub">im Provisionsbericht: ' + sub + '</div>';
-      const td2 = document.createElement("td");
-      const b = document.createElement("button");
-      b.textContent = "Kopieren";
-      b.onclick = function(){
-        navigator.clipboard.writeText(u).then(function(){
-          const alt = b.textContent; b.textContent = "Kopiert"; b.className = "g";
-          setTimeout(function(){ b.textContent = alt; b.className = ""; }, 1400);
-        });
-      };
-      td2.appendChild(b);
-      tr.appendChild(td1); tr.appendChild(td2);
-      tb.appendChild(tr);
+      out.push({ motiv: m.name, label: s.label, url: u, sub: sub });
     });
   });
+  return out;
 }
+
+/* Hängt die Kopierfunktion an einen vorhandenen Knopf. Der Text darf eine
+   Funktion sein, damit die Sammelkopie beim Klick den aktuellen Stand nimmt
+   und nicht den vom Seitenaufbau. */
+function kopieren(el, text){
+  el.onclick = function(){
+    navigator.clipboard.writeText(typeof text === "function" ? text() : text).then(function(){
+      const alt = el.textContent, klasse = el.className;
+      el.textContent = "Kopiert"; el.className = "g";
+      setTimeout(function(){ el.textContent = alt; el.className = klasse; }, 1400);
+    });
+  };
+  return el;
+}
+
+function bauen(){
+  const liste = adressen();
+  const tb = document.getElementById("zeilen");
+  tb.innerHTML = "";
+  let letztes = null;
+
+  liste.forEach(function(z){
+    if(z.motiv !== letztes){
+      letztes = z.motiv;
+      const kopf = document.createElement("tr");
+      kopf.className = "gruppe";
+      const td = document.createElement("td");
+      td.colSpan = 2; td.textContent = z.motiv;
+      kopf.appendChild(td); tb.appendChild(kopf);
+    }
+    const tr = document.createElement("tr");
+    const td1 = document.createElement("td");
+    td1.innerHTML = '<b>' + z.label + '</b>' +
+      '<div class="url">' + z.url.replace(/&/g, "&amp;").replace(/</g, "&lt;") + '</div>' +
+      '<div class="sub">im Provisionsbericht: ' + z.sub + '</div>';
+    const td2 = document.createElement("td");
+    const b = document.createElement("button");
+    b.textContent = "Kopieren";
+    td2.appendChild(kopieren(b, z.url));
+    tr.appendChild(td1); tr.appendChild(td2);
+    tb.appendChild(tr);
+  });
+
+  document.getElementById("zahl").textContent =
+    liste.length + (liste.length === 1 ? " Adresse" : " Adressen") + " für diesen Kanal";
+}
+
+kopieren(document.getElementById("alle"), function(){
+  return ["Motiv\tFormat\tAdresse\tSubID"].concat(adressen().map(function(z){
+    return [z.motiv, z.label, z.url, z.sub].join("\t");
+  })).join("\n");
+});
 
 ["basis", "kampagne", "kanal"].forEach(function(id){
   document.getElementById(id).addEventListener("input", bauen);

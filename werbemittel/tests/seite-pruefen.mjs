@@ -12,17 +12,25 @@ pg.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text
 await pg.goto('file:///home/user/1/squelly.html');
 await pg.evaluate(() => document.fonts.ready);
 await pg.waitForTimeout(700);
+/* Die Zahl der Produkte wächst; die Prüfungen zählen deshalb selbst nach,
+   statt eine feste Zahl zu erwarten. */
+const kuerzel = await pg.evaluate(() => PRODUKTE.map(p => p.kuerzel));
+await step('Jedes Produkt hat eine Karte', async () => {
+  const n = await pg.evaluate(() => document.querySelectorAll('.card').length);
+  if (n !== kuerzel.length) throw new Error(n + ' Karten zu ' + kuerzel.length + ' Produkten');
+  if (n < 4) throw new Error('nur ' + n + ' Karten');
+});
 await step('Ohne Kampagne: SubID sagt "direkt"', async () => {
   const l = await pg.evaluate(() => [...document.querySelectorAll('.cta')].map(a => a.href));
   const sub = decodeURIComponent(l[0]).match(/ascsubtag=([^&]+)/)[1];
-  if (sub !== 'sq-direkt-ohne-seite-vakuumierer') throw new Error(sub);
-  if (l.length !== 3) throw new Error(l.length + ' Links');
+  if (sub !== 'sq-direkt-ohne-seite-' + kuerzel[0]) throw new Error(sub);
+  if (l.length !== kuerzel.length) throw new Error(l.length + ' Links');
 });
 await step('Wirkzeichen auf den Karten', async () => {
-  const n = await pg.evaluate(() => document.querySelectorAll('.photo .fx').length);
-  const g = await pg.evaluate(() => document.querySelectorAll('.photo .glow').length);
-  if (n !== 2) throw new Error(n + ' Wirkzeichen');
-  if (g !== 1) throw new Error(g + ' Lichtkreise');
+  const ohne = await pg.evaluate(() => [...document.querySelectorAll('.card')]
+    .filter(c => !c.querySelector('.photo .fx') && !c.querySelector('.photo .glow'))
+    .map(c => c.querySelector('.cname').textContent));
+  if (ohne.length) throw new Error('ohne Zeichen: ' + ohne.join(', '));
 });
 await pg.screenshot({ path: 'sq3-desktop.png' });
 
@@ -32,9 +40,7 @@ await pg.waitForTimeout(700);
 await step('Mit Kampagne: Herkunft landet in der SubID', async () => {
   const l = await pg.evaluate(() => [...document.querySelectorAll('.cta')].map(a => decodeURIComponent(a.href)));
   const subs = l.map(u => u.match(/ascsubtag=([^&]+)/)[1]);
-  const soll = ['sq-instagram-herbststart-lampehoch-vakuumierer',
-                'sq-instagram-herbststart-lampehoch-massagepistole',
-                'sq-instagram-herbststart-lampehoch-lampe'];
+  const soll = kuerzel.map(k => 'sq-instagram-herbststart-lampehoch-' + k);
   if (JSON.stringify(subs) !== JSON.stringify(soll)) throw new Error(JSON.stringify(subs));
 });
 await step('Herkunft übersteht Navigation ohne Parameter', async () => {

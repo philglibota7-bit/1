@@ -10,9 +10,16 @@ await pg.waitForTimeout(500);
 const step = async (n, f) => { try { await f(); console.log('✓', n); }
   catch (e) { console.log('✗', n, '—', e.message.split('\n')[0]); errs.push(n); } };
 
-await step('Sechs Adressen (3 Motive x 2 Formate)', async () => {
-  const n = await pg.evaluate(() => document.querySelectorAll('#zeilen tr').length);
-  if (n !== 6) throw new Error(n + ' Zeilen');
+// Zeilen ohne die Zwischenüberschriften je Produkt
+const zeilen = () => pg.evaluate(() =>
+  [...document.querySelectorAll('#zeilen tr')].filter(t => !t.classList.contains('gruppe')).length);
+
+await step('Feed-Kanal zeigt nur Feed-Motive', async () => {
+  const n = await zeilen();
+  if (n !== 11) throw new Error(n + ' Zeilen (erwartet 3x2 + 5 der Pumpe)');
+  const arten = await pg.evaluate(() =>
+    [...document.querySelectorAll('#zeilen .url')].map(u => /utm_content=([^&]+)/.exec(u.textContent)[1]));
+  if (arten.some(a => a.indexOf('-pin-') !== -1)) throw new Error('Pin im Feed-Kanal: ' + arten.join(','));
 });
 await step('Adresse trägt alle vier UTM-Felder', async () => {
   const u = await pg.evaluate(() => document.querySelector('#zeilen .url').textContent);
@@ -24,12 +31,43 @@ await step('SubID-Vorschau stimmt mit der Seite überein', async () => {
   const s = await pg.evaluate(() => document.querySelector('#zeilen .sub').textContent);
   if (!/sq-instagram-herbststart-vakuumiererquad-vakuumierer/.test(s)) throw new Error(s);
 });
-await step('Kanalwechsel schlägt durch', async () => {
-  await pg.selectOption('#kanal', 'pinterest|pin');
+await step('Pinterest zeigt die neun Pins und keine Feed-Motive', async () => {
+  await pg.selectOption('#kanal', 'pinterest|pin|pin');
   await pg.waitForTimeout(250);
+  const n = await zeilen();
+  if (n !== 9) throw new Error(n + ' Zeilen');
   const u = await pg.evaluate(() => document.querySelector('#zeilen .url').textContent);
   if (!/utm_source=pinterest/.test(u) || !/utm_medium=pin/.test(u)) throw new Error(u);
+  if (!/utm_content=pumpe-pin-1-nachtfahrt/.test(u)) throw new Error(u);
 });
+await step('Jeder Pin bleibt im Provisionsbericht unterscheidbar', async () => {
+  const subs = await pg.evaluate(() =>
+    [...document.querySelectorAll('#zeilen .sub')].map(s => s.textContent));
+  const einzeln = new Set(subs);
+  if (einzeln.size !== subs.length) throw new Error('gekürzte SubIDs doppelt: ' + subs.join(' | '));
+  for (const s of subs) if (s.length > 100 + 'im Provisionsbericht: '.length) throw new Error('zu lang: ' + s);
+});
+await step('Profil-Link zeigt alle Motive zusammen', async () => {
+  await pg.selectOption('#kanal', 'bio|link|alle');
+  await pg.waitForTimeout(250);
+  const n = await zeilen();
+  if (n !== 20) throw new Error(n + ' Zeilen (erwartet 6 + 14)');
+});
+await step('Sammelkopie liefert eine vollständige Tabelle', async () => {
+  const t = await pg.evaluate(() => {
+    let g = "";
+    navigator.clipboard.writeText = async v => { g = v; };
+    document.getElementById('alle').click();
+    return new Promise(r => setTimeout(() => r(g), 60));
+  });
+  const z = t.trim().split('\n');
+  if (z.length !== 21) throw new Error(z.length + ' Zeilen inkl. Kopf');
+  if (z[0] !== 'Motiv\tFormat\tAdresse\tSubID') throw new Error('Kopfzeile: ' + z[0]);
+  if (z[1].split('\t').length !== 4) throw new Error('Spalten: ' + z[1]);
+});
+await pg.selectOption('#kanal', 'pinterest|pin|pin');
+await pg.waitForTimeout(250);
 await pg.screenshot({ path: 'linktool.png', fullPage: true });
 await b.close();
 console.log('\n' + (errs.length ? 'FEHLER: ' + errs.join(', ') : 'Alles bestanden.'));
+process.exit(errs.length ? 1 : 0);
