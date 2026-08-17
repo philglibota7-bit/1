@@ -86,8 +86,8 @@ export function MarkenvariantenHell() {
         </div>
         <Callout title="Regel" tone="neutral" compact>
           Die Marke gehört einmal pro Folie oben rechts — nicht zusätzlich in die Fußzeile.
-          Sobald die offizielle Logodatei vorliegt, ersetzt `logoSrc` die Textmarke überall
-          gleichzeitig.
+          Sobald die offizielle Logodatei vorliegt, ersetzt die Angabe der Logodatei am
+          Folientyp die Textmarke überall gleichzeitig.
         </Callout>
       </div>
     </Slide>

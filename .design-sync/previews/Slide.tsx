@@ -11,7 +11,7 @@ export function StrukturkonzeptZweispaltig() {
   return (
     <Slide
       kicker="Ausgangslage"
-      title="Drei Häuser, eine gemeinsame Notaufnahme-Struktur"
+      title="Drei Häuser arbeiten künftig zusammen"
       footerLabel="Strukturkonzept 2026"
       pageNumber={4}
       showLogo
@@ -62,7 +62,7 @@ export function PersonalkennzahlenMitTabelle() {
   return (
     <Slide
       kicker="Kapitel 4 — Personal und Nachwuchs"
-      title="Die Pflege wächst, die Fluktuation bleibt die Schwachstelle"
+      title="Die Pflege wächst, 34 Stellen fehlen"
       footerLabel="Qualitätsbericht 2025"
       pageNumber={18}
       showLogo
@@ -113,7 +113,6 @@ export function PersonalkennzahlenMitTabelle() {
             { ort: "Crailsheim", vk: "118,5", offen: "11", flukt: "10,4 %" },
             { ort: "Öhringen", vk: "58,0", offen: "4", flukt: "10,1 %" },
           ]}
-          totalRow={{ ort: "Gesamt", vk: "412,5", offen: "34", flukt: "9,8 %" }}
           source="Quelle: Personalcontrolling, Stand 31.12.2025"
           dense
         />
@@ -167,26 +166,36 @@ export function FahrplanZartblau() {
       footerLabel="Baubegleitung Notaufnahme"
       pageNumber={9}
     >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-          gap: "var(--k-sp-5)",
-          alignItems: "stretch",
-        }}
-      >
-        <Callout title="Q1 2026 — Planung" tone="success" compact>
-          Baugenehmigung liegt vor, Vergabe der Rohbauarbeiten abgeschlossen.
-        </Callout>
-        <Callout title="Q2 2026 — Interimsbetrieb" tone="info" compact>
-          Ersteinschätzung zieht in den Anbau West, 14 Behandlungsplätze.
-        </Callout>
-        <Callout title="Q3 2026 — Rohbau" tone="info" compact>
-          Sechs Wochen Vollsperrung der Zufahrt Ost, Rettungsdienst über Süd.
-        </Callout>
-        <Callout title="Q4 2026 — Inbetriebnahme" tone="warning" compact>
-          Termin hängt an der Lieferung der Medizintechnik, Vorlauf 22 Wochen.
-        </Callout>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--k-sp-5)" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+            gap: "var(--k-sp-5)",
+            alignItems: "stretch",
+          }}
+        >
+          <Callout title="Q1 2026 — Planung" tone="success">
+            Baugenehmigung liegt vor, Vergabe der Rohbauarbeiten abgeschlossen.
+          </Callout>
+          <Callout title="Q2 2026 — Interimsbetrieb" tone="info">
+            Ersteinschätzung zieht in den Anbau West, 14 Behandlungsplätze.
+          </Callout>
+          <Callout title="Q3 2026 — Rohbau" tone="info">
+            Sechs Wochen Vollsperrung der Zufahrt Ost, Rettungsdienst über Süd.
+          </Callout>
+          <Callout title="Q4 2026 — Inbetriebnahme" tone="warning">
+            Termin hängt an der Medizintechnik, Vorlauf 22 Wochen.
+          </Callout>
+        </div>
+        <BulletList
+          items={[
+            {
+              text: "Der Betrieb der Notaufnahme läuft in allen vier Etappen ohne Schließtag weiter",
+              detail: "Abstimmung mit dem Rettungsdienstbereich Schwäbisch Hall vom 04.02.2026",
+            },
+          ]}
+        />
       </div>
     </Slide>
   );
