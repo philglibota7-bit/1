@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warenkorb - ShopHub</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">ShopHub</div>
+            <ul class="nav-menu">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="products.html">Produkte</a></li>
+                <li><a href="cart.html" class="active cart-link">Warenkorb <span class="cart-count">0</span></a></li>
+                <li><a href="checkout.html">Kasse</a></li>
+                <li><a href="bodyscan.html">Body Scan</a></li>
+                <li><a href="fussball.html">Fussball</a></li>
+                <li><a href="jarvis.html">Jarvis</a></li>
+                <li><a href="ip-rechner.html">IP Rechner</a></li>
+                <li><a href="marwa.html">Marwa</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        <section class="cart-section">
+            <h1>Dein Warenkorb</h1>
+            <div id="cart-empty" class="empty-message">
+                <p>Dein Warenkorb ist leer</p>
+                <a href="products.html" class="btn btn-primary">Zum Einkaufen</a>
+            </div>
+            <div id="cart-items" class="cart-items" style="display:none;">
+                <table class="cart-table">
+                    <thead>
+                        <tr>
+                            <th>Produkt</th>
+                            <th>Preis</th>
+                            <th>Menge</th>
+                            <th>Summe</th>
+                            <th>Aktion</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cart-body"></tbody>
+                </table>
+                <div class="cart-summary">
+                    <div class="summary-row">
+                        <span>Subtotal:</span>
+                        <span id="subtotal">€0.00</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Versand:</span>
+                        <span id="shipping">€5.00</span>
+                    </div>
+                    <div class="summary-row total">
+                        <span>Gesamtpreis:</span>
+                        <span id="total">€0.00</span>
+                    </div>
+                    <a href="checkout.html" class="btn btn-primary btn-block">Zur Kasse</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 ShopHub. Alle Rechte vorbehalten.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

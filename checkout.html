@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kasse - ShopHub</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">ShopHub</div>
+            <ul class="nav-menu">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="products.html">Produkte</a></li>
+                <li><a href="cart.html" class="cart-link">Warenkorb <span class="cart-count">0</span></a></li>
+                <li><a href="checkout.html" class="active">Kasse</a></li>
+                <li><a href="bodyscan.html">Body Scan</a></li>
+                <li><a href="fussball.html">Fussball</a></li>
+                <li><a href="jarvis.html">Jarvis</a></li>
+                <li><a href="ip-rechner.html">IP Rechner</a></li>
+                <li><a href="marwa.html">Marwa</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        <section class="checkout-section">
+            <h1>Checkout</h1>
+            <div class="checkout-container">
+                <div class="checkout-form">
+                    <form id="checkout-form">
+                        <h2>Lieferadresse</h2>
+                        <div class="form-group">
+                            <label for="name">Vollständiger Name *</label>
+                            <input type="text" id="name" name="name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">E-Mail *</label>
+                            <input type="email" id="email" name="email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="address">Adresse *</label>
+                            <input type="text" id="address" name="address" required>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="city">Stadt *</label>
+                                <input type="text" id="city" name="city" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="zip">PLZ *</label>
+                                <input type="text" id="zip" name="zip" required>
+                            </div>
+                        </div>
+
+                        <h2>Zahlungsmethode</h2>
+                        <div class="form-group">
+                            <label>
+                                <input type="radio" name="payment" value="card" checked> Kreditkarte
+                            </label>
+                            <label>
+                                <input type="radio" name="payment" value="transfer"> Banküberweisung
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-block">Bestellung abschließen</button>
+                    </form>
+                </div>
+                <div class="checkout-summary">
+                    <h2>Bestellübersicht</h2>
+                    <div id="order-items"></div>
+                    <div class="summary-row total">
+                        <span>Gesamtpreis:</span>
+                        <span id="order-total">€0.00</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 ShopHub. Alle Rechte vorbehalten.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
