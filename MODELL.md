@@ -92,6 +92,12 @@ Nachfrage schaetzt du ueber die Vorschlaege der Suchmaschine, ueber
 "Ähnliche Suchanfragen" und ueber Foren: Wenn dieselbe Frage seit Jahren
 gestellt wird, ist die Nachfrage echt.
 
+**Die Punktzahl allein reicht nicht.** Sie kann nicht wissen, ob eine
+Gesetzesaenderung den Anwendungsfall gerade abgeschafft hat. Ein reales
+Beispiel dazu steht in `docs/NEUES-TOOL.md`: eine Idee mit 72 Punkten, die
+seit Mai 2025 schlicht nicht mehr zulaessig ist. Fuenf Minuten Recherche vor
+dem Bau sind der beste Tausch in diesem Modell.
+
 ---
 
 ## Die vier Stufen der Monetarisierung

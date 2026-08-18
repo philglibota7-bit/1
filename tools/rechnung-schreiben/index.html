@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rechnung schreiben – ohne Anmeldung, direkt im Browser | Werkbank</title>
+<meta name="description" content="Rechnung kostenlos schreiben und als PDF herunterladen. Mit allen Pflichtangaben nach Paragraf 14 UStG, Kleinunternehmerregelung inklusive. Ohne Anmeldung, deine Kundendaten bleiben auf deinem Rechner.">
+<link rel="canonical" href="https://philglibota7-bit.github.io/1/tools/rechnung-schreiben/index.html">
+<meta property="og:title" content="Rechnung schreiben – ohne Anmeldung">
+<meta property="og:description" content="Rechnung als PDF erstellen. Alle Pflichtangaben, ohne Konto, ohne Datenuebertragung.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%232b5cff%27/%3E%3Ctext x=%2716%27 y=%2723%27 font-size=%2719%27 font-family=%27sans-serif%27 font-weight=%27700%27 fill=%27white%27 text-anchor=%27middle%27%3EW%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="../../platform/werkbank.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication",
+ "name":"Rechnung schreiben","applicationCategory":"BusinessApplication",
+ "operatingSystem":"Browser","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},
+ "description":"Rechnungen mit allen Pflichtangaben als PDF erstellen, ohne Anmeldung."}
+</script>
+<style>
+  .spalten { display: grid; gap: 1.25rem; grid-template-columns: 1fr; margin-top: 1.5rem; }
+  @media (min-width: 52rem) { .spalten { grid-template-columns: 1fr 1fr; } }
+  fieldset { border: 1px solid var(--rand); border-radius: var(--radius);
+             padding: 1.1rem; margin: 0; background: var(--flaeche); }
+  legend { font-weight: 700; font-size: .95rem; padding: 0 .4rem; }
+  .feld { margin-bottom: .7rem; }
+  .feld:last-child { margin-bottom: 0; }
+  .zwei { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
+  .pos-kopf, .pos {
+    display: grid; grid-template-columns: 1fr 4.5rem 6.5rem 6.5rem 2rem;
+    gap: .5rem; align-items: center;
+  }
+  .pos-kopf { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em;
+              color: var(--text-leise); font-weight: 600; margin-bottom: .4rem; }
+  .pos { margin-bottom: .5rem; }
+  .pos .summe { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600;
+                padding-right: .2rem; }
+  @media (max-width: 40rem) {
+    .pos-kopf { display: none; }
+    .pos { grid-template-columns: 1fr 1fr; }
+    .pos input:first-child { grid-column: 1 / -1; }
+  }
+  .bilanz { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--rand);
+            display: grid; gap: .3rem; max-width: 20rem; margin-left: auto; }
+  .bilanz div { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+  .bilanz .gross { font-size: 1.15rem; font-weight: 700; border-top: 1px solid var(--rand);
+                   padding-top: .4rem; margin-top: .2rem; }
+</style>
+</head>
+<body>
+
+<main class="huelle" style="padding-top:2.5rem">
+
+  <h1>Rechnung schreiben</h1>
+  <p class="fuehrung">Rechnung ausfuellen, PDF herunterladen, fertig. Mit allen
+  Pflichtangaben. <strong>Ohne Anmeldung – und ohne dass deine Kundendaten
+  irgendwohin uebertragen werden.</strong></p>
+
+  <div class="spalten">
+    <fieldset>
+      <legend>Absender</legend>
+      <div class="feld"><label for="a-name">Name oder Firma</label>
+        <input type="text" id="a-name" placeholder="Maria Muster"></div>
+      <div class="feld"><label for="a-strasse">Strasse und Hausnummer</label>
+        <input type="text" id="a-strasse" placeholder="Musterweg 1"></div>
+      <div class="feld"><label for="a-ort">PLZ und Ort</label>
+        <input type="text" id="a-ort" placeholder="12345 Musterstadt"></div>
+      <div class="zwei">
+        <div class="feld"><label for="a-mail">E-Mail</label>
+          <input type="text" id="a-mail" placeholder="post@beispiel.de"></div>
+        <div class="feld"><label for="a-tel">Telefon</label>
+          <input type="text" id="a-tel"></div>
+      </div>
+      <div class="zwei">
+        <div class="feld"><label for="a-steuer">Steuernummer</label>
+          <input type="text" id="a-steuer" placeholder="12/345/67890"></div>
+        <div class="feld"><label for="a-ustid">USt-IdNr. (falls vorhanden)</label>
+          <input type="text" id="a-ustid" placeholder="DE123456789"></div>
+      </div>
+      <div class="feld"><label for="a-iban">IBAN</label>
+        <input type="text" id="a-iban" placeholder="DE00 0000 0000 0000 0000 00"></div>
+      <div class="zwei">
+        <div class="feld"><label for="a-bic">BIC</label><input type="text" id="a-bic"></div>
+        <div class="feld"><label for="a-bank">Bank</label><input type="text" id="a-bank"></div>
+      </div>
+      <p class="leise" style="margin:.8rem 0 0">Diese Angaben werden in deinem
+      Browser gespeichert, damit du sie nur einmal eintippen musst.</p>
+    </fieldset>
+
+    <div style="display:grid;gap:1.25rem;align-content:start">
+      <fieldset>
+        <legend>Empfaenger</legend>
+        <div class="feld"><label for="e-firma">Firma</label>
+          <input type="text" id="e-firma" placeholder="Beispiel GmbH"></div>
+        <div class="feld"><label for="e-name">Ansprechpartner</label>
+          <input type="text" id="e-name"></div>
+        <div class="feld"><label for="e-strasse">Strasse und Hausnummer</label>
+          <input type="text" id="e-strasse"></div>
+        <div class="feld"><label for="e-ort">PLZ und Ort</label>
+          <input type="text" id="e-ort"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Rechnung</legend>
+        <div class="zwei">
+          <div class="feld"><label for="r-nr">Rechnungsnummer</label>
+            <input type="text" id="r-nr" placeholder="2026-0001"></div>
+          <div class="feld"><label for="r-datum">Rechnungsdatum</label>
+            <input type="text" id="r-datum" placeholder="TT.MM.JJJJ"></div>
+        </div>
+        <div class="zwei">
+          <div class="feld"><label for="r-leistung">Leistungsdatum</label>
+            <input type="text" id="r-leistung" placeholder="TT.MM.JJJJ"></div>
+          <div class="feld"><label for="r-ziel">Zahlungsziel (Tage)</label>
+            <input type="number" id="r-ziel" value="14" min="0" max="90"></div>
+        </div>
+        <div class="feld"><label for="r-steuer">Umsatzsteuer</label>
+          <select id="r-steuer">
+            <option value="0">Kleinunternehmer – keine USt (&sect; 19 UStG)</option>
+            <option value="19">19 % Regelsatz</option>
+            <option value="7">7 % ermaessigt</option>
+          </select></div>
+      </fieldset>
+    </div>
+  </div>
+
+  <fieldset style="margin-top:1.25rem">
+    <legend>Positionen</legend>
+    <div class="pos-kopf">
+      <span>Leistung</span><span>Menge</span><span>Einzelpreis</span>
+      <span style="text-align:right">Gesamt</span><span></span>
+    </div>
+    <div id="positionen"></div>
+    <button class="knopf leise" id="zeile-mehr" style="margin-top:.4rem">+ Position</button>
+
+    <div class="bilanz" id="bilanz"></div>
+  </fieldset>
+
+  <fieldset style="margin-top:1.25rem">
+    <legend>Abschluss</legend>
+    <div class="feld"><label for="r-text">Schlusstext (freiwillig)</label>
+      <textarea id="r-text" rows="2"
+        placeholder="Vielen Dank fuer den Auftrag."></textarea></div>
+    <div class="feld"><label for="logo">Logo <span class="marke-pro">Pro</span></label>
+      <input type="file" id="logo" accept="image/*"></div>
+  </fieldset>
+
+  <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-top:1.25rem">
+    <span class="leise" id="hinweis"></span>
+    <div style="margin-left:auto;display:flex;gap:.5rem">
+      <button class="knopf leise" id="leeren">Formular leeren</button>
+      <button class="knopf" id="erstellen">Rechnung als PDF</button>
+    </div>
+  </div>
+  <p class="leise" id="stand" style="margin-top:.75rem"></p>
+
+  <div class="inhalt">
+    <h2>Was auf einer Rechnung stehen muss</h2>
+    <p>Fehlt eine Pflichtangabe, darf der Empfaenger die Vorsteuer nicht ziehen –
+    und schickt die Rechnung zurueck. Nach &sect; 14 Abs. 4 UStG gehoeren hinein:</p>
+    <ul>
+      <li>Vollstaendiger Name und Anschrift von dir <em>und</em> vom Empfaenger</li>
+      <li>Deine Steuernummer oder Umsatzsteuer-Identifikationsnummer</li>
+      <li>Das Ausstellungsdatum</li>
+      <li>Eine fortlaufende, einmalig vergebene Rechnungsnummer</li>
+      <li>Menge und handelsuebliche Bezeichnung der Leistung</li>
+      <li>Der Zeitpunkt der Lieferung oder Leistung</li>
+      <li>Das Entgelt, aufgeschluesselt nach Steuersaetzen</li>
+      <li>Der Steuersatz und der Steuerbetrag – oder ein Hinweis auf die
+      Steuerbefreiung</li>
+    </ul>
+    <p>Dieses Werkzeug setzt alle diese Felder automatisch, sobald du sie
+    ausgefuellt hast.</p>
+
+    <h2>Kleinunternehmer: was seit 2025 gilt</h2>
+    <p>Wer die Kleinunternehmerregelung nutzt, weist keine Umsatzsteuer aus und
+    schreibt stattdessen einen Hinweis auf die Steuerbefreiung auf die Rechnung.
+    Die Grenzen wurden zum 1. Januar 2025 angehoben: <strong>25.000 Euro im
+    Vorjahr und 100.000 Euro im laufenden Jahr</strong> (vorher 22.000 und 50.000).</p>
+    <p>Zwei Aenderungen sind leicht zu uebersehen. Erstens gelten die Umsaetze
+    seitdem als <em>steuerbefreit</em> statt als &bdquo;nicht erhoben&ldquo;. Zweitens
+    wirkt das Ueberschreiten sofort: Wird die Grenze mitten im Jahr gerissen,
+    muss bereits <em>der Umsatz, mit dem sie ueberschritten wird</em>, mit
+    Umsatzsteuer abgerechnet werden – nicht erst ab dem naechsten Jahr.</p>
+
+    <h2>Reicht ein PDF noch als Rechnung?</h2>
+    <p>Das kommt darauf an, an wen du schreibst, und es aendert sich in Stufen:</p>
+    <ul>
+      <li><strong>An Privatkunden:</strong> ja, dauerhaft. Ein PDF ist und bleibt
+      hier voellig ausreichend.</li>
+      <li><strong>An Unternehmen, bis Ende 2026:</strong> ja. Papier- und
+      PDF-Rechnungen sind weiterhin erlaubt.</li>
+      <li><strong>Ab 2027:</strong> Betriebe mit mehr als 800.000 Euro Vorjahres-
+      umsatz muessen im Geschaeftsverkehr E-Rechnungen versenden. Darunter bleibt
+      das PDF noch bis Ende 2027 zulaessig.</li>
+      <li><strong>Ab 2028:</strong> im Verkehr zwischen Unternehmen sind nur noch
+      strukturierte E-Rechnungen nach EN 16931 zulaessig, etwa XRechnung oder
+      ZUGFeRD. Ein reines PDF gilt dann nicht mehr.</li>
+    </ul>
+    <p>Empfangen koennen muss uebrigens jeder Betrieb E-Rechnungen schon seit dem
+    1. Januar 2025 – dafuer genuegt eine E-Mail-Adresse.</p>
+
+    <h2>Rechnungsnummer, Zahlungsziel, Aufbewahrung</h2>
+    <p>Die <strong>Rechnungsnummer</strong> muss einmalig sein und darf sich nicht
+    wiederholen; luecklos fortlaufend ist sie nicht vorgeschrieben. Bewaehrt hat
+    sich <code>Jahr-laufende Nummer</code>, also 2026-0001, 2026-0002.</p>
+    <p>Ohne Vereinbarung ist eine Rechnung sofort faellig. Ueblich sind 14 Tage.
+    Zahlt ein Unternehmen nicht, tritt Verzug spaetestens 30 Tage nach Zugang
+    automatisch ein; bei Privatpersonen nur, wenn du auf diese Folge in der
+    Rechnung hingewiesen hast.</p>
+    <p>Rechnungen bewahrst du auf – die Fristen dafuer wurden zuletzt geaendert und
+    haengen von der Art des Belegs ab. Frag im Zweifel deine Steuerberatung.</p>
+
+    <h2>Warum ohne Anmeldung?</h2>
+    <p>Fast jeder Rechnungsgenerator verlangt ein Konto und speichert damit deine
+    Kundenanschriften, Betraege und Leistungen auf einem fremden Server. Das sind
+    Geschaeftsgeheimnisse und personenbezogene Daten, fuer die du verantwortlich
+    bleibst. Hier passiert die Erzeugung vollstaendig in deinem Browser – es gibt
+    keinen Server, der etwas davon sehen koennte. Deine Absenderdaten liegen nur
+    lokal in deinem Browser, damit du sie nicht jedes Mal neu eintippen musst.</p>
+
+    <h2>Haeufige Fragen</h2>
+    <details><summary>Ist das eine Rechts- oder Steuerberatung?</summary>
+    <p>Nein. Das Werkzeug setzt die ueblichen Pflichtfelder, ersetzt aber keine
+    Beratung. Bei Sonderfaellen – Reverse-Charge, Ausland, Bauleistungen,
+    Differenzbesteuerung – frag deine Steuerberatung.</p></details>
+    <details><summary>Werden meine Kundendaten gespeichert?</summary>
+    <p>Nicht bei uns. Es gibt keinen Server. Nur deine eigenen Absenderdaten
+    werden lokal in deinem Browser abgelegt, damit du sie nicht neu eintippen
+    musst. Ueber &bdquo;Formular leeren&ldquo; wirst du sie wieder los.</p></details>
+    <details><summary>Kann ich eine Gutschrift oder Storno-Rechnung schreiben?</summary>
+    <p>Ja – trag die Betraege mit Minuszeichen ein und schreib in den Schlusstext,
+    auf welche Rechnung sich die Korrektur bezieht.</p></details>
+    <details><summary>Wie fuege ich mein Logo ein?</summary>
+    <p>Ueber das Feld Logo im Abschluss-Bereich. Es wird oben rechts eingesetzt.
+    Diese Funktion gehoert zu <a href="../../pro.html">Pro</a>.</p></details>
+    <details><summary>Kann ich XRechnung oder ZUGFeRD ausgeben?</summary>
+    <p>Noch nicht. Das ist als naechster grosser Schritt vorgesehen, weil es ab
+    2028 im Geschaeftsverkehr Pflicht wird.</p></details>
+  </div>
+
+</main>
+
+<script src="../../platform/werkbank.js"></script>
+<script src="../../platform/pdf.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var GRATIS_POSITIONEN = 5;
+  var SPEICHER = "werkbank.rechnung.absender";
+  var MM = WerkbankPDF.MM;
+  var el = function (id) { return document.getElementById(id); };
+
+  var ABSENDER = ["a-name", "a-strasse", "a-ort", "a-mail", "a-tel",
+                  "a-steuer", "a-ustid", "a-iban", "a-bic", "a-bank"];
+  var logoDaten = null;
+
+  /* ---------------- Geld: intern in Cent, damit nichts wegrundet -------- */
+  function zuCent(text) {
+    var s = String(text || "").trim().replace(/[€\s]/g, "");
+    if (!s) return 0;
+    if (s.indexOf(",") >= 0) s = s.replace(/\./g, "").replace(",", ".");
+    var z = parseFloat(s);
+    return isNaN(z) ? 0 : Math.round(z * 100);
+  }
+  function eur(cent) {
+    var v = (cent < 0 ? "-" : ""), c = Math.abs(Math.round(cent));
+    var ganz = Math.floor(c / 100), rest = c % 100;
+    return v + String(ganz).replace(/\B(?=(\d{3})+(?!\d))/g, ".") +
+           "," + (rest < 10 ? "0" : "") + rest;
+  }
+  function zahl(text) {
+    var s = String(text || "").trim().replace(",", ".");
+    var z = parseFloat(s);
+    return isNaN(z) ? 0 : z;
+  }
+
+  /* ---------------- Positionen ----------------------------------------- */
+  function zeileAnlegen(werte) {
+    var w = werte || {};
+    var d = document.createElement("div");
+    d.className = "pos";
+    d.innerHTML =
+      '<input type="text" class="p-text" placeholder="Beschreibung der Leistung">' +
+      '<input type="text" class="p-menge" value="1" inputmode="decimal">' +
+      '<input type="text" class="p-preis" placeholder="0,00" inputmode="decimal">' +
+      '<span class="summe">0,00</span>' +
+      '<button class="knopf leise" style="padding:.35rem .5rem" aria-label="Zeile entfernen">✕</button>';
+    d.querySelector(".p-text").value = w.text || "";
+    if (w.menge) d.querySelector(".p-menge").value = w.menge;
+    if (w.preis) d.querySelector(".p-preis").value = w.preis;
+    d.querySelector("button").onclick = function () {
+      d.remove();
+      if (!el("positionen").children.length) zeileAnlegen();
+      rechnen();
+    };
+    d.addEventListener("input", rechnen);
+    el("positionen").appendChild(d);
+    return d;
+  }
+
+  el("zeile-mehr").onclick = function () {
+    var anzahl = el("positionen").children.length;
+    if (anzahl >= GRATIS_POSITIONEN && !Werkbank.lizenz.istPro()) {
+      Werkbank.pro("positionen",
+        "Kostenlos sind " + GRATIS_POSITIONEN + " Positionen je Rechnung. " +
+        "Mit Pro sind es beliebig viele – dazu dein Logo auf jeder Rechnung.");
+      return;
+    }
+    zeileAnlegen();
+    rechnen();
+  };
+
+  function positionen() {
+    return Array.prototype.map.call(el("positionen").children, function (d) {
+      return {
+        text: d.querySelector(".p-text").value.trim(),
+        menge: zahl(d.querySelector(".p-menge").value),
+        einzel: zuCent(d.querySelector(".p-preis").value),
+        knoten: d
+      };
+    }).filter(function (p) { return p.text || p.einzel; });
+  }
+
+  function rechnen() {
+    var satz = parseInt(el("r-steuer").value, 10);
+    var netto = 0;
+    Array.prototype.forEach.call(el("positionen").children, function (d) {
+      var g = Math.round(zahl(d.querySelector(".p-menge").value) *
+                         zuCent(d.querySelector(".p-preis").value));
+      d.querySelector(".summe").textContent = eur(g);
+      netto += g;
+    });
+    var ust = Math.round(netto * satz / 100);
+
+    var b = el("bilanz");
+    b.innerHTML = satz === 0
+      ? '<div class="gross"><span>Gesamtbetrag</span><span>' + eur(netto) + ' &euro;</span></div>'
+      : '<div><span>Nettobetrag</span><span>' + eur(netto) + ' &euro;</span></div>' +
+        '<div><span>zzgl. ' + satz + ' % USt</span><span>' + eur(ust) + ' &euro;</span></div>' +
+        '<div class="gross"><span>Gesamtbetrag</span><span>' + eur(netto + ust) +
+        ' &euro;</span></div>';
+    return { netto: netto, ust: ust, brutto: netto + ust, satz: satz };
+  }
+  el("r-steuer").onchange = rechnen;
+
+  /* ---------------- Absenderdaten merken -------------------------------- */
+  function absenderSpeichern() {
+    var d = {};
+    ABSENDER.forEach(function (id) { d[id] = el(id).value; });
+    d["r-ziel"] = el("r-ziel").value;
+    d["r-steuer"] = el("r-steuer").value;
+    try { localStorage.setItem(SPEICHER, JSON.stringify(d)); } catch (e) {}
+  }
+  function absenderLaden() {
+    try {
+      var d = JSON.parse(localStorage.getItem(SPEICHER) || "{}");
+      Object.keys(d).forEach(function (id) { if (el(id)) el(id).value = d[id]; });
+    } catch (e) {}
+  }
+  ABSENDER.concat(["r-ziel", "r-steuer"]).forEach(function (id) {
+    el(id).addEventListener("change", absenderSpeichern);
+  });
+
+  el("leeren").onclick = function () {
+    if (!confirm("Alle Felder leeren – auch die gespeicherten Absenderdaten?")) return;
+    try { localStorage.removeItem(SPEICHER); } catch (e) {}
+    document.querySelectorAll("input, textarea").forEach(function (f) {
+      if (f.type !== "file") f.value = "";
+    });
+    el("r-ziel").value = "14";
+    el("positionen").innerHTML = "";
+    zeileAnlegen();
+    vorbelegen();
+    rechnen();
+  };
+
+  /* ---------------- Logo (Pro) ------------------------------------------ */
+  el("logo").onchange = function () {
+    var datei = this.files && this.files[0];
+    if (!datei) { logoDaten = null; return; }
+    if (!Werkbank.pro("logo",
+        "Mit Pro steht dein Logo oben auf jeder Rechnung.")) {
+      this.value = ""; logoDaten = null; return;
+    }
+    WerkbankPDF.alsJpeg(datei, 0.9, 600).then(function (erg) {
+      logoDaten = erg;
+      el("hinweis").textContent = "Logo uebernommen.";
+    }).catch(function () {
+      el("hinweis").textContent = "Logo konnte nicht gelesen werden.";
+    });
+  };
+
+  /* ---------------- Vorbelegung ----------------------------------------- */
+  function heuteDeutsch() {
+    var d = new Date();
+    var z = function (n) { return (n < 10 ? "0" : "") + n; };
+    return z(d.getDate()) + "." + z(d.getMonth() + 1) + "." + d.getFullYear();
+  }
+  function vorbelegen() {
+    if (!el("r-datum").value) el("r-datum").value = heuteDeutsch();
+    if (!el("r-leistung").value) el("r-leistung").value = heuteDeutsch();
+    if (!el("r-nr").value) el("r-nr").value = new Date().getFullYear() + "-0001";
+  }
+
+  function faelligAm(datum, tage) {
+    var t = String(datum || "").split(".");
+    if (t.length !== 3) return "";
+    var d = new Date(+t[2], +t[1] - 1, +t[0]);
+    if (isNaN(d.getTime())) return "";
+    d.setDate(d.getDate() + (tage || 0));
+    var z = function (n) { return (n < 10 ? "0" : "") + n; };
+    return z(d.getDate()) + "." + z(d.getMonth() + 1) + "." + d.getFullYear();
+  }
+
+  /* ---------------- PDF -------------------------------------------------- */
+  function pdfErstellen() {
+    var pos = positionen();
+    var fehlt = [];
+    if (!el("a-name").value.trim()) fehlt.push("dein Name");
+    if (!el("e-firma").value.trim() && !el("e-name").value.trim()) fehlt.push("der Empfaenger");
+    if (!el("r-nr").value.trim()) fehlt.push("die Rechnungsnummer");
+    if (!pos.length) fehlt.push("mindestens eine Position");
+    if (fehlt.length) {
+      el("stand").textContent = "Es fehlt noch: " + fehlt.join(", ") + ".";
+      return null;
+    }
+
+    var s = rechnen();
+    var dok = WerkbankPDF.neu();
+    var links = 20 * MM, rechts = WerkbankPDF.A4[0] - 20 * MM;
+    var seite = dok.seite();
+    var y;
+
+    function kopf(erste) {
+      y = 20 * MM;
+      if (erste && logoDaten) {
+        var h = 18 * MM, b = h * logoDaten.breite / logoDaten.hoehe;
+        var maxB = 45 * MM;
+        if (b > maxB) { b = maxB; h = b * logoDaten.hoehe / logoDaten.breite; }
+        seite.bild(logoDaten.jpeg, logoDaten.breite, logoDaten.hoehe,
+                   rechts - b, y, b, h);
+      }
+    }
+    kopf(true);
+
+    // Absenderzeile klein ueber dem Anschriftenfeld (nach DIN 5008 ueblich)
+    y = 45 * MM;
+    seite.text([el("a-name").value, el("a-strasse").value, el("a-ort").value]
+               .filter(Boolean).join(" · "), links, y, { groesse: 7, farbe: 0.35 });
+    seite.linie(links, y + 2, 85 * MM, 0.4, 0.6);
+
+    // Empfaenger
+    y += 8 * MM;
+    [el("e-firma").value, el("e-name").value, el("e-strasse").value, el("e-ort").value]
+      .filter(function (t) { return t && t.trim(); })
+      .forEach(function (t, i) {
+        seite.text(t, links, y + i * 5 * MM, { groesse: 11, fett: i === 0 });
+      });
+
+    // Absenderblock rechts
+    var ry = 45 * MM;
+    [el("a-name").value, el("a-strasse").value, el("a-ort").value, "",
+     el("a-mail").value, el("a-tel").value]
+      .forEach(function (t, i) {
+        if (t) seite.text(t, rechts, ry + i * 4.4 * MM,
+                          { groesse: 9, ausrichtung: "rechts", farbe: 0.2 });
+      });
+
+    // Titel und Daten
+    y = 88 * MM;
+    seite.text("Rechnung " + el("r-nr").value, links, y, { groesse: 16, fett: true });
+    y += 7 * MM;
+    seite.text("Rechnungsdatum: " + el("r-datum").value +
+               "     Leistungsdatum: " + el("r-leistung").value,
+               links, y, { groesse: 9, farbe: 0.3 });
+
+    // Tabellenkopf – wird auf jeder Folgeseite wiederholt, sonst weiss
+    // beim zweiten Blatt niemand mehr, welche Spalte was bedeutet.
+    var xMenge = links + 95 * MM, xEinzel = links + 125 * MM, xGesamt = rechts;
+    function tabellenkopf(bl, oben) {
+      bl.flaeche(links, oben - 4 * MM, rechts - links, 6 * MM, 0.93);
+      var k = { groesse: 8, fett: true, farbe: 0.3 };
+      var kr = { groesse: 8, fett: true, farbe: 0.3, ausrichtung: "rechts" };
+      bl.text("Pos.", links + 1 * MM, oben, k);
+      bl.text("Leistung", links + 9 * MM, oben, k);
+      bl.text("Menge", xMenge, oben, kr);
+      bl.text("Einzel", xEinzel, oben, kr);
+      bl.text("Gesamt", xGesamt, oben, kr);
+      return oben + 7 * MM;
+    }
+
+    y += 10 * MM;
+    y = tabellenkopf(seite, y);
+
+    pos.forEach(function (p, i) {
+      if (y > 250 * MM) {                 // Seitenumbruch bei langen Rechnungen
+        seite = dok.seite();
+        kopf(false);
+        y = tabellenkopf(seite, 30 * MM);
+      }
+      var hoehe = seite.absatz(p.text, links + 9 * MM, y, 82 * MM, { groesse: 10 });
+      seite.text(String(i + 1), links + 1 * MM, y, { groesse: 10, farbe: 0.4 });
+      var menge = String(p.menge).replace(".", ",");
+      seite.text(menge, xMenge, y, { groesse: 10, ausrichtung: "rechts" });
+      seite.text(eur(p.einzel), xEinzel, y, { groesse: 10, ausrichtung: "rechts" });
+      seite.text(eur(Math.round(p.menge * p.einzel)), xGesamt, y,
+                 { groesse: 10, ausrichtung: "rechts" });
+      y += Math.max(hoehe, 5 * MM) + 2 * MM;
+      seite.linie(links, y - 2 * MM, rechts - links, 0.3, 0.88);
+    });
+
+    // Summen
+    y += 3 * MM;
+    var xLabel = xEinzel;
+    if (s.satz > 0) {
+      seite.text("Nettobetrag", xLabel, y, { groesse: 10, ausrichtung: "rechts" });
+      seite.text(eur(s.netto) + " EUR", xGesamt, y, { groesse: 10, ausrichtung: "rechts" });
+      y += 5.5 * MM;
+      seite.text("zzgl. " + s.satz + " % USt", xLabel, y, { groesse: 10, ausrichtung: "rechts" });
+      seite.text(eur(s.ust) + " EUR", xGesamt, y, { groesse: 10, ausrichtung: "rechts" });
+      y += 3 * MM;
+    }
+    seite.linie(xLabel - 25 * MM, y, xGesamt - xLabel + 25 * MM, 0.8, 0.2);
+    y += 6 * MM;
+    seite.text("Gesamtbetrag", xLabel, y, { groesse: 12, fett: true, ausrichtung: "rechts" });
+    seite.text(eur(s.brutto) + " EUR", xGesamt, y,
+               { groesse: 12, fett: true, ausrichtung: "rechts" });
+
+    // Steuerhinweis und Zahlungssatz
+    y += 12 * MM;
+    if (s.satz === 0) {
+      y += seite.absatz(
+        "Gemaess § 19 UStG wird keine Umsatzsteuer berechnet " +
+        "(Kleinunternehmerregelung).", links, y, rechts - links,
+        { groesse: 9.5, farbe: 0.25 });
+      y += 3 * MM;
+    }
+    var faellig = faelligAm(el("r-datum").value, parseInt(el("r-ziel").value, 10) || 0);
+    y += seite.absatz(
+      "Bitte ueberweisen Sie den Gesamtbetrag von " + eur(s.brutto) + " EUR" +
+      (faellig ? " bis zum " + faellig : "") +
+      " unter Angabe der Rechnungsnummer " + el("r-nr").value + ".",
+      links, y, rechts - links, { groesse: 10 });
+
+    if (el("r-text").value.trim()) {
+      y += 5 * MM;
+      seite.absatz(el("r-text").value.trim(), links, y, rechts - links,
+                   { groesse: 10, farbe: 0.25 });
+    }
+
+    // Fusszeile auf jeder Seite
+    var fussY = WerkbankPDF.A4[1] - 22 * MM;
+    dok.seiten.forEach(function (sp) {
+      sp.linie(links, fussY - 4 * MM, rechts - links, 0.4, 0.8);
+      var spalten = [
+        [el("a-name").value, el("a-strasse").value, el("a-ort").value],
+        ["IBAN: " + el("a-iban").value, el("a-bic").value ? "BIC: " + el("a-bic").value : "",
+         el("a-bank").value],
+        [el("a-ustid").value ? "USt-IdNr.: " + el("a-ustid").value
+                             : (el("a-steuer").value ? "Steuernr.: " + el("a-steuer").value : ""),
+         el("a-mail").value]
+      ];
+      spalten.forEach(function (sp2, i) {
+        sp2.filter(Boolean).forEach(function (t, j) {
+          sp.text(t, links + i * 58 * MM, fussY + j * 3.6 * MM,
+                  { groesse: 7.5, farbe: 0.45 });
+        });
+      });
+    });
+
+    return dok.fertig();
+  }
+
+  el("erstellen").onclick = function () {
+    el("stand").textContent = "";
+    var blob = pdfErstellen();
+    if (!blob) return;
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "Rechnung-" + el("r-nr").value.replace(/[^\w-]/g, "") + ".pdf";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+    el("stand").textContent = "Rechnung erstellt (" +
+      Math.round(blob.size / 1024) + " KB).";
+    Werkbank.messen("rechnung.erstellt");
+  };
+
+  // Fuer den automatischen Test: nur lesend.
+  window.__werkbankRechnung = { pdf: pdfErstellen, rechnen: rechnen };
+
+  absenderLaden();
+  vorbelegen();
+  zeileAnlegen();
+  rechnen();
+
+  Werkbank.start({
+    slug: "rechnung-schreiben",
+    verwandte: [
+      { titel: "Bilder in PDF umwandeln", pfad: "tools/bilder-in-pdf/index.html" },
+      { titel: "Bilder verkleinern", pfad: "tools/bilder-verkleinern/index.html" }
+    ]
+  });
+})();
+</script>
+</body>
+</html>

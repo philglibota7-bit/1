@@ -198,96 +198,27 @@
 </main>
 
 <script src="../../platform/werkbank.js"></script>
+<script src="../../platform/pdf.js"></script>
 <script>
 (function () {
   "use strict";
 
   var GRATIS_LIMIT = 3;
-  var MM = 2.8346457;              // Millimeter in PDF-Punkte
-  var FORMATE = { a4: [595.28, 841.89], letter: [612, 792] };
-  var MAX_KANTE = 2200;            // Bilder darueber werden verkleinert
-
   var bilder = [];
   var el = function (id) { return document.getElementById(id); };
   var ablage = el("ablage"), liste = el("liste");
 
-  /* ================================================================
-   * Minimaler PDF-Erzeuger
-   *
-   * Bewusst ohne fremde Bibliothek: das haelt die Seite klein, schnell
-   * und frei von externen Abhaengigkeiten. JPEG-Daten koennen unveraendert
-   * in ein PDF eingebettet werden (Filter DCTDecode) - deshalb ist der
-   * Erzeuger so kurz.
-   * ================================================================ */
-  function Puffer() {
-    this.teile = [];
-    this.laenge = 0;
-  }
-  Puffer.prototype.schreib = function (x) {
-    var b = typeof x === "string"
-      ? Uint8Array.from(x, function (z) { return z.charCodeAt(0) & 0xff; })
-      : x;
-    this.teile.push(b);
-    this.laenge += b.length;
-    return this;
-  };
+  var MM = WerkbankPDF.MM;
+  var FORMATE = { a4: WerkbankPDF.A4, letter: WerkbankPDF.LETTER };
+  var MAX_KANTE = 2200;          // Bilder darueber werden vorher verkleinert
 
   function pdfBauen(seiten) {
-    var p = new Puffer();
-    var versatz = [];                       // Byteversatz je Objektnummer
-    var objekte = 2 + seiten.length * 3;    // Katalog, Seitenbaum, dann 3 je Seite
-
-    function objekt(nr, kopf, daten) {
-      versatz[nr] = p.laenge;
-      p.schreib(nr + " 0 obj\n" + kopf);
-      if (daten) {
-        p.schreib("stream\n").schreib(daten).schreib("\nendstream\n");
-      }
-      p.schreib("endobj\n");
-    }
-
-    p.schreib("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");   // Binaerkennung: Zeile 2 ist Pflicht
-
-    var kinder = seiten.map(function (_, i) { return (3 + i * 3) + " 0 R"; }).join(" ");
-    objekt(1, "<< /Type /Catalog /Pages 2 0 R >>\n");
-    objekt(2, "<< /Type /Pages /Kids [" + kinder + "] /Count " + seiten.length + " >>\n");
-
-    seiten.forEach(function (s, i) {
-      var nrSeite = 3 + i * 3, nrInhalt = nrSeite + 1, nrBild = nrSeite + 2;
-      var inhalt = "q\n" + r(s.zeichenBreite) + " 0 0 " + r(s.zeichenHoehe) + " " +
-                   r(s.x) + " " + r(s.y) + " cm\n/Im0 Do\nQ\n";
-
-      objekt(nrSeite,
-        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " +
-        r(s.seitenBreite) + " " + r(s.seitenHoehe) + "]" +
-        " /Resources << /XObject << /Im0 " + nrBild + " 0 R >> >>" +
-        " /Contents " + nrInhalt + " 0 R >>\n");
-
-      objekt(nrInhalt, "<< /Length " + inhalt.length + " >>\n", inhalt);
-
-      objekt(nrBild,
-        "<< /Type /XObject /Subtype /Image /Width " + s.breite +
-        " /Height " + s.hoehe + " /ColorSpace /DeviceRGB /BitsPerComponent 8" +
-        " /Filter /DCTDecode /Length " + s.jpeg.length + " >>\n", s.jpeg);
+    var dok = WerkbankPDF.neu();
+    seiten.forEach(function (s) {
+      dok.seite(s.seitenBreite, s.seitenHoehe)
+         .bild(s.jpeg, s.breite, s.hoehe, s.x, s.yVonOben, s.zeichenBreite, s.zeichenHoehe);
     });
-
-    // Querverweistabelle: jeder Eintrag muss exakt 20 Byte lang sein
-    var xref = p.laenge;
-    p.schreib("xref\n0 " + (objekte + 1) + "\n0000000000 65535 f\r\n");
-    for (var n = 1; n <= objekte; n++) {
-      p.schreib(fuelle(versatz[n], 10) + " 00000 n\r\n");
-    }
-    p.schreib("trailer\n<< /Size " + (objekte + 1) + " /Root 1 0 R >>\n" +
-              "startxref\n" + xref + "\n%%EOF\n");
-
-    return new Blob(p.teile, { type: "application/pdf" });
-  }
-
-  function r(zahl) { return (Math.round(zahl * 100) / 100).toString(); }
-  function fuelle(zahl, stellen) {
-    var s = String(zahl || 0);
-    while (s.length < stellen) s = "0" + s;
-    return s;
+    return dok.fertig();
   }
 
   /* ================================================================
@@ -318,49 +249,12 @@
       seitenBreite: seitenBreite, seitenHoehe: seitenHoehe,
       zeichenBreite: zBreite, zeichenHoehe: zHoehe,
       x: (seitenBreite - zBreite) / 2,
-      y: (seitenHoehe - zHoehe) / 2   // mittig, auch senkrecht
+      yVonOben: (seitenHoehe - zHoehe) / 2   // mittig, auch senkrecht
     };
   }
 
-  /* ================================================================
-   * Bild -> JPEG-Bytes
-   * ================================================================ */
-  function bildLaden(datei) {
-    if (window.createImageBitmap) return createImageBitmap(datei);
-    return new Promise(function (ok, fehler) {
-      var i = new Image();
-      i.onload = function () { ok(i); };
-      i.onerror = fehler;
-      i.src = URL.createObjectURL(datei);
-    });
-  }
-
   function alsJpeg(datei, guete) {
-    return bildLaden(datei).then(function (bild) {
-      var b = bild.width, h = bild.height;
-      var faktor = Math.min(1, MAX_KANTE / Math.max(b, h));
-      b = Math.max(1, Math.round(b * faktor));
-      h = Math.max(1, Math.round(h * faktor));
-
-      var c = document.createElement("canvas");
-      c.width = b; c.height = h;
-      var ctx = c.getContext("2d");
-      // Weisser Grund: PNG mit Transparenz wuerde im JPEG sonst schwarz
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, b, h);
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(bild, 0, 0, b, h);
-      if (bild.close) bild.close();
-
-      return new Promise(function (ok) {
-        c.toBlob(function (blob) {
-          blob.arrayBuffer().then(function (puffer) {
-            ok({ jpeg: new Uint8Array(puffer), breite: b, hoehe: h });
-          });
-        }, "image/jpeg", guete);
-      });
-    });
+    return WerkbankPDF.alsJpeg(datei, guete, MAX_KANTE);
   }
 
   /* ================================================================

@@ -1,0 +1,61 @@
+name: Pruefen
+
+# Laeuft bei jedem Push und jedem Pull Request. Ohne diese Pruefung faellt
+# ein kaputtes Werkzeug erst auf, wenn es schon oeffentlich ist.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Tests
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Erzeugte Seiten sind aktuell
+        run: |
+          python3 build.py
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::build.py erzeugt andere Dateien als eingecheckt."
+            echo "Bitte 'python3 build.py' ausfuehren und das Ergebnis mit committen."
+            git --no-pager diff --stat
+            exit 1
+          fi
+
+      - name: JavaScript-Syntax aller Werkzeuge
+        run: |
+          python3 - <<'PY'
+          import json, re, subprocess, sys, tempfile, os
+          from pathlib import Path
+          fehler = 0
+          dateien = [Path("platform/werkbank.js"), Path("platform/pdf.js")]
+          for t in json.load(open("tools.json"))["tools"]:
+              if t["status"] == "live" and t["pfad"].startswith("tools/"):
+                  dateien.append(Path(t["pfad"]))
+          for d in dateien:
+              quellen = ([d.read_text(encoding="utf-8")] if d.suffix == ".js"
+                         else re.findall(r"<script>(.*?)</script>",
+                                         d.read_text(encoding="utf-8"), re.S))
+              for i, q in enumerate(quellen):
+                  f = tempfile.NamedTemporaryFile("w", suffix=".js", delete=False,
+                                                  encoding="utf-8")
+                  f.write(q); f.close()
+                  r = subprocess.run(["node", "--check", f.name],
+                                     capture_output=True, text=True)
+                  os.unlink(f.name)
+                  if r.returncode:
+                      print(f"::error file={d}::Block {i}: {r.stderr.strip()}")
+                      fehler += 1
+                  else:
+                      print(f"  ok  {d} Block {i}")
+          sys.exit(1 if fehler else 0)
+          PY

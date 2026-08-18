@@ -247,6 +247,37 @@ class Generator(unittest.TestCase):
             self.assertIn("werkbank.css", html, name)
             self.assertNotIn("{e(", html, f"{name}: nicht ersetzter Platzhalter")
 
+    def test_basispfad_aus_domain(self):
+        import build
+        faelle = {
+            "https://name.github.io/1": "/1/",
+            "https://name.github.io/1/": "/1/",
+            "https://eigene-domain.de": "/",
+            "https://eigene-domain.de/": "/",
+            "https://x.github.io/a/b": "/a/b/",
+        }
+        for domain, erwartet in faelle.items():
+            with self.subTest(domain=domain):
+                self.assertEqual(build.basispfad({"domain": domain}), erwartet)
+
+    def test_404_zeigt_auf_den_richtigen_basispfad(self):
+        """Die 404-Seite wird in beliebiger Tiefe ausgeliefert - relative
+        Pfade greifen dort nicht."""
+        import build
+        d = build.laden()
+        html = build.nicht_gefunden(d)
+        b = build.basispfad(d["marke"])
+        self.assertIn(f'href="{b}platform/werkbank.css"', html)
+        self.assertIn(f'src="{b}platform/werkbank.js"', html)
+        self.assertIn('name="robots" content="noindex"', html)
+
+    def test_sitemap_ist_deterministisch(self):
+        """Ohne das schlaegt die Pruefung in der CI jeden Tag neu fehl."""
+        import build
+        d = build.laden()
+        self.assertNotIn("lastmod", build.sitemap(d))
+        self.assertEqual(build.sitemap(d), build.sitemap(d))
+
     def test_sitemap_enthaelt_jedes_live_tool(self):
         import build
         d = build.laden()

@@ -15,12 +15,17 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import date
 from html import escape
 from pathlib import Path
 
 WURZEL = Path(__file__).parent
 REGISTRY = WURZEL / "tools.json"
+
+FAVICON = ("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E"
+           "%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%232b5cff%27/%3E"
+           "%3Ctext x=%2716%27 y=%2723%27 font-size=%2719%27 font-family=%27sans-serif%27 "
+           "font-weight=%27700%27 fill=%27white%27 text-anchor=%27middle%27%3EW%3C/text%3E%3C/svg%3E")
+
 
 
 def laden() -> dict:
@@ -64,6 +69,45 @@ def seite(marke: dict, titel: str, beschreibung: str, inhalt: str,
 </main>
 <script src="platform/werkbank.js"></script>
 <script>Werkbank.start({{ slug: {json.dumps(slug)} }});</script>
+</body>
+</html>
+"""
+
+
+def basispfad(marke: dict) -> str:
+    """'https://name.github.io/1' -> '/1/'  ·  'https://eigene.de' -> '/'
+
+    Die 404-Seite kann unter jeder beliebigen Tiefe ausgeliefert werden,
+    relative Pfade greifen dort nicht. Deshalb wird der Basispfad hier aus
+    der Domain abgeleitet, statt ihn irgendwo von Hand einzutragen.
+    """
+    ohne = marke["domain"].split("//", 1)[-1]
+    rest = ohne.split("/", 1)
+    return "/" + rest[1].strip("/") + "/" if len(rest) > 1 and rest[1].strip("/") else "/"
+
+
+def nicht_gefunden(d: dict) -> str:
+    m, b = d["marke"], basispfad(d["marke"])
+    e = escape
+    return f"""<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seite nicht gefunden – {e(m['name'])}</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="{FAVICON}">
+<link rel="stylesheet" href="{b}platform/werkbank.css">
+</head>
+<body>
+<main class="huelle" style="padding-top:4rem">
+  <h1>Diese Seite gibt es nicht</h1>
+  <p class="fuehrung">Vielleicht wurde sie umbenannt, vielleicht hat sich ein
+  Tippfehler in die Adresse geschlichen.</p>
+  <p><a class="knopf" href="{b}werkbank.html">Zu allen Werkzeugen</a></p>
+</main>
+<script src="{b}platform/werkbank.js"></script>
+<script>Werkbank.start({{ slug: "404" }});</script>
 </body>
 </html>
 """
@@ -237,14 +281,17 @@ Analysewerkzeuge einbindest, muss sie erweitert werden.</p>
 
 
 def sitemap(d: dict) -> str:
+    """Bewusst ohne lastmod.
+
+    Ein Datum vom Tag des Erzeugens waere jeden Tag ein anderes - die
+    Pruefung "erzeugte Seiten sind aktuell" wuerde dann taeglich fehlschlagen,
+    ohne dass sich etwas geaendert hat. Suchmaschinen werten lastmod ohnehin
+    nur schwach.
+    """
     basis = d["marke"]["domain"].rstrip("/")
-    heute = date.today().isoformat()
     eintraege = ["werkbank.html", "pro.html", "impressum.html", "datenschutz.html"]
     eintraege += [t["pfad"] for t in live(d["tools"])]
-    zeilen = "".join(
-        f"  <url><loc>{basis}/{p}</loc><lastmod>{heute}</lastmod></url>\n"
-        for p in eintraege
-    )
+    zeilen = "".join(f"  <url><loc>{basis}/{p}</loc></url>\n" for p in eintraege)
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
             f"{zeilen}</urlset>\n")
@@ -262,6 +309,7 @@ def main() -> None:
         "pro.html": pro_seite(d),
         "impressum.html": impressum(d),
         "datenschutz.html": datenschutz(d),
+        "404.html": nicht_gefunden(d),
         "sitemap.xml": sitemap(d),
         "robots.txt": robots(d),
     }

@@ -18,14 +18,25 @@ Reine Softwareentwicklung kann auch freiberuflich sein (§ 18 EStG) – die
 Abgrenzung ist im Einzelfall knifflig. Beim Verkauf fertiger Produkte an
 Endkunden ist Gewerbe der Regelfall.
 
-**Kleinunternehmerregelung (§ 19 UStG).** Unterhalb der gesetzlichen
-Umsatzgrenzen kannst du darauf verzichten, Umsatzsteuer auszuweisen. Das
-vereinfacht den Anfang erheblich. Zwei Dinge dazu:
+**Kleinunternehmerregelung (§ 19 UStG).** Unterhalb der Umsatzgrenzen kannst
+du darauf verzichten, Umsatzsteuer auszuweisen. Das vereinfacht den Anfang
+erheblich. Zum 1. Januar 2025 wurden die Grenzen angehoben:
 
-- Die Grenzbetraege werden gelegentlich angepasst – den aktuellen Stand beim
-  Finanzamt oder in der Beratung erfragen, nicht aus dem Netz uebernehmen.
+- **25.000 Euro** Umsatz im Vorjahr (vorher 22.000) und
+- **100.000 Euro** im laufenden Kalenderjahr (vorher 50.000).
+
+Drei Punkte, die dabei leicht untergehen:
+
+- Die Umsaetze gelten seitdem als *steuerbefreit*, nicht mehr als
+  &bdquo;nicht erhoben&ldquo;.
+- Das Ueberschreiten wirkt **sofort**: Wird die Grenze mitten im Jahr gerissen,
+  muss bereits der Umsatz, mit dem sie ueberschritten wird, mit Umsatzsteuer
+  abgerechnet werden – nicht erst ab dem Folgejahr.
 - Du darfst dann auch keine Vorsteuer ziehen. Bei diesem Modell fallen kaum
   Ausgaben an, deshalb ist das hier fast immer der bessere Weg.
+
+Zahlen mit Stand August 2026. Vor der Anmeldung noch einmal beim Finanzamt
+oder in der Beratung bestaetigen lassen.
 
 **Wichtig:** Verkaufst du ueber einen Haendler im eigenen Namen (siehe
 `docs/BEZAHLUNG.md`), verkauft dieser an den Endkunden – nicht du. Deine
@@ -70,6 +81,26 @@ Analyse- oder Werbezwecken gesetzt, und die Speicherung von Darstellung und
 Lizenzschluessel im Browser ist fuer den ausdruecklich gewuenschten Dienst
 erforderlich. Das ist einer der angenehmen Nebeneffekte davon, alles lokal
 rechnen zu lassen.
+
+---
+
+## E-Rechnung: was ab wann gilt
+
+Betrifft dich, sobald du an **Unternehmen** verkaufst – bei Privatkunden
+aendert sich nichts.
+
+| Ab wann | Was gilt |
+|---|---|
+| 1.1.2025 | Jeder Betrieb muss E-Rechnungen **empfangen** koennen. Eine E-Mail-Adresse genuegt. |
+| bis 31.12.2026 | Papier- und PDF-Rechnungen duerfen weiterhin versendet werden. |
+| ab 1.1.2027 | Betriebe mit ueber 800.000 Euro Vorjahresumsatz muessen E-Rechnungen **versenden**. Darunter bleibt PDF noch bis Ende 2027 erlaubt. |
+| ab 1.1.2028 | Im Geschaeftsverkehr sind nur noch strukturierte Formate nach EN 16931 zulaessig – etwa XRechnung oder ZUGFeRD. Ein reines PDF gilt dann nicht mehr. |
+
+Fuer dieses Modell heisst das zweierlei. Erstens: Verkaufst du an
+Privatpersonen oder ueber einen Haendler im eigenen Namen, betrifft dich die
+Versandpflicht praktisch nicht. Zweitens: Das Rechnungswerkzeug im Portfolio
+braucht bis 2028 eine ZUGFeRD-Ausgabe – die Idee steht bereits in
+`tools.json`.
 
 ---
 

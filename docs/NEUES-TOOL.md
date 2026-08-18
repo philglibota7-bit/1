@@ -20,6 +20,32 @@ Woran du die Nachfrage schaetzt, ohne Geld fuer Werkzeuge auszugeben:
 - Foren und Frageportale: dieselbe Frage seit Jahren = echter Bedarf
 - Die vorhandenen Treffer: nur schlechte Seiten mit Werbebannern = Luecke
 
+### Die Punktzahl ersetzt die Recherche nicht
+
+Ein Beispiel aus der Praxis, das genau diese Luecke zeigt.
+
+Die Idee &bdquo;biometrisches Passfoto&ldquo; bekommt **72 Punkte** – klares
+&bdquo;bauen&ldquo;. Hohe Nachfrage, hohe Zahlungsbereitschaft (ein Fotostudio
+kostet 15 bis 20 Euro), gute Pro-Funktion, rein im Browser machbar.
+
+Eine einzige Suche haette dieses Werkzeug verhindert: **Seit dem 1. Mai 2025
+sind selbst erstellte Passfotos fuer Personalausweis und Reisepass in
+Deutschland nicht mehr zulaessig.** Das Bild muss digital aus einem
+zertifizierten Fotostudio oder vom Terminal der Behoerde kommen. Wer das
+Werkzeug baut, bedient einen Markt, den es so nicht mehr gibt – und schickt
+Leute mit einem Ergebnis los, das im Buergeramt abgelehnt wird.
+
+Die Bewertung kann so etwas nicht wissen. Sie misst, ob eine Idee es wert
+waere, gebaut zu werden – nicht, ob die Welt sie noch erlaubt. Deshalb gilt
+vor jedem Bau zusaetzlich:
+
+- Gibt es seit Kurzem eine Regel, die den Anwendungsfall abschafft?
+- Loesen Betriebssystem oder Browser das Problem inzwischen selbst?
+- Was schreiben die Treffer aus den letzten zwoelf Monaten – nicht die von 2019?
+
+Fuenf Minuten Recherche gegen mehrere Tage Bauzeit. Das ist der beste Tausch
+in diesem ganzen Modell.
+
 ## 2. Ordner anlegen
 
     mkdir -p tools/pdf-zusammenfuegen

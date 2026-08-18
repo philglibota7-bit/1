@@ -13,6 +13,25 @@
   },
   "tools": [
     {
+      "slug": "rechnung-schreiben",
+      "titel": "Rechnung schreiben",
+      "kurz": "Rechnung mit allen Pflichtangaben als PDF - ohne Anmeldung, Kundendaten bleiben bei dir.",
+      "pfad": "tools/rechnung-schreiben/index.html",
+      "status": "live",
+      "seit": "2026-08",
+      "stichworte": [
+        "rechnung schreiben kostenlos",
+        "rechnungsvorlage",
+        "rechnung erstellen pdf",
+        "kleinunternehmer rechnung",
+        "rechnung ohne umsatzsteuer"
+      ],
+      "pro": [
+        "Mehr als 5 Positionen",
+        "Eigenes Logo auf der Rechnung"
+      ]
+    },
+    {
       "slug": "bilder-verkleinern",
       "titel": "Bilder verkleinern",
       "kurz": "Fotos ohne Qualitaetsverlust auf wenige Kilobyte bringen - im Browser, ohne Upload.",
@@ -80,6 +99,36 @@
         "konfektionsgroesse"
       ],
       "pro": []
+    },
+    {
+      "slug": "qr-code",
+      "titel": "QR-Code erstellen",
+      "kurz": "QR-Codes fuer Adressen, WLAN und Kontakte erzeugen.",
+      "pfad": "tools/qr-code/index.html",
+      "status": "idee",
+      "seit": "",
+      "stichworte": [
+        "qr code erstellen",
+        "wlan qr code",
+        "qr code generator kostenlos"
+      ],
+      "pro": [],
+      "punkte": 60
+    },
+    {
+      "slug": "zugferd",
+      "titel": "E-Rechnung (ZUGFeRD)",
+      "kurz": "Rechnung zusaetzlich als strukturierte E-Rechnung - ab 2028 im Geschaeftsverkehr Pflicht.",
+      "pfad": "tools/zugferd/index.html",
+      "status": "idee",
+      "seit": "",
+      "stichworte": [
+        "zugferd erstellen",
+        "xrechnung erstellen",
+        "e-rechnung kostenlos"
+      ],
+      "pro": [],
+      "punkte": 0
     }
   ]
 }
