@@ -1,0 +1,11 @@
+config.json
+config.brawlstars.json
+configs/
+stats.json
+__pycache__/
+*.pyc
+shot.png
+.live_*.png
+build/
+dist/
+*.spec

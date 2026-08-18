@@ -328,6 +328,7 @@
       <label for="provider">API-Anbieter / Protokoll</label>
       <select id="provider">
         <option value="anthropic">Anthropic (Claude)</option>
+        <option value="google">Google Gemini</option>
         <option value="openai">OpenAI-kompatibel (ChatGPT, Ollama, LM Studio, eigener Server)</option>
       </select>
       <div class="sub">Bestimmt, in welchem Format Jarvis mit dem Server spricht.</div>
@@ -339,8 +340,22 @@
       <div class="sub">
         Standard-Adressen: Anthropic → <code>https://api.anthropic.com</code> ·
         OpenAI → <code>https://api.openai.com</code> ·
+        Gemini → <code>https://generativelanguage.googleapis.com</code> ·
         Ollama lokal → <code>http://localhost:11434</code>.
         Du kannst hier auch jede eigene Server-Adresse eingeben.
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="apiPath">API-Endpunkt / Pfad (frei festlegbar)</label>
+      <input type="text" id="apiPath" placeholder="Standard – leer lassen" spellcheck="false">
+      <div class="sub">
+        Nur nötig, wenn dein (Drittanbieter-)Server einen abweichenden Pfad nutzt.
+        Leer = Standardpfad des gewählten Protokolls
+        (Anthropic <code>/v1/messages</code>, OpenAI <code>/v1/chat/completions</code>,
+        Gemini <code>/v1beta/models/…:streamGenerateContent</code>).
+        Beispiel für einen eigenen Server: <code>/api/chat</code> oder eine komplette
+        <code>https://…</code>-URL.
       </div>
     </div>
 
@@ -382,6 +397,7 @@
 const DEFAULTS = {
   provider: "anthropic",
   serverUrl: "https://api.anthropic.com",
+  apiPath: "",
   apiKey: "",
   model: "claude-opus-4-8",
   systemPrompt: "Du bist J.A.R.V.I.S., der persönliche KI-Assistent aus Iron Man. " +
@@ -392,10 +408,12 @@ const DEFAULTS = {
 
 const PROVIDER_DEFAULT_URL = {
   anthropic: "https://api.anthropic.com",
+  google: "https://generativelanguage.googleapis.com",
   openai: "https://api.openai.com",
 };
 const PROVIDER_DEFAULT_MODEL = {
   anthropic: "claude-opus-4-8",
+  google: "gemini-1.5-flash",
   openai: "gpt-4o-mini",
 };
 
@@ -428,7 +446,7 @@ function updateStatus(){
     : "Nicht konfiguriert — ⚙️ öffnen";
 }
 function isCloudUrl(url){
-  return /api\.anthropic\.com|api\.openai\.com/.test(url || "");
+  return /api\.anthropic\.com|api\.openai\.com|generativelanguage\.googleapis\.com/.test(url || "");
 }
 
 /* ===================== Chat-Darstellung ===================== */
@@ -469,8 +487,24 @@ function addTyping(){
 /* ===================== API-Aufrufe ===================== */
 function baseUrl(){ return (cfg.serverUrl || "").replace(/\/+$/, ""); }
 
+// Standard-Pfade je Protokoll. Für Gemini steckt der Modellname im Pfad.
+function defaultPath(provider){
+  if(provider === "anthropic") return "/v1/messages";
+  if(provider === "google")    return "/v1beta/models/" + encodeURIComponent(cfg.model) + ":streamGenerateContent";
+  return "/v1/chat/completions";
+}
+
+// Baut die endgültige Zugriffs-Adresse. Ein frei gesetzter Pfad (cfg.apiPath)
+// überschreibt den Standard. Eine komplette http(s)-URL wird direkt verwendet.
+function endpointUrl(provider){
+  const custom = (cfg.apiPath || "").trim();
+  if(/^https?:\/\//i.test(custom)) return custom;
+  const path = custom ? (custom.startsWith("/") ? custom : "/" + custom) : defaultPath(provider);
+  return baseUrl() + path;
+}
+
 async function callAnthropic(messages, onDelta){
-  const res = await fetch(baseUrl() + "/v1/messages", {
+  const res = await fetch(endpointUrl("anthropic"), {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -501,7 +535,7 @@ async function callOpenAI(messages, onDelta){
   const msgs = [{ role: "system", content: cfg.systemPrompt }, ...messages];
   const headers = { "content-type": "application/json" };
   if(cfg.apiKey) headers["authorization"] = "Bearer " + cfg.apiKey;
-  const res = await fetch(baseUrl() + "/v1/chat/completions", {
+  const res = await fetch(endpointUrl("openai"), {
     method: "POST",
     headers,
     body: JSON.stringify({ model: cfg.model, stream: true, messages: msgs }),
@@ -512,6 +546,35 @@ async function callOpenAI(messages, onDelta){
     const delta = data.choices && data.choices[0] && data.choices[0].delta;
     if(delta && delta.content){
       full += delta.content;
+      onDelta(full);
+    }
+  });
+  return full;
+}
+
+async function callGemini(messages, onDelta){
+  // Gemini erwartet den API-Key als Query-Parameter und ein eigenes Nachrichtenformat.
+  let url = endpointUrl("google");
+  url += (url.includes("?") ? "&" : "?") + "alt=sse";
+  if(cfg.apiKey) url += "&key=" + encodeURIComponent(cfg.apiKey);
+  const contents = messages.map(m => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: m.content }],
+  }));
+  const body = { contents };
+  if(cfg.systemPrompt) body.systemInstruction = { parts: [{ text: cfg.systemPrompt }] };
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if(!res.ok) throw new Error(await apiError(res));
+  let full = "";
+  await readSSE(res, (data) => {
+    const parts = data.candidates && data.candidates[0] &&
+      data.candidates[0].content && data.candidates[0].content.parts;
+    if(parts){
+      for(const p of parts){ if(p.text) full += p.text; }
       onDelta(full);
     }
   });
@@ -555,11 +618,15 @@ async function askJarvis(userText){
     chatEl.scrollTop = chatEl.scrollHeight;
     if(window.orbPulse) orbPulse(0.85);   // Kugel pulsiert während der Antwort
   };
-  const answer = cfg.provider === "anthropic"
-    ? await callAnthropic(messages, onDelta)
-    : await callOpenAI(messages, onDelta);
+  const answer = await callProvider(cfg.provider, messages, onDelta);
   body.innerHTML = renderMarkdown(answer || "…");
   return answer;
+}
+
+function callProvider(provider, messages, onDelta){
+  if(provider === "anthropic") return callAnthropic(messages, onDelta);
+  if(provider === "google")    return callGemini(messages, onDelta);
+  return callOpenAI(messages, onDelta);
 }
 
 /* ===================== Lokale Kommandos ===================== */
@@ -688,6 +755,7 @@ function stopListening(){
 function openSettings(){
   $("provider").value = cfg.provider;
   $("serverUrl").value = cfg.serverUrl;
+  $("apiPath").value = cfg.apiPath || "";
   $("apiKey").value = cfg.apiKey;
   $("model").value = cfg.model;
   $("systemPrompt").value = cfg.systemPrompt;
@@ -702,6 +770,7 @@ function readSettingsForm(){
     ...cfg,
     provider: $("provider").value,
     serverUrl: $("serverUrl").value.trim(),
+    apiPath: $("apiPath").value.trim(),
     apiKey: $("apiKey").value.trim(),
     model: $("model").value.trim() || PROVIDER_DEFAULT_MODEL[$("provider").value],
     systemPrompt: $("systemPrompt").value.trim() || DEFAULTS.systemPrompt,
@@ -734,9 +803,7 @@ $("testBtn").addEventListener("click", async () => {
   cfg = testCfg;
   try{
     const messages = [{ role: "user", content: "Antworte nur mit: OK" }];
-    const reply = testCfg.provider === "anthropic"
-      ? await callAnthropic(messages, () => {})
-      : await callOpenAI(messages, () => {});
+    const reply = await callProvider(testCfg.provider, messages, () => {});
     el.className = "ok";
     el.textContent = "✅ Verbindung erfolgreich! Antwort: " + reply.slice(0, 60);
   }catch(err){

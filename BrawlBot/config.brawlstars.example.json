@@ -1,0 +1,560 @@
+{
+  "host": "127.0.0.1",
+  "adb_path": "adb",
+  "ldconsole": "",
+  "boot_wait": 25,
+  "instances": [
+    {
+      "name": "WIN-1",
+      "port": 5555,
+      "ld_index": 0
+    },
+    {
+      "name": "WIN-2",
+      "port": 5557,
+      "ld_index": 1
+    },
+    {
+      "name": "WIN-3",
+      "port": 5559,
+      "ld_index": 2
+    },
+    {
+      "name": "LOOSE-1",
+      "port": 5561,
+      "ld_index": 3
+    },
+    {
+      "name": "LOOSE-2",
+      "port": 5563,
+      "ld_index": 4
+    },
+    {
+      "name": "LOOSE-3",
+      "port": 5565,
+      "ld_index": 5
+    }
+  ],
+  "loop_delay": 1.0,
+  "humanize": {
+    "pos_jitter": 6,
+    "interval_jitter": 0.15
+  },
+  "detection": {
+    "multi_scale": true,
+    "scales": [
+      0.9,
+      0.95,
+      1.0,
+      1.05,
+      1.1
+    ]
+  },
+  "tesseract_cmd": "",
+  "code_replacements": { "O": "0", "I": "1" },
+  "stuck_seconds": 90,
+  "sync_attempts": 3,
+  "controls": {
+    "joystick": {
+      "cx": 0.16,
+      "cy": 0.78,
+      "radius": 0.13
+    },
+    "attack": {
+      "x": 0.88,
+      "y": 0.8
+    },
+    "super": {
+      "x": 0.88,
+      "y": 0.6
+    }
+  },
+  "cycle": {
+    "win_group": "WIN",
+    "loose_group": "LOOSE",
+    "loose_delay": 35,
+    "match_duration": 150,
+    "match_end_template": "match_end.png",
+    "match_timeout": 300,
+    "trophy_region": [
+      470,
+      60,
+      160,
+      60
+    ],
+    "victory_template": "victory.png",
+    "rounds": 0,
+    "retries": 2,
+    "switch_accounts": true,
+    "recover_steps": [
+      {
+        "type": "key",
+        "code": "KEYCODE_BACK",
+        "wait": 1.0
+      },
+      {
+        "type": "key",
+        "code": "KEYCODE_BACK",
+        "wait": 1.0
+      },
+      {
+        "type": "key",
+        "code": "KEYCODE_BACK",
+        "wait": 1.0
+      }
+    ],
+    "start_match_steps": [
+      {
+        "type": "tap_template",
+        "template": "losspielen.png",
+        "timeout": 15,
+        "wait": 2
+      }
+    ],
+    "leave_steps": [
+      {
+        "type": "tap_template",
+        "template": "team_verlassen.png",
+        "timeout": 15,
+        "wait": 2
+      },
+      {
+        "type": "tap_template",
+        "template": "verlassen_bestaetigen.png",
+        "timeout": 10,
+        "wait": 2
+      }
+    ]
+  },
+  "groups": {
+    "WIN": {
+      "ports": [
+        5555,
+        5557,
+        5559
+      ],
+      "tasks": [
+        {
+          "type": "tap_template",
+          "name": "Play",
+          "template": "play_button.png",
+          "interval": 5,
+          "threshold": 0.85
+        },
+        {
+          "type": "tap_template",
+          "name": "Weiter",
+          "template": "proceed.png",
+          "interval": 3,
+          "threshold": 0.85
+        },
+        {
+          "type": "swipe",
+          "name": "vor",
+          "from": [
+            220,
+            780
+          ],
+          "to": [
+            220,
+            650
+          ],
+          "ms": 400,
+          "interval": 1
+        },
+        {
+          "type": "tap",
+          "name": "schuss",
+          "x": 1000,
+          "y": 720,
+          "interval": 1
+        }
+      ],
+      "accounts": [
+        {
+          "name": "WIN-Acc-1",
+          "slot": [
+            640,
+            300
+          ],
+          "used": false
+        },
+        {
+          "name": "WIN-Acc-2",
+          "slot": [
+            640,
+            430
+          ],
+          "used": false
+        },
+        {
+          "name": "WIN-Acc-3",
+          "slot": [
+            640,
+            560
+          ],
+          "used": false
+        }
+      ],
+      "switch_flow": {
+        "open_steps": [
+          {
+            "type": "tap_template",
+            "template": "menu_button.png",
+            "timeout": 15,
+            "wait": 1.5
+          },
+          {
+            "type": "tap_template",
+            "template": "settings_button.png",
+            "timeout": 10,
+            "wait": 1.5
+          },
+          {
+            "type": "tap_template",
+            "template": "supercell_id.png",
+            "timeout": 10,
+            "wait": 2.0
+          },
+          {
+            "type": "tap_template",
+            "template": "switch_account.png",
+            "timeout": 10,
+            "wait": 2.0
+          }
+        ],
+        "confirm_steps": [
+          {
+            "type": "tap_template",
+            "template": "confirm.png",
+            "timeout": 10,
+            "wait": 3.0
+          }
+        ],
+        "lobby_template": "play_button.png",
+        "lobby_timeout": 60
+      },
+      "team": {
+        "host_index": 0,
+        "timeout": 120,
+        "create_steps": [
+          {
+            "type": "tap_template",
+            "template": "team_menu.png",
+            "timeout": 15,
+            "wait": 1.5
+          },
+          {
+            "type": "tap_template",
+            "template": "team_erstellen.png",
+            "timeout": 10,
+            "wait": 1.5
+          },
+          {
+            "type": "tap_template",
+            "template": "team_teilen.png",
+            "timeout": 10,
+            "wait": 1.5
+          }
+        ],
+        "code_region": [
+          820,
+          40,
+          240,
+          60
+        ],
+        "ready_template": "team_raum.png",
+        "ready_timeout": 60,
+        "join_steps_before": [
+          {
+            "type": "tap_template",
+            "template": "team_menu.png",
+            "timeout": 15,
+            "wait": 1.5
+          },
+          {
+            "type": "tap_template",
+            "template": "team_beitreten.png",
+            "timeout": 10,
+            "wait": 1.5
+          },
+          {
+            "type": "tap_template",
+            "template": "teamcode_eingeben.png",
+            "timeout": 10,
+            "wait": 1.5
+          }
+        ],
+        "code_field": [
+          640,
+          400
+        ],
+        "join_steps_after": [
+          {
+            "type": "tap_template",
+            "template": "code_bestaetigen.png",
+            "timeout": 10,
+            "wait": 2.0
+          }
+        ]
+      }
+    },
+    "LOOSE": {
+      "ports": [
+        5561,
+        5563,
+        5565
+      ],
+      "tasks": [
+        {
+          "type": "tap_template",
+          "name": "Play",
+          "template": "play_button.png",
+          "interval": 5,
+          "threshold": 0.85
+        },
+        {
+          "type": "tap_template",
+          "name": "Weiter",
+          "template": "proceed.png",
+          "interval": 3,
+          "threshold": 0.85
+        },
+        {
+          "type": "swipe",
+          "name": "rueck",
+          "from": [
+            220,
+            780
+          ],
+          "to": [
+            220,
+            910
+          ],
+          "ms": 400,
+          "interval": 1
+        }
+      ],
+      "accounts": [
+        {
+          "name": "LOOSE-Acc-1",
+          "slot": [
+            640,
+            300
+          ],
+          "used": false
+        },
+        {
+          "name": "LOOSE-Acc-2",
+          "slot": [
+            640,
+            430
+          ],
+          "used": false
+        },
+        {
+          "name": "LOOSE-Acc-3",
+          "slot": [
+            640,
+            560
+          ],
+          "used": false
+        }
+      ],
+      "switch_flow": {
+        "open_steps": [
+          {
+            "type": "tap_template",
+            "template": "menu_button.png",
+            "timeout": 15,
+            "wait": 1.5
+          },
+          {
+            "type": "tap_template",
+            "template": "settings_button.png",
+            "timeout": 10,
+            "wait": 1.5
+          },
+          {
+            "type": "tap_template",
+            "template": "supercell_id.png",
+            "timeout": 10,
+            "wait": 2.0
+          },
+          {
+            "type": "tap_template",
+            "template": "switch_account.png",
+            "timeout": 10,
+            "wait": 2.0
+          }
+        ],
+        "confirm_steps": [
+          {
+            "type": "tap_template",
+            "template": "confirm.png",
+            "timeout": 10,
+            "wait": 3.0
+          }
+        ],
+        "lobby_template": "play_button.png",
+        "lobby_timeout": 60
+      },
+      "team": {
+        "host_index": 0,
+        "timeout": 120,
+        "create_steps": [
+          {
+            "type": "tap_template",
+            "template": "team_menu.png",
+            "timeout": 15,
+            "wait": 1.5
+          },
+          {
+            "type": "tap_template",
+            "template": "team_erstellen.png",
+            "timeout": 10,
+            "wait": 1.5
+          },
+          {
+            "type": "tap_template",
+            "template": "team_teilen.png",
+            "timeout": 10,
+            "wait": 1.5
+          }
+        ],
+        "code_region": [
+          820,
+          40,
+          240,
+          60
+        ],
+        "ready_template": "team_raum.png",
+        "ready_timeout": 60,
+        "join_steps_before": [
+          {
+            "type": "tap_template",
+            "template": "team_menu.png",
+            "timeout": 15,
+            "wait": 1.5
+          },
+          {
+            "type": "tap_template",
+            "template": "team_beitreten.png",
+            "timeout": 10,
+            "wait": 1.5
+          },
+          {
+            "type": "tap_template",
+            "template": "teamcode_eingeben.png",
+            "timeout": 10,
+            "wait": 1.5
+          }
+        ],
+        "code_field": [
+          640,
+          400
+        ],
+        "join_steps_after": [
+          {
+            "type": "tap_template",
+            "template": "code_bestaetigen.png",
+            "timeout": 10,
+            "wait": 2.0
+          }
+        ]
+      }
+    }
+  },
+  "queue_timeout": 90,
+  "match_max_seconds": 180,
+  "between_matches": 2.0,
+  "matches_per_account": 10,
+  "joystick": {
+    "cx": 205,
+    "cy": 560,
+    "radius": 95
+  },
+  "attack": {
+    "x": 1120,
+    "y": 575
+  },
+  "templates": {
+    "play_button": "play_button.png",
+    "in_match": "in_match.png",
+    "victory": "victory.png",
+    "defeat": "defeat.png",
+    "proceed": "proceed.png",
+    "ok": "ok.png",
+    "continue": "continue.png",
+    "reward": "reward.png",
+    "close": "close.png"
+  },
+  "accounts": [
+    {
+      "name": "Account-A",
+      "slot": [
+        640,
+        300
+      ],
+      "wait": 2.5
+    },
+    {
+      "name": "Account-B",
+      "slot": [
+        640,
+        430
+      ],
+      "wait": 2.5
+    },
+    {
+      "name": "Account-C",
+      "slot": [
+        640,
+        560
+      ],
+      "wait": 2.5
+    }
+  ],
+  "account_switch": {
+    "steps": [
+      {
+        "type": "tap_template",
+        "template": "menu_button.png",
+        "timeout": 15,
+        "wait": 1.5
+      },
+      {
+        "type": "tap_template",
+        "template": "settings_button.png",
+        "timeout": 10,
+        "wait": 1.5
+      },
+      {
+        "type": "tap_template",
+        "template": "supercell_id.png",
+        "timeout": 10,
+        "wait": 2.0
+      },
+      {
+        "type": "tap_template",
+        "template": "switch_account.png",
+        "timeout": 10,
+        "wait": 2.0
+      },
+      {
+        "type": "select_account",
+        "wait": 2.0
+      },
+      {
+        "type": "tap_template",
+        "template": "confirm.png",
+        "timeout": 10,
+        "wait": 3.0
+      },
+      {
+        "type": "wait",
+        "wait": 3.0
+      }
+    ]
+  }
+}

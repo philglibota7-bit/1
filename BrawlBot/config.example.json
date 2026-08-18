@@ -1,0 +1,36 @@
+{
+  "host": "127.0.0.1",
+  "port": 5555,
+  "adb_path": "adb",
+  "loop_delay": 1.0,
+  "rules": [
+    {
+      "name": "Start-Button druecken",
+      "template": "start_button.png",
+      "action": "tap",
+      "threshold": 0.85,
+      "cooldown": 2.0
+    },
+    {
+      "name": "Belohnung abholen",
+      "template": "reward.png",
+      "action": "tap",
+      "threshold": 0.88,
+      "cooldown": 1.0
+    },
+    {
+      "name": "Karte nach rechts wischen",
+      "template": "map_edge.png",
+      "action": "swipe",
+      "swipe": [800, 400, 200, 400, 300],
+      "threshold": 0.9
+    },
+    {
+      "name": "Dialog schliessen (Zurueck)",
+      "template": "popup.png",
+      "action": "key",
+      "keycode": "KEYCODE_BACK",
+      "threshold": 0.85
+    }
+  ]
+}
