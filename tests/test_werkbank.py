@@ -145,6 +145,71 @@ class Registry(unittest.TestCase):
         self.assertEqual(len(slugs), len(set(slugs)))
 
 
+class ToolSeiten(unittest.TestCase):
+    """Diese Pruefungen gelten automatisch fuer jedes neue Werkzeug.
+
+    Genau das ist der Punkt des Portfolio-Modells: die Qualitaetsschwelle darf
+    nicht davon abhaengen, dass beim zwanzigsten Werkzeug noch jemand an die
+    Checkliste denkt.
+    """
+
+    def tools(self):
+        reg = json.loads((WURZEL / "tools.json").read_text(encoding="utf-8"))
+        return [t for t in reg["tools"] if t["status"] == "live"
+                and t["pfad"].startswith("tools/")]
+
+    def test_kopfdaten_vollstaendig(self):
+        for t in self.tools():
+            html = (WURZEL / t["pfad"]).read_text(encoding="utf-8")
+            with self.subTest(tool=t["slug"]):
+                self.assertRegex(html, r"<title>[^<]{20,}</title>")
+                self.assertRegex(html, r'name="description" content="[^"]{80,}"')
+                self.assertIn('rel="canonical"', html)
+                self.assertIn(t["slug"], html, "canonical/slug passt nicht zum Eintrag")
+
+    def test_inhaltsteil_ist_lang_genug(self):
+        """Der Textteil unter dem Werkzeug ist der Grund, warum es gefunden wird."""
+        for t in self.tools():
+            html = (WURZEL / t["pfad"]).read_text(encoding="utf-8")
+            with self.subTest(tool=t["slug"]):
+                m = re.search(r'<div class="inhalt">(.*?)</div>\s*</main>', html, re.S)
+                self.assertIsNotNone(m, "kein Inhaltsteil vorhanden")
+                text = re.sub(r"<[^>]+>", " ", m.group(1))
+                woerter = len(text.split())
+                self.assertGreater(woerter, 550,
+                                   f"Inhaltsteil zu kurz ({woerter} Woerter)")
+
+    def test_keine_fremden_ressourcen(self):
+        """Kein externes Skript, keine fremde Schriftart - Tempo und Datenschutz."""
+        for t in self.tools():
+            html = (WURZEL / t["pfad"]).read_text(encoding="utf-8")
+            with self.subTest(tool=t["slug"]):
+                extern = re.findall(r'(?:src|href)="(https?://[^"]+)"', html)
+                erlaubt = [u for u in extern if "philglibota7-bit.github.io" in u
+                           or "schema.org" in u]
+                self.assertEqual([u for u in extern if u not in erlaubt], [],
+                                 "laedt von fremden Servern")
+
+    def test_bindet_die_plattform_ein(self):
+        for t in self.tools():
+            html = (WURZEL / t["pfad"]).read_text(encoding="utf-8")
+            with self.subTest(tool=t["slug"]):
+                self.assertIn("platform/werkbank.css", html)
+                self.assertIn("platform/werkbank.js", html)
+                self.assertRegex(html, r"Werkbank\.start\(")
+
+    def test_pro_funktionen_sind_auch_verbaut(self):
+        """Was auf der Pro-Seite versprochen wird, muss im Werkzeug eine
+        Schranke haben - sonst verkauft man Luft."""
+        for t in self.tools():
+            if not t.get("pro"):
+                continue
+            html = (WURZEL / t["pfad"]).read_text(encoding="utf-8")
+            with self.subTest(tool=t["slug"]):
+                self.assertIn("Werkbank.pro(", html,
+                              "Pro-Funktionen angekuendigt, aber keine Schranke im Code")
+
+
 class Lizenz(unittest.TestCase):
     """Der Schluesselgenerator im CLI und die Pruefung im Browser muessen
     dasselbe Alphabet benutzen. Driftet eins davon, verkauft man Schluessel,

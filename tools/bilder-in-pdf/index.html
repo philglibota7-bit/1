@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bilder in PDF umwandeln – ohne Upload, direkt im Browser | Werkbank</title>
+<meta name="description" content="JPG und PNG kostenlos in eine PDF-Datei umwandeln. Mehrere Bilder zu einem PDF zusammenfuegen - laeuft komplett im Browser, ohne Upload und ohne Anmeldung.">
+<link rel="canonical" href="https://philglibota7-bit.github.io/1/tools/bilder-in-pdf/index.html">
+<meta property="og:title" content="Bilder in PDF umwandeln – ohne Upload">
+<meta property="og:description" content="Mehrere Bilder zu einem PDF verbinden. Direkt im Browser, ohne Upload.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%232b5cff%27/%3E%3Ctext x=%2716%27 y=%2723%27 font-size=%2719%27 font-family=%27sans-serif%27 font-weight=%27700%27 fill=%27white%27 text-anchor=%27middle%27%3EW%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="../../platform/werkbank.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication",
+ "name":"Bilder in PDF umwandeln","applicationCategory":"UtilitiesApplication",
+ "operatingSystem":"Browser","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},
+ "description":"Bilder im Browser zu einer PDF-Datei zusammenfuegen, ohne Upload."}
+</script>
+<style>
+  .werkzeug { display: grid; gap: 1.5rem; grid-template-columns: 1fr; margin-top: 1.5rem; }
+  @media (min-width: 60rem) { .werkzeug { grid-template-columns: 1fr 20rem; align-items: start; } }
+  .regler { display: grid; gap: 1.1rem; }
+  .liste { display: grid; gap: .6rem; margin-top: 1.25rem; }
+  .zeile { display: flex; align-items: center; gap: .9rem; padding: .7rem .9rem;
+           border: 1px solid var(--rand); border-radius: var(--radius); background: var(--flaeche); }
+  .zeile img { width: 46px; height: 46px; object-fit: cover; border-radius: 6px;
+               background: var(--flaeche-2); flex: none; }
+  .zeile .info { flex: 1; min-width: 0; font-size: .875rem; }
+  .zeile .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nr { font-variant-numeric: tabular-nums; color: var(--text-leise); font-size: .8rem;
+        width: 1.4rem; flex: none; text-align: right; }
+  .knopf.winzig { padding: .3rem .55rem; font-size: .95rem; line-height: 1; }
+  .abschluss { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap;
+               margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--rand); }
+</style>
+</head>
+<body>
+
+<main class="huelle" style="padding-top:2.5rem">
+
+  <h1>Bilder in PDF umwandeln</h1>
+  <p class="fuehrung">Fotos, Scans oder Belege zu einer einzigen PDF-Datei verbinden.
+  Alles passiert auf deinem Rechner – <strong>nichts wird hochgeladen</strong>.</p>
+
+  <div class="werkzeug">
+    <div>
+      <div class="ablage" id="ablage" tabindex="0" role="button"
+           aria-label="Bilder auswaehlen oder hierher ziehen">
+        <div style="font-size:2rem;line-height:1">📄</div>
+        <p style="margin:.5rem 0 0"><strong>Bilder hierher ziehen</strong></p>
+        <p class="leise" style="margin:.25rem 0 0">oder klicken zum Auswaehlen · JPG, PNG, WebP</p>
+        <input type="file" id="datei" accept="image/*" multiple hidden>
+      </div>
+
+      <div class="liste" id="liste"></div>
+
+      <div class="abschluss" id="abschluss" hidden>
+        <span class="leise" id="anzahl"></span>
+        <div style="margin-left:auto;display:flex;gap:.5rem">
+          <button class="knopf leise" id="leeren">Leeren</button>
+          <button class="knopf" id="erzeugen">PDF erstellen</button>
+        </div>
+      </div>
+      <p class="leise" id="stand" style="margin-top:.75rem"></p>
+    </div>
+
+    <aside class="karte regler">
+      <div>
+        <label for="format">Seitenformat <span class="marke-pro">Pro</span></label>
+        <select id="format">
+          <option value="a4">A4</option>
+          <option value="letter">US Letter</option>
+          <option value="bild">Genau so gross wie das Bild</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="ausrichtung">Ausrichtung <span class="marke-pro">Pro</span></label>
+        <select id="ausrichtung">
+          <option value="auto">Automatisch je Bild</option>
+          <option value="hoch">Immer hochkant</option>
+          <option value="quer">Immer quer</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="rand">Rand <span class="marke-pro">Pro</span>
+          <span style="float:right;font-weight:400;color:var(--text-leise)" id="rand-wert">10 mm</span>
+        </label>
+        <input type="range" id="rand" min="0" max="30" value="10" step="5">
+      </div>
+
+      <div>
+        <label for="guete">Bildqualitaet
+          <span style="float:right;font-weight:400;color:var(--text-leise)" id="g-wert">85 %</span>
+        </label>
+        <input type="range" id="guete" min="50" max="95" value="85" step="5">
+        <p class="leise" style="margin:.3rem 0 0">Niedriger = kleinere PDF-Datei.</p>
+      </div>
+
+      <p class="leise" style="margin:0;border-top:1px solid var(--rand);padding-top:1rem">
+        Kostenlos bis 3 Bilder, A4 mit 10 mm Rand.
+        <a href="../../pro.html">Pro</a> hebt das Limit auf und gibt dir alle Einstellungen.
+      </p>
+    </aside>
+  </div>
+
+  <div class="inhalt">
+    <h2>Warum ueberhaupt ein PDF?</h2>
+    <p>Ein PDF haelt mehrere Seiten in einer einzigen Datei zusammen, sieht auf jedem
+    Geraet gleich aus und wird von Behoerden, Versicherungen und Personalabteilungen
+    erwartet. Wer drei Fotos eines Vertrags einzeln verschickt, bekommt sie oft
+    zurueck – als ein PDF mit drei Seiten ist dieselbe Sache erledigt.</p>
+
+    <h2>Welches Seitenformat ist das richtige?</h2>
+    <p><strong>A4</strong> ist in Europa der Standard und die richtige Wahl, wenn das
+    Ergebnis gedruckt oder eingereicht wird. <strong>US Letter</strong> brauchst du
+    nur fuer Empfaenger in Nordamerika. <strong>Genau so gross wie das Bild</strong>
+    ist sinnvoll, wenn nichts gedruckt wird und das Seitenverhaeltnis erhalten bleiben
+    soll – etwa bei Bildschirmfotos oder einem Portfolio.</p>
+    <p>Der Rand entscheidet daruber, ob beim Drucken etwas abgeschnitten wird. Die
+    meisten Drucker koennen die aeussersten Millimeter nicht bedrucken; 10 mm sind
+    ein sicherer Wert. Ohne Rand fuellt das Bild die Seite vollstaendig aus.</p>
+
+    <h2>Wie klein wird die Datei?</h2>
+    <p>Die Bilder werden vor dem Einbetten neu berechnet. Bei 85 % Qualitaet wird aus
+    einem 5-MB-Foto typischerweise eine halbe Seite von etwa 300 KB, ohne sichtbaren
+    Unterschied. Wenn du das PDF per E-Mail verschickst, ist das der entscheidende
+    Punkt: viele Postfaecher lehnen Anhaenge ueber 10 MB ab.</p>
+
+    <h2>Wann man das braucht</h2>
+    <p>Fast immer geht es darum, dass eine Gegenstelle genau eine Datei erwartet:</p>
+    <ul>
+      <li><strong>Bewerbung:</strong> Anschreiben, Lebenslauf und Zeugnisse als eine
+      Datei. Getrennte Anhaenge kommen bei vielen Bewerbungsportalen gar nicht an.</li>
+      <li><strong>Krankmeldung oder Rezept:</strong> Vorder- und Rueckseite in einem
+      Dokument statt zwei loser Fotos.</li>
+      <li><strong>Belege fuer die Steuer:</strong> mehrere Kassenzettel je Monat in
+      einer Datei – das erspart am Jahresende das Sortieren.</li>
+      <li><strong>Vertraege und Formulare:</strong> abfotografierte Seiten in der
+      richtigen Reihenfolge, damit nichts fehlt oder vertauscht wird.</li>
+      <li><strong>Handwerk und Schadensmeldung:</strong> Fotos einer Baustelle oder
+      eines Schadens als ein Dokument mit fester Seitenfolge.</li>
+    </ul>
+
+    <h2>Auf die Reihenfolge kommt es an</h2>
+    <p>Die Liste bestimmt die Seitenfolge, und du kannst sie mit den Pfeiltasten
+    aendern. Wenn du viele Bilder auf einmal auswaehlst, uebernimmt der Browser die
+    Sortierung des Ordners – bei Namen wie <code>bild1</code>, <code>bild2</code>,
+    <code>bild10</code> steht die zehn dann faelschlich vor der zwei. Wer regelmaessig
+    scannt, benennt die Dateien deshalb besser <code>01</code>, <code>02</code>,
+    <code>10</code>.</p>
+
+    <h2>Was dieses PDF nicht kann</h2>
+    <p>Ein wichtiger Punkt, den viele Anbieter verschweigen: Die Seiten enthalten
+    <strong>Bilder, keinen Text.</strong> Du kannst darin also nicht suchen und
+    nichts herauskopieren, auch wenn auf dem Foto Buchstaben zu sehen sind. Fuer den
+    Versand an Menschen ist das voellig ausreichend. Wenn der Empfaenger ausdruecklich
+    ein <em>durchsuchbares</em> PDF verlangt, brauchst du eine Texterkennung – das ist
+    ein anderes Werkzeug und laeuft nicht rein im Browser.</p>
+    <p>Ebenso wenig lassen sich hier bestehende PDF-Dateien anhaengen. Dieses Werkzeug
+    macht aus Bildern ein PDF, nicht aus PDFs ein groesseres PDF.</p>
+
+    <h2>Warum ohne Upload?</h2>
+    <p>Genau bei diesem Werkzeug ist das wichtig. Wer Bilder in ein PDF umwandelt,
+    hat meistens Ausweise, Vertraege, Rechnungen, Krankmeldungen oder Zeugnisse
+    in der Hand. Solche Unterlagen auf einen fremden Server zu laden, ist keine gute
+    Idee – hier bleiben sie auf deinem Geraet. Es gibt keinen Server, der sie
+    entgegennehmen koennte.</p>
+
+    <h2>Haeufige Fragen</h2>
+    <details><summary>Werden meine Dokumente gespeichert?</summary>
+    <p>Nein. Die Umwandlung passiert vollstaendig in deinem Browser. Sobald du die
+    Seite schliesst, ist alles weg.</p></details>
+    <details><summary>Kann ich die Reihenfolge aendern?</summary>
+    <p>Ja, mit den Pfeiltasten neben jedem Bild. Die Reihenfolge in der Liste ist
+    die Reihenfolge der Seiten.</p></details>
+    <details><summary>Wie bekomme ich mehrere Bilder in ein PDF?</summary>
+    <p>Alle Bilder auf einmal auswaehlen oder nacheinander hinzufuegen – es entsteht
+    ein PDF mit einer Seite je Bild. Mehr als drei Bilder gehoert zu
+    <a href="../../pro.html">Pro</a>.</p></details>
+    <details><summary>Funktioniert das offline?</summary>
+    <p>Ja. Speichere die Seite ueber das Browsermenue ab, danach laeuft sie ohne
+    Internetverbindung.</p></details>
+    <details><summary>Warum ist mein PDF so gross geworden?</summary>
+    <p>Jede Seite enthaelt ein vollstaendiges Foto. Zehn Handybilder ergeben schnell
+    mehrere Megabyte. Zieh die Bildqualitaet auf 70 % herunter – am Bildschirm ist
+    der Unterschied kaum zu sehen, die Datei wird oft halb so gross.</p></details>
+    <details><summary>Bleibt das Bild scharf beim Ausdrucken?</summary>
+    <p>Ein Bild mit 2000 Bildpunkten Breite ergibt auf A4 rund 240 dpi – das reicht
+    fuer jeden normalen Ausdruck. Fuer Druckereien mit 300-dpi-Vorgabe solltest du
+    das Original ohne Verkleinerung liefern.</p></details>
+    <details><summary>Geht auch PDF zurueck in Bilder?</summary>
+    <p>Das ist ein eigenes Werkzeug und noch nicht fertig. Schau in den
+    <a href="../../werkbank.html">Katalog</a>.</p></details>
+  </div>
+
+</main>
+
+<script src="../../platform/werkbank.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var GRATIS_LIMIT = 3;
+  var MM = 2.8346457;              // Millimeter in PDF-Punkte
+  var FORMATE = { a4: [595.28, 841.89], letter: [612, 792] };
+  var MAX_KANTE = 2200;            // Bilder darueber werden verkleinert
+
+  var bilder = [];
+  var el = function (id) { return document.getElementById(id); };
+  var ablage = el("ablage"), liste = el("liste");
+
+  /* ================================================================
+   * Minimaler PDF-Erzeuger
+   *
+   * Bewusst ohne fremde Bibliothek: das haelt die Seite klein, schnell
+   * und frei von externen Abhaengigkeiten. JPEG-Daten koennen unveraendert
+   * in ein PDF eingebettet werden (Filter DCTDecode) - deshalb ist der
+   * Erzeuger so kurz.
+   * ================================================================ */
+  function Puffer() {
+    this.teile = [];
+    this.laenge = 0;
+  }
+  Puffer.prototype.schreib = function (x) {
+    var b = typeof x === "string"
+      ? Uint8Array.from(x, function (z) { return z.charCodeAt(0) & 0xff; })
+      : x;
+    this.teile.push(b);
+    this.laenge += b.length;
+    return this;
+  };
+
+  function pdfBauen(seiten) {
+    var p = new Puffer();
+    var versatz = [];                       // Byteversatz je Objektnummer
+    var objekte = 2 + seiten.length * 3;    // Katalog, Seitenbaum, dann 3 je Seite
+
+    function objekt(nr, kopf, daten) {
+      versatz[nr] = p.laenge;
+      p.schreib(nr + " 0 obj\n" + kopf);
+      if (daten) {
+        p.schreib("stream\n").schreib(daten).schreib("\nendstream\n");
+      }
+      p.schreib("endobj\n");
+    }
+
+    p.schreib("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");   // Binaerkennung: Zeile 2 ist Pflicht
+
+    var kinder = seiten.map(function (_, i) { return (3 + i * 3) + " 0 R"; }).join(" ");
+    objekt(1, "<< /Type /Catalog /Pages 2 0 R >>\n");
+    objekt(2, "<< /Type /Pages /Kids [" + kinder + "] /Count " + seiten.length + " >>\n");
+
+    seiten.forEach(function (s, i) {
+      var nrSeite = 3 + i * 3, nrInhalt = nrSeite + 1, nrBild = nrSeite + 2;
+      var inhalt = "q\n" + r(s.zeichenBreite) + " 0 0 " + r(s.zeichenHoehe) + " " +
+                   r(s.x) + " " + r(s.y) + " cm\n/Im0 Do\nQ\n";
+
+      objekt(nrSeite,
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " +
+        r(s.seitenBreite) + " " + r(s.seitenHoehe) + "]" +
+        " /Resources << /XObject << /Im0 " + nrBild + " 0 R >> >>" +
+        " /Contents " + nrInhalt + " 0 R >>\n");
+
+      objekt(nrInhalt, "<< /Length " + inhalt.length + " >>\n", inhalt);
+
+      objekt(nrBild,
+        "<< /Type /XObject /Subtype /Image /Width " + s.breite +
+        " /Height " + s.hoehe + " /ColorSpace /DeviceRGB /BitsPerComponent 8" +
+        " /Filter /DCTDecode /Length " + s.jpeg.length + " >>\n", s.jpeg);
+    });
+
+    // Querverweistabelle: jeder Eintrag muss exakt 20 Byte lang sein
+    var xref = p.laenge;
+    p.schreib("xref\n0 " + (objekte + 1) + "\n0000000000 65535 f\r\n");
+    for (var n = 1; n <= objekte; n++) {
+      p.schreib(fuelle(versatz[n], 10) + " 00000 n\r\n");
+    }
+    p.schreib("trailer\n<< /Size " + (objekte + 1) + " /Root 1 0 R >>\n" +
+              "startxref\n" + xref + "\n%%EOF\n");
+
+    return new Blob(p.teile, { type: "application/pdf" });
+  }
+
+  function r(zahl) { return (Math.round(zahl * 100) / 100).toString(); }
+  function fuelle(zahl, stellen) {
+    var s = String(zahl || 0);
+    while (s.length < stellen) s = "0" + s;
+    return s;
+  }
+
+  /* ================================================================
+   * Seitenberechnung
+   * ================================================================ */
+  function seiteBerechnen(breite, hoehe, format, ausrichtung, randMM) {
+    var rand = randMM * MM;
+    var seitenBreite, seitenHoehe;
+
+    if (format === "bild") {
+      // Bild bei 72 dpi, plus Rand ringsum
+      seitenBreite = breite + rand * 2;
+      seitenHoehe = hoehe + rand * 2;
+    } else {
+      var f = FORMATE[format] || FORMATE.a4;
+      var quer = ausrichtung === "quer" ||
+                 (ausrichtung === "auto" && breite > hoehe);
+      seitenBreite = quer ? f[1] : f[0];
+      seitenHoehe = quer ? f[0] : f[1];
+    }
+
+    var nutzBreite = Math.max(1, seitenBreite - rand * 2);
+    var nutzHoehe = Math.max(1, seitenHoehe - rand * 2);
+    var faktor = Math.min(nutzBreite / breite, nutzHoehe / hoehe);
+    var zBreite = breite * faktor, zHoehe = hoehe * faktor;
+
+    return {
+      seitenBreite: seitenBreite, seitenHoehe: seitenHoehe,
+      zeichenBreite: zBreite, zeichenHoehe: zHoehe,
+      x: (seitenBreite - zBreite) / 2,
+      y: (seitenHoehe - zHoehe) / 2   // mittig, auch senkrecht
+    };
+  }
+
+  /* ================================================================
+   * Bild -> JPEG-Bytes
+   * ================================================================ */
+  function bildLaden(datei) {
+    if (window.createImageBitmap) return createImageBitmap(datei);
+    return new Promise(function (ok, fehler) {
+      var i = new Image();
+      i.onload = function () { ok(i); };
+      i.onerror = fehler;
+      i.src = URL.createObjectURL(datei);
+    });
+  }
+
+  function alsJpeg(datei, guete) {
+    return bildLaden(datei).then(function (bild) {
+      var b = bild.width, h = bild.height;
+      var faktor = Math.min(1, MAX_KANTE / Math.max(b, h));
+      b = Math.max(1, Math.round(b * faktor));
+      h = Math.max(1, Math.round(h * faktor));
+
+      var c = document.createElement("canvas");
+      c.width = b; c.height = h;
+      var ctx = c.getContext("2d");
+      // Weisser Grund: PNG mit Transparenz wuerde im JPEG sonst schwarz
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, b, h);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(bild, 0, 0, b, h);
+      if (bild.close) bild.close();
+
+      return new Promise(function (ok) {
+        c.toBlob(function (blob) {
+          blob.arrayBuffer().then(function (puffer) {
+            ok({ jpeg: new Uint8Array(puffer), breite: b, hoehe: h });
+          });
+        }, "image/jpeg", guete);
+      });
+    });
+  }
+
+  /* ================================================================
+   * Oberflaeche
+   * ================================================================ */
+  ablage.onclick = function () { el("datei").click(); };
+  ablage.onkeydown = function (ev) {
+    if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); el("datei").click(); }
+  };
+  el("datei").onchange = function () { annehmen(this.files); this.value = ""; };
+
+  ["dragenter", "dragover"].forEach(function (n) {
+    ablage.addEventListener(n, function (ev) { ev.preventDefault(); ablage.classList.add("aktiv"); });
+  });
+  ["dragleave", "drop"].forEach(function (n) {
+    ablage.addEventListener(n, function (ev) { ev.preventDefault(); ablage.classList.remove("aktiv"); });
+  });
+  ablage.addEventListener("drop", function (ev) { annehmen(ev.dataTransfer.files); });
+
+  function annehmen(dateien) {
+    var neue = Array.prototype.filter.call(dateien, function (f) {
+      return f.type.indexOf("image/") === 0;
+    });
+    if (!neue.length) return;
+
+    if (bilder.length + neue.length > GRATIS_LIMIT && !Werkbank.lizenz.istPro()) {
+      var platz = Math.max(0, GRATIS_LIMIT - bilder.length);
+      Werkbank.pro("seiten",
+        "Kostenlos sind " + GRATIS_LIMIT + " Bilder je PDF. Mit Pro sind es beliebig " +
+        "viele – dazu Seitenformat, Ausrichtung und Rand nach Wunsch.");
+      neue = neue.slice(0, platz);
+      if (!neue.length) return;
+    }
+
+    neue.forEach(function (f) { bilder.push({ datei: f, name: f.name }); });
+    Werkbank.messen("bilder.hinzugefuegt", { anzahl: neue.length });
+    zeichnen();
+  }
+
+  function zeichnen() {
+    liste.innerHTML = "";
+    bilder.forEach(function (b, i) {
+      var z = document.createElement("div");
+      z.className = "zeile";
+      z.innerHTML =
+        '<span class="nr">' + (i + 1) + '</span>' +
+        '<img alt="">' +
+        '<div class="info"><div class="name"></div>' +
+          '<div class="leise">Seite ' + (i + 1) + '</div></div>' +
+        '<button class="knopf leise winzig" aria-label="Nach oben">↑</button>' +
+        '<button class="knopf leise winzig" aria-label="Nach unten">↓</button>' +
+        '<button class="knopf leise winzig" aria-label="Entfernen">✕</button>';
+      z.querySelector(".name").textContent = b.name;
+      if (!b.vorschau) b.vorschau = URL.createObjectURL(b.datei);
+      z.querySelector("img").src = b.vorschau;
+
+      var knoepfe = z.querySelectorAll("button");
+      knoepfe[0].disabled = i === 0;
+      knoepfe[1].disabled = i === bilder.length - 1;
+      knoepfe[0].onclick = function () { tausche(i, i - 1); };
+      knoepfe[1].onclick = function () { tausche(i, i + 1); };
+      knoepfe[2].onclick = function () { entferne(i); };
+      liste.appendChild(z);
+    });
+
+    el("abschluss").hidden = bilder.length === 0;
+    el("anzahl").textContent = bilder.length === 1
+      ? "1 Bild · 1 Seite"
+      : bilder.length + " Bilder · " + bilder.length + " Seiten";
+  }
+
+  function tausche(a, b) {
+    var t = bilder[a]; bilder[a] = bilder[b]; bilder[b] = t;
+    zeichnen();
+  }
+
+  function entferne(i) {
+    if (bilder[i].vorschau) URL.revokeObjectURL(bilder[i].vorschau);
+    bilder.splice(i, 1);
+    zeichnen();
+  }
+
+  el("leeren").onclick = function () {
+    bilder.forEach(function (b) { if (b.vorschau) URL.revokeObjectURL(b.vorschau); });
+    bilder = [];
+    zeichnen();
+    el("stand").textContent = "";
+  };
+
+  /* ---------- Pro-Einstellungen ---------- */
+  function proEinstellung(feld, standard, text) {
+    el(feld).onchange = function () {
+      if (this.value !== standard && !Werkbank.pro(feld, text)) {
+        this.value = standard;
+      }
+      if (feld === "rand") randAnzeigen();
+    };
+  }
+  proEinstellung("format", "a4",
+    "Mit Pro waehlst du das Seitenformat – A4, US Letter oder genau die Bildgroesse.");
+  proEinstellung("ausrichtung", "auto",
+    "Mit Pro legst du die Ausrichtung fest, statt sie je Bild automatisch zu waehlen.");
+
+  function randAnzeigen() { el("rand-wert").textContent = el("rand").value + " mm"; }
+  el("rand").oninput = randAnzeigen;
+  el("rand").onchange = function () {
+    if (this.value !== "10" && !Werkbank.pro("rand",
+        "Mit Pro stellst du den Rand frei ein – von randlos bis 30 mm.")) {
+      this.value = "10";
+      randAnzeigen();
+    }
+  };
+  el("guete").oninput = function () { el("g-wert").textContent = this.value + " %"; };
+
+  /* ---------- PDF erstellen ---------- */
+  el("erzeugen").onclick = function () {
+    if (!bilder.length) return;
+    var knopf = this;
+    knopf.disabled = true;
+    var format = el("format").value;
+    var ausrichtung = el("ausrichtung").value;
+    var randMM = parseInt(el("rand").value, 10);
+    var guete = parseInt(el("guete").value, 10) / 100;
+
+    var seiten = [];
+    var i = 0;
+    el("stand").textContent = "Wird erstellt …";
+
+    (function weiter() {
+      if (i >= bilder.length) return fertig();
+      var b = bilder[i];
+      el("stand").textContent = "Bild " + (i + 1) + " von " + bilder.length + " …";
+      alsJpeg(b.datei, guete).then(function (erg) {
+        var mass = seiteBerechnen(erg.breite, erg.hoehe, format, ausrichtung, randMM);
+        mass.jpeg = erg.jpeg;
+        mass.breite = erg.breite;
+        mass.hoehe = erg.hoehe;
+        seiten.push(mass);
+        i++;
+        weiter();
+      }).catch(function () {
+        el("stand").textContent = "„" + b.name + "“ konnte nicht gelesen werden.";
+        i++;
+        weiter();
+      });
+    })();
+
+    function fertig() {
+      knopf.disabled = false;
+      if (!seiten.length) { el("stand").textContent = "Kein Bild konnte gelesen werden."; return; }
+      var blob = pdfBauen(seiten);
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = (bilder.length === 1
+        ? bilder[0].name.replace(/\.[^.]+$/, "")
+        : "bilder") + ".pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+      var kb = blob.size >= 1048576
+        ? (blob.size / 1048576).toFixed(1).replace(".", ",") + " MB"
+        : Math.round(blob.size / 1024) + " KB";
+      el("stand").textContent = "Fertig: " + seiten.length +
+        (seiten.length === 1 ? " Seite" : " Seiten") + ", " + kb + ".";
+      Werkbank.messen("pdf.erstellt", { seiten: seiten.length });
+    }
+  };
+
+  // Fuer den automatischen Test: nur lesend, aendert nichts am Verhalten.
+  window.__werkbankPdf = { bauen: pdfBauen, seite: seiteBerechnen, jpeg: alsJpeg };
+
+  Werkbank.start({
+    slug: "bilder-in-pdf",
+    verwandte: [
+      { titel: "Bilder verkleinern", pfad: "tools/bilder-verkleinern/index.html" },
+      { titel: "IP-Rechner", pfad: "ip-rechner.html" }
+    ]
+  });
+})();
+</script>
+</body>
+</html>
