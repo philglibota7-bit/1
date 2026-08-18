@@ -1,0 +1,15 @@
+# Lokale Geschäftsdaten – NIEMALS committen (dieses Repo wird via GitHub Pages
+# öffentlich ins Netz gestellt; Kundendaten hätten dort nichts zu suchen).
+data/
+out/
+*.local.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# System
+.DS_Store
+Thumbs.db

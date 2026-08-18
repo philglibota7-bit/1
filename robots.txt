@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://philglibota7-bit.github.io/1/sitemap.xml

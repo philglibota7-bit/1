@@ -1,0 +1,102 @@
+<!doctype html>
+<!--
+  Vorlage fuer ein neues Werkzeug.
+
+    cp platform/vorlage.html tools/DEIN-SLUG/index.html
+
+  Danach: alle Stellen mit DEIN-SLUG, TITEL und BESCHREIBUNG ersetzen,
+  Eintrag in tools.json ergaenzen, `python3 build.py` ausfuehren.
+  Kopf, Fuss, Darstellung hell/dunkel, Messung und Bezahlschranke kommen
+  von der Plattform - hier ist nichts davon zu tun.
+-->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>TITEL – ohne Upload, direkt im Browser | Werkbank</title>
+<meta name="description" content="BESCHREIBUNG in 150 Zeichen, mit dem Suchbegriff im ersten Drittel. Laeuft komplett im Browser, ohne Upload und ohne Anmeldung.">
+<link rel="canonical" href="https://philglibota7-bit.github.io/1/tools/DEIN-SLUG/index.html">
+<meta property="og:title" content="TITEL – ohne Upload">
+<meta property="og:description" content="BESCHREIBUNG">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%232b5cff%27/%3E%3Ctext x=%2716%27 y=%2723%27 font-size=%2719%27 font-family=%27sans-serif%27 font-weight=%27700%27 fill=%27white%27 text-anchor=%27middle%27%3EW%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="../../platform/werkbank.css">
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication",
+ "name":"TITEL","applicationCategory":"UtilitiesApplication",
+ "operatingSystem":"Browser",
+ "offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},
+ "description":"BESCHREIBUNG"}
+</script>
+
+<style>
+  /* Nur was dieses Werkzeug wirklich braucht. Alles Allgemeine steht
+     in werkbank.css und gilt automatisch. */
+</style>
+</head>
+<body>
+
+<main class="huelle" style="padding-top:2.5rem">
+
+  <h1>TITEL</h1>
+  <p class="fuehrung">Ein Satz, der sagt, was passiert und warum es besser ist
+  als die Alternative. <strong>Nichts wird hochgeladen.</strong></p>
+
+  <!-- ======================= Das Werkzeug ======================= -->
+  <div class="karte">
+    <p class="leise">Hier kommt die Bedienoberflaeche hin.</p>
+  </div>
+
+  <!-- ======================= Der Inhaltsteil =======================
+       Kein Beiwerk: das ist der Grund, warum die Seite gefunden wird.
+       600 bis 900 Woerter, geschrieben fuer einen Menschen mit einem
+       Problem - nicht fuer eine Suchmaschine. -->
+  <div class="inhalt">
+    <h2>Wie funktioniert das?</h2>
+    <p>Die Sache selbst erklaeren, in einfachen Worten.</p>
+
+    <h2>Welche Einstellung ist die richtige?</h2>
+    <p>Die Entscheidung abnehmen, die der Besucher sonst selbst treffen muesste.</p>
+
+    <h2>Warum ohne Upload?</h2>
+    <p>Uebliche Anbieter laden deine Datei auf einen fremden Server. Dieses
+    Werkzeug rechnet auf deinem Geraet: schneller, funktioniert offline, und
+    die Datei bleibt bei dir.</p>
+
+    <h2>Haeufige Fragen</h2>
+    <details><summary>Werden meine Daten gespeichert?</summary>
+    <p>Nein. Es gibt keinen Server, der sie entgegennehmen koennte.</p></details>
+    <details><summary>Funktioniert das offline?</summary>
+    <p>Ja. Seite lokal speichern, danach laeuft sie ohne Internet.</p></details>
+    <details><summary>Kostet das etwas?</summary>
+    <p>Die Grundfunktion ist kostenlos. Zusatzfunktionen gehoeren zu
+    <a href="../../pro.html">Pro</a>.</p></details>
+  </div>
+
+</main>
+
+<script src="../../platform/werkbank.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // Bezahlschranke – an genau einer Stelle, dort wo die Funktion benutzt wird:
+  //
+  //   if (!Werkbank.pro("stapel", "Mit Pro sind es beliebig viele.")) return;
+  //
+  // Werkbank zeigt das Kauffenster selbst an. Die Schranke greift erst,
+  // wenn das Gratis-Limit wirklich erreicht ist - niemand soll ein
+  // Kauffenster sehen, bevor er den Nutzen erlebt hat.
+
+  Werkbank.start({
+    slug: "DEIN-SLUG",
+    verwandte: [
+      { titel: "Bilder verkleinern", pfad: "tools/bilder-verkleinern/index.html" }
+    ]
+  });
+})();
+</script>
+</body>
+</html>

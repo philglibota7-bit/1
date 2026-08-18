@@ -1,0 +1,47 @@
+{
+  "marke": {
+    "name": "Werkbank",
+    "domain": "https://philglibota7-bit.github.io/1",
+    "beschreibung": "Kleine Werkzeuge, die eine Sache richtig machen. Alles laeuft direkt im Browser.",
+    "betreiber": "DEIN NAME",
+    "strasse": "DEINE STRASSE 1",
+    "plz_ort": "12345 DEINE STADT",
+    "email": "DEINE@EMAIL.DE",
+    "ust_id": "",
+    "pro_preis": "19",
+    "pro_kauflink": "https://BEZAHLANBIETER-LINK-HIER-EINSETZEN"
+  },
+  "tools": [
+    {
+      "slug": "bilder-verkleinern",
+      "titel": "Bilder verkleinern",
+      "kurz": "Fotos ohne Qualitaetsverlust auf wenige Kilobyte bringen - im Browser, ohne Upload.",
+      "pfad": "tools/bilder-verkleinern/index.html",
+      "status": "live",
+      "seit": "2026-08",
+      "stichworte": ["bilder verkleinern", "bilder komprimieren online", "jpg verkleinern",
+                     "foto verkleinern kb", "bild groesse reduzieren"],
+      "pro": ["Stapelverarbeitung ab 4 Bildern", "WebP-Ausgabe", "Zielgroesse in KB vorgeben"]
+    },
+    {
+      "slug": "ip-rechner",
+      "titel": "IP-Rechner",
+      "kurz": "Subnetze, IPv6 und Netzmasken berechnen - inklusive Taschenrechner.",
+      "pfad": "ip-rechner.html",
+      "status": "live",
+      "seit": "2026-08",
+      "stichworte": ["subnetz rechner", "ip rechner", "cidr rechner", "subnetzmaske berechnen"],
+      "pro": []
+    },
+    {
+      "slug": "fitscan",
+      "titel": "FitScan",
+      "kurz": "Koerpermasse erfassen und Kleidergroessen zuverlaessig bestimmen.",
+      "pfad": "bodyscan.html",
+      "status": "live",
+      "seit": "2026-08",
+      "stichworte": ["kleidergroesse berechnen", "koerpermasse tabelle", "konfektionsgroesse"],
+      "pro": []
+    }
+  ]
+}
