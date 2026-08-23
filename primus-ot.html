@@ -332,7 +332,7 @@ footer::before{content:"";position:absolute;top:0;left:20%;right:20%;height:1px;
 /* ---------- modals ---------- */
 .modal{position:fixed;inset:0;z-index:1300;display:grid;place-items:center;padding:18px;background:rgba(8,8,10,.85);backdrop-filter:blur(10px);opacity:0;visibility:hidden;transition:.3s}
 .modal.open{opacity:1;visibility:visible}
-.modal-card{width:min(960px,100%);max-height:88vh;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:var(--bg2);border:1px solid var(--line);border-top:3px solid var(--red2);border-radius:20px;padding:clamp(24px,3.5vw,42px);transform:translateY(30px) scale(.97);transition:.38s cubic-bezier(.2,.65,.3,1);box-shadow:var(--shadow)}
+.modal-card{width:min(960px,100%);max-height:88vh;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scroll-behavior:auto;background:var(--bg2);border:1px solid var(--line);border-top:3px solid var(--red2);border-radius:20px;padding:clamp(24px,3.5vw,42px);transform:translateY(30px) scale(.97);transition:.38s cubic-bezier(.2,.65,.3,1);box-shadow:var(--shadow)}
 .modal.open .modal-card{transform:none}
 .modal-card h3{font-size:clamp(1.35rem,2.6vw,1.9rem);color:#fff;margin-bottom:4px;padding-right:48px}
 .modal-card .mtag{color:var(--red2);font-family:'Roboto',sans-serif;font-weight:700;font-size:.85rem;margin-bottom:18px}
@@ -347,6 +347,7 @@ footer::before{content:"";position:absolute;top:0;left:20%;right:20%;height:1px;
 .mcols{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:16px 0}
 @media(max-width:760px){.mcols{grid-template-columns:1fr}}
 .mbox{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+.sheet-bar{display:contents}
 .modal-x{position:sticky;top:0;float:right;width:42px;height:42px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:#fff;font-size:1.1rem;transition:.25s;z-index:2}
 .modal-x:hover{background:var(--red2);border-color:var(--red2);transform:rotate(90deg);box-shadow:var(--glow)}
 .chipline{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 16px}
@@ -470,11 +471,20 @@ table.alloy td:first-child{color:#fff;font-weight:600}
   .modal-card{width:100%;max-height:92vh;max-height:92dvh;border-radius:22px 22px 0 0;border-left:0;border-right:0;border-bottom:0;
     padding:22px 18px calc(30px + env(safe-area-inset-bottom,0px));transform:translateY(100%);transition:transform .42s cubic-bezier(.2,.7,.25,1)}
   .modal.open .modal-card{transform:none}
-  .modal-card::before{content:"";display:block;width:44px;height:4px;border-radius:4px;background:var(--line2);margin:-6px auto 14px}
+  /* Feste Kopfleiste: Ziehgriff mittig, Schließen oben rechts – überlappt nie den Inhalt */
+  .modal-card::before{display:none}
+  .modal-card{padding-top:0}
+  .sheet-bar{display:flex;align-items:center;justify-content:flex-end;position:sticky;top:0;z-index:7;
+    margin:0 -18px 10px;padding:14px 16px 10px;
+    background:linear-gradient(var(--bg2) 68%,rgba(20,20,23,.88) 88%,rgba(20,20,23,0));
+    border-radius:22px 22px 0 0}
+  .sheet-bar::before{content:"";position:absolute;left:50%;top:7px;transform:translateX(-50%);
+    width:44px;height:4px;border-radius:4px;background:var(--line2)}
   .modal-card h3{font-size:1.25rem;padding-right:44px}
   .modal-card .mtag{font-size:.78rem;margin-bottom:14px}
-  .modal-x{position:fixed;top:auto;bottom:calc(18px + env(safe-area-inset-bottom,0px));right:18px;float:none;width:52px;height:52px;border-radius:50%;
-    background:linear-gradient(120deg,var(--red),var(--red2));border-color:transparent;box-shadow:0 10px 30px -8px rgba(224,18,35,.9);font-size:1.25rem}
+  .modal-x{position:static;float:none;margin:0;width:44px;height:44px;border-radius:50%;
+    background:linear-gradient(120deg,var(--red),var(--red2));border-color:transparent;color:#fff;
+    box-shadow:0 8px 24px -8px rgba(224,18,35,.9);font-size:1.1rem}
   .modal-card .mimg img{max-height:190px}
   .mcols{gap:12px;margin:12px 0}
   .mbox{padding:15px}
@@ -484,9 +494,21 @@ table.alloy td:first-child{color:#fff;font-weight:600}
   .tbl-tools{margin:18px 0 8px}
   .search input{width:100%}
   .tbl-tools .search{flex:1 1 100%}
-  table.alloy{font-size:.8rem;min-width:520px}
-  table.alloy th,table.alloy td{padding:9px 11px}
-  .swipe-hint{display:block;text-align:center;font-size:.72rem;color:var(--txt3);padding:8px 0 0;letter-spacing:.1em}
+  /* Tabelle wird zur Kartenliste: alles passt auf die Breite, kein seitliches Scrollen */
+  .tbl-wrap{overflow-x:visible;border:0;border-radius:0;background:transparent}
+  table.alloy{display:block;width:100%;min-width:0;font-size:.86rem;border-collapse:separate}
+  table.alloy thead{display:none}
+  table.alloy tbody{display:flex;flex-direction:column;gap:10px}
+  table.alloy tbody tr{display:block;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+  table.alloy tbody tr:hover{background:var(--card)}
+  table.alloy td{display:flex;align-items:center;justify-content:space-between;gap:14px;
+    padding:5px 0;border:0;white-space:normal;text-align:right}
+  table.alloy td::before{content:attr(data-label);flex:none;text-align:left;
+    font-family:'Roboto',sans-serif;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--txt3)}
+  table.alloy td:first-child{display:block;text-align:left;font-size:1.02rem;color:#fff;font-weight:700;
+    padding:0 0 9px;margin-bottom:6px;border-bottom:1px solid var(--line)}
+  table.alloy td:first-child::before{display:none}
+  .swipe-hint{display:none !important}
 
   form.cform{padding:20px 17px}
   .contact{gap:22px;margin-top:30px}
@@ -578,8 +600,10 @@ table.alloy td:first-child{color:#fff;font-weight:600}
   .hstat{padding:11px 12px}
   .hstat b{font-size:1.15rem}
   .thick-opts{grid-template-columns:1fr}
-  .modal-card{padding:20px 14px calc(26px + env(safe-area-inset-bottom,0px))}
-  table.alloy{min-width:460px;font-size:.75rem}
+  .modal-card{padding:0 14px calc(26px + env(safe-area-inset-bottom,0px))}
+  .sheet-bar{margin:0 -14px 10px;padding:14px 12px 10px}
+  table.alloy tbody tr{padding:12px 13px}
+  table.alloy td{font-size:.82rem}
 }
 
 /* ---------- Handy quer / niedrige Höhe ---------- */
@@ -1795,6 +1819,13 @@ document.querySelectorAll('[data-modal]').forEach(b=>b.addEventListener('click',
   document.getElementById(b.dataset.modal).classList.add('open');
   lockScroll();
 }));
+document.querySelectorAll('.modal-card').forEach(card=>{
+  const x=card.querySelector('.modal-x');
+  const bar=document.createElement('div');
+  bar.className='sheet-bar';
+  card.insertBefore(bar,card.firstChild);
+  bar.appendChild(x);
+});
 document.querySelectorAll('.modal').forEach(m=>{
   m.addEventListener('click',e=>{if(e.target===m)closeModal(m)});
   m.querySelector('.modal-x').addEventListener('click',()=>closeModal(m));
@@ -1817,6 +1848,14 @@ document.querySelectorAll('.modal').forEach(m=>{
 });
 addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal.open').forEach(closeModal)});
 function closeModal(m){if(!m.classList.contains('open'))return;m.classList.remove('open');unlockScroll()}
+
+/* ============ Tabellen: Spaltennamen an die Zellen hängen (Kartenansicht Handy) ============ */
+document.querySelectorAll('table.alloy').forEach(tb=>{
+  const heads=[...tb.querySelectorAll('thead th')].map(th=>th.textContent.trim());
+  tb.querySelectorAll('tbody tr').forEach(tr=>{
+    [...tr.children].forEach((td,i)=>{if(heads[i])td.setAttribute('data-label',heads[i])});
+  });
+});
 
 /* ============ Tabellen: Wisch-Hinweis auf schmalen Geräten ============ */
 document.querySelectorAll('.tbl-wrap').forEach(w=>{
