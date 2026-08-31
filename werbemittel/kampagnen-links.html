@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQUELLY — Kampagnen-Links</title>
+<style>
+:root{
+  --navy:#14315c; --blue:#3a8ccd; --sky:#d5eef8; --ground:#eef4f9;
+  --line:#c9d8e4; --mut:#5c7591;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--ground);
+  color:var(--navy);line-height:1.55;padding:32px 20px 60px}
+.wrap{max-width:760px;margin:0 auto}
+h1{font-size:1.5rem;font-weight:800;letter-spacing:-.01em}
+.lead{color:var(--mut);font-size:.92rem;margin:8px 0 26px;max-width:64ch}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:16px}
+h2{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);
+  font-weight:700;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+label{display:block;font-size:.76rem;font-weight:600;color:var(--mut);margin-bottom:5px}
+input,select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:7px;
+  font:inherit;font-size:.9rem;background:#fff;color:var(--navy)}
+input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px;border-color:var(--blue)}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{text-align:left;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);
+  padding:0 0 8px;font-weight:700}
+td{padding:11px 10px 11px 0;border-top:1px solid #e6eef5;vertical-align:top}
+td:last-child{padding-right:0;width:1%;white-space:nowrap}
+.url{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;word-break:break-all;
+  color:var(--navy);line-height:1.5}
+.sub{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--mut);
+  margin-top:4px}
+button{font:inherit;font-size:.8rem;font-weight:650;padding:8px 14px;border-radius:7px;
+  border:1px solid var(--navy);background:var(--navy);color:#fff;cursor:pointer}
+button:hover{background:#0f2749}
+button.g{background:#fff;color:var(--navy)}
+button.g:hover{background:var(--sky)}
+.hinweis{font-size:.8rem;color:var(--mut);background:#fff;border:1px solid var(--line);
+  border-left:3px solid var(--blue);border-radius:8px;padding:14px 16px;margin-top:20px}
+.hinweis b{color:var(--navy)}
+.ok{color:#2f7d4c;font-size:.78rem;font-weight:650}
+tr.gruppe td{border-top:none;padding:18px 0 4px;font-size:.7rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--blue);font-weight:700}
+tr.gruppe:first-child td{padding-top:0}
+.leiste{display:flex;align-items:center;gap:14px;margin-top:16px;padding-top:14px;
+  border-top:1px solid #e6eef5}
+.zahl{font-size:.78rem;color:var(--mut);margin-right:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Kampagnen-Links</h1>
+  <p class="lead">Jede Anzeige braucht ihre eigene Adresse. Die Herkunft steckt in der Adresse,
+    landet auf der SQUELLY-Seite im Amazon-Link und taucht im Provisionsbericht wieder auf —
+    daran siehst du, welches Motiv verkauft hat und welches nur Klicks kostet.</p>
+
+  <div class="card">
+    <h2>Einstellungen</h2>
+    <div class="grid">
+      <div>
+        <label for="basis">Adresse deiner Seite</label>
+        <input id="basis" value="https://philglibota7-bit.github.io/1/squelly.html">
+      </div>
+      <div>
+        <label for="kampagne">Kampagne</label>
+        <input id="kampagne" value="Herbst Start" placeholder="z. B. Herbst Start">
+      </div>
+      <div>
+        <label for="kanal">Kanal</label>
+        <!-- Drittes Feld: welche Motive zu diesem Kanal gehören. Ein Pin im
+             Hochformat hat im Instagram-Feed nichts verloren und umgekehrt. -->
+        <select id="kanal">
+          <option value="instagram|paid|feed">Instagram — bezahlt</option>
+          <option value="facebook|paid|feed">Facebook — bezahlt</option>
+          <option value="instagram|organisch|feed">Instagram — Beitrag</option>
+          <option value="tiktok|paid|feed">TikTok — bezahlt</option>
+          <option value="pinterest|pin|pin">Pinterest — Pin</option>
+          <option value="whatsapp|nachricht|alle">WhatsApp — Nachricht</option>
+          <option value="bio|link|alle">Profil-Link (Bio)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Fertige Adressen</h2>
+    <!-- Ohne Kopfzeile: die Zwischenüberschrift je Produkt beschriftet sich selbst. -->
+    <table>
+      <tbody id="zeilen"></tbody>
+    </table>
+    <div class="leiste">
+      <span class="zahl" id="zahl"></span>
+      <button class="g" id="alle">Alle als Tabelle kopieren</button>
+    </div>
+  </div>
+
+  <p class="hinweis">
+    <b>Warum nicht direkt zu Amazon?</b> Das Partnerprogramm untersagt Partnerlinks in bezahlter
+    Werbung. Der Weg Anzeige → deine Seite → Amazon ist der zulässige — und du behältst die
+    Klickdaten, die dir Amazon sonst nie zeigt.
+  </p>
+
+<script>
+"use strict";
+/* Dieselbe Kürzung wie auf der SQUELLY-Seite, damit die Vorschau
+   der SubID wirklich dem entspricht, was später bei Amazon ankommt. */
+const kurz = function(v, n){
+  return String(v || "").toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, n || 12);
+};
+
+/* Kurze Kennungen, weil der Platz im Provisionsbericht begrenzt ist:
+   "1080x1080" und "1080x1350" würden auf denselben Rest gekürzt und wären
+   dort nicht mehr auseinanderzuhalten. Aus demselben Grund tragen die Pins
+   ihre Nummer — "nachtfahrt" und "riss" sind kurz, aber die Nummer bleibt
+   auch dann lesbar, wenn ein späterer Name lang wird.
+   utm_content ist bewusst der Dateiname ohne Maße: eine Zeile im Bericht
+   zeigt damit unmittelbar auf die Bilddatei, die den Klick gebracht hat. */
+const FEED = [
+  { art: "feed", inhalt: "-quad", label: "Feed, 1080 x 1080" },
+  { art: "feed", inhalt: "-hoch", label: "Feed, 1080 x 1350" }
+];
+const pin = function(nr, name){
+  return { art: "pin", inhalt: "-pin-" + nr + "-" + name,
+           label: "Pin " + nr + " · " + name + ", 1000 x 1500" };
+};
+const feed = function(buchstabe, name){
+  return { art: "feed", inhalt: "-" + buchstabe + "-" + name,
+           label: "Feed " + buchstabe.toUpperCase() + " · " + name + ", 1080 x 1080" };
+};
+
+/* Drei Bauformen, für alle Produkte außer der Pumpe dieselben. */
+const BAUFORM = ["plakat", "anleitung", "karte"];
+const pins = function(){
+  return BAUFORM.map(function(b){
+    return { art: "pin", inhalt: "-pin-" + b, label: "Pin · " + b + ", 1000 x 1500" };
+  });
+};
+const mitPins = function(){ return FEED.concat(pins()); };
+
+const MOTIVE = [
+  { name: "Vakuumierer",    datei: "vakuumierer",    kuerzel: "vakuumierer",
+    stuecke: mitPins() },
+  { name: "Massagepistole", datei: "massagepistole", kuerzel: "massagepistole",
+    stuecke: mitPins() },
+  /* Die Feed-Motive heißen "sunset-lampe", die Pins nur "lampe" — so wie
+     die Dateien selbst. */
+  { name: "Sunset-Lampe",   datei: "sunset-lampe",   kuerzel: "lampe",
+    pinDatei: "lampe", stuecke: mitPins() },
+  { name: "Fahrradpumpe",   datei: "fahrradpumpe",   kuerzel: "pumpe",
+    /* Die Pins tragen "pumpe" statt "fahrradpumpe", sonst frisst der
+       Produktname die Kürzung auf und die neun Entwürfe sehen im Bericht
+       gleich aus. */
+    pinDatei: "pumpe",
+    stuecke: [
+      feed("a", "tempo"), feed("b", "lieferumfang"), feed("c", "ventile"),
+      feed("d", "gespiegelt"), feed("e", "zahlen"),
+      pin(1, "nachtfahrt"), pin(2, "riss"), pin(3, "schnitt"), pin(4, "plakat"),
+      pin(5, "anleitung"), pin(6, "plaetze"), pin(7, "groesse"), pin(8, "szene"),
+      pin(9, "tafel")
+    ] }
+];
+
+/* Ein Datensatz je Zeile, damit Tabelle und Sammelkopie aus derselben
+   Quelle kommen und nicht auseinanderlaufen können. */
+function adressen(){
+  const basis = document.getElementById("basis").value.trim();
+  const kampagne = document.getElementById("kampagne").value.trim();
+  const teile = document.getElementById("kanal").value.split("|");
+  const quelle = teile[0], medium = teile[1], art = teile[2];
+  const out = [];
+  MOTIVE.forEach(function(m){
+    m.stuecke.forEach(function(s){
+      if(art !== "alle" && s.art !== art) return;
+      const stamm = (s.art === "pin" && m.pinDatei) ? m.pinDatei : m.datei;
+      const inhalt = stamm + s.inhalt;
+      const u = basis + (basis.indexOf("?") === -1 ? "?" : "&") +
+        "utm_source=" + encodeURIComponent(quelle) +
+        "&utm_medium=" + encodeURIComponent(medium) +
+        "&utm_campaign=" + encodeURIComponent(kampagne) +
+        "&utm_content=" + encodeURIComponent(inhalt);
+      const sub = ["sq", kurz(quelle), kurz(kampagne, 16) || "ohne",
+                   kurz(inhalt, 22), m.kuerzel].join("-").slice(0, 100);
+      out.push({ motiv: m.name, label: s.label, url: u, sub: sub });
+    });
+  });
+  return out;
+}
+
+/* Hängt die Kopierfunktion an einen vorhandenen Knopf. Der Text darf eine
+   Funktion sein, damit die Sammelkopie beim Klick den aktuellen Stand nimmt
+   und nicht den vom Seitenaufbau. */
+function kopieren(el, text){
+  el.onclick = function(){
+    navigator.clipboard.writeText(typeof text === "function" ? text() : text).then(function(){
+      const alt = el.textContent, klasse = el.className;
+      el.textContent = "Kopiert"; el.className = "g";
+      setTimeout(function(){ el.textContent = alt; el.className = klasse; }, 1400);
+    });
+  };
+  return el;
+}
+
+function bauen(){
+  const liste = adressen();
+  const tb = document.getElementById("zeilen");
+  tb.innerHTML = "";
+  let letztes = null;
+
+  liste.forEach(function(z){
+    if(z.motiv !== letztes){
+      letztes = z.motiv;
+      const kopf = document.createElement("tr");
+      kopf.className = "gruppe";
+      const td = document.createElement("td");
+      td.colSpan = 2; td.textContent = z.motiv;
+      kopf.appendChild(td); tb.appendChild(kopf);
+    }
+    const tr = document.createElement("tr");
+    const td1 = document.createElement("td");
+    td1.innerHTML = '<b>' + z.label + '</b>' +
+      '<div class="url">' + z.url.replace(/&/g, "&amp;").replace(/</g, "&lt;") + '</div>' +
+      '<div class="sub">im Provisionsbericht: ' + z.sub + '</div>';
+    const td2 = document.createElement("td");
+    const b = document.createElement("button");
+    b.textContent = "Kopieren";
+    td2.appendChild(kopieren(b, z.url));
+    tr.appendChild(td1); tr.appendChild(td2);
+    tb.appendChild(tr);
+  });
+
+  document.getElementById("zahl").textContent =
+    liste.length + (liste.length === 1 ? " Adresse" : " Adressen") + " für diesen Kanal";
+}
+
+kopieren(document.getElementById("alle"), function(){
+  return ["Motiv\tFormat\tAdresse\tSubID"].concat(adressen().map(function(z){
+    return [z.motiv, z.label, z.url, z.sub].join("\t");
+  })).join("\n");
+});
+
+["basis", "kampagne", "kanal"].forEach(function(id){
+  document.getElementById(id).addEventListener("input", bauen);
+  document.getElementById(id).addEventListener("change", bauen);
+});
+bauen();
+</script>
+</div>
+</body>
+</html>

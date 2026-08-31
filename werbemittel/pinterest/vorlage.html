@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>SQUELLY — Pinterest für Vakuumierer, Massagepistole, Lampe</title>
+<style>
+/*FONTS*/
+:root{--navy:#14315c; --blue:#3a8ccd; --ink:#4e6785}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#222;display:flex;flex-wrap:wrap;gap:30px;padding:30px;align-items:flex-start}
+.cap{color:#bbb;font-family:monospace;font-size:13px;width:100%;margin-bottom:-20px}
+
+/* Drei Bauformen, drei Produkte. Anders als bei der Pumpe liegen hier
+   keine Freisteller vor, sondern Fotos auf weißem Studiogrund — sie werden
+   mit multiply eingerechnet, deshalb sind alle drei Bauformen hell.
+   Was die Produkte auseinanderhält, ist die Akzentfarbe: kühles Blau für
+   die Küche, tiefes Indigo für die Erholung, warmes Bernstein für die
+   Lampe, weil sie selbst warmes Licht wirft. */
+.pin{width:1000px;height:1500px;position:relative;overflow:hidden;flex-shrink:0;
+  font-family:'Barlow',system-ui,sans-serif;isolation:isolate}
+.pin img{mix-blend-mode:multiply;object-fit:contain;display:block}
+.logo{height:auto;display:block;flex-shrink:0}
+.wm{font-family:'Barlow Semi Condensed';font-weight:800;letter-spacing:.19em;text-indent:.19em}
+h1,h2,.riese,.zahl b,.schritt b,.platz b{font-family:'Barlow Semi Condensed';font-weight:800;
+  letter-spacing:-.012em}
+
+/* Farbfamilien je Produkt ------------------------------------------------ */
+.kueche  {--akzent:#2f7ec0; --tief:#14315c; --creme:#f4f6f9; --band:#e7eff7; --marke:#5c7591}
+.erholung{--akzent:#4a5bb5; --tief:#1e2450; --creme:#f5f4fa; --band:#e9e9f6; --marke:#6a6f99}
+.licht   {--akzent:#c8792c; --tief:#3c2513; --creme:#faf5ee; --band:#f6ebdc; --marke:#96825f}
+
+/* ══════════════════════════════════════════════════════════════════
+   BAUFORM A — PLAKAT
+   Eine Zahl trägt das Blatt, das Foto ist Beleg. Haarlinien, viel Luft,
+   die Schaltfläche ist eine unterstrichene Zeile statt einer Taste.
+   ══════════════════════════════════════════════════════════════════ */
+.plakat{background:var(--creme);color:var(--tief)}
+.plakat .inner{position:relative;height:100%;padding:62px 60px 54px}
+.plakat .kopf{display:flex;align-items:center;gap:14px;
+  border-bottom:1.5px solid rgba(20,49,92,.2);padding-bottom:26px}
+.plakat .logo{width:44px}
+.plakat .wm{font-size:26px}
+.plakat .marke{margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:14px;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--marke)}
+/* Die Einheit steht auf eigener Zeile statt hochgestellt: bei der Pumpe war
+   sie ein einzelnes "g", hier sind es ganze Wörter, und die brechen als
+   Hochstellung auseinander. */
+.plakat .riese{font-size:430px;line-height:.78;letter-spacing:-.045em;margin-top:52px}
+.plakat .einheit{font-family:'Barlow Semi Condensed';font-weight:800;font-size:96px;
+  line-height:1;letter-spacing:-.02em;color:var(--akzent);text-transform:lowercase;
+  margin-top:10px}
+.plakat .unter{font-size:34px;font-weight:600;color:var(--ink);margin-top:20px;max-width:19ch;
+  line-height:1.26}
+.plakat .kreis{position:absolute;right:88px;bottom:290px;width:404px;height:404px;
+  border:1px solid rgba(20,49,92,.24);border-radius:50%}
+.plakat img{position:absolute;right:110px;bottom:312px;width:360px;height:360px}
+.plakat .zahl{position:absolute;left:60px;bottom:366px;width:400px}
+.plakat .zahl div{display:flex;justify-content:space-between;align-items:baseline;
+  border-top:1px solid rgba(20,49,92,.18);padding:15px 0}
+.plakat .zahl span{font-family:ui-monospace,Menlo,monospace;font-size:14px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--marke)}
+.plakat .zahl b{font-size:38px}
+.plakat .fuss{position:absolute;left:60px;right:60px;bottom:54px}
+.plakat .knopf{display:inline-flex;align-items:center;gap:14px;font-weight:700;font-size:36px;
+  border-bottom:5px solid var(--akzent);padding-bottom:12px;white-space:nowrap}
+.plakat .knopf svg{width:28px;height:28px}
+.plakat .klein{font-size:15px;color:var(--marke);line-height:1.42;max-width:52ch;margin-top:26px}
+
+/* ══════════════════════════════════════════════════════════════════
+   BAUFORM B — ANLEITUNG
+   Hell, nummeriert, zum Merken. Auf Pinterest wird gespeichert, was
+   erklärt — also erklärt dieses Blatt, statt zu rufen.
+   ══════════════════════════════════════════════════════════════════ */
+.anleitung{background:#fff;color:var(--tief)}
+.anleitung .kopf{display:flex;align-items:center;gap:14px;padding:56px 58px 0}
+.anleitung .logo{width:44px;border-radius:3px}
+.anleitung .wm{font-size:26px}
+.anleitung .marke{margin-left:auto;font-size:14px;font-weight:700;letter-spacing:.13em;
+  text-transform:uppercase;color:#fff;background:var(--akzent);padding:8px 14px;border-radius:99px}
+.anleitung h1{font-size:92px;line-height:.92;margin:34px 58px 0;text-transform:uppercase}
+.anleitung h1 em{font-style:normal;color:var(--akzent)}
+.anleitung .band{position:relative;height:452px;margin-top:32px;background:var(--band)}
+.anleitung .band img{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:430px;height:430px}
+.anleitung .schritte{padding:8px 58px 0}
+.anleitung .schritt{display:flex;gap:24px;align-items:flex-start;padding:24px 0;
+  border-bottom:1px solid #e9edf2}
+.anleitung .schritt b{flex-shrink:0;width:58px;height:58px;border-radius:50%;
+  background:var(--akzent);color:#fff;font-size:34px;
+  display:flex;align-items:center;justify-content:center}
+.anleitung .schritt h3{font-size:34px;font-weight:700;line-height:1.1}
+.anleitung .schritt p{font-size:23px;font-weight:400;color:var(--ink);margin-top:5px;
+  line-height:1.32}
+.anleitung .beleg{display:flex;align-items:center;gap:11px;padding:20px 58px 0;font-size:21px;
+  color:var(--ink)}
+.anleitung .beleg i{width:12px;height:12px;border-radius:50%;background:var(--akzent);
+  flex-shrink:0}
+.anleitung .beleg b{color:var(--tief);font-weight:700;font-family:'Barlow',sans-serif}
+.anleitung .fuss{position:absolute;left:58px;right:58px;bottom:48px}
+.anleitung .knopf{display:flex;align-items:center;justify-content:center;gap:13px;
+  background:var(--tief);color:#fff;font-weight:700;font-size:31px;padding:25px;
+  border-radius:16px;white-space:nowrap}
+.anleitung .knopf svg{width:24px;height:24px}
+.anleitung .klein{font-size:15px;color:#93a3b5;line-height:1.42;margin-top:15px;text-align:center}
+
+/* ══════════════════════════════════════════════════════════════════
+   BAUFORM C — KARTE
+   Sieht aus wie ein Produkteintrag, nicht wie Werbung. Wer auf
+   Pinterest vergleicht, will genau das: Daten, nicht Zuruf.
+   ══════════════════════════════════════════════════════════════════ */
+.karte{background:var(--band);padding:34px}
+.karte .blatt{position:relative;height:100%;background:#fff;border-radius:22px;
+  box-shadow:0 24px 60px rgba(18,40,70,.14);overflow:hidden;
+  display:flex;flex-direction:column;color:var(--tief)}
+.karte .kopf{display:flex;align-items:center;gap:13px;padding:34px 38px;
+  border-bottom:1px solid #eceff3}
+.karte .logo{width:40px}
+.karte .wm{font-size:24px}
+.karte .marke{margin-left:auto;font-size:13px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:#fff;background:var(--akzent);padding:7px 13px;border-radius:6px}
+.karte .bild{position:relative;height:520px;
+  background:radial-gradient(62% 52% at 50% 42%, #fff 0%, var(--band) 100%);
+  display:grid;place-items:center}
+.karte .bild img{width:410px;height:410px}
+.karte .titel{padding:32px 38px 0}
+.karte .titel h2{font-family:'Barlow',sans-serif;font-size:42px;font-weight:700;line-height:1.16;
+  max-width:18ch;letter-spacing:0}
+.karte .sterne{display:flex;align-items:center;gap:11px;margin-top:14px;font-size:21px;
+  color:var(--ink)}
+.karte .sterne b{color:var(--tief);font-weight:700}
+.karte .sterne i{width:12px;height:12px;border-radius:50%;background:var(--akzent);
+  flex-shrink:0}
+.karte .tab{margin:26px 38px 0;border-top:1px solid #eceff3}
+.karte .tab div{display:flex;justify-content:space-between;gap:20px;padding:15px 0;
+  border-bottom:1px solid #eceff3;font-size:21px}
+.karte .tab span:first-child{color:#7c8ea3;flex-shrink:0}
+.karte .tab span:last-child{font-weight:650;text-align:right}
+.karte .fuss{margin-top:auto;padding:24px 38px 30px}
+.karte .knopf{display:flex;align-items:center;justify-content:center;gap:13px;
+  background:var(--tief);color:#fff;font-weight:700;font-size:29px;padding:23px;
+  border-radius:14px}
+.karte .knopf svg{width:23px;height:23px}
+.karte .klein{font-size:15px;color:#93a3b5;line-height:1.42;margin-top:14px;text-align:center}
+</style>
+</head>
+<body>
+<!--PINS-->
+</body>
+</html>

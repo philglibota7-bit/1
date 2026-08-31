@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>SQUELLY — Pinterest, fünf eigene Entwürfe</title>
+<style>
+/*FONTS*/
+:root{
+  --navy:#14315c; --blue:#3a8ccd; --sky:#d5eef8; --ink:#4e6785;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#222;display:flex;flex-wrap:wrap;gap:30px;padding:30px;align-items:flex-start}
+.cap{color:#bbb;font-family:monospace;font-size:13px;width:100%;margin-bottom:-20px}
+
+/* Gemeinsam bleiben nur drei Dinge: das Logo, die Schriftfamilie und
+   die Blaufamilie. Aufbau, Farbstimmung, Schriftgrade, Bildhaltung und
+   sogar die Form der Schaltfläche sind pro Entwurf eigen — sonst sähe
+   im Pinterest-Raster fünfmal dasselbe Blatt aus. */
+.pin{width:1000px;height:1500px;position:relative;overflow:hidden;flex-shrink:0;
+  font-family:'Barlow',system-ui,sans-serif;isolation:isolate}
+.pin img.ware{object-fit:contain;display:block}
+.logo{height:auto;display:block;flex-shrink:0}
+.wm{font-family:'Barlow Semi Condensed';font-weight:800;letter-spacing:.19em;text-indent:.19em}
+
+/* ══════════════════════════════════════════════════════════════════
+   ENTWURF 1 — NACHTFAHRT   ·   Kinobild
+   Dunkel, ein einziger Lichtkegel, das Gerät als Hauptdarsteller.
+   Kein Kasten, keine Tabelle, keine Zahl. Es erzählt eine Situation.
+   ══════════════════════════════════════════════════════════════════ */
+#e1{background:radial-gradient(128% 86% at 64% 2%, #23486f 0%, #142c4c 38%, #050c17 100%);
+  color:#e8f1fa}
+#e1 .strahl{position:absolute;z-index:1;left:-60px;top:120px;width:1240px;height:1080px;
+  pointer-events:none;filter:blur(16px);
+  background:conic-gradient(from 196deg at 74% 4%,
+    rgba(255,213,150,0) 0deg, rgba(255,213,150,.34) 20deg,
+    rgba(255,213,150,.07) 40deg, rgba(255,213,150,0) 58deg)}
+#e1 .pool{position:absolute;z-index:1;left:50%;bottom:268px;width:960px;height:340px;
+  transform:translateX(-50%);border-radius:50%;filter:blur(12px);
+  background:radial-gradient(closest-side, rgba(255,204,138,.52), rgba(255,204,138,0) 70%)}
+#e1 .boden{position:absolute;z-index:2;left:50%;bottom:318px;transform:translateX(-50%);
+  width:470px;height:70px;border-radius:50%;
+  background:radial-gradient(closest-side, rgba(0,0,0,.62), rgba(0,0,0,0) 74%)}
+#e1 .ware{position:absolute;z-index:3;left:50%;bottom:328px;transform:translateX(-50%);
+  width:560px;height:560px;filter:drop-shadow(0 34px 50px rgba(0,0,0,.62))}
+#e1 .inner{position:relative;z-index:5;height:100%;padding:62px 60px 56px;
+  display:flex;flex-direction:column}
+#e1 .kopf{display:flex;align-items:center;gap:14px}
+#e1 .logo{width:46px;border-radius:3px}
+#e1 .wm{font-size:28px;color:#fff}
+#e1 .marke{margin-left:auto;font-size:15px;font-weight:600;letter-spacing:.16em;
+  text-transform:uppercase;color:#ffd6a0;border:1px solid rgba(255,214,160,.45);
+  padding:8px 16px;border-radius:99px}
+#e1 h1{font-family:'Barlow Semi Condensed';font-weight:800;text-transform:uppercase;
+  font-size:112px;line-height:.9;letter-spacing:-.015em;margin-top:46px;color:#fff}
+#e1 h1 em{font-style:normal;color:#ffc27a}
+#e1 .unter{font-size:28px;font-weight:400;color:rgba(232,241,250,.74);margin-top:24px;
+  max-width:21ch;line-height:1.36}
+#e1 .fuss{margin-top:auto;display:flex;flex-direction:column;gap:15px}
+#e1 .knopf{align-self:flex-start;display:inline-flex;align-items:center;gap:13px;
+  background:#ffc27a;color:#38230f;font-weight:700;font-size:31px;
+  padding:24px 42px;border-radius:99px;white-space:nowrap}
+#e1 .knopf svg{width:24px;height:24px}
+#e1 .klein{font-size:16px;color:rgba(232,241,250,.46);line-height:1.42;max-width:46ch}
+
+/* ══════════════════════════════════════════════════════════════════
+   ENTWURF 2 — RISS   ·   technische Zeichnung
+   Millimeterpapier, Bemaßung, Monoschrift, Passkreuze, scharfe Ecken.
+   Nichts ist rund, nichts ist weich. Das Gegenteil von Entwurf 1.
+   ══════════════════════════════════════════════════════════════════ */
+#e2{background:#0c2f52;color:#d7e8f7;
+  background-image:
+    linear-gradient(rgba(255,255,255,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.055) 1px, transparent 1px),
+    linear-gradient(rgba(255,255,255,.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.12) 1px, transparent 1px);
+  background-size:25px 25px, 25px 25px, 125px 125px, 125px 125px}
+#e2 .rahmen{position:absolute;inset:30px;z-index:1;border:1px solid rgba(143,196,238,.32)}
+#e2 .kreuz{position:absolute;z-index:1;width:26px;height:26px}
+#e2 .kreuz::before,#e2 .kreuz::after{content:"";position:absolute;background:rgba(143,196,238,.5)}
+#e2 .kreuz::before{left:0;right:0;top:12px;height:1px}
+#e2 .kreuz::after{top:0;bottom:0;left:12px;width:1px}
+#e2 .k1{left:17px;top:17px}  #e2 .k2{right:17px;top:17px}
+#e2 .k3{left:17px;bottom:17px} #e2 .k4{right:17px;bottom:17px}
+#e2 .inner{position:relative;z-index:5;height:100%;padding:62px 60px 54px;
+  display:flex;flex-direction:column}
+#e2 .kopf{display:flex;align-items:center;gap:14px}
+#e2 .logo{width:44px}
+#e2 .wm{font-size:26px;color:#fff}
+#e2 .marke{margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:14px;
+  letter-spacing:.18em;color:#8fc4ee;border:1px solid rgba(143,196,238,.45);padding:7px 13px}
+#e2 h1{font-family:'Barlow Semi Condensed';font-weight:800;text-transform:uppercase;
+  font-size:88px;line-height:.94;letter-spacing:-.01em;margin-top:34px;color:#fff}
+#e2 h1 em{font-style:normal;color:#8fc4ee}
+/* Der Zeichnungskasten muss genau 880 x 700 bleiben — das SVG hat
+   dieselbe viewBox, nur so liegen Bemaszung und Bild deckungsgleich. */
+#e2 .riss{position:absolute;left:60px;right:60px;top:382px;height:700px;z-index:4}
+#e2 .riss svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+#e2 .ware{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:460px;height:460px;filter:drop-shadow(0 0 40px rgba(140,200,245,.32))}
+#e2 .werte{margin-top:auto;display:flex;border-top:1px solid rgba(143,196,238,.3);
+  padding-top:22px;font-family:ui-monospace,Menlo,monospace}
+#e2 .werte div{flex:1}
+#e2 .werte b{display:block;font-size:15px;letter-spacing:.14em;color:#6fa8d6;font-weight:400}
+#e2 .werte span{display:block;font-size:26px;color:#fff;margin-top:7px}
+#e2 .knopf{display:flex;align-items:center;justify-content:center;gap:13px;background:#8fc4ee;
+  color:#0b2942;font-weight:700;font-size:30px;padding:24px;margin-top:30px;white-space:nowrap}
+#e2 .knopf svg{width:24px;height:24px}
+#e2 .klein{font-family:ui-monospace,Menlo,monospace;font-size:14px;
+  color:rgba(215,232,247,.45);line-height:1.5;margin-top:16px}
+
+/* ══════════════════════════════════════════════════════════════════
+   ENTWURF 3 — SCHNITT   ·   vorher / nachher
+   Eine schräge Kante teilt das Blatt. Oben grau und durchgestrichen,
+   unten blau und laut. Das Gerät sitzt genau auf der Kante.
+   ══════════════════════════════════════════════════════════════════ */
+#e3{background:#e6e9ec}
+#e3 .blau{position:absolute;inset:0;z-index:1;
+  background:linear-gradient(158deg,#3487c8 0%,#1f5590 54%,#12294c 100%);
+  clip-path:polygon(0 53%, 100% 37%, 100% 100%, 0 100%)}
+#e3 .kante{position:absolute;inset:0;z-index:3;pointer-events:none;
+  background:rgba(255,255,255,.5);
+  clip-path:polygon(0 52.6%, 100% 36.6%, 100% 37%, 0 53%)}
+#e3 .kopf{position:absolute;z-index:6;left:60px;right:60px;top:60px;
+  display:flex;align-items:center;gap:14px}
+#e3 .logo{width:46px;border-radius:3px}
+#e3 .wm{font-size:28px;color:#14315c}
+#e3 .marke{margin-left:auto;font-size:15px;font-weight:600;letter-spacing:.16em;
+  text-transform:uppercase;color:#66717d;border:1px solid rgba(102,113,125,.4);
+  padding:8px 16px;border-radius:99px}
+#e3 .alt{position:absolute;z-index:4;left:60px;top:224px;width:520px}
+#e3 .alt b{display:block;font-family:ui-monospace,Menlo,monospace;font-size:18px;
+  letter-spacing:.2em;text-transform:uppercase;color:#8a949e;font-weight:400}
+#e3 .alt p{font-family:'Barlow Semi Condensed';font-weight:800;text-transform:uppercase;
+  font-size:74px;line-height:.96;color:#9aa4ae;margin-top:16px;
+  text-decoration:line-through;text-decoration-thickness:5px;
+  text-decoration-color:rgba(120,132,145,.85)}
+#e3 .ware{position:absolute;z-index:5;right:-26px;top:404px;width:496px;height:496px;
+  transform:rotate(-7deg);filter:drop-shadow(-16px 34px 44px rgba(8,22,42,.46))}
+#e3 .neu{position:absolute;z-index:6;left:60px;bottom:296px;width:640px;color:#fff}
+#e3 .neu b{display:block;font-family:ui-monospace,Menlo,monospace;font-size:18px;
+  letter-spacing:.2em;text-transform:uppercase;color:#b9dcf6;font-weight:400}
+#e3 .neu h1{font-family:'Barlow Semi Condensed';font-weight:800;text-transform:uppercase;
+  font-size:106px;line-height:.9;letter-spacing:-.015em;margin-top:16px}
+#e3 .fuss{position:absolute;z-index:6;left:60px;right:60px;bottom:56px}
+#e3 .knopf{display:inline-flex;align-items:center;gap:13px;background:#fff;color:#14315c;
+  font-weight:700;font-size:31px;padding:24px 42px;border-radius:99px;white-space:nowrap;
+  box-shadow:0 14px 34px rgba(6,20,40,.28)}
+#e3 .knopf svg{width:24px;height:24px}
+#e3 .klein{font-size:16px;color:rgba(255,255,255,.62);line-height:1.42;
+  max-width:46ch;margin-top:16px}
+
+/* ══════════════════════════════════════════════════════════════════
+   ENTWURF 4 — PLAKAT   ·   fast nur Schrift
+   Creme, viel Luft, dünne Haarlinien, eine Zahl über sechs Zeilen
+   Höhe. Das Gerät ist klein und dient als Beleg. Die Schaltfläche
+   ist keine Taste, sondern eine unterstrichene Zeile.
+   ══════════════════════════════════════════════════════════════════ */
+#e4{background:#f7f4ee;color:#14315c}
+#e4 .inner{position:relative;z-index:5;height:100%;padding:62px 60px 54px}
+#e4 .kopf{display:flex;align-items:center;gap:14px;
+  border-bottom:1.5px solid rgba(20,49,92,.24);padding-bottom:26px}
+#e4 .logo{width:44px}
+#e4 .wm{font-size:26px}
+#e4 .marke{margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:14px;
+  letter-spacing:.18em;text-transform:uppercase;color:#96825f}
+#e4 .riese{font-family:'Barlow Semi Condensed';font-weight:800;font-size:452px;line-height:.78;
+  letter-spacing:-.045em;margin-top:56px}
+#e4 .riese sup{font-size:104px;vertical-align:top;font-weight:800;color:#b3853f;
+  margin-left:14px;line-height:1.1}
+#e4 .unter{font-size:35px;font-weight:600;color:#5c6f86;margin-top:14px;max-width:19ch;
+  line-height:1.26}
+#e4 .kreis{position:absolute;right:88px;bottom:290px;width:404px;height:404px;
+  border:1px solid rgba(20,49,92,.26);border-radius:50%}
+#e4 .ware{position:absolute;right:110px;bottom:312px;width:360px;height:360px;
+  filter:drop-shadow(-14px 24px 32px rgba(20,49,92,.24))}
+#e4 .daten{position:absolute;left:60px;bottom:366px;width:400px}
+#e4 .daten div{display:flex;justify-content:space-between;align-items:baseline;
+  border-top:1px solid rgba(20,49,92,.2);padding:15px 0}
+#e4 .daten span{font-family:ui-monospace,Menlo,monospace;font-size:14px;letter-spacing:.13em;
+  text-transform:uppercase;color:#96825f}
+#e4 .daten b{font-family:'Barlow Semi Condensed';font-weight:800;font-size:38px}
+#e4 .fuss{position:absolute;left:60px;right:60px;bottom:54px}
+#e4 .knopf{display:inline-flex;align-items:center;gap:14px;font-weight:700;font-size:36px;
+  color:#14315c;border-bottom:5px solid #b3853f;padding-bottom:12px;white-space:nowrap}
+#e4 .knopf svg{width:28px;height:28px}
+#e4 .klein{font-size:15px;color:#96825f;line-height:1.42;max-width:52ch;margin-top:26px}
+
+/* ══════════════════════════════════════════════════════════════════
+   ENTWURF 5 — ANLEITUNG   ·   drei Schritte
+   Hell, freundlich, nummeriert. Auf Pinterest wird gespeichert, was
+   erklärt — also erklärt dieses Blatt statt zu rufen.
+   ══════════════════════════════════════════════════════════════════ */
+#e5{background:#fff;color:#14315c}
+#e5 .kopf{display:flex;align-items:center;gap:14px;padding:56px 58px 0}
+#e5 .logo{width:44px;border-radius:3px}
+#e5 .wm{font-size:26px}
+#e5 .marke{margin-left:auto;font-size:14px;font-weight:700;letter-spacing:.13em;
+  text-transform:uppercase;color:#fff;background:#e8853a;padding:8px 14px;border-radius:99px}
+#e5 h1{font-family:'Barlow Semi Condensed';font-weight:800;text-transform:uppercase;
+  font-size:92px;line-height:.92;letter-spacing:-.012em;margin:34px 58px 0}
+#e5 h1 em{font-style:normal;color:var(--blue)}
+#e5 .band{position:relative;height:452px;margin-top:32px;
+  background:radial-gradient(66% 60% at 50% 44%, #eaf4fb 0%, #dbe9f4 100%)}
+#e5 .ware{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:410px;height:410px;filter:drop-shadow(-12px 22px 30px rgba(18,40,70,.26))}
+#e5 .schritte{padding:8px 58px 0}
+#e5 .schritt{display:flex;gap:24px;align-items:flex-start;padding:24px 0;
+  border-bottom:1px solid #e6edf3}
+#e5 .schritt b{flex-shrink:0;width:58px;height:58px;border-radius:50%;background:var(--blue);
+  color:#fff;font-family:'Barlow Semi Condensed';font-weight:800;font-size:34px;
+  display:flex;align-items:center;justify-content:center}
+#e5 .schritt h3{font-size:34px;font-weight:700;line-height:1.1}
+#e5 .schritt p{font-size:23px;font-weight:400;color:#61748b;margin-top:5px;line-height:1.32}
+#e5 .beleg{display:flex;align-items:center;gap:11px;padding:20px 58px 0;font-size:21px;
+  color:#61748b}
+#e5 .beleg .st{color:#f0a33c;font-size:25px;letter-spacing:2px}
+#e5 .beleg b{color:#14315c;font-weight:700}
+#e5 .fuss{position:absolute;left:58px;right:58px;bottom:48px}
+#e5 .knopf{display:flex;align-items:center;justify-content:center;gap:13px;
+  background:var(--navy);color:#fff;font-weight:700;font-size:31px;padding:25px;
+  border-radius:16px;white-space:nowrap}
+#e5 .knopf svg{width:24px;height:24px}
+#e5 .klein{font-size:15px;color:#93a3b5;line-height:1.42;margin-top:15px;text-align:center}
+</style>
+</head>
+<body>
+<!--PINS-->
+</body>
+</html>
