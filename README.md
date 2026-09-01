@@ -47,6 +47,7 @@ Veroeffentlichen: `git push` auf `main` – GitHub Pages uebernimmt den Rest.
 | `docs/NEUES-TOOL.md` | Der wiederholbare Vorgang, ein Werkzeug zu bauen |
 | `docs/BEZAHLUNG.md` | Wie Geld ankommt, und warum die Schranke im Browser sitzt |
 | `docs/RECHT-UND-STEUERN.md` | Gewerbe, Kleinunternehmer, Impressum, DSGVO |
+| `shorts/` | Eigenes Projekt: aus langen Videos hochkantige Kurzclips machen |
 
 Erzeugte Dateien (`werkbank.html`, `pro.html`, `impressum.html`,
 `datenschutz.html`, `sitemap.xml`, `robots.txt`) werden von `build.py`
@@ -102,6 +103,23 @@ Geprueft werden unter anderem: die Geldrechnung (in Cent, damit nichts
 wegrundet), die Ideenbewertung, die Entscheidungsregeln, die Vollstaendigkeit
 von `tools.json` – und dass die im Terminal erzeugten Lizenzschluessel
 tatsaechlich dieselbe Pruefziffer verwenden wie die Pruefung im Browser.
+
+---
+
+## Shorts
+
+Unter [`shorts/`](shorts/README.md) liegt ein zweites, eigenstaendiges
+Projekt: es transkribiert ein langes Video, schlaegt Abschnitte vor, bringt
+sie auf 9:16 und brennt Untertitel im Shorts-Stil ein. Laeuft lokal ueber
+ffmpeg und faster-whisper, ohne Uploads.
+
+```bash
+bash shorts/einrichten.sh
+python3 shorts/shorts.py machen shorts/eingang/deinvideo.mp4
+```
+
+Videos, Zwischenstaende und heruntergeladene Programme sind von Git
+ausgenommen - dieses Repository wird oeffentlich ausgeliefert.
 
 ---
 
