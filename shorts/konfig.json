@@ -1,0 +1,33 @@
+{
+  "video": {
+    "breite": 1080,
+    "hoehe": 1920,
+    "bildrate": 30,
+    "crf": 20,
+    "vorgabe_umwandlung": "unschaerfe"
+  },
+  "audio": {
+    "lautheit_lufs": -14,
+    "bitrate": "192k"
+  },
+  "abschrift": {
+    "modell": "small",
+    "sprache": "de",
+    "rechenart": "int8"
+  },
+  "clips": {
+    "min_sekunden": 20,
+    "max_sekunden": 59,
+    "anzahl": 5,
+    "abstand_sekunden": 10
+  },
+  "untertitel": {
+    "schrift": "Helvetica",
+    "groesse": 78,
+    "farbe": "FFFFFF",
+    "farbe_aktiv": "00E5FF",
+    "rand": 6,
+    "woerter_pro_zeile": 3,
+    "position_von_unten": 420
+  }
+}

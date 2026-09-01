@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bilder verkleinern – ohne Upload, direkt im Browser | Werkbank</title>
+<meta name="description" content="Bilder und Fotos kostenlos verkleinern und komprimieren. Laeuft komplett im Browser, ohne Upload. JPG und PNG auf wenige Kilobyte bringen, ohne sichtbaren Qualitaetsverlust.">
+<link rel="canonical" href="https://philglibota7-bit.github.io/1/tools/bilder-verkleinern/index.html">
+<meta property="og:title" content="Bilder verkleinern – ohne Upload">
+<meta property="og:description" content="Fotos im Browser komprimieren. Keine Uploads, keine Anmeldung.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%232b5cff%27/%3E%3Ctext x=%2716%27 y=%2723%27 font-size=%2719%27 font-family=%27sans-serif%27 font-weight=%27700%27 fill=%27white%27 text-anchor=%27middle%27%3EW%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="../../platform/werkbank.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication",
+ "name":"Bilder verkleinern","applicationCategory":"MultimediaApplication",
+ "operatingSystem":"Browser","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},
+ "description":"Bilder im Browser verkleinern und komprimieren, ohne Upload."}
+</script>
+<style>
+  .werkzeug { display: grid; gap: 1.5rem; grid-template-columns: 1fr; margin-top: 1.5rem; }
+  @media (min-width: 60rem) { .werkzeug { grid-template-columns: 1fr 20rem; align-items: start; } }
+  .regler { display: grid; gap: 1.1rem; }
+  .regler .wert { float: right; font-weight: 400; color: var(--text-leise);
+                  font-variant-numeric: tabular-nums; }
+  .liste { display: grid; gap: .6rem; margin-top: 1.25rem; }
+  .zeile { display: flex; align-items: center; gap: .9rem; padding: .7rem .9rem;
+           border: 1px solid var(--rand); border-radius: var(--radius); background: var(--flaeche); }
+  .zeile img { width: 52px; height: 52px; object-fit: cover; border-radius: 6px;
+               background: var(--flaeche-2); flex: none; }
+  .zeile .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis;
+                 white-space: nowrap; }
+  .zeile .info { flex: 1; min-width: 0; font-size: .875rem; }
+  .sparen { color: var(--gut); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .gesamt { display: flex; gap: 2rem; flex-wrap: wrap; margin-top: 1.25rem;
+            padding-top: 1rem; border-top: 1px solid var(--rand); }
+  .gesamt b { display: block; font-size: 1.5rem; letter-spacing: -.02em; }
+  .aus { opacity: .55; }
+</style>
+</head>
+<body>
+
+<main class="huelle" style="padding-top:2.5rem">
+
+  <h1>Bilder verkleinern</h1>
+  <p class="fuehrung">Zieh deine Fotos hier rein. Sie werden auf deinem eigenen
+  Rechner verkleinert – <strong>nichts wird hochgeladen</strong>. Kein Konto,
+  kein Wasserzeichen, keine Wartezeit.</p>
+
+  <div class="werkzeug">
+    <div>
+      <div class="ablage" id="ablage" tabindex="0" role="button"
+           aria-label="Bilder auswaehlen oder hierher ziehen">
+        <div style="font-size:2rem;line-height:1">🖼️</div>
+        <p style="margin:.5rem 0 0"><strong>Bilder hierher ziehen</strong></p>
+        <p class="leise" style="margin:.25rem 0 0">oder klicken zum Auswaehlen · JPG, PNG, WebP</p>
+        <input type="file" id="datei" accept="image/*" multiple hidden>
+      </div>
+
+      <div class="liste" id="liste"></div>
+
+      <div class="gesamt" id="gesamt" hidden>
+        <div><span class="leise">Vorher</span><b id="g-vorher">–</b></div>
+        <div><span class="leise">Nachher</span><b id="g-nachher">–</b></div>
+        <div><span class="leise">Gespart</span><b class="sparen" id="g-sparen">–</b></div>
+        <div style="margin-left:auto;align-self:center;display:flex;gap:.5rem">
+          <button class="knopf leise" id="leeren">Leeren</button>
+          <button class="knopf" id="alle-laden">Alle herunterladen</button>
+        </div>
+      </div>
+    </div>
+
+    <aside class="karte regler">
+      <div>
+        <label for="qualitaet">Qualitaet <span class="wert" id="q-wert">80 %</span></label>
+        <input type="range" id="qualitaet" min="30" max="95" value="80" step="5">
+        <p class="leise" style="margin:.3rem 0 0">80 % ist fuer fast alles die richtige Wahl.</p>
+      </div>
+
+      <div>
+        <label for="breite">Maximale Breite <span class="wert" id="b-wert">1920 px</span></label>
+        <input type="range" id="breite" min="480" max="4000" value="1920" step="80">
+        <p class="leise" style="margin:.3rem 0 0">Groessere Bilder werden proportional verkleinert.</p>
+      </div>
+
+      <div>
+        <label for="format">Ausgabeformat</label>
+        <select id="format">
+          <option value="image/jpeg">JPG – ueberall nutzbar</option>
+          <option value="image/webp">WebP – deutlich kleiner (Pro)</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="zielkb">Zielgroesse <span class="marke-pro">Pro</span></label>
+        <input type="number" id="zielkb" placeholder="z. B. 200" min="10" step="10">
+        <p class="leise" style="margin:.3rem 0 0">Gewuenschte Groesse in KB. Die Qualitaet
+        wird automatisch passend gewaehlt.</p>
+      </div>
+
+      <p class="leise" style="margin:0;border-top:1px solid var(--rand);padding-top:1rem">
+        Kostenlos bis 3 Bilder gleichzeitig.
+        <a href="../../pro.html">Pro</a> hebt das Limit auf.
+      </p>
+    </aside>
+  </div>
+
+  <!-- Dieser Teil ist kein Beiwerk: er ist der Grund, warum die Seite
+       ueberhaupt gefunden wird. -->
+  <div class="inhalt">
+    <h2>Wie stark kann man ein Bild verkleinern?</h2>
+    <p>Ein Foto aus dem Handy hat schnell 4 bis 8 MB. Fuer eine Website, einen
+    E-Mail-Anhang oder ein Bewerbungsformular sind davon meist unter 300 KB
+    noetig – ohne dass ein Mensch den Unterschied sieht. Der Grund: die Kamera
+    speichert weit mehr Bildpunkte und Farbabstufungen, als ein Bildschirm
+    darstellen kann.</p>
+    <p>Zwei Stellschrauben wirken unabhaengig voneinander. Die <strong>Aufloesung</strong>
+    bestimmt die Anzahl der Bildpunkte: Ein Bild, das nie breiter als 1920 Pixel
+    dargestellt wird, braucht auch nicht mehr. Die <strong>Qualitaetsstufe</strong>
+    bestimmt, wie grob das Bild komprimiert wird. Bei 80 % ist der Verlust
+    praktisch unsichtbar, die Datei aber oft nur noch ein Fuenftel so gross.</p>
+
+    <h2>Welches Format sollte ich waehlen?</h2>
+    <p><strong>JPG</strong> ist die sichere Wahl: jedes Programm und jedes
+    Formular versteht es. <strong>WebP</strong> erzeugt bei gleicher Qualitaet
+    etwa 25 bis 35 % kleinere Dateien und wird von allen aktuellen Browsern
+    unterstuetzt – ideal fuer Websites, aber nicht fuer jedes Amtsformular.
+    <strong>PNG</strong> lohnt nur bei Grafiken mit Text, Logos oder
+    Transparenz; bei Fotos wird es unnoetig gross.</p>
+
+    <h2>Wie viele Kilobyte brauche ich wofuer?</h2>
+    <p>Die haeufigste Frage ist nicht &bdquo;wie klein geht es?&ldquo;, sondern
+    &bdquo;wie klein muss es sein?&ldquo;. Diese Werte decken die meisten Faelle ab:</p>
+    <ul>
+      <li><strong>E-Mail-Anhang:</strong> unter 10 MB insgesamt, besser unter 5 MB.
+      Viele Firmenpostfaecher lehnen groessere Nachrichten ohne Rueckmeldung ab.</li>
+      <li><strong>Bild auf einer Website:</strong> 100 bis 300 KB. Darueber wird die
+      Seite auf dem Handy spuerbar langsam.</li>
+      <li><strong>Bewerbungsunterlagen:</strong> haeufig sind 2 bis 5 MB fuer die
+      gesamte Mappe vorgegeben – bei acht Seiten also rund 300 KB je Seite.</li>
+      <li><strong>Behoerden- und Versicherungsportale:</strong> oft 1 bis 2 MB je
+      Datei, manchmal nur 500 KB. Die Vorgabe steht meist direkt am Hochladefeld.</li>
+      <li><strong>Messenger:</strong> die Bilder werden dort ohnehin neu berechnet.
+      Wer die Qualitaet behalten will, verschickt sie als Datei statt als Foto.</li>
+    </ul>
+
+    <h2>Bildschirmfotos: lieber PNG oder JPG?</h2>
+    <p>Bei Bildschirmfotos gilt das Umgekehrte zur Fotografie. Sie bestehen aus
+    scharfen Kanten, Text und grossen einfarbigen Flaechen – genau das, womit die
+    JPG-Komprimierung schlecht umgeht: um Buchstaben herum entstehen sichtbare
+    Schlieren. PNG speichert solche Bilder verlustfrei und oft sogar kleiner.
+    Faustregel: <strong>Fotos als JPG, alles mit Text oder Linien als PNG.</strong></p>
+
+    <h2>Was passiert beim Verkleinern technisch?</h2>
+    <p>Zwei Vorgaenge greifen nacheinander. Zuerst wird das Bild neu gerastert: aus
+    4000 Bildpunkten Breite werden zum Beispiel 1920. Danach wird es komprimiert,
+    wobei feine Farbunterschiede zusammengefasst werden, die das Auge kaum trennen
+    kann. Beides ist endgueltig – aus einem verkleinerten Bild lassen sich die
+    urspruenglichen Bildpunkte nicht zurueckrechnen. Bewahre das Original also auf,
+    wenn du es spaeter noch in anderer Groesse brauchst.</p>
+
+    <h2>Warum ohne Upload?</h2>
+    <p>Uebliche Online-Konverter laden dein Bild auf einen fremden Server, rechnen
+    dort und schicken es zurueck. Das dauert, braucht Datenvolumen und du hast
+    keine Kontrolle darueber, wie lange die Datei dort liegt. Dieses Werkzeug
+    nutzt stattdessen die Rechenleistung, die ohnehin in deinem Geraet steckt.
+    Deshalb funktioniert es auch dann, wenn die Verbindung schlecht ist – und bei
+    vertraulichen Unterlagen ist es schlicht die richtige Vorgehensweise.</p>
+
+    <h2>Haeufige Fragen</h2>
+    <details><summary>Werden meine Bilder gespeichert?</summary>
+    <p>Nein. Es gibt keinen Server, der sie entgegennehmen koennte. Sobald du
+    die Seite schliesst, ist alles weg.</p></details>
+    <details><summary>Funktioniert das auch offline?</summary>
+    <p>Ja. Speichere die Seite ueber das Browsermenue lokal ab – sie laeuft
+    danach ohne Internetverbindung weiter.</p></details>
+    <details><summary>Wie bekomme ich genau 200 KB?</summary>
+    <p>Trage die Zielgroesse in das entsprechende Feld ein. Das Werkzeug
+    probiert die Qualitaetsstufen automatisch durch, bis die Datei passt. Diese
+    Funktion gehoert zu <a href="../../pro.html">Pro</a>.</p></details>
+    <details><summary>Bleiben EXIF-Daten erhalten?</summary>
+    <p>Nein – Aufnahmeort, Kameramodell und Zeitstempel gehen beim Neuberechnen
+    verloren. Fuer die meisten Zwecke ist das ein Vorteil.</p></details>
+    <details><summary>Warum ist mein PNG groesser geworden?</summary>
+    <p>Das Werkzeug gibt JPG aus. Bei Grafiken mit wenigen Farben kann das mehr
+    Platz brauchen als das PNG-Original. Solche Bilder gehoeren nicht komprimiert –
+    behalte in dem Fall die Ausgangsdatei.</p></details>
+    <details><summary>Leidet die Qualitaet beim mehrfachen Verkleinern?</summary>
+    <p>Ja. Jeder Durchgang verwirft Bildinformationen erneut. Geh deshalb immer vom
+    Original aus, nicht vom Ergebnis des letzten Versuchs.</p></details>
+    <details><summary>Gibt es ein Limit bei der Dateigroesse?</summary>
+    <p>Nur den Arbeitsspeicher deines Geraets. Bilder bis rund 50 Megapixel sind
+    unproblematisch.</p></details>
+  </div>
+
+</main>
+
+<script src="../../platform/werkbank.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var GRATIS_LIMIT = 3;
+  var bilder = [];
+
+  var el = function (id) { return document.getElementById(id); };
+  var ablage = el("ablage"), dateiFeld = el("datei"), liste = el("liste");
+
+  function kb(bytes) {
+    if (bytes >= 1048576) return (bytes / 1048576).toFixed(1).replace(".", ",") + " MB";
+    return Math.round(bytes / 1024) + " KB";
+  }
+
+  /* ---------- Dateien annehmen ---------- */
+  ablage.onclick = function () { dateiFeld.click(); };
+  ablage.onkeydown = function (ev) {
+    if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); dateiFeld.click(); }
+  };
+  dateiFeld.onchange = function () { annehmen(this.files); this.value = ""; };
+
+  ["dragenter", "dragover"].forEach(function (n) {
+    ablage.addEventListener(n, function (ev) {
+      ev.preventDefault(); ablage.classList.add("aktiv");
+    });
+  });
+  ["dragleave", "drop"].forEach(function (n) {
+    ablage.addEventListener(n, function (ev) {
+      ev.preventDefault(); ablage.classList.remove("aktiv");
+    });
+  });
+  ablage.addEventListener("drop", function (ev) {
+    annehmen(ev.dataTransfer.files);
+  });
+
+  function annehmen(dateien) {
+    var neue = Array.prototype.filter.call(dateien, function (f) {
+      return f.type.indexOf("image/") === 0;
+    });
+    if (!neue.length) return;
+
+    // Pro-Schranke: das Limit greift erst, wenn es tatsaechlich ueberschritten
+    // wird – wer 3 Bilder braucht, soll nie ein Kauffenster sehen.
+    if (bilder.length + neue.length > GRATIS_LIMIT && !Werkbank.lizenz.istPro()) {
+      var platz = Math.max(0, GRATIS_LIMIT - bilder.length);
+      Werkbank.pro("stapel",
+        "Kostenlos kannst du " + GRATIS_LIMIT + " Bilder gleichzeitig verkleinern. " +
+        "Mit Pro sind es beliebig viele – und du kannst Zielgroesse und WebP nutzen.");
+      neue = neue.slice(0, platz);
+      if (!neue.length) return;
+    }
+
+    neue.forEach(function (f) {
+      var eintrag = { datei: f, name: f.name, vorher: f.size, nachher: 0, blob: null, url: "" };
+      bilder.push(eintrag);
+      zeileBauen(eintrag);
+    });
+    Werkbank.messen("bilder.hinzugefuegt", { anzahl: neue.length });
+    allesRechnen();
+  }
+
+  /* ---------- Anzeige ---------- */
+  function zeileBauen(eintrag) {
+    var z = document.createElement("div");
+    z.className = "zeile";
+    z.innerHTML =
+      '<img alt="">' +
+      '<div class="info"><div class="name"></div>' +
+        '<div class="leise status">wird berechnet …</div></div>' +
+      '<div class="sparen" style="min-width:3.5rem;text-align:right"></div>' +
+      '<button class="knopf leise" style="padding:.4rem .7rem">Laden</button>';
+    z.querySelector(".name").textContent = eintrag.name;
+    z.querySelector("img").src = URL.createObjectURL(eintrag.datei);
+    z.querySelector("button").onclick = function () { herunterladen(eintrag); };
+    eintrag.knoten = z;
+    liste.appendChild(z);
+  }
+
+  function zeileAktualisieren(e) {
+    if (!e.knoten) return;
+    var anteil = e.nachher ? Math.round((1 - e.nachher / e.vorher) * 100) : 0;
+    e.knoten.querySelector(".status").textContent =
+      kb(e.vorher) + "  →  " + kb(e.nachher) +
+      (e.zielVerfehlt ? "  (kleiner geht es bei dieser Breite nicht)" : "");
+    e.knoten.querySelector(".sparen").textContent =
+      anteil > 0 ? "−" + anteil + " %" : "±0 %";
+    e.knoten.classList.remove("aus");
+  }
+
+  function gesamtAktualisieren() {
+    var fertig = bilder.filter(function (b) { return b.nachher; });
+    el("gesamt").hidden = bilder.length === 0;
+    if (!fertig.length) return;
+    var v = 0, n = 0;
+    fertig.forEach(function (b) { v += b.vorher; n += b.nachher; });
+    el("g-vorher").textContent = kb(v);
+    el("g-nachher").textContent = kb(n);
+    el("g-sparen").textContent = "−" + Math.round((1 - n / v) * 100) + " %";
+  }
+
+  /* ---------- Kern: verkleinern ---------- */
+  function bildLaden(datei) {
+    if (window.createImageBitmap) return createImageBitmap(datei);
+    return new Promise(function (ok, fehler) {           // Rueckfall fuer alte Browser
+      var i = new Image();
+      i.onload = function () { ok(i); };
+      i.onerror = fehler;
+      i.src = URL.createObjectURL(datei);
+    });
+  }
+
+  function zeichnen(bild, maxBreite) {
+    var b = bild.width, h = bild.height;
+    if (b > maxBreite) { h = Math.round(h * maxBreite / b); b = maxBreite; }
+    var c = document.createElement("canvas");
+    c.width = b; c.height = h;
+    var ctx = c.getContext("2d");
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(bild, 0, 0, b, h);
+    return c;
+  }
+
+  function alsBlob(canvas, typ, guete) {
+    return new Promise(function (ok) { canvas.toBlob(ok, typ, guete); });
+  }
+
+  /* Zielgroesse: Qualitaet per Intervallhalbierung suchen. Sieben Schritte
+     reichen fuer eine Genauigkeit von unter einem Prozentpunkt. */
+  function aufZielgroesse(canvas, typ, zielBytes) {
+    var unten = 0.1, oben = 0.95;
+    var passend = null;   // groesste Qualitaet, die unter das Ziel passt
+    var kleinstes = null; // Rueckfall, falls das Ziel gar nicht erreichbar ist
+    var schritt = function (i) {
+      if (i >= 8) return Promise.resolve(passend || kleinstes);
+      var mitte = (unten + oben) / 2;
+      return alsBlob(canvas, typ, mitte).then(function (blob) {
+        if (!blob) return passend || kleinstes;
+        if (!kleinstes || blob.size < kleinstes.size) kleinstes = blob;
+        if (blob.size <= zielBytes) { passend = blob; unten = mitte; }
+        else { oben = mitte; }
+        return schritt(i + 1);
+      });
+    };
+    return schritt(0).then(function (blob) {
+      // Ziel unerreichbar (sehr grosses oder sehr detailreiches Bild):
+      // das kleinstmoegliche Ergebnis liefern statt kommentarlos aufzugeben.
+      return blob ? { blob: blob, erreicht: !!passend } : null;
+    });
+  }
+
+  function einesRechnen(e) {
+    var guete = parseInt(el("qualitaet").value, 10) / 100;
+    var maxBreite = parseInt(el("breite").value, 10);
+    var typ = el("format").value;
+    var zielKB = parseInt(el("zielkb").value, 10);
+
+    return bildLaden(e.datei).then(function (bild) {
+      var canvas = zeichnen(bild, maxBreite);
+      if (bild.close) bild.close();
+      if (zielKB > 0 && Werkbank.lizenz.istPro()) {
+        return aufZielgroesse(canvas, typ, zielKB * 1024).then(function (r) {
+          if (r) e.zielVerfehlt = !r.erreicht;
+          return r ? r.blob : null;
+        });
+      }
+      e.zielVerfehlt = false;
+      return alsBlob(canvas, typ, guete);
+    }).then(function (blob) {
+      if (!blob) return;
+      if (e.url) URL.revokeObjectURL(e.url);
+      e.blob = blob;
+      e.nachher = blob.size;
+      e.url = URL.createObjectURL(blob);
+      zeileAktualisieren(e);
+    }).catch(function () {
+      if (e.knoten) e.knoten.querySelector(".status").textContent =
+        "konnte nicht gelesen werden";
+    });
+  }
+
+  var laeuft = false, nochmal = false;
+  function allesRechnen() {
+    if (!bilder.length) return;
+    // Laeuft gerade ein Durchgang, wird der neue Wunsch gemerkt statt verworfen.
+    // Ohne das verschluckt das Werkzeug jede Reglerbewegung waehrend der Arbeit.
+    if (laeuft) { nochmal = true; return; }
+    laeuft = true;
+    bilder.forEach(function (b) { if (b.knoten) b.knoten.classList.add("aus"); });
+    // Nacheinander statt parallel: bei 30 grossen Fotos sonst Speicherproblem.
+    var i = 0;
+    (function weiter() {
+      if (i >= bilder.length) {
+        laeuft = false;
+        gesamtAktualisieren();
+        if (nochmal) { nochmal = false; allesRechnen(); }
+        return;
+      }
+      einesRechnen(bilder[i++]).then(weiter);
+    })();
+  }
+
+  /* ---------- Herunterladen ---------- */
+  function neuerName(e) {
+    var endung = el("format").value === "image/webp" ? ".webp" : ".jpg";
+    return e.name.replace(/\.[^.]+$/, "") + "-klein" + endung;
+  }
+
+  function herunterladen(e) {
+    if (!e.blob) return;
+    var a = document.createElement("a");
+    a.href = e.url; a.download = neuerName(e);
+    document.body.appendChild(a); a.click(); a.remove();
+    Werkbank.messen("bild.geladen");
+  }
+
+  el("alle-laden").onclick = function () {
+    var fertig = bilder.filter(function (b) { return b.blob; });
+    fertig.forEach(function (b, i) { setTimeout(function () { herunterladen(b); }, i * 250); });
+  };
+
+  el("leeren").onclick = function () {
+    bilder.forEach(function (b) { if (b.url) URL.revokeObjectURL(b.url); });
+    bilder = []; liste.innerHTML = ""; el("gesamt").hidden = true;
+  };
+
+  /* ---------- Regler ---------- */
+  el("qualitaet").oninput = function () { el("q-wert").textContent = this.value + " %"; };
+  el("breite").oninput = function () { el("b-wert").textContent = this.value + " px"; };
+  ["qualitaet", "breite"].forEach(function (id) {
+    el(id).onchange = allesRechnen;
+  });
+
+  el("format").onchange = function () {
+    if (this.value === "image/webp" && !Werkbank.pro("webp",
+        "WebP erzeugt bei gleicher Qualitaet rund ein Drittel kleinere Dateien.")) {
+      this.value = "image/jpeg";
+      return;
+    }
+    allesRechnen();
+  };
+
+  el("zielkb").onchange = function () {
+    if (this.value && !Werkbank.pro("zielgroesse",
+        "Gib eine Zielgroesse in KB vor – die passende Qualitaet wird automatisch gesucht.")) {
+      this.value = "";
+      return;
+    }
+    allesRechnen();
+  };
+
+  Werkbank.start({
+    slug: "bilder-verkleinern",
+    verwandte: [
+      { titel: "IP-Rechner", pfad: "ip-rechner.html" },
+      { titel: "FitScan", pfad: "bodyscan.html" }
+    ]
+  });
+})();
+</script>
+</body>
+</html>

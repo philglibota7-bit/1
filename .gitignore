@@ -1,0 +1,30 @@
+# Lokale Geschäftsdaten – NIEMALS committen (dieses Repo wird via GitHub Pages
+# öffentlich ins Netz gestellt; Kundendaten hätten dort nichts zu suchen).
+data/
+out/
+*.local.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Shorts: Videos und Zwischenstaende gehoeren nicht ins Repo.
+# Dieses Repo wird oeffentlich ausgeliefert - ein versehentlich committetes
+# Rohvideo waere sofort im Netz. Ausserdem sprengen Videos jedes Git-Repo.
+shorts/eingang/*
+shorts/ausgabe/*
+shorts/zwischenstand/*
+!shorts/*/.gitkeep
+
+# Heruntergeladene Programme gehoeren nicht ins Repo
+shorts/bin/*
+!shorts/bin/.gitkeep
+
+# Python-Umgebung des Shorts-Projekts
+shorts/.venv/
