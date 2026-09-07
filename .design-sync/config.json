@@ -1,0 +1,13 @@
+{
+  "pkg": "@klinik-sh/slides",
+  "globalName": "KlinikSlides",
+  "shape": "package",
+  "buildCmd": "npm --prefix packages/klinik-slides run build",
+  "srcDir": "src",
+  "tsconfig": "tsconfig.json",
+  "cssEntry": "dist/klinik-slides.css",
+  "extraFonts": ["dist/fonts.css"],
+  "docsDir": "docs",
+  "readmeHeader": ".design-sync/conventions.md",
+  "guidelinesGlob": ["docs/guides/**/*.md"]
+}

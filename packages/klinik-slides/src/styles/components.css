@@ -1,0 +1,1185 @@
+/* ==========================================================================
+   Klinik-Präsentation — Komponenten-Stylesheet
+   Alle Klassen sind mit `ksl-` präfixiert (KlinikSlides).
+   Layout-Prinzip: `.ksl-slide` ist der Container (container-type: inline-size),
+   alles darin skaliert proportional über cqw-Tokens.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Folienrahmen
+   -------------------------------------------------------------------------- */
+
+.ksl-slide {
+  container-type: inline-size;
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--k-slide-max);
+  aspect-ratio: var(--k-slide-ratio);
+  overflow: hidden;
+  margin: 0 auto;
+  font-family: var(--k-font);
+  font-size: var(--k-fs-body);
+  line-height: var(--k-lh-body);
+  color: var(--k-ink);
+  background: var(--k-surface);
+  /* Feine Kante: im Vollbild praktisch unsichtbar, macht die weiße Folie aber
+     als Folie erkennbar, sobald sie auf hellem Grund liegt (Vorschau, Übersicht,
+     Handout). */
+  box-shadow: 0 0.08cqw 0.24cqw rgba(16, 32, 48, 0.07), 0 0.94cqw 2.4cqw rgba(16, 32, 48, 0.06);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.ksl-slide *,
+.ksl-slide *::before,
+.ksl-slide *::after {
+  box-sizing: border-box;
+}
+
+.ksl-slide--muted {
+  background: var(--k-blue-50);
+}
+
+/* Auf zartblauem Grund wäre die Schmuckfläche in --k-blue-50 unsichtbar
+   (identische Farbe) — eine Stufe dunkler hält die Prop wirksam. */
+.ksl-slide--muted.ksl-slide--decor::after {
+  background: var(--k-blue-100);
+}
+
+.ksl-slide--blue {
+  color: #fff;
+  background: linear-gradient(148deg, var(--k-blue) 0%, var(--k-blue-900) 100%);
+}
+
+.ksl-slide--blue .ksl-kicker,
+.ksl-slide--blue .ksl-slide__meta,
+.ksl-slide--blue .ksl-footnote,
+.ksl-slide--blue .ksl-slide__footer {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.ksl-slide--blue .ksl-title,
+.ksl-slide--blue .ksl-slide__title {
+  color: #fff;
+}
+
+/* Dezente Markenfläche unten rechts — nur auf hellen Folien. */
+.ksl-slide--decor::after {
+  content: "";
+  position: absolute;
+  right: calc(-1 * var(--k-sp-8));
+  bottom: calc(-1 * var(--k-sp-8));
+  width: 26cqw;
+  height: 26cqw;
+  border-radius: 50%;
+  background: var(--k-blue-50);
+  z-index: 0;
+}
+
+.ksl-slide__body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  /* Schutzgrenze: zu hoher Inhalt bleibt im Textkörper und schiebt sich nicht
+     über Fußnote und Fußzeile. Abgeschnittener Inhalt ist schlecht, aber
+     übereinanderliegender Text ist unlesbar. */
+  overflow: hidden;
+  padding: var(--k-slide-py) var(--k-slide-px);
+}
+
+.ksl-slide__body--center {
+  justify-content: center;
+}
+
+.ksl-slide__body--flush {
+  padding: 0;
+}
+
+/* Das Logo ist absolut positioniert und reserviert keinen Platz. Ohne diesen
+   Freiraum läuft eine Überschrift als Aussagesatz (ab etwa 40 Zeichen) durch die
+   Wortmarke — und Aussagesätze sind der dokumentierte Regelfall. */
+.ksl-slide__body--haslogo .ksl-slide__header {
+  padding-right: 17cqw;
+}
+
+/* --------------------------------------------------------------------------
+   2. Kopfbereich: Kicker, Titel, Akzentlinie
+   -------------------------------------------------------------------------- */
+
+.ksl-kicker {
+  display: block;
+  margin: 0 0 var(--k-sp-3);
+  font-size: var(--k-fs-eyebrow);
+  font-weight: var(--k-weight-semibold);
+  line-height: 1.2;
+  color: var(--k-blue-600);
+  text-transform: uppercase;
+  letter-spacing: var(--k-tracking-eyebrow);
+}
+
+.ksl-rule {
+  display: block;
+  width: 5cqw;
+  height: var(--k-rule);
+  margin: 0 0 var(--k-sp-5);
+  background: var(--k-red);
+  border-radius: calc(var(--k-rule) / 2);
+}
+
+.ksl-rule--wide {
+  width: 9cqw;
+}
+
+.ksl-slide__header {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  margin-bottom: var(--k-sp-6);
+}
+
+.ksl-slide__title {
+  margin: 0;
+  font-size: var(--k-fs-h1);
+  font-weight: var(--k-weight-bold);
+  line-height: var(--k-lh-heading);
+  letter-spacing: -0.015em;
+  color: var(--k-blue-900);
+  text-wrap: balance;
+}
+
+.ksl-slide__lead {
+  max-width: 62cqw;
+  margin: var(--k-sp-4) 0 0;
+  font-size: var(--k-fs-body);
+  line-height: var(--k-lh-body);
+  color: var(--k-ink-700);
+}
+
+.ksl-slide__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 0;
+}
+
+.ksl-slide__content--cols-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--k-sp-6);
+  align-content: start;
+}
+
+.ksl-slide__content--cols-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--k-sp-5);
+  align-content: start;
+}
+
+/* Inhalt im verbleibenden Raum vertikal mittig — auf 16:9 sitzt der Inhalt
+   sonst als Block unter der Überschrift und lässt unten eine leere Bahn.
+   `safe` ist hier nicht optional: bei Inhalt, der höher ist als der verbleibende
+   Raum, läuft echte Zentrierung nach BEIDEN Seiten über und schiebt sich über
+   Einleitungssatz und Überschrift. `safe center` dockt in diesem Fall oben an. */
+.ksl-slide__content--middle {
+  justify-content: safe center;
+  align-content: safe center;
+}
+
+.ksl-footnote {
+  flex: 0 0 auto;
+  margin: var(--k-sp-5) 0 0;
+  font-size: var(--k-fs-caption);
+  line-height: 1.45;
+  color: var(--k-ink-500);
+}
+
+/* --------------------------------------------------------------------------
+   3. Fußbereich
+   -------------------------------------------------------------------------- */
+
+.ksl-slide__footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--k-sp-4);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--k-sp-3) var(--k-slide-px) var(--k-sp-4);
+  font-size: var(--k-fs-caption);
+  color: var(--k-ink-500);
+}
+
+.ksl-slide__footer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: var(--k-slide-px);
+  left: var(--k-slide-px);
+  height: var(--k-border);
+  background: var(--k-line);
+}
+
+.ksl-slide--blue .ksl-slide__footer::before {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.ksl-slide__footer-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ksl-slide__footer-right {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--k-sp-4);
+  align-items: center;
+}
+
+.ksl-pagenumber {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--k-weight-semibold);
+  color: var(--k-blue);
+}
+
+.ksl-slide--blue .ksl-pagenumber {
+  color: #fff;
+}
+
+.ksl-slide__logo {
+  position: absolute;
+  top: var(--k-slide-py);
+  right: var(--k-slide-px);
+  z-index: 2;
+}
+
+/* --------------------------------------------------------------------------
+   4. Logo / Wortmarke
+   -------------------------------------------------------------------------- */
+
+.ksl-logo {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.16cqw;
+  font-family: var(--k-font);
+  line-height: 1.05;
+  text-align: left;
+}
+
+.ksl-logo__img {
+  display: block;
+  width: auto;
+  object-fit: contain;
+}
+
+.ksl-logo__org {
+  font-weight: var(--k-weight-bold);
+  color: var(--k-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ksl-logo__region {
+  font-weight: var(--k-weight-semibold);
+  color: var(--k-red);
+}
+
+.ksl-logo--white .ksl-logo__org,
+.ksl-logo--white .ksl-logo__region {
+  color: #fff;
+}
+
+.ksl-logo--compact {
+  flex-direction: row;
+  gap: 0.6cqw;
+  align-items: baseline;
+}
+
+/* --------------------------------------------------------------------------
+   5. Titelfolie
+   -------------------------------------------------------------------------- */
+
+.ksl-title-slide__body {
+  justify-content: center;
+}
+
+.ksl-title {
+  max-width: 76cqw;
+  margin: 0;
+  font-size: var(--k-fs-display);
+  font-weight: var(--k-weight-bold);
+  line-height: var(--k-lh-tight);
+  letter-spacing: -0.022em;
+  color: var(--k-blue-900);
+  text-wrap: balance;
+}
+
+.ksl-title-slide__subtitle {
+  max-width: 62cqw;
+  margin: var(--k-sp-5) 0 0;
+  font-size: var(--k-fs-h3);
+  font-weight: var(--k-weight-regular);
+  line-height: 1.4;
+  color: var(--k-ink-500);
+}
+
+.ksl-slide--blue .ksl-title-slide__subtitle {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.ksl-slide__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k-sp-2) var(--k-sp-5);
+  align-items: center;
+  margin-top: var(--k-sp-7);
+  font-size: var(--k-fs-small);
+  color: var(--k-ink-500);
+}
+
+.ksl-slide__meta-item {
+  display: inline-flex;
+  gap: var(--k-sp-2);
+  align-items: center;
+}
+
+.ksl-slide__meta-item + .ksl-slide__meta-item::before {
+  content: "";
+  width: var(--k-border);
+  height: 1.1cqw;
+  margin-right: var(--k-sp-3);
+  background: var(--k-line-strong);
+}
+
+.ksl-slide--blue .ksl-slide__meta-item + .ksl-slide__meta-item::before {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.ksl-slide__meta-strong {
+  font-weight: var(--k-weight-semibold);
+  color: var(--k-ink);
+}
+
+.ksl-slide--blue .ksl-slide__meta-strong {
+  color: #fff;
+}
+
+/* --------------------------------------------------------------------------
+   6. Kapiteltrenner
+   -------------------------------------------------------------------------- */
+
+.ksl-section {
+  justify-content: center;
+}
+
+.ksl-section__index {
+  display: block;
+  margin-bottom: var(--k-sp-3);
+  font-size: var(--k-fs-h2);
+  font-weight: var(--k-weight-bold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--k-red);
+}
+
+.ksl-slide--blue .ksl-section__index {
+  color: var(--k-blue-200);
+}
+
+.ksl-section__index-total {
+  font-size: var(--k-fs-h3);
+  font-weight: var(--k-weight-medium);
+  color: var(--k-ink-300);
+}
+
+.ksl-section__title {
+  max-width: 70cqw;
+  margin: 0;
+  font-size: 4.2cqw;
+  font-weight: var(--k-weight-bold);
+  line-height: var(--k-lh-tight);
+  letter-spacing: -0.02em;
+  color: var(--k-blue-900);
+  text-wrap: balance;
+}
+
+.ksl-slide--blue .ksl-section__title {
+  color: #fff;
+}
+
+.ksl-section__subtitle {
+  max-width: 58cqw;
+  margin: var(--k-sp-5) 0 0;
+  font-size: var(--k-fs-h3);
+  line-height: 1.4;
+  color: var(--k-ink-500);
+}
+
+.ksl-slide--blue .ksl-section__subtitle {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ksl-section--band::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1.1cqw;
+  background: var(--k-red);
+}
+
+/* --------------------------------------------------------------------------
+   7. Aufzählung
+   -------------------------------------------------------------------------- */
+
+.ksl-bullets {
+  display: grid;
+  gap: var(--k-sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ksl-bullets--cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--k-sp-4) var(--k-sp-6);
+}
+
+.ksl-bullets--lg {
+  gap: var(--k-sp-5);
+  font-size: var(--k-fs-h3);
+}
+
+.ksl-bullets__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--k-sp-3);
+  align-items: start;
+}
+
+.ksl-bullets__marker {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.9cqw;
+  height: 1.9cqw;
+  margin-top: 0.2cqw;
+  font-size: 1.05cqw;
+  font-weight: var(--k-weight-bold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: #fff;
+  background: var(--k-blue);
+  border-radius: 50%;
+}
+
+.ksl-bullets--lg .ksl-bullets__marker {
+  width: 2.4cqw;
+  height: 2.4cqw;
+  font-size: 1.3cqw;
+}
+
+.ksl-bullets__marker--dot {
+  width: 0.86cqw;
+  height: 0.86cqw;
+  margin-top: 0.75cqw;
+  background: var(--k-red);
+}
+
+.ksl-bullets--lg .ksl-bullets__marker--dot {
+  width: 1cqw;
+  height: 1cqw;
+  margin-top: 1cqw;
+}
+
+.ksl-bullets__marker--arrow {
+  color: var(--k-red);
+  background: transparent;
+  border-radius: 0;
+}
+
+.ksl-bullets__text {
+  min-width: 0;
+  font-weight: var(--k-weight-medium);
+  line-height: 1.4;
+  color: var(--k-ink);
+}
+
+.ksl-slide--blue .ksl-bullets__text {
+  color: #fff;
+}
+
+.ksl-bullets__detail {
+  display: block;
+  margin-top: var(--k-sp-1);
+  font-size: var(--k-fs-small);
+  font-weight: var(--k-weight-regular);
+  line-height: 1.45;
+  color: var(--k-ink-500);
+}
+
+.ksl-slide--blue .ksl-bullets__detail {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.ksl-bullets__item--accent .ksl-bullets__text {
+  color: var(--k-blue);
+}
+
+.ksl-bullets__item--muted .ksl-bullets__text {
+  font-weight: var(--k-weight-regular);
+  color: var(--k-ink-500);
+}
+
+/* --------------------------------------------------------------------------
+   8. Kennzahlen-Kachel
+   -------------------------------------------------------------------------- */
+
+.ksl-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--k-sp-2);
+  padding: var(--k-sp-5);
+  background: var(--k-surface);
+  border: var(--k-border) solid var(--k-line);
+  border-radius: var(--k-radius);
+  box-shadow: var(--k-shadow-soft);
+}
+
+.ksl-kpi__label {
+  order: -1;
+  font-size: var(--k-fs-caption);
+  font-weight: var(--k-weight-semibold);
+  line-height: 1.3;
+  color: var(--k-ink-500);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.ksl-kpi__value {
+  display: flex;
+  gap: var(--k-sp-2);
+  align-items: baseline;
+  font-size: var(--k-fs-kpi);
+  font-weight: var(--k-weight-bold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--k-blue-900);
+}
+
+.ksl-kpi__unit {
+  font-size: var(--k-fs-h3);
+  font-weight: var(--k-weight-semibold);
+  color: var(--k-ink-500);
+}
+
+.ksl-kpi__delta {
+  display: inline-flex;
+  gap: var(--k-sp-1);
+  align-items: center;
+  align-self: flex-start;
+  padding: 0.23cqw 0.7cqw;
+  font-size: var(--k-fs-caption);
+  font-weight: var(--k-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--k-ink-700);
+  background: var(--k-surface-muted);
+  border-radius: 100px;
+}
+
+.ksl-kpi__footnote {
+  font-size: var(--k-fs-caption);
+  line-height: 1.4;
+  color: var(--k-ink-500);
+}
+
+.ksl-kpi--blue {
+  background: var(--k-blue-50);
+  border-color: var(--k-blue-100);
+}
+
+.ksl-kpi--blue .ksl-kpi__value {
+  color: var(--k-blue);
+}
+
+.ksl-kpi--accent {
+  border-color: var(--k-red-100);
+}
+
+.ksl-kpi--accent .ksl-kpi__value {
+  color: var(--k-red);
+}
+
+.ksl-kpi--accent .ksl-kpi__delta {
+  color: var(--k-red-700);
+  background: var(--k-red-50);
+}
+
+.ksl-kpi--positive .ksl-kpi__value {
+  color: var(--k-ok);
+}
+
+.ksl-kpi--positive .ksl-kpi__delta {
+  color: var(--k-ok);
+  background: var(--k-ok-50);
+}
+
+.ksl-kpi--warning .ksl-kpi__value {
+  color: var(--k-warn);
+}
+
+.ksl-kpi--warning .ksl-kpi__delta {
+  color: var(--k-warn);
+  background: var(--k-warn-50);
+}
+
+.ksl-kpi__trend {
+  font-size: 0.94cqw;
+  line-height: 1;
+}
+
+/* --------------------------------------------------------------------------
+   9. Tabelle
+   -------------------------------------------------------------------------- */
+
+.ksl-table-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--k-sp-3);
+}
+
+.ksl-table__caption {
+  font-size: var(--k-fs-h3);
+  font-weight: var(--k-weight-semibold);
+  color: var(--k-blue-900);
+}
+
+.ksl-table {
+  width: 100%;
+  font-size: var(--k-fs-small);
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.ksl-table th,
+.ksl-table td {
+  padding: var(--k-sp-3) var(--k-sp-4);
+  text-align: left;
+  vertical-align: top;
+}
+
+.ksl-table--dense th,
+.ksl-table--dense td {
+  padding: var(--k-sp-2) var(--k-sp-3);
+}
+
+.ksl-table thead th {
+  font-size: var(--k-fs-caption);
+  font-weight: var(--k-weight-semibold);
+  color: var(--k-ink-500);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+  border-bottom: 0.16cqw solid var(--k-blue);
+}
+
+.ksl-table tbody td {
+  font-variant-numeric: tabular-nums;
+  color: var(--k-ink);
+  border-bottom: var(--k-border) solid var(--k-line);
+}
+
+.ksl-table--zebra tbody tr:nth-child(even) td {
+  background: var(--k-surface-muted);
+}
+
+.ksl-table__row--highlight td {
+  font-weight: var(--k-weight-semibold);
+  color: var(--k-blue-900);
+  background: var(--k-blue-50);
+}
+
+.ksl-table__row--total td {
+  font-weight: var(--k-weight-bold);
+  color: var(--k-blue-900);
+  border-top: 0.16cqw solid var(--k-line-strong);
+  border-bottom: none;
+}
+
+.ksl-table__cell--right {
+  text-align: right;
+}
+
+.ksl-table__cell--center {
+  text-align: center;
+}
+
+.ksl-table__source {
+  font-size: var(--k-fs-caption);
+  color: var(--k-ink-500);
+}
+
+/* --------------------------------------------------------------------------
+   10. Hinweisbox
+   -------------------------------------------------------------------------- */
+
+.ksl-callout {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--k-sp-4);
+  align-items: start;
+  padding: var(--k-sp-5);
+  font-size: var(--k-fs-small);
+  line-height: 1.5;
+  color: var(--k-ink-700);
+  background: var(--k-blue-50);
+  border-left: var(--k-rule) solid var(--k-blue);
+  border-radius: 0 var(--k-radius) var(--k-radius) 0;
+}
+
+.ksl-callout--compact {
+  gap: var(--k-sp-3);
+  padding: var(--k-sp-3) var(--k-sp-4);
+  font-size: var(--k-fs-caption);
+}
+
+.ksl-callout__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2cqw;
+  height: 2.2cqw;
+  font-size: 1.25cqw;
+  font-weight: var(--k-weight-bold);
+  line-height: 1;
+  color: #fff;
+  background: var(--k-blue);
+  border-radius: 50%;
+}
+
+.ksl-callout__body {
+  min-width: 0;
+}
+
+.ksl-callout__title {
+  margin: 0 0 var(--k-sp-1);
+  font-size: var(--k-fs-body);
+  font-weight: var(--k-weight-semibold);
+  line-height: 1.3;
+  color: var(--k-blue-900);
+}
+
+.ksl-callout--compact .ksl-callout__title {
+  font-size: var(--k-fs-small);
+}
+
+.ksl-callout--success {
+  background: var(--k-ok-50);
+  border-left-color: var(--k-ok);
+}
+
+.ksl-callout--success .ksl-callout__icon {
+  background: var(--k-ok);
+}
+
+.ksl-callout--success .ksl-callout__title {
+  color: var(--k-ok);
+}
+
+.ksl-callout--warning {
+  background: var(--k-warn-50);
+  border-left-color: var(--k-warn);
+}
+
+.ksl-callout--warning .ksl-callout__icon {
+  background: var(--k-warn);
+}
+
+.ksl-callout--warning .ksl-callout__title {
+  color: var(--k-warn);
+}
+
+.ksl-callout--critical {
+  background: var(--k-crit-50);
+  border-left-color: var(--k-crit);
+}
+
+.ksl-callout--critical .ksl-callout__icon {
+  background: var(--k-crit);
+}
+
+.ksl-callout--critical .ksl-callout__title {
+  color: var(--k-crit);
+}
+
+.ksl-callout--neutral {
+  background: var(--k-surface-muted);
+  border-left-color: var(--k-line-strong);
+}
+
+.ksl-callout--neutral .ksl-callout__icon {
+  color: var(--k-ink-700);
+  background: var(--k-line);
+}
+
+.ksl-callout--neutral .ksl-callout__title {
+  color: var(--k-ink);
+}
+
+/* --------------------------------------------------------------------------
+   11. Diagramm-Rahmen und Balkendiagramm
+   -------------------------------------------------------------------------- */
+
+.ksl-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--k-sp-3);
+  padding: var(--k-sp-5);
+  background: var(--k-surface);
+  border: var(--k-border) solid var(--k-line);
+  border-radius: var(--k-radius);
+  box-shadow: var(--k-shadow-soft);
+}
+
+.ksl-chart__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k-sp-2) var(--k-sp-5);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.ksl-chart__title {
+  margin: 0;
+  font-size: var(--k-fs-h3);
+  font-weight: var(--k-weight-semibold);
+  line-height: 1.25;
+  color: var(--k-blue-900);
+}
+
+.ksl-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k-sp-2) var(--k-sp-4);
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  font-size: var(--k-fs-caption);
+  color: var(--k-ink-500);
+  list-style: none;
+}
+
+.ksl-chart__legend-item {
+  display: inline-flex;
+  gap: var(--k-sp-2);
+  align-items: center;
+}
+
+.ksl-chart__swatch {
+  display: inline-block;
+  width: 0.86cqw;
+  height: 0.86cqw;
+  background: var(--k-blue);
+  border-radius: 0.16cqw;
+}
+
+.ksl-chart__plot {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.ksl-chart__caption,
+.ksl-chart__source {
+  font-size: var(--k-fs-caption);
+  line-height: 1.45;
+  color: var(--k-ink-500);
+}
+
+.ksl-bars {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.ksl-bars__plot {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  gap: var(--k-sp-4);
+  align-items: flex-end;
+  min-height: 0;
+  padding-top: var(--k-sp-5);
+  border-bottom: 0.12cqw solid var(--k-line-strong);
+}
+
+.ksl-bars__col {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+}
+
+.ksl-bars__value {
+  position: absolute;
+  right: 0;
+  left: 0;
+  font-size: var(--k-fs-caption);
+  font-weight: var(--k-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--k-blue-900);
+  text-align: center;
+}
+
+.ksl-bars__bar {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 100%;
+  max-width: 6cqw;
+  min-height: 0.31cqw;
+  background: var(--k-blue);
+  border-radius: var(--k-radius-sm) var(--k-radius-sm) 0 0;
+  transform: translateX(-50%);
+}
+
+.ksl-bars__labels {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--k-sp-4);
+  padding-top: var(--k-sp-2);
+}
+
+.ksl-bars__labels .ksl-bars__label {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.ksl-bars__bar--accent {
+  background: var(--k-red);
+}
+
+.ksl-bars__bar--muted {
+  background: var(--k-blue-200);
+}
+
+.ksl-bars__label {
+  font-size: var(--k-fs-caption);
+  line-height: 1.25;
+  color: var(--k-ink-500);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.ksl-bars__target {
+  position: absolute;
+  right: 0;
+  left: 0;
+  border-top: 0.16cqw dashed var(--k-red);
+}
+
+/* Beschriftung am linken Ende: rechts kollidiert sie mit der Wertebeschriftung
+   des letzten Balkens, sobald dieser über dem Zielwert liegt. Der helle Träger
+   hält sie lesbar, wenn die Ziellinie tief liegt und Balken dahinter stehen. */
+.ksl-bars__target-label {
+  position: absolute;
+  top: -1.55cqw;
+  left: 0;
+  padding: 0 0.31cqw;
+  font-size: var(--k-fs-caption);
+  font-weight: var(--k-weight-semibold);
+  color: var(--k-red-700);
+  background: var(--k-surface);
+  border-radius: 0.16cqw;
+}
+
+.ksl-bars--horizontal {
+  gap: var(--k-sp-3);
+  justify-content: center;
+}
+
+.ksl-bars--horizontal .ksl-bars__col {
+  position: static;
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: 12cqw minmax(0, 1fr) 5cqw;
+  gap: var(--k-sp-3);
+  align-items: center;
+  height: auto;
+}
+
+.ksl-bars--horizontal .ksl-bars__label {
+  text-align: right;
+}
+
+.ksl-bars--horizontal .ksl-bars__track {
+  width: 100%;
+  height: 1.6cqw;
+  background: var(--k-blue-50);
+  border-radius: 100px;
+}
+
+.ksl-bars--horizontal .ksl-bars__bar {
+  position: relative;
+  bottom: auto;
+  left: auto;
+  height: 100%;
+  max-width: none;
+  border-radius: 100px;
+  transform: none;
+}
+
+.ksl-bars--horizontal .ksl-bars__value {
+  position: static;
+  text-align: right;
+}
+
+/* --------------------------------------------------------------------------
+   12. Zitatfolie
+   -------------------------------------------------------------------------- */
+
+.ksl-quote {
+  position: relative;
+  justify-content: center;
+  max-width: 74cqw;
+}
+
+.ksl-quote__mark {
+  position: absolute;
+  top: -3.5cqw;
+  left: -1cqw;
+  z-index: 0;
+  font-size: 16cqw;
+  font-weight: var(--k-weight-bold);
+  line-height: 1;
+  color: var(--k-blue-100);
+  user-select: none;
+}
+
+.ksl-slide--blue .ksl-quote__mark {
+  color: rgba(255, 255, 255, 0.14);
+}
+
+.ksl-quote__text {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 3.1cqw;
+  font-weight: var(--k-weight-medium);
+  line-height: 1.28;
+  letter-spacing: -0.012em;
+  color: var(--k-blue-900);
+  text-wrap: balance;
+}
+
+.ksl-slide--blue .ksl-quote__text {
+  color: #fff;
+}
+
+.ksl-quote__footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: var(--k-sp-4);
+  align-items: center;
+  margin-top: var(--k-sp-6);
+  font-size: var(--k-fs-small);
+}
+
+.ksl-quote__footer::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 3.4cqw;
+  height: var(--k-rule);
+  background: var(--k-red);
+  border-radius: calc(var(--k-rule) / 2);
+}
+
+.ksl-quote__author {
+  font-weight: var(--k-weight-semibold);
+  color: var(--k-ink);
+}
+
+.ksl-slide--blue .ksl-quote__author {
+  color: #fff;
+}
+
+.ksl-quote__role {
+  color: var(--k-ink-500);
+}
+
+.ksl-slide--blue .ksl-quote__role {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* --------------------------------------------------------------------------
+   13. Abschlussfolie
+   -------------------------------------------------------------------------- */
+
+.ksl-closing__message {
+  max-width: 58cqw;
+  margin: var(--k-sp-5) 0 0;
+  font-size: var(--k-fs-h3);
+  line-height: 1.45;
+  color: var(--k-ink-500);
+}
+
+.ksl-slide--blue .ksl-closing__message {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.ksl-contact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--k-sp-1);
+  align-self: flex-start;
+  margin-top: var(--k-sp-7);
+  padding: var(--k-sp-5) var(--k-sp-6);
+  font-size: var(--k-fs-small);
+  background: var(--k-blue-50);
+  border-left: var(--k-rule) solid var(--k-red);
+  border-radius: 0 var(--k-radius) var(--k-radius) 0;
+}
+
+.ksl-slide--blue .ksl-contact {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ksl-contact__name {
+  font-size: var(--k-fs-body);
+  font-weight: var(--k-weight-semibold);
+  color: var(--k-blue-900);
+}
+
+.ksl-slide--blue .ksl-contact__name {
+  color: #fff;
+}
+
+.ksl-contact__role,
+.ksl-contact__line {
+  color: var(--k-ink-500);
+}
+
+.ksl-slide--blue .ksl-contact__role,
+.ksl-slide--blue .ksl-contact__line {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.ksl-contact__line {
+  font-variant-numeric: tabular-nums;
+}
