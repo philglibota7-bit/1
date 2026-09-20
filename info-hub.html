@@ -1,11 +1,15 @@
 <!DOCTYPE html>
-<html lang="de" data-accent="plasma">
+<html lang="de" data-accent="neon">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#070b14">
+<meta name="theme-color" content="#04040c">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PULSE">
+<link rel="manifest" href="pulse.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>PULSE • Dein Info-Hub</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E⚡%3C/text%3E%3C/svg%3E">
 <style>
@@ -13,7 +17,7 @@
 
 /* ---------- Design Tokens ---------- */
 :root{
-  --bg:#070b14; --bg2:#0b1120;
+  --bg:#04040c; --bg2:#0a0a18;
   --card:rgba(255,255,255,.045); --card2:rgba(255,255,255,.07);
   --border:rgba(255,255,255,.09); --border2:rgba(255,255,255,.16);
   --text:#eef2ff; --muted:#8b93ad; --muted2:#5b6379;
@@ -22,6 +26,7 @@
   --shadow:0 10px 40px rgba(0,0,0,.45);
   --a1:#8b5cf6; --a2:#06b6d4;
 }
+html[data-accent="neon"]{ --a1:#00f5ff; --a2:#ff2ee6; }
 html[data-accent="volt"]{ --a1:#a3e635; --a2:#22d3ee; }
 html[data-accent="sunset"]{ --a1:#fb923c; --a2:#ec4899; }
 html[data-accent="crimson"]{ --a1:#f43f5e; --a2:#f59e0b; }
@@ -369,6 +374,38 @@ table.tbl .tm{display:flex; align-items:center; gap:9px; font-weight:600;}
 #onbBody{flex:1;}
 .onbnav{display:flex; gap:10px; margin-top:30px;}
 .onbnav .btn{flex:1;}
+
+/* ---------- NEON BOOST ---------- */
+body{background:radial-gradient(1000px 600px at 50% -200px, color-mix(in srgb, var(--a1) 8%, transparent), transparent 70%), var(--bg);}
+.blob{opacity:.62; filter:blur(80px) saturate(1.5);}
+.blob.b3{opacity:.3;}
+.logo .bolt{animation:boltpulse 2.6s ease-in-out infinite;}
+@keyframes boltpulse{0%,100%{box-shadow:0 0 16px var(--a1), 0 0 34px color-mix(in srgb, var(--a2) 40%, transparent);} 50%{box-shadow:0 0 28px var(--a1), 0 0 58px color-mix(in srgb, var(--a2) 65%, transparent);}}
+.card{border-color:color-mix(in srgb, var(--a1) 22%, rgba(255,255,255,.07));}
+.card.glow{box-shadow:0 0 30px color-mix(in srgb, var(--a1) 20%, transparent), inset 0 0 34px color-mix(in srgb, var(--a2) 5%, transparent);}
+.card h3{color:color-mix(in srgb, var(--a1) 50%, var(--muted));}
+.grad-text{filter:drop-shadow(0 0 12px color-mix(in srgb, var(--a2) 55%, transparent));}
+#homeGreet{text-shadow:0 0 26px color-mix(in srgb, var(--a1) 40%, transparent);}
+.match .score{color:#fff; text-shadow:0 0 14px color-mix(in srgb, var(--a2) 70%, transparent), 0 0 30px color-mix(in srgb, var(--a1) 40%, transparent);}
+.pill.active, .seg button.active, .tabbtn.active{box-shadow:0 0 18px color-mix(in srgb, var(--a1) 60%, transparent), 0 0 40px color-mix(in srgb, var(--a2) 35%, transparent);}
+.btn{box-shadow:0 0 20px color-mix(in srgb, var(--a1) 45%, transparent), 0 6px 24px rgba(0,0,0,.5);}
+.badge.live{box-shadow:0 0 16px rgba(244,63,94,.55); color:#ffb3c0;}
+.mini:hover{box-shadow:0 0 26px color-mix(in srgb, var(--a1) 32%, transparent);}
+.tickerwrap{border-color:color-mix(in srgb, var(--a1) 35%, transparent); box-shadow:0 0 18px color-mix(in srgb, var(--a1) 15%, transparent);}
+.toggle.on{box-shadow:0 0 14px color-mix(in srgb, var(--a1) 60%, transparent);}
+.up{text-shadow:0 0 10px rgba(52,211,153,.55);} .down{text-shadow:0 0 10px rgba(251,113,133,.5);}
+input.input:focus{box-shadow:0 0 0 3px color-mix(in srgb, var(--a1) 25%, transparent), 0 0 22px color-mix(in srgb, var(--a1) 25%, transparent);}
+
+/* ---------- Arcade & App-Player ---------- */
+.appcard{cursor:pointer;}
+.appcard .applaunch{margin-top:10px; display:inline-block; padding:7px 15px; border-radius:99px; font-size:12.5px; font-weight:700;
+  background:linear-gradient(135deg,var(--a1),var(--a2)); color:#fff; box-shadow:0 0 16px color-mix(in srgb, var(--a1) 55%, transparent);}
+#player{position:fixed; inset:0; z-index:500; background:#000; display:none; flex-direction:column;}
+#player.show{display:flex;}
+#playerBar{display:flex; align-items:center; gap:12px; padding:10px 14px; padding-top:calc(10px + env(safe-area-inset-top));
+  background:rgba(6,6,14,.96); border-bottom:1px solid color-mix(in srgb, var(--a1) 35%, transparent);}
+#playerBar b{flex:1; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+#playerFrame{flex:1; width:100%; border:0; background:#000;}
 </style>
 </head>
 <body>
@@ -463,6 +500,15 @@ table.tbl .tm{display:flex; align-items:center; gap:9px; font-weight:600;}
       <div class="card funcard"><h3>🎉 Wochenend-Countdown</h3><div class="body" id="wkndBody">…</div></div>
     </div>
   </section>
+
+  <!-- ============ ARCADE ============ -->
+  <section class="page" id="page-arcade">
+    <div class="card glow" style="margin-bottom:14px;">
+      <h3>🕹️ Arcade — Deine Apps &amp; Games</h3>
+      <p class="hint">Deine anderen Projekte, direkt in PULSE integriert. Tippe eine Karte, um sie im Vollbild zu starten.</p>
+    </div>
+    <div class="grid g2" id="arcadeGrid"></div>
+  </section>
 </main>
 
 <nav id="tabbar">
@@ -472,10 +518,20 @@ table.tbl .tm{display:flex; align-items:center; gap:9px; font-weight:600;}
   <button class="tabbtn" data-page="krypto"><span class="em">₿</span><span class="lbl">Krypto</span></button>
   <button class="tabbtn" data-page="news"><span class="em">📰</span><span class="lbl">News</span></button>
   <button class="tabbtn" data-page="fun"><span class="em">🎲</span><span class="lbl">Fun</span></button>
+  <button class="tabbtn" data-page="arcade"><span class="em">🕹️</span><span class="lbl">Arcade</span></button>
 </nav>
 
 <div id="toasts"></div>
 <canvas id="cfx"></canvas>
+
+<div id="player">
+  <div id="playerBar">
+    <button class="icon-btn" id="playerBack" title="Zurück zu PULSE">←</button>
+    <b id="playerTitle"></b>
+    <a class="icon-btn" id="playerExt" target="_blank" rel="noopener" title="In neuem Tab öffnen">↗</a>
+  </div>
+  <iframe id="playerFrame" src="about:blank" title="App"></iframe>
+</div>
 
 <div class="overlay" id="modal"><div class="sheet">
   <div class="head"><h2>⚙️ Einstellungen</h2><button class="icon-btn" id="modalClose">✕</button></div>
@@ -571,7 +627,7 @@ function teamBadge(t){
 
 /* ---------------- State ---------------- */
 const DEFAULTS = {
-  name: '', accent: 'plasma', onboarded: false,
+  name: '', accent: 'neon', onboarded: false,
   favTeams: [],            // [{id,name,short,icon}]
   favCoins: ['bitcoin','ethereum','solana'],
   topics: [],              // ["KI","Gaming",...]
@@ -583,6 +639,7 @@ const DEFAULTS = {
 let state = {...DEFAULTS};
 try { state = {...DEFAULTS, ...JSON.parse(localStorage.getItem('pulseState_v1') || '{}')}; } catch(e){}
 const save = () => { try { localStorage.setItem('pulseState_v1', JSON.stringify(state)); } catch(e){} };
+if (!state.v2) { state.v2 = true; state.accent = 'neon'; save(); }  // Neon-Redesign einmalig übernehmen
 let seenNews = new Set();
 try { seenNews = new Set(JSON.parse(localStorage.getItem('pulseSeen_v1') || '[]')); } catch(e){}
 const saveSeen = () => { try { localStorage.setItem('pulseSeen_v1', JSON.stringify([...seenNews].slice(-600))); } catch(e){} };
@@ -602,7 +659,7 @@ const applyAccent = () => document.documentElement.dataset.accent = state.accent
 applyAccent();
 
 /* ---------------- Router ---------------- */
-const pages = ['home','fussball','wetter','krypto','news','fun'];
+const pages = ['home','fussball','wetter','krypto','news','fun','arcade'];
 let curPage = 'home';
 function showPage(p){
   curPage = p;
@@ -614,6 +671,7 @@ function showPage(p){
   if (p === 'krypto')   cryEnsure();
   if (p === 'news')     newsEnsure();
   if (p === 'fun')      funEnsure();
+  if (p === 'arcade')   renderArcade();
   if (p === 'home')     renderHome();
 }
 $$('.tabbtn').forEach(b => b.onclick = () => showPage(b.dataset.page));
@@ -700,10 +758,13 @@ const OLD = 'https://api.openligadb.de';
 const now0 = new Date();
 const SEASON = now0.getMonth() >= 6 ? now0.getFullYear() : now0.getFullYear() - 1;
 const LEAGUES = [
-  {k:'bl1', name:'Bundesliga',    em:'🏆', table:true},
-  {k:'bl2', name:'2. Bundesliga', em:'⚽', table:true},
-  {k:'bl3', name:'3. Liga',       em:'⚽', table:true},
-  {k:'dfb', name:'DFB-Pokal',     em:'🏅', table:false},
+  {k:'bl1', name:'Bundesliga',       em:'🏆', table:true, live:true},
+  {k:'bl2', name:'2. Bundesliga',    em:'⚽', table:true, live:true},
+  {k:'ucl', name:'Champions League', em:'⭐', table:true, live:true},
+  {k:'pl',  name:'Premier League',   em:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', table:true},
+  {k:'la1', name:'La Liga',          em:'🇪🇸', table:true},
+  {k:'bl3', name:'3. Liga',          em:'⚽', table:true},
+  {k:'dfb', name:'DFB-Pokal',        em:'🏅', table:false},
 ];
 const fbView = {league: state.league || 'bl1', group: null, seg: 'spiele'};
 
@@ -793,6 +854,15 @@ function renderFb(){
   renderFavStrip();
 }
 
+function detailHtml(m){
+  const goals = m.goals || [];
+  let h = goals.length
+    ? goals.map(g => `<div class="goalrow"><span class="min">${g.matchMinute ?? '–'}’</span><span>⚽ ${esc(g.goalGetterName || 'Unbekannt')}${g.isPenalty ? ' <span class="badge">Elfmeter</span>' : ''}${g.isOwnGoal ? ' <span class="badge">Eigentor</span>' : ''}</span><span class="gsc">${g.scoreTeam1}:${g.scoreTeam2}</span></div>`).join('')
+    : '<div class="hint" style="padding:8px 0">Noch keine Tore eingetragen.</div>';
+  if (m.location?.locationCity) h += `<div class="hint" style="margin-top:8px">📍 ${esc(m.location.locationStadium || '')} ${esc(m.location.locationCity)}${m.numberOfViewers ? ' · 👥 ' + fmtNum(m.numberOfViewers) + ' Zuschauer' : ''}</div>`;
+  return h;
+}
+
 function renderMatches(){
   const md = cache.matchday[fbView.league];
   const el = $('#fbContent'); el.innerHTML = '';
@@ -820,6 +890,15 @@ function renderMatches(){
     const foot = document.createElement('div'); foot.className = 'foot';
     foot.innerHTML = (st.live ? '<span class="badge live">Live</span>' : st.done ? '<span class="badge">Beendet</span>' : '') +
       (st.live && sc ? `<span class="badge">${esc(st.label)}</span>` : '') + '<span class="sp"></span>';
+    if (!LEAGUES.find(x => x.k === fbView.league)?.live) {
+      card.appendChild(foot);
+      const det0 = document.createElement('div'); det0.className = 'mdetail';
+      det0.innerHTML = detailHtml(m);
+      card.appendChild(det0);
+      row.onclick = () => card.classList.toggle('open');
+      el.appendChild(card);
+      return;
+    }
     const bell = document.createElement('button');
     bell.className = 'bell' + (notifOn(m) ? ' on' : '');
     bell.textContent = notifOn(m) ? '🔔' : '🔕';
@@ -836,11 +915,7 @@ function renderMatches(){
     card.appendChild(foot);
 
     const det = document.createElement('div'); det.className = 'mdetail';
-    const goals = m.goals || [];
-    det.innerHTML = goals.length
-      ? goals.map(g => `<div class="goalrow"><span class="min">${g.matchMinute ?? '–'}’</span><span>⚽ ${esc(g.goalGetterName || 'Unbekannt')}${g.isPenalty ? ' <span class="badge">Elfmeter</span>' : ''}${g.isOwnGoal ? ' <span class="badge">Eigentor</span>' : ''}</span><span class="gsc">${g.scoreTeam1}:${g.scoreTeam2}</span></div>`).join('')
-      : '<div class="hint" style="padding:8px 0">Noch keine Tore eingetragen.</div>';
-    if (m.location?.locationCity) det.innerHTML += `<div class="hint" style="margin-top:8px">📍 ${esc(m.location.locationStadium || '')} ${esc(m.location.locationCity)}${m.numberOfViewers ? ' · 👥 ' + fmtNum(m.numberOfViewers) + ' Zuschauer' : ''}</div>`;
+    det.innerHTML = detailHtml(m);
     card.appendChild(det);
     row.onclick = () => card.classList.toggle('open');
     el.appendChild(card);
@@ -855,10 +930,16 @@ async function renderTable(){
     const tb = cache.tables[lg];
     if (!tb.length) { el.innerHTML = '<div class="err">Keine Tabelle verfügbar.</div>'; return; }
     const n = tb.length;
-    const zone = i => lg === 'bl1' ? (i < 4 ? 'z-cl' : i < 6 ? 'z-el' : i >= n-3 ? 'z-ab' : '') : (i < 2 ? 'z-cl' : i === 2 ? 'z-el' : i >= n-3 ? 'z-ab' : '');
+    const topLeague = lg === 'bl1' || lg === 'pl' || lg === 'la1';
+    const zone = i => lg === 'ucl' ? (i < 8 ? 'z-cl' : i < 24 ? 'z-el' : 'z-ab')
+      : topLeague ? (i < 4 ? 'z-cl' : i < 6 ? 'z-el' : i >= n-3 ? 'z-ab' : '')
+      : (i < 2 ? 'z-cl' : i === 2 ? 'z-el' : i >= n-3 ? 'z-ab' : '');
+    const legend = lg === 'ucl' ? '🟢 direkt im Achtelfinale · 🟡 Playoffs · 🔴 ausgeschieden'
+      : topLeague ? '🟢 Champions League · 🟡 Europa/Conference League · 🔴 Abstieg'
+      : '🟢 Aufstieg · 🟡 Relegation · 🔴 Abstieg';
     const card = document.createElement('div'); card.className = 'card';
     card.innerHTML = `<table class="tbl"><thead><tr><th>#</th><th>Team</th><th class="num">Sp</th><th class="num">Diff</th><th class="num">Pkt</th></tr></thead><tbody></tbody></table>
-      <div class="hint mt">${lg === 'bl1' ? '🟢 Champions League · 🟡 Europa/Conference League · 🔴 Abstieg' : '🟢 Aufstieg · 🟡 Relegation · 🔴 Abstieg'}</div>`;
+      <div class="hint mt">${legend}</div>`;
     const tbody = card.querySelector('tbody');
     tb.forEach((t, i) => {
       const tr = document.createElement('tr');
@@ -891,15 +972,30 @@ async function renderScorers(){
   } catch(e){ errBox(el, 'Torjäger konnten nicht geladen werden.', renderScorers); }
 }
 
-/* Nächstes Spiel eines Teams suchen (über bekannte Ligen) */
-async function loadFavNext(teamId){
-  if (cache.favNext[teamId]) return cache.favNext[teamId];
-  for (const lg of ['bl1','bl2','bl3']) {
-    const lid = cache.leagueIds[lg];
+/* Liga-ID beschaffen (lädt notfalls den aktuellen Spieltag der Liga) */
+async function ensureLeagueId(lg){
+  if (cache.leagueIds[lg]) return cache.leagueIds[lg];
+  try {
+    const ms = await fetchJSON(`${OLD}/getmatchdata/${lg}`);
+    if (ms?.[0]?.leagueId) {
+      cache.leagueIds[lg] = ms[0].leagueId;
+      if (!cache.matchday[lg]) cache.matchday[lg] = {group: ms[0].group?.groupOrderID, matches: ms, ts: Date.now()};
+    }
+  } catch(e){}
+  return cache.leagueIds[lg];
+}
+
+/* Nächstes Spiel eines Teams suchen (erst eigene Liga, dann Fallbacks) */
+async function loadFavNext(t){
+  const id = t.id ?? t;
+  if (cache.favNext[id]) return cache.favNext[id];
+  const order = [...new Set([t.lg, 'bl1', 'bl2', 'pl', 'la1'].filter(Boolean))];
+  for (const lg of order) {
+    const lid = await ensureLeagueId(lg);
     if (!lid) continue;
     try {
-      const m = await fetchJSON(`${OLD}/getnextmatchbyleagueteam/${lid}/${teamId}`);
-      if (m && m.matchID) { cache.favNext[teamId] = m; return m; }
+      const m = await fetchJSON(`${OLD}/getnextmatchbyleagueteam/${lid}/${id}`);
+      if (m && m.matchID) { cache.favNext[id] = m; return m; }
     } catch(e){}
   }
   return null;
@@ -948,7 +1044,7 @@ function sigOf(m){
 async function pollLive(){
   const snap = {};
   let changedUI = false;
-  for (const lg of ['bl1','bl2']) {
+  for (const lg of ['bl1','bl2','ucl']) {
     let ms;
     try { ms = await fetchJSON(`${OLD}/getmatchdata/${lg}`); } catch(e){ continue; }
     if (!ms || !ms.length) continue;
@@ -1444,6 +1540,41 @@ function funEnsure(){
 setInterval(tickWeekend, 1000);
 
 /* ================================================================
+   ARCADE — deine anderen Apps, direkt integriert
+   ================================================================ */
+const APPS = [
+  {file:'fussball.html',   name:'Fußball-Zone', em:'🎮', desc:'Deine interaktive Fußball-Welt: Games, Effekte & Integrationen'},
+  {file:'jarvis.html',     name:'Jarvis',       em:'🤖', desc:'Assistent mit Sprach-Kugel, 3D-Weltkarte & Routenplaner'},
+  {file:'bodyscan.html',   name:'Bodyscan',     em:'🧬', desc:'Dein Bodyscan-Projekt'},
+  {file:'ip-rechner.html', name:'IP-Rechner',   em:'🧮', desc:'Subnetting, IPv6 & vollwertiger Taschenrechner'},
+];
+function renderArcade(){
+  const g = $('#arcadeGrid');
+  if (g.dataset.done) return;
+  g.dataset.done = '1';
+  APPS.forEach(a => {
+    const c = document.createElement('div');
+    c.className = 'card mini appcard';
+    c.innerHTML = `<span class="emoji">${a.em}</span><h3>${esc(a.name)}</h3><div class="sub">${esc(a.desc)}</div><span class="applaunch">▶ Starten</span>`;
+    c.onclick = () => openApp(a);
+    g.appendChild(c);
+  });
+}
+function openApp(a){
+  $('#playerTitle').textContent = a.name;
+  $('#playerExt').href = a.file;
+  $('#playerFrame').src = a.file;
+  $('#player').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function closeApp(){
+  $('#player').classList.remove('show');
+  $('#playerFrame').src = 'about:blank';
+  document.body.style.overflow = '';
+}
+$('#playerBack').onclick = closeApp;
+
+/* ================================================================
    HOME — Dashboard
    ================================================================ */
 function greeting(){
@@ -1515,6 +1646,7 @@ function renderHome(){
     const days = Math.round((new Date(hol.date) - today) / 86400000);
     g.appendChild(miniCard('🎈', 'Nächster Feiertag', days === 0 ? 'HEUTE!' : `in ${days} T`, esc(hol.localName), 'fun'));
   }
+  g.appendChild(miniCard('🕹️', 'Arcade', 'Games & Apps', 'Fußball-Zone, Jarvis, Bodyscan & mehr', 'arcade'));
   g.appendChild(miniCard('🎲', 'Fun-Zone', 'ISS, Witze…', 'Unnützes Wissen, Feiertage & mehr', 'fun'));
 
   // Für dich (Themen)
@@ -1543,17 +1675,20 @@ function toggleRow(label, sub, key, onchange){
   };
   return r;
 }
+const FAV_LEAGUES = [['bl1','🇩🇪 Bundesliga'], ['bl2','🇩🇪 2. Bundesliga'], ['pl','🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League'], ['la1','🇪🇸 La Liga']];
 async function teamsChips(container){
   container.innerHTML = '<div class="skel" style="height:40px"></div>';
   try {
-    const lists = await Promise.all(['bl1','bl2'].map(lg =>
+    const lists = await Promise.all(FAV_LEAGUES.map(([lg]) =>
       cache.teams[lg] ? Promise.resolve(cache.teams[lg]) :
-      fetchJSON(`${OLD}/getavailableteams/${lg}/${SEASON}`).then(d => (cache.teams[lg] = d))
+      fetchJSON(`${OLD}/getavailableteams/${lg}/${SEASON}`).then(d => (cache.teams[lg] = d)).catch(() => [])
     ));
     container.innerHTML = '';
     lists.forEach((teams, li) => {
+      if (!teams.length) return;
+      const [lg, label] = FAV_LEAGUES[li];
       const h = document.createElement('div'); h.className = 'hint'; h.style.margin = '10px 0 7px';
-      h.textContent = li === 0 ? '· Bundesliga' : '· 2. Bundesliga';
+      h.textContent = label;
       container.appendChild(h);
       const row = document.createElement('div'); row.className = 'chiprow';
       teams.forEach(t => {
@@ -1564,7 +1699,7 @@ async function teamsChips(container){
         c.insertAdjacentHTML('beforeend', esc(t.shortName || t.teamName));
         c.onclick = () => {
           if (isFavTeam(t.teamId)) state.favTeams = state.favTeams.filter(x => x.id !== t.teamId);
-          else state.favTeams.push({id: t.teamId, name: t.teamName, short: t.shortName, icon: t.teamIconUrl});
+          else state.favTeams.push({id: t.teamId, name: t.teamName, short: t.shortName, icon: t.teamIconUrl, lg});
           save(); c.classList.toggle('on');
           delete cache.favNext[t.teamId];
         };
@@ -1619,7 +1754,7 @@ function openSettings(focus){
   const secD = document.createElement('div');
   secD.innerHTML = '<div class="sethead">🎨 Design</div>';
   const sw = document.createElement('div'); sw.className = 'chiprow';
-  [['plasma','#8b5cf6','#06b6d4'],['volt','#a3e635','#22d3ee'],['sunset','#fb923c','#ec4899'],['crimson','#f43f5e','#f59e0b']].forEach(([k, c1, c2]) => {
+  [['neon','#00f5ff','#ff2ee6'],['plasma','#8b5cf6','#06b6d4'],['volt','#a3e635','#22d3ee'],['sunset','#fb923c','#ec4899'],['crimson','#f43f5e','#f59e0b']].forEach(([k, c1, c2]) => {
     const s = document.createElement('button');
     s.className = 'swatch' + (state.accent === k ? ' on' : '');
     s.style.background = `linear-gradient(135deg, ${c1}, ${c2})`;
@@ -1663,6 +1798,20 @@ function openSettings(focus){
   nHint.textContent = 'ℹ️ Ehrlich gesagt: Meldungen kommen, solange PULSE geöffnet ist (auch im Hintergrund-Tab). Komplett geschlossen kann eine Webseite ohne eigenen Server keine Pushes schicken.';
   secN.appendChild(nHint);
   b.appendChild(secN);
+
+  const secA = document.createElement('div');
+  secA.innerHTML = '<div class="sethead">📲 Als App installieren</div>';
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (standalone) {
+    secA.insertAdjacentHTML('beforeend', '<div class="hint">✅ PULSE läuft bereits als installierte App. Nice!</div>');
+  } else if (installEvt) {
+    const ib = document.createElement('button'); ib.className = 'btn sm'; ib.textContent = '📲 Jetzt installieren';
+    ib.onclick = async () => { try { installEvt.prompt(); await installEvt.userChoice; } catch(e){} };
+    secA.appendChild(ib);
+  } else {
+    secA.insertAdjacentHTML('beforeend', '<div class="hint">Android/Chrome: Menü ⋮ → „App installieren“.<br>iPhone/Safari: Teilen-Symbol → „Zum Home-Bildschirm“.<br>Danach startet PULSE mit eigenem Icon im Vollbild — wie eine echte App.</div>');
+  }
+  b.appendChild(secA);
 
   const secX = document.createElement('div');
   secX.innerHTML = '<div class="sethead">🧹 Sonstiges</div>';
@@ -1784,7 +1933,7 @@ async function boot(){
   if (booted) return; booted = true;
   renderHome();
   pollLive().then(async () => {                // Baseline für Live-Ticker,
-    for (const t of state.favTeams) await loadFavNext(t.id);   // dann „Nächstes Spiel“
+    for (const t of state.favTeams) await loadFavNext(t);      // dann „Nächstes Spiel“
     if (curPage === 'home') renderHome();
   });
   loadCrypto(); loadFng(); loadTrending();
@@ -1797,6 +1946,31 @@ async function boot(){
   setInterval(() => { if (!document.hidden && state.place) loadWeather(); }, 900000);
   setInterval(() => { if (curPage === 'home') renderHome(); }, 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderAllSoft(); } });
+}
+
+/* ================================================================
+   PWA — Service Worker & Installieren
+   ================================================================ */
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  addEventListener('load', () => navigator.serviceWorker.register('./pulse-sw.js').catch(() => {}));
+}
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; showInstallCard(); });
+window.addEventListener('appinstalled', () => {
+  installEvt = null;
+  document.querySelector('#installCard')?.remove();
+  toast('Installiert! 📲', 'PULSE liegt jetzt als App auf deinem Gerät.', '🎉');
+});
+function showInstallCard(){
+  if (!installEvt || $('#installCard') || matchMedia('(display-mode: standalone)').matches) return;
+  const c = document.createElement('div');
+  c.className = 'card glow'; c.id = 'installCard';
+  c.style.cssText = 'margin:14px 0 0; display:flex; align-items:center; gap:14px;';
+  c.innerHTML = '<span style="font-size:34px">📲</span><div style="flex:1"><b>PULSE als App installieren</b><div class="hint">Eigenes Icon, Vollbild — startet wie eine echte App.</div></div>';
+  const ib = document.createElement('button'); ib.className = 'btn sm'; ib.textContent = 'Installieren';
+  ib.onclick = async () => { try { installEvt.prompt(); await installEvt.userChoice; } catch(e){} };
+  c.appendChild(ib);
+  $('#homeHero').after(c);
 }
 
 if (state.onboarded) boot();
