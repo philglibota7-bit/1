@@ -1,0 +1,1806 @@
+<!DOCTYPE html>
+<html lang="de" data-accent="plasma">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070b14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>PULSE • Dein Info-Hub</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E⚡%3C/text%3E%3C/svg%3E">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+/* ---------- Design Tokens ---------- */
+:root{
+  --bg:#070b14; --bg2:#0b1120;
+  --card:rgba(255,255,255,.045); --card2:rgba(255,255,255,.07);
+  --border:rgba(255,255,255,.09); --border2:rgba(255,255,255,.16);
+  --text:#eef2ff; --muted:#8b93ad; --muted2:#5b6379;
+  --good:#34d399; --bad:#fb7185; --warn:#fbbf24;
+  --r-lg:22px; --r-md:16px; --r-sm:12px;
+  --shadow:0 10px 40px rgba(0,0,0,.45);
+  --a1:#8b5cf6; --a2:#06b6d4;
+}
+html[data-accent="volt"]{ --a1:#a3e635; --a2:#22d3ee; }
+html[data-accent="sunset"]{ --a1:#fb923c; --a2:#ec4899; }
+html[data-accent="crimson"]{ --a1:#f43f5e; --a2:#f59e0b; }
+
+*{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  background:var(--bg); color:var(--text);
+  min-height:100dvh; overflow-x:hidden;
+  font-variant-numeric:tabular-nums;
+}
+::selection{background:var(--a1); color:#fff;}
+a{color:inherit;}
+button{font-family:inherit; color:inherit; background:none; border:none; cursor:pointer;}
+input{font-family:inherit;}
+::-webkit-scrollbar{width:9px; height:9px;}
+::-webkit-scrollbar-thumb{background:linear-gradient(var(--a1),var(--a2)); border-radius:99px;}
+::-webkit-scrollbar-track{background:transparent;}
+
+/* ---------- Background FX ---------- */
+#bg{position:fixed; inset:0; z-index:-2; overflow:hidden; background:
+  radial-gradient(1200px 700px at 85% -10%, rgba(139,92,246,.14), transparent 60%),
+  radial-gradient(1000px 600px at -10% 110%, rgba(6,182,212,.12), transparent 60%),
+  var(--bg);}
+#bg::after{content:''; position:absolute; inset:0;
+  background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),
+                   linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px);
+  background-size:44px 44px;
+  mask-image:radial-gradient(ellipse at 50% 0%, #000 0%, transparent 75%);}
+.blob{position:absolute; border-radius:50%; filter:blur(90px); opacity:.5; will-change:transform;}
+.blob.b1{width:520px;height:520px; background:var(--a1); top:-220px; right:-140px; animation:drift1 26s ease-in-out infinite alternate;}
+.blob.b2{width:460px;height:460px; background:var(--a2); bottom:-200px; left:-160px; animation:drift2 32s ease-in-out infinite alternate;}
+.blob.b3{width:300px;height:300px; background:var(--a1); top:40%; left:60%; opacity:.22; animation:drift1 40s ease-in-out infinite alternate-reverse;}
+@keyframes drift1{from{transform:translate(0,0) scale(1);} to{transform:translate(-90px,70px) scale(1.15);}}
+@keyframes drift2{from{transform:translate(0,0) scale(1);} to{transform:translate(80px,-60px) scale(1.1);}}
+@media (prefers-reduced-motion:reduce){ *{animation-duration:.001s !important; transition-duration:.001s !important;} }
+
+/* ---------- Layout ---------- */
+header{
+  position:sticky; top:0; z-index:50;
+  display:flex; align-items:center; gap:12px;
+  padding:calc(10px + env(safe-area-inset-top)) 18px 10px;
+  background:rgba(7,11,20,.72); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+}
+.logo{display:flex; align-items:center; gap:9px; font-weight:700; font-size:20px; letter-spacing:.5px;}
+.logo .bolt{width:30px;height:30px;border-radius:9px; background:linear-gradient(135deg,var(--a1),var(--a2));
+  display:grid; place-items:center; font-size:16px; box-shadow:0 0 18px color-mix(in srgb, var(--a1) 55%, transparent);}
+.logo small{font-weight:500; color:var(--muted); font-size:11px; letter-spacing:1.5px; display:block; margin-top:-2px;}
+#clockwrap{margin-left:auto; text-align:right; line-height:1.15;}
+#clock{font-weight:600; font-size:15px; letter-spacing:.5px;}
+#dateline{color:var(--muted); font-size:11px;}
+.icon-btn{width:38px;height:38px; border-radius:12px; display:grid; place-items:center; font-size:17px;
+  background:var(--card); border:1px solid var(--border); transition:.18s;}
+.icon-btn:hover{background:var(--card2); border-color:var(--border2); transform:translateY(-1px);}
+.icon-btn:active{transform:scale(.93);}
+.icon-btn.spin svg, .icon-btn.spin{animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+main{max-width:1060px; margin:0 auto; padding:18px 16px calc(96px + env(safe-area-inset-bottom));}
+.page{display:none; animation:pagein .32s cubic-bezier(.2,.9,.3,1);}
+.page.active{display:block;}
+@keyframes pagein{from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:none;}}
+
+/* ---------- Tab Bar ---------- */
+#tabbar{
+  position:fixed; left:50%; transform:translateX(-50%);
+  bottom:calc(12px + env(safe-area-inset-bottom)); z-index:60;
+  display:flex; gap:2px; padding:6px;
+  background:rgba(13,18,32,.82); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--border2); border-radius:22px; box-shadow:var(--shadow);
+  max-width:calc(100vw - 20px);
+}
+.tabbtn{position:relative; display:flex; flex-direction:column; align-items:center; gap:2px;
+  padding:8px 13px; border-radius:16px; color:var(--muted); font-size:10.5px; font-weight:600; transition:.2s; white-space:nowrap;}
+.tabbtn .em{font-size:19px; transition:.2s;}
+.tabbtn:hover{color:var(--text);}
+.tabbtn.active{color:#fff; background:linear-gradient(135deg, color-mix(in srgb,var(--a1) 85%, #000), color-mix(in srgb,var(--a2) 85%, #000));
+  box-shadow:0 4px 20px color-mix(in srgb, var(--a1) 45%, transparent);}
+.tabbtn.active .em{transform:scale(1.12) translateY(-1px);}
+@media (max-width:520px){ .tabbtn{padding:8px 9.5px;} .tabbtn span.lbl{display:none;} .tabbtn .em{font-size:22px;} }
+
+/* ---------- Components ---------- */
+.card{background:var(--card); border:1px solid var(--border); border-radius:var(--r-lg);
+  padding:18px; backdrop-filter:blur(8px); position:relative; overflow:hidden;}
+.card.glow::before{content:''; position:absolute; inset:-1px; border-radius:inherit; padding:1px; pointer-events:none;
+  background:linear-gradient(135deg, color-mix(in srgb,var(--a1) 60%, transparent), transparent 40%, color-mix(in srgb,var(--a2) 60%, transparent));
+  -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite:xor; mask-composite:exclude;}
+.card h3{font-size:13px; text-transform:uppercase; letter-spacing:1.4px; color:var(--muted); margin-bottom:12px;
+  display:flex; align-items:center; gap:8px;}
+.card h3 .grow{flex:1;}
+.grad-text{background:linear-gradient(90deg,var(--a1),var(--a2)); -webkit-background-clip:text; background-clip:text; color:transparent;}
+
+.pill{padding:8px 15px; border-radius:99px; font-size:13px; font-weight:600; color:var(--muted);
+  background:var(--card); border:1px solid var(--border); transition:.18s; white-space:nowrap;}
+.pill:hover{color:var(--text); border-color:var(--border2);}
+.pill.active{color:#fff; background:linear-gradient(135deg,var(--a1),var(--a2)); border-color:transparent;
+  box-shadow:0 4px 16px color-mix(in srgb,var(--a1) 40%, transparent);}
+.pillrow{display:flex; gap:8px; overflow-x:auto; padding:2px; scrollbar-width:none; margin-bottom:14px;}
+.pillrow::-webkit-scrollbar{display:none;}
+
+.chip{padding:7px 13px; border-radius:99px; font-size:13px; font-weight:500; display:inline-flex; align-items:center; gap:7px;
+  background:var(--card); border:1px solid var(--border); transition:.15s; cursor:pointer;}
+.chip img{width:17px;height:17px; object-fit:contain;}
+.chip:hover{border-color:var(--border2);}
+.chip.on{background:color-mix(in srgb, var(--a1) 22%, transparent); border-color:var(--a1); color:#fff;}
+.chiprow{display:flex; flex-wrap:wrap; gap:8px;}
+
+.seg{display:inline-flex; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:4px; gap:2px;}
+.seg button{padding:7px 16px; border-radius:10px; font-size:13px; font-weight:600; color:var(--muted); transition:.18s;}
+.seg button.active{background:linear-gradient(135deg,var(--a1),var(--a2)); color:#fff;}
+
+.btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 20px; border-radius:14px;
+  font-size:14px; font-weight:600; background:linear-gradient(135deg,var(--a1),var(--a2)); color:#fff;
+  box-shadow:0 6px 22px color-mix(in srgb,var(--a1) 40%, transparent); transition:.18s;}
+.btn:hover{transform:translateY(-1px); filter:brightness(1.08);}
+.btn:active{transform:scale(.97);}
+.btn.ghost{background:var(--card); border:1px solid var(--border2); box-shadow:none; color:var(--text);}
+.btn.sm{padding:8px 14px; font-size:13px; border-radius:11px;}
+
+.input{width:100%; padding:12px 15px; border-radius:13px; background:rgba(0,0,0,.3); color:var(--text);
+  border:1px solid var(--border); font-size:14px; outline:none; transition:.18s;}
+.input:focus{border-color:var(--a1); box-shadow:0 0 0 3px color-mix(in srgb, var(--a1) 22%, transparent);}
+.input::placeholder{color:var(--muted2);}
+
+.toggle{position:relative; width:46px; height:27px; border-radius:99px; background:rgba(255,255,255,.12);
+  border:1px solid var(--border); transition:.2s; flex-shrink:0;}
+.toggle::after{content:''; position:absolute; top:2.5px; left:3px; width:20px; height:20px; border-radius:50%;
+  background:#cbd2e6; transition:.2s cubic-bezier(.3,1.4,.5,1);}
+.toggle.on{background:linear-gradient(135deg,var(--a1),var(--a2)); border-color:transparent;}
+.toggle.on::after{left:21px; background:#fff;}
+
+.badge{font-size:10.5px; font-weight:700; letter-spacing:.8px; padding:3.5px 9px; border-radius:99px;
+  background:var(--card2); border:1px solid var(--border); color:var(--muted); text-transform:uppercase;}
+.badge.live{background:rgba(244,63,94,.16); border-color:rgba(244,63,94,.5); color:#fda4af;}
+.badge.live::before{content:''; display:inline-block; width:7px; height:7px; border-radius:50%; background:#f43f5e;
+  margin-right:6px; animation:pulse 1.1s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1; box-shadow:0 0 0 0 rgba(244,63,94,.6);} 50%{opacity:.6; box-shadow:0 0 0 5px rgba(244,63,94,0);}}
+.up{color:var(--good);} .down{color:var(--bad);}
+
+.skel{border-radius:var(--r-md); background:linear-gradient(100deg, rgba(255,255,255,.05) 40%, rgba(255,255,255,.11) 50%, rgba(255,255,255,.05) 60%);
+  background-size:200% 100%; animation:shimmer 1.3s infinite; height:64px; margin-bottom:10px;}
+@keyframes shimmer{to{background-position:-200% 0;}}
+.err{padding:20px; text-align:center; color:var(--muted); font-size:14px;}
+.err .btn{margin-top:12px;}
+.hint{color:var(--muted2); font-size:12px; line-height:1.5;}
+.stamp{color:var(--muted2); font-size:11px; text-align:right; margin-top:10px;}
+
+.grid{display:grid; gap:14px;}
+.grid.g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr));}
+.grid.g3{grid-template-columns:repeat(auto-fit,minmax(230px,1fr));}
+.mt{margin-top:14px;} .mb{margin-bottom:14px;}
+
+/* ---------- Home ---------- */
+#homeHero{padding:26px 22px;}
+#homeGreet{font-size:clamp(26px,6vw,38px); font-weight:700; line-height:1.12;}
+#homeSub{color:var(--muted); margin-top:10px; font-size:14.5px; line-height:1.65; max-width:640px;}
+.tickerwrap{overflow:hidden; border-radius:var(--r-md); border:1px solid var(--border);
+  background:var(--card); margin:16px 0; position:relative;}
+.tickerwrap::before{content:'NEWS'; position:absolute; left:0; top:0; bottom:0; z-index:2; display:flex; align-items:center;
+  padding:0 12px; font-size:10px; font-weight:700; letter-spacing:1.5px;
+  background:linear-gradient(135deg,var(--a1),var(--a2)); color:#fff;}
+.ticker{display:flex; gap:44px; padding:11px 0; white-space:nowrap; animation:tick 55s linear infinite; padding-left:70px; width:max-content;}
+.tickerwrap:hover .ticker{animation-play-state:paused;}
+.ticker span{font-size:13px; color:var(--muted);}
+.ticker span b{color:var(--text); font-weight:600;}
+@keyframes tick{to{transform:translateX(-50%);}}
+.mini{cursor:pointer; transition:.2s;}
+.mini:hover{transform:translateY(-3px); border-color:var(--border2); background:var(--card2);}
+.mini .big{font-size:26px; font-weight:700; margin-top:2px;}
+.mini .sub{color:var(--muted); font-size:12.5px; margin-top:3px; line-height:1.45;}
+.mini .emoji{font-size:26px; float:right;}
+
+/* ---------- Fußball ---------- */
+.mdnav{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+.mdnav .lbl{flex:1; text-align:center; font-weight:700; font-size:15px;}
+.match{display:flex; flex-direction:column; gap:0; background:var(--card); border:1px solid var(--border);
+  border-radius:var(--r-md); margin-bottom:10px; overflow:hidden; transition:.2s;}
+.match:hover{border-color:var(--border2);}
+.match.goalflash{animation:goalflash 1.6s ease;}
+@keyframes goalflash{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--a2) 80%, transparent); border-color:var(--a2);}
+  100%{box-shadow:0 0 0 22px transparent;}}
+.match .row{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; padding:14px 12px; cursor:pointer;}
+.match .team{display:flex; align-items:center; gap:9px; font-weight:600; font-size:14px; min-width:0;}
+.match .team.t2{flex-direction:row-reverse; text-align:right;}
+.match .team .nm{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.match .team.fav .nm{color:var(--a2);}
+.tbadge{width:30px; height:30px; border-radius:9px; background:rgba(255,255,255,.07); display:grid; place-items:center;
+  font-size:11px; font-weight:700; flex-shrink:0; overflow:hidden;}
+.tbadge img{width:24px; height:24px; object-fit:contain;}
+.match .mid{text-align:center; min-width:86px;}
+.match .score{font-size:22px; font-weight:700; letter-spacing:1px;}
+.match .score.pending{color:var(--muted2); font-size:15px; font-weight:600;}
+.match .when{font-size:10.5px; color:var(--muted); margin-top:3px;}
+.match .foot{display:flex; align-items:center; gap:8px; padding:0 12px 10px; margin-top:-4px;}
+.match .foot .sp{flex:1;}
+.bell{font-size:15px; opacity:.45; transition:.15s; padding:5px 8px; border-radius:9px;}
+.bell:hover{background:var(--card2);}
+.bell.on{opacity:1; filter:drop-shadow(0 0 7px color-mix(in srgb, var(--a2) 70%, transparent));}
+.mdetail{padding:4px 16px 14px; border-top:1px dashed var(--border); display:none;}
+.match.open .mdetail{display:block; animation:pagein .25s;}
+.goalrow{display:flex; align-items:center; gap:10px; padding:7px 0; font-size:13.5px; border-bottom:1px solid rgba(255,255,255,.04);}
+.goalrow:last-child{border-bottom:none;}
+.goalrow .min{width:42px; font-weight:700; color:var(--a2);}
+.goalrow .gsc{margin-left:auto; font-weight:700; color:var(--muted);}
+table.tbl{width:100%; border-collapse:collapse; font-size:13.5px;}
+table.tbl th{color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:1px; text-align:left; padding:8px 8px; font-weight:600;}
+table.tbl td{padding:9px 8px; border-top:1px solid rgba(255,255,255,.05);}
+table.tbl tr.z-cl td:first-child{box-shadow:inset 3px 0 0 var(--good);}
+table.tbl tr.z-el td:first-child{box-shadow:inset 3px 0 0 var(--warn);}
+table.tbl tr.z-ab td:first-child{box-shadow:inset 3px 0 0 var(--bad);}
+table.tbl tr.favrow{background:color-mix(in srgb, var(--a1) 10%, transparent);}
+table.tbl .tm{display:flex; align-items:center; gap:9px; font-weight:600;}
+.num{text-align:right;}
+.favstrip{display:flex; gap:10px; overflow-x:auto; padding:2px; margin-bottom:14px; scrollbar-width:none;}
+.favstrip::-webkit-scrollbar{display:none;}
+.favnext{min-width:230px; padding:13px 15px; cursor:default;}
+.favnext .vs{display:flex; align-items:center; gap:9px; font-weight:700; font-size:14px; margin:7px 0;}
+.favnext .cd{font-size:13px; color:var(--a2); font-weight:600;}
+
+/* ---------- Wetter ---------- */
+#wxHero{display:flex; flex-wrap:wrap; align-items:center; gap:20px; padding:24px;}
+#wxHero .t{font-size:clamp(52px,11vw,84px); font-weight:700; line-height:1;}
+#wxHero .cond{font-size:17px; color:var(--muted); margin-top:6px;}
+#wxHero .bigicon{font-size:clamp(60px,12vw,92px); animation:float 4.5s ease-in-out infinite; filter:drop-shadow(0 8px 22px rgba(0,0,0,.4));}
+@keyframes float{0%,100%{transform:translateY(0) rotate(-2deg);} 50%{transform:translateY(-12px) rotate(2deg);}}
+.wxstats{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+.wxstat{padding:9px 14px; border-radius:12px; background:var(--card2); border:1px solid var(--border); font-size:13px;}
+.wxstat b{display:block; font-size:15px; margin-top:1px;}
+.hours{display:flex; gap:6px; overflow-x:auto; padding:4px 2px 8px; scrollbar-width:thin;}
+.hour{min-width:62px; text-align:center; padding:11px 6px; border-radius:14px; background:var(--card); border:1px solid var(--border); font-size:12px;}
+.hour .e{font-size:21px; margin:5px 0;}
+.hour b{font-size:14px;}
+.hour .rp{color:var(--a2); font-size:10.5px; margin-top:3px;}
+.days{display:flex; flex-direction:column;}
+.day{display:grid; grid-template-columns:88px 34px 1fr auto; align-items:center; gap:12px; padding:11px 4px;
+  border-bottom:1px solid rgba(255,255,255,.05); font-size:14px;}
+.day:last-child{border:none;}
+.day .e{font-size:22px; text-align:center;}
+.tempbar{height:6px; border-radius:99px; background:rgba(255,255,255,.09); position:relative; overflow:hidden;}
+.tempbar i{position:absolute; top:0; bottom:0; border-radius:99px; background:linear-gradient(90deg,var(--a2),var(--a1));}
+.day .mm{font-weight:600; white-space:nowrap;}
+.day .mm .lo{color:var(--muted); font-weight:500;}
+.sugbox{position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:30; background:#111827; border:1px solid var(--border2);
+  border-radius:14px; overflow:hidden; box-shadow:var(--shadow); display:none;}
+.sugbox.show{display:block;}
+.sugbox button{display:block; width:100%; text-align:left; padding:11px 15px; font-size:14px;}
+.sugbox button:hover{background:var(--card2);}
+
+/* ---------- Krypto ---------- */
+.gaugewrap{display:flex; align-items:center; gap:18px; flex-wrap:wrap;}
+.gauge{width:150px;}
+.gauge .val{font-size:30px; font-weight:700;}
+.coin{display:grid; grid-template-columns:30px 34px minmax(0,1.3fr) auto 74px auto; align-items:center; gap:11px;
+  padding:11px 8px; border-bottom:1px solid rgba(255,255,255,.05); font-size:14px;}
+.coin:last-child{border:none;}
+.coin img{width:28px; height:28px; border-radius:50%;}
+.coin .rk{color:var(--muted2); font-size:12px;}
+.coin .nm b{display:block;}
+.coin .nm span{color:var(--muted); font-size:11.5px; text-transform:uppercase;}
+.coin .pr{text-align:right; font-weight:600;}
+.coin .pr small{display:block; font-weight:600; font-size:12px;}
+.coin .star{font-size:16px; opacity:.35; padding:4px 6px;}
+.coin .star.on{opacity:1;}
+.mover{padding:13px 15px;}
+.mover .sym{font-weight:700;}
+.mover .pc{font-size:20px; font-weight:700; margin-top:2px;}
+@media (max-width:560px){ .coin{grid-template-columns:26px 30px minmax(0,1fr) auto auto;} .coin canvas{display:none;} }
+
+/* ---------- News ---------- */
+.news{display:flex; gap:14px; background:var(--card); border:1px solid var(--border); border-radius:var(--r-md);
+  padding:12px; margin-bottom:10px; cursor:pointer; transition:.2s; text-decoration:none;}
+.news:hover{border-color:var(--border2); background:var(--card2); transform:translateY(-2px);}
+.news img{width:118px; height:76px; object-fit:cover; border-radius:10px; flex-shrink:0; background:var(--card2);}
+.news .tx{min-width:0; flex:1;}
+.news .top{font-size:11px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; margin-bottom:4px;
+  background:linear-gradient(90deg,var(--a1),var(--a2)); -webkit-background-clip:text; background-clip:text; color:transparent;}
+.news h4{font-size:15px; line-height:1.35; font-weight:600;}
+.news p{font-size:12.5px; color:var(--muted); margin-top:5px; line-height:1.45;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+.news .meta{font-size:11px; color:var(--muted2); margin-top:6px;}
+@media (max-width:480px){ .news img{width:86px; height:64px;} .news h4{font-size:14px;} .news p{display:none;} }
+
+/* ---------- Fun ---------- */
+.funcard .body{font-size:15px; line-height:1.6; min-height:56px;}
+.reveal{filter:blur(7px); cursor:pointer; transition:.3s; user-select:none;}
+.reveal.shown{filter:none;}
+.issrow{display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.05); font-size:14px;}
+.issrow:last-child{border:none;}
+.issrow b{font-weight:600;}
+.otd{padding:9px 0; border-bottom:1px solid rgba(255,255,255,.05); font-size:13.5px; line-height:1.5;}
+.otd:last-child{border:none;}
+.otd b{color:var(--a2); margin-right:7px;}
+.holi{display:flex; align-items:center; gap:12px; padding:9px 0; font-size:14px; border-bottom:1px solid rgba(255,255,255,.05);}
+.holi:last-child{border:none;}
+.holi .d{margin-left:auto; color:var(--a2); font-weight:600; font-size:13px; white-space:nowrap;}
+#wkndBody .big{font-size:30px; font-weight:700; margin-top:4px;}
+
+/* ---------- Toasts / Overlays ---------- */
+#toasts{position:fixed; bottom:calc(86px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%);
+  z-index:200; display:flex; flex-direction:column; gap:9px; width:min(430px, calc(100vw - 28px)); pointer-events:none;}
+.toast{pointer-events:auto; display:flex; gap:12px; align-items:flex-start; padding:14px 16px; border-radius:16px;
+  background:rgba(17,24,39,.94); border:1px solid var(--border2); box-shadow:var(--shadow);
+  animation:toastin .35s cubic-bezier(.2,1.2,.4,1);}
+.toast .em{font-size:22px;}
+.toast b{display:block; font-size:14px;}
+.toast p{font-size:12.5px; color:var(--muted); margin-top:2px; line-height:1.4;}
+.toast.out{animation:toastout .3s forwards;}
+@keyframes toastin{from{opacity:0; transform:translateY(18px) scale(.94);} to{opacity:1; transform:none;}}
+@keyframes toastout{to{opacity:0; transform:translateY(12px) scale(.95);}}
+#cfx{position:fixed; inset:0; z-index:300; pointer-events:none;}
+
+.overlay{position:fixed; inset:0; z-index:150; background:rgba(4,7,14,.68); backdrop-filter:blur(10px);
+  display:none; align-items:flex-end; justify-content:center;}
+.overlay.show{display:flex; animation:fadein .25s;}
+@keyframes fadein{from{opacity:0;} to{opacity:1;}}
+.sheet{width:min(620px,100vw); max-height:88dvh; overflow-y:auto; background:#0d1424; border:1px solid var(--border2);
+  border-radius:26px 26px 0 0; padding:22px 20px calc(26px + env(safe-area-inset-bottom));
+  animation:sheetin .35s cubic-bezier(.2,1,.35,1);}
+@media (min-width:640px){ .overlay{align-items:center;} .sheet{border-radius:26px; max-height:82dvh;} }
+@keyframes sheetin{from{transform:translateY(60px); opacity:0;} to{transform:none; opacity:1;}}
+.sheet .head{display:flex; align-items:center; gap:10px; margin-bottom:18px;}
+.sheet .head h2{font-size:20px; flex:1;}
+.setrow{display:flex; align-items:center; gap:14px; padding:13px 2px; border-bottom:1px solid rgba(255,255,255,.05);}
+.setrow .tx{flex:1; min-width:0;}
+.setrow .tx b{font-size:14.5px; font-weight:600; display:block;}
+.setrow .tx span{font-size:12px; color:var(--muted); line-height:1.4;}
+.sethead{font-size:12px; text-transform:uppercase; letter-spacing:1.4px; color:var(--muted); margin:20px 0 6px; font-weight:600;}
+.swatch{width:44px; height:44px; border-radius:14px; border:2px solid transparent; transition:.15s;}
+.swatch.on{border-color:#fff; transform:scale(1.1); box-shadow:0 0 0 3px rgba(255,255,255,.18);}
+
+/* ---------- Onboarding ---------- */
+#onb{position:fixed; inset:0; z-index:400; background:
+  radial-gradient(900px 500px at 80% -5%, color-mix(in srgb,var(--a1) 22%, transparent), transparent 65%),
+  radial-gradient(800px 500px at 10% 105%, color-mix(in srgb,var(--a2) 18%, transparent), transparent 65%), var(--bg);
+  display:none; overflow-y:auto;}
+#onb.show{display:block;}
+#onbInner{max-width:560px; margin:0 auto; padding:8dvh 22px 60px; min-height:100dvh; display:flex; flex-direction:column;}
+#onbInner h1{font-size:clamp(30px,7vw,44px); line-height:1.1; margin-bottom:12px;}
+#onbInner .lead{color:var(--muted); font-size:15px; line-height:1.65; margin-bottom:26px;}
+.dots{display:flex; gap:7px; margin-bottom:30px;}
+.dots i{width:26px; height:5px; border-radius:99px; background:var(--card2); transition:.3s;}
+.dots i.on{background:linear-gradient(90deg,var(--a1),var(--a2)); width:40px;}
+#onbBody{flex:1;}
+.onbnav{display:flex; gap:10px; margin-top:30px;}
+.onbnav .btn{flex:1;}
+</style>
+</head>
+<body>
+
+<div id="bg"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+
+<header>
+  <div class="logo"><div class="bolt">⚡</div><div>PULSE<small>DEIN INFO-HUB</small></div></div>
+  <div id="clockwrap"><div id="clock">--:--:--</div><div id="dateline"></div></div>
+  <button class="icon-btn" id="btnRefresh" title="Alles aktualisieren">⟳</button>
+  <button class="icon-btn" id="btnSettings" title="Einstellungen">⚙️</button>
+</header>
+
+<main>
+  <!-- ============ HOME ============ -->
+  <section class="page active" id="page-home">
+    <div class="card glow" id="homeHero">
+      <div id="homeGreet">Moin! 👋</div>
+      <div id="homeSub">Dein Tag wird geladen…</div>
+    </div>
+    <div class="tickerwrap"><div class="ticker" id="homeTicker"><span>Lade Schlagzeilen…</span></div></div>
+    <div class="grid g3" id="homeGrid"></div>
+    <div class="card mt" id="forYouCard">
+      <h3>🎯 Für dich — Deine Themen<span class="grow"></span><button class="btn sm ghost" id="btnEditTopics">Themen ändern</button></h3>
+      <div id="forYou"></div>
+    </div>
+  </section>
+
+  <!-- ============ FUSSBALL ============ -->
+  <section class="page" id="page-fussball">
+    <div class="pillrow" id="leaguePills"></div>
+    <div class="favstrip" id="favStrip"></div>
+    <div class="mdnav">
+      <button class="icon-btn" id="mdPrev">‹</button>
+      <div class="lbl" id="mdLabel">Spieltag</div>
+      <button class="icon-btn" id="mdNext">›</button>
+    </div>
+    <div style="display:flex; justify-content:center; margin-bottom:14px;">
+      <div class="seg" id="segFb">
+        <button data-seg="spiele" class="active">Spiele</button>
+        <button data-seg="tabelle">Tabelle</button>
+        <button data-seg="torjaeger">Torjäger</button>
+      </div>
+    </div>
+    <div id="fbContent"></div>
+    <div class="stamp" id="fbStamp"></div>
+  </section>
+
+  <!-- ============ WETTER ============ -->
+  <section class="page" id="page-wetter">
+    <div style="display:flex; gap:10px; margin-bottom:14px; position:relative;">
+      <div style="flex:1; position:relative;">
+        <input class="input" id="wxSearch" placeholder="🔍 Stadt suchen…" autocomplete="off">
+        <div class="sugbox" id="wxSug"></div>
+      </div>
+      <button class="icon-btn" id="wxGeo" title="Meinen Standort verwenden" style="width:46px;height:46px;">📍</button>
+    </div>
+    <div id="wxContent"><div class="skel" style="height:180px"></div><div class="skel" style="height:110px"></div></div>
+  </section>
+
+  <!-- ============ KRYPTO ============ -->
+  <section class="page" id="page-krypto">
+    <div class="grid g2 mb">
+      <div class="card glow" id="fngCard"><h3>😱 Fear &amp; Greed Index</h3><div class="gaugewrap" id="fngBody"><div class="skel" style="width:100%"></div></div></div>
+      <div class="card"><h3>🔥 Trending</h3><div class="chiprow" id="trendWrap"><div class="skel" style="width:100%"></div></div></div>
+    </div>
+    <div class="card mb"><h3>📡 Markt-Radar — Top-Mover 24h</h3><div class="grid g3" id="moversWrap"></div></div>
+    <div class="card mb">
+      <h3>💰 Kurse<span class="grow"></span></h3>
+      <input class="input mb" id="coinSearch" placeholder="🔍 Coin filtern…" style="margin-bottom:12px;">
+      <div id="coinList"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+      <div class="stamp" id="cryStamp"></div>
+    </div>
+    <div class="card"><h3>📰 Krypto in den News <span class="badge">via tagesschau</span></h3><div id="cnewsWrap" class="hint">Lade…</div></div>
+  </section>
+
+  <!-- ============ NEWS ============ -->
+  <section class="page" id="page-news">
+    <div class="pillrow" id="newsPills"></div>
+    <div id="newsList"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+    <div class="stamp" id="newsStamp"></div>
+  </section>
+
+  <!-- ============ FUN ============ -->
+  <section class="page" id="page-fun">
+    <div class="grid g2">
+      <div class="card funcard"><h3>😂 Witz<span class="grow"></span><button class="icon-btn" id="jokeReload">⟳</button></h3><div class="body" id="jokeBody">…</div></div>
+      <div class="card funcard"><h3>🧠 Unnützes Wissen<span class="grow"></span><button class="icon-btn" id="factReload">⟳</button></h3><div class="body" id="factBody">…</div></div>
+      <div class="card funcard"><h3>📜 Heute vor … Jahren</h3><div class="body" id="otdBody">…</div></div>
+      <div class="card funcard glow"><h3>🛰️ ISS Live-Tracker</h3><div class="body" id="issBody">…</div></div>
+      <div class="card funcard"><h3>🏖️ Nächste Feiertage</h3><div class="body" id="holiBody">…</div></div>
+      <div class="card funcard"><h3>🎉 Wochenend-Countdown</h3><div class="body" id="wkndBody">…</div></div>
+    </div>
+  </section>
+</main>
+
+<nav id="tabbar">
+  <button class="tabbtn active" data-page="home"><span class="em">⚡</span><span class="lbl">Für dich</span></button>
+  <button class="tabbtn" data-page="fussball"><span class="em">⚽</span><span class="lbl">Fußball</span></button>
+  <button class="tabbtn" data-page="wetter"><span class="em">🌤️</span><span class="lbl">Wetter</span></button>
+  <button class="tabbtn" data-page="krypto"><span class="em">₿</span><span class="lbl">Krypto</span></button>
+  <button class="tabbtn" data-page="news"><span class="em">📰</span><span class="lbl">News</span></button>
+  <button class="tabbtn" data-page="fun"><span class="em">🎲</span><span class="lbl">Fun</span></button>
+</nav>
+
+<div id="toasts"></div>
+<canvas id="cfx"></canvas>
+
+<div class="overlay" id="modal"><div class="sheet">
+  <div class="head"><h2>⚙️ Einstellungen</h2><button class="icon-btn" id="modalClose">✕</button></div>
+  <div id="modalBody"></div>
+</div></div>
+
+<div id="onb"><div id="onbInner">
+  <div class="dots" id="onbDots"></div>
+  <div id="onbBody"></div>
+</div></div>
+
+<script>
+/* ================================================================
+   PULSE — Dein persönlicher Info-Hub
+   Fußball • Wetter • Krypto • News • Fun — alles live, alles in einer Datei.
+   Datenquellen: OpenLigaDB, Open-Meteo, CoinGecko, alternative.me,
+   tagesschau-API, date.nager.at, uselessfacts, JokeAPI, wheretheiss.at,
+   Wikimedia. Alle kostenlos & ohne API-Key.
+   ================================================================ */
+'use strict';
+
+/* ---------------- Utils ---------------- */
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtEUR = n => n == null ? '–' : n.toLocaleString('de-DE', {style:'currency', currency:'EUR', maximumFractionDigits: n < 1 ? 5 : (n < 100 ? 2 : 0)});
+const fmtNum = n => n == null ? '–' : Math.round(n).toLocaleString('de-DE');
+const fmtPct = n => n == null ? '–' : (n >= 0 ? '+' : '') + n.toFixed(2).replace('.', ',') + ' %';
+const pctCls = n => n >= 0 ? 'up' : 'down';
+const fmtTime = d => new Date(d).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
+const fmtDay  = d => new Date(d).toLocaleDateString('de-DE', {weekday:'short', day:'2-digit', month:'2-digit'});
+const WD = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+
+function timeAgo(d){
+  const s = (Date.now() - new Date(d).getTime()) / 1000;
+  if (s < 60) return 'gerade eben';
+  if (s < 3600) return `vor ${Math.floor(s/60)} Min`;
+  if (s < 86400) return `vor ${Math.floor(s/3600)} Std`;
+  if (s < 172800) return 'gestern';
+  return new Date(d).toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'});
+}
+function countdown(d){
+  let s = Math.max(0, (new Date(d).getTime() - Date.now()) / 1000);
+  const t = Math.floor(s/86400), h = Math.floor(s%86400/3600), m = Math.floor(s%3600/60);
+  if (t > 0) return `in ${t} T ${h} Std`;
+  if (h > 0) return `in ${h} Std ${m} Min`;
+  if (m > 0) return `in ${m} Min`;
+  return 'jetzt!';
+}
+const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+function haversine(a, b, c, d){
+  const R = 6371, r = x => x * Math.PI / 180;
+  const h = Math.sin(r(c-a)/2)**2 + Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+async function fetchJSON(url, {timeout = 14000, proxy = false} = {}){
+  const tryFetch = async u => {
+    const ctrl = new AbortController();
+    const tm = setTimeout(() => ctrl.abort(), timeout);
+    try {
+      const r = await fetch(u, {signal: ctrl.signal});
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return await r.json();
+    } finally { clearTimeout(tm); }
+  };
+  try { return await tryFetch(url); }
+  catch (e) {
+    if (!proxy) throw e;
+    return await tryFetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url));
+  }
+}
+
+function errBox(el, msg, retry){
+  el.innerHTML = `<div class="err">😕 ${esc(msg)}<br><button class="btn sm mt">Nochmal versuchen</button></div>`;
+  el.querySelector('button').onclick = retry;
+}
+const skels = n => Array.from({length:n}, () => '<div class="skel"></div>').join('');
+
+/* Team-Logo mit Fallback auf Kürzel-Badge */
+function teamBadge(t){
+  const wrap = document.createElement('span');
+  wrap.className = 'tbadge';
+  const ini = esc((t.shortName || t.teamName || '?').slice(0,3).toUpperCase());
+  if (t.teamIconUrl && t.teamIconUrl.startsWith('http')) {
+    const img = document.createElement('img');
+    img.src = t.teamIconUrl; img.alt = ''; img.loading = 'lazy';
+    img.onerror = () => { wrap.textContent = ini; };
+    wrap.appendChild(img);
+  } else wrap.textContent = ini;
+  return wrap;
+}
+
+/* ---------------- State ---------------- */
+const DEFAULTS = {
+  name: '', accent: 'plasma', onboarded: false,
+  favTeams: [],            // [{id,name,short,icon}]
+  favCoins: ['bitcoin','ethereum','solana'],
+  topics: [],              // ["KI","Gaming",...]
+  place: null,             // {name,lat,lon}
+  league: 'bl1',
+  notifMaster: true, notifFavAuto: true, notifTopics: true, notifSound: true,
+  notifMatches: {},        // matchID -> true(an)/false(stumm)
+};
+let state = {...DEFAULTS};
+try { state = {...DEFAULTS, ...JSON.parse(localStorage.getItem('pulseState_v1') || '{}')}; } catch(e){}
+const save = () => { try { localStorage.setItem('pulseState_v1', JSON.stringify(state)); } catch(e){} };
+let seenNews = new Set();
+try { seenNews = new Set(JSON.parse(localStorage.getItem('pulseSeen_v1') || '[]')); } catch(e){}
+const saveSeen = () => { try { localStorage.setItem('pulseSeen_v1', JSON.stringify([...seenNews].slice(-600))); } catch(e){} };
+
+const cache = {
+  weather: null, coins: [], trending: [], fng: null,
+  news: {},               // cat -> [articles]
+  corpus: new Map(),      // articleId -> article (für Themen & Krypto-News)
+  matchday: {},           // league -> {group, matches, ts}
+  groups: {},             // league -> [groups]
+  tables: {}, scorers: {}, teams: {},
+  leagueIds: {},          // league -> leagueId
+  favNext: {},            // teamId -> match
+  holidays: [], iss: null,
+};
+const applyAccent = () => document.documentElement.dataset.accent = state.accent;
+applyAccent();
+
+/* ---------------- Router ---------------- */
+const pages = ['home','fussball','wetter','krypto','news','fun'];
+let curPage = 'home';
+function showPage(p){
+  curPage = p;
+  pages.forEach(x => $('#page-' + x).classList.toggle('active', x === p));
+  $$('.tabbtn').forEach(b => b.classList.toggle('active', b.dataset.page === p));
+  window.scrollTo({top:0, behavior:'smooth'});
+  if (p === 'fussball') fbEnsure();
+  if (p === 'wetter')   wxEnsure();
+  if (p === 'krypto')   cryEnsure();
+  if (p === 'news')     newsEnsure();
+  if (p === 'fun')      funEnsure();
+  if (p === 'home')     renderHome();
+}
+$$('.tabbtn').forEach(b => b.onclick = () => showPage(b.dataset.page));
+
+/* ---------------- Uhr ---------------- */
+function tickClock(){
+  const n = new Date();
+  $('#clock').textContent = n.toLocaleTimeString('de-DE');
+  $('#dateline').textContent = n.toLocaleDateString('de-DE', {weekday:'long', day:'numeric', month:'long'});
+}
+setInterval(tickClock, 1000); tickClock();
+
+/* ---------------- Toasts, Sound, Konfetti, Notifications ---------------- */
+function toast(title, body = '', emoji = '🔔', ms = 6000){
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = `<span class="em">${emoji}</span><div><b>${esc(title)}</b><p>${esc(body)}</p></div>`;
+  $('#toasts').appendChild(t);
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 320); }, ms);
+  t.onclick = () => t.remove();
+}
+let audioCtx = null;
+function goalSound(){
+  if (!state.notifSound) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((f, i) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.001, audioCtx.currentTime + i*0.09);
+      g.gain.exponentialRampToValueAtTime(0.18, audioCtx.currentTime + i*0.09 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i*0.09 + 0.22);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(audioCtx.currentTime + i*0.09); o.stop(audioCtx.currentTime + i*0.09 + 0.25);
+    });
+  } catch(e){}
+}
+function confetti(){
+  const cv = $('#cfx'), ctx = cv.getContext('2d');
+  cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  const cs = getComputedStyle(document.documentElement);
+  const cols = [cs.getPropertyValue('--a1').trim(), cs.getPropertyValue('--a2').trim(), '#fbbf24', '#34d399', '#fff'];
+  const ps = Array.from({length:150}, () => ({
+    x: innerWidth/2 + (Math.random()-0.5)*140, y: innerHeight*0.55,
+    vx: (Math.random()-0.5)*13, vy: -Math.random()*15-5,
+    s: Math.random()*7+3, c: cols[Math.random()*cols.length|0],
+    r: Math.random()*Math.PI, vr: (Math.random()-0.5)*0.3, life: 1
+  }));
+  let frames = 0;
+  (function loop(){
+    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    ps.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.42; p.r += p.vr; p.life -= 0.011;
+      ctx.save(); ctx.globalAlpha = Math.max(0, p.life);
+      ctx.translate(p.x, p.y); ctx.rotate(p.r);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.s/2, -p.s/2, p.s, p.s*0.62);
+      ctx.restore();
+    });
+    if (++frames < 130) requestAnimationFrame(loop);
+    else ctx.clearRect(0, 0, innerWidth, innerHeight);
+  })();
+}
+async function askNotifPermission(){
+  if (!('Notification' in window)) { toast('Nicht verfügbar', 'Dein Browser unterstützt keine Benachrichtigungen.', '🙁'); return false; }
+  if (Notification.permission === 'granted') return true;
+  const p = await Notification.requestPermission();
+  return p === 'granted';
+}
+function pushNote(title, body, emoji = '⚽'){
+  toast(title, body, emoji, 9000);
+  goalSound();
+  try { navigator.vibrate && navigator.vibrate([80, 40, 80]); } catch(e){}
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try { new Notification(title, {body, icon: undefined}); } catch(e){}
+  }
+}
+
+/* ================================================================
+   FUSSBALL  (OpenLigaDB)
+   ================================================================ */
+const OLD = 'https://api.openligadb.de';
+const now0 = new Date();
+const SEASON = now0.getMonth() >= 6 ? now0.getFullYear() : now0.getFullYear() - 1;
+const LEAGUES = [
+  {k:'bl1', name:'Bundesliga',    em:'🏆', table:true},
+  {k:'bl2', name:'2. Bundesliga', em:'⚽', table:true},
+  {k:'bl3', name:'3. Liga',       em:'⚽', table:true},
+  {k:'dfb', name:'DFB-Pokal',     em:'🏅', table:false},
+];
+const fbView = {league: state.league || 'bl1', group: null, seg: 'spiele'};
+
+function scoreOf(m){
+  const r2 = (m.matchResults || []).find(r => r.resultTypeID === 2);
+  const r1 = (m.matchResults || []).find(r => r.resultTypeID === 1);
+  const g  = (m.goals || []).length ? m.goals[m.goals.length - 1] : null;
+  if (m.matchIsFinished && r2) return [r2.pointsTeam1, r2.pointsTeam2];
+  if (g) return [g.scoreTeam1, g.scoreTeam2];
+  if (r2) return [r2.pointsTeam1, r2.pointsTeam2];
+  if (r1) return [r1.pointsTeam1, r1.pointsTeam2];
+  return null;
+}
+function matchStatus(m){
+  const start = Date.parse(m.matchDateTimeUTC);
+  const el = (Date.now() - start) / 60000;
+  if (m.matchIsFinished) return {live:false, done:true, label:'Beendet'};
+  if (el < 0) return {live:false, done:false, label:fmtDay(m.matchDateTimeUTC) + ' · ' + fmtTime(m.matchDateTimeUTC)};
+  if (el < 160) {
+    let min = el <= 45 ? Math.ceil(el) : (el <= 62 ? '45+' : Math.min(90, Math.ceil(el - 17)));
+    return {live:true, done:false, label:`≈ ${min}’`};
+  }
+  return {live:false, done:false, label:'läuft/kein Ergebnis'};
+}
+const isFavTeam  = id => state.favTeams.some(t => t.id === id);
+const isFavMatch = m  => isFavTeam(m.team1?.teamId) || isFavTeam(m.team2?.teamId);
+function notifOn(m){
+  const ex = state.notifMatches[m.matchID];
+  if (ex === true) return true;
+  if (ex === false) return false;
+  return state.notifFavAuto && isFavMatch(m);
+}
+
+function renderLeaguePills(){
+  const w = $('#leaguePills'); w.innerHTML = '';
+  LEAGUES.forEach(L => {
+    const b = document.createElement('button');
+    b.className = 'pill' + (fbView.league === L.k ? ' active' : '');
+    b.textContent = `${L.em} ${L.name}`;
+    b.onclick = () => { fbView.league = L.k; fbView.group = null; state.league = L.k; save(); renderLeaguePills(); loadFb(); };
+    w.appendChild(b);
+  });
+}
+
+async function loadGroups(lg){
+  if (cache.groups[lg]) return cache.groups[lg];
+  cache.groups[lg] = await fetchJSON(`${OLD}/getavailablegroups/${lg}/${SEASON}`);
+  return cache.groups[lg];
+}
+
+async function loadFb(){
+  const el = $('#fbContent');
+  el.innerHTML = skels(6);
+  $('#mdLabel').textContent = '…';
+  const lg = fbView.league;
+  try {
+    const url = fbView.group == null
+      ? `${OLD}/getmatchdata/${lg}`
+      : `${OLD}/getmatchdata/${lg}/${SEASON}/${fbView.group}`;
+    const [ms] = await Promise.all([fetchJSON(url), loadGroups(lg).catch(() => null)]);
+    if (!ms || !ms.length) { el.innerHTML = '<div class="err">Für diesen Wettbewerb liegen gerade keine Daten vor. 🤷</div>'; $('#mdLabel').textContent = '–'; return; }
+    if (ms[0].leagueId) cache.leagueIds[lg] = ms[0].leagueId;
+    fbView.group = ms[0].group?.groupOrderID ?? fbView.group;
+    cache.matchday[lg] = {group: fbView.group, matches: ms, ts: Date.now()};
+    renderFb();
+  } catch(e) {
+    errBox(el, 'Fußballdaten konnten nicht geladen werden. (' + e.message + ')', loadFb);
+  }
+}
+
+function renderFb(){
+  const lg = fbView.league, L = LEAGUES.find(x => x.k === lg);
+  const md = cache.matchday[lg];
+  if (!md) return;
+  $('#mdLabel').textContent = (md.matches[0]?.group?.groupName || `Spieltag ${md.group}`);
+  const gl = cache.groups[lg] || [];
+  $('#mdPrev').disabled = md.group <= 1;
+  $('#mdNext').disabled = gl.length ? md.group >= gl[gl.length-1].groupOrderID : false;
+  $('#segFb').querySelector('[data-seg="tabelle"]').style.display = L.table ? '' : 'none';
+  if (!L.table && fbView.seg === 'tabelle') fbView.seg = 'spiele';
+  $$('#segFb button').forEach(b => b.classList.toggle('active', b.dataset.seg === fbView.seg));
+
+  if (fbView.seg === 'spiele') renderMatches();
+  else if (fbView.seg === 'tabelle') renderTable();
+  else renderScorers();
+  $('#fbStamp').textContent = 'Stand: ' + fmtTime(md.ts) + ' Uhr · Quelle: OpenLigaDB';
+  renderFavStrip();
+}
+
+function renderMatches(){
+  const md = cache.matchday[fbView.league];
+  const el = $('#fbContent'); el.innerHTML = '';
+  const open = new Set($$('.match.open').map(x => x.dataset.mid));
+  md.matches.forEach(m => {
+    const st = matchStatus(m), sc = scoreOf(m);
+    const card = document.createElement('div');
+    card.className = 'match'; card.dataset.mid = m.matchID;
+    if (open.has(String(m.matchID))) card.classList.add('open');
+
+    const row = document.createElement('div'); row.className = 'row';
+    const t1 = document.createElement('div'); t1.className = 'team t1' + (isFavTeam(m.team1.teamId) ? ' fav' : '');
+    t1.appendChild(teamBadge(m.team1));
+    t1.insertAdjacentHTML('beforeend', `<span class="nm">${esc(m.team1.shortName || m.team1.teamName)}</span>`);
+    const t2 = document.createElement('div'); t2.className = 'team t2' + (isFavTeam(m.team2.teamId) ? ' fav' : '');
+    t2.appendChild(teamBadge(m.team2));
+    t2.insertAdjacentHTML('beforeend', `<span class="nm">${esc(m.team2.shortName || m.team2.teamName)}</span>`);
+    const mid = document.createElement('div'); mid.className = 'mid';
+    mid.innerHTML = sc
+      ? `<div class="score">${sc[0]} : ${sc[1]}</div><div class="when">${st.live ? '' : esc(st.label)}</div>`
+      : `<div class="score pending">${esc(st.label)}</div><div class="when">${st.live || st.done ? '' : 'Anstoß'}</div>`;
+    row.append(t1, mid, t2);
+    card.appendChild(row);
+
+    const foot = document.createElement('div'); foot.className = 'foot';
+    foot.innerHTML = (st.live ? '<span class="badge live">Live</span>' : st.done ? '<span class="badge">Beendet</span>' : '') +
+      (st.live && sc ? `<span class="badge">${esc(st.label)}</span>` : '') + '<span class="sp"></span>';
+    const bell = document.createElement('button');
+    bell.className = 'bell' + (notifOn(m) ? ' on' : '');
+    bell.textContent = notifOn(m) ? '🔔' : '🔕';
+    bell.title = 'Benachrichtigungen für dieses Spiel ' + (notifOn(m) ? 'ausschalten' : 'einschalten');
+    bell.onclick = async ev => {
+      ev.stopPropagation();
+      const turnOn = !notifOn(m);
+      state.notifMatches[m.matchID] = turnOn; save();
+      if (turnOn) { await askNotifPermission(); toast('Ticker an! 🔔', `${m.team1.shortName || m.team1.teamName} – ${m.team2.shortName || m.team2.teamName}: Du bekommst Tore & Ergebnis.`, '⚽'); }
+      else toast('Ticker aus', 'Für dieses Spiel gibt es keine Meldungen mehr.', '🔕', 3500);
+      renderMatches();
+    };
+    foot.appendChild(bell);
+    card.appendChild(foot);
+
+    const det = document.createElement('div'); det.className = 'mdetail';
+    const goals = m.goals || [];
+    det.innerHTML = goals.length
+      ? goals.map(g => `<div class="goalrow"><span class="min">${g.matchMinute ?? '–'}’</span><span>⚽ ${esc(g.goalGetterName || 'Unbekannt')}${g.isPenalty ? ' <span class="badge">Elfmeter</span>' : ''}${g.isOwnGoal ? ' <span class="badge">Eigentor</span>' : ''}</span><span class="gsc">${g.scoreTeam1}:${g.scoreTeam2}</span></div>`).join('')
+      : '<div class="hint" style="padding:8px 0">Noch keine Tore eingetragen.</div>';
+    if (m.location?.locationCity) det.innerHTML += `<div class="hint" style="margin-top:8px">📍 ${esc(m.location.locationStadium || '')} ${esc(m.location.locationCity)}${m.numberOfViewers ? ' · 👥 ' + fmtNum(m.numberOfViewers) + ' Zuschauer' : ''}</div>`;
+    card.appendChild(det);
+    row.onclick = () => card.classList.toggle('open');
+    el.appendChild(card);
+  });
+}
+
+async function renderTable(){
+  const lg = fbView.league, el = $('#fbContent');
+  el.innerHTML = skels(6);
+  try {
+    if (!cache.tables[lg]) cache.tables[lg] = await fetchJSON(`${OLD}/getbltable/${lg}/${SEASON}`);
+    const tb = cache.tables[lg];
+    if (!tb.length) { el.innerHTML = '<div class="err">Keine Tabelle verfügbar.</div>'; return; }
+    const n = tb.length;
+    const zone = i => lg === 'bl1' ? (i < 4 ? 'z-cl' : i < 6 ? 'z-el' : i >= n-3 ? 'z-ab' : '') : (i < 2 ? 'z-cl' : i === 2 ? 'z-el' : i >= n-3 ? 'z-ab' : '');
+    const card = document.createElement('div'); card.className = 'card';
+    card.innerHTML = `<table class="tbl"><thead><tr><th>#</th><th>Team</th><th class="num">Sp</th><th class="num">Diff</th><th class="num">Pkt</th></tr></thead><tbody></tbody></table>
+      <div class="hint mt">${lg === 'bl1' ? '🟢 Champions League · 🟡 Europa/Conference League · 🔴 Abstieg' : '🟢 Aufstieg · 🟡 Relegation · 🔴 Abstieg'}</div>`;
+    const tbody = card.querySelector('tbody');
+    tb.forEach((t, i) => {
+      const tr = document.createElement('tr');
+      tr.className = zone(i) + (isFavTeam(t.teamInfoId) ? ' favrow' : '');
+      const td1 = document.createElement('td'); td1.textContent = i + 1;
+      const td2 = document.createElement('td');
+      const tm = document.createElement('div'); tm.className = 'tm';
+      tm.appendChild(teamBadge(t));
+      tm.insertAdjacentHTML('beforeend', `<span>${esc(t.shortName || t.teamName)}</span>` + (isFavTeam(t.teamInfoId) ? ' ⭐' : ''));
+      td2.appendChild(tm);
+      tr.append(td1, td2);
+      tr.insertAdjacentHTML('beforeend', `<td class="num">${t.matches}</td><td class="num">${t.goalDiff > 0 ? '+' : ''}${t.goalDiff}</td><td class="num"><b>${t.points}</b></td>`);
+      tbody.appendChild(tr);
+    });
+    el.innerHTML = ''; el.appendChild(card);
+  } catch(e){ errBox(el, 'Tabelle konnte nicht geladen werden.', renderTable); }
+}
+
+async function renderScorers(){
+  const lg = fbView.league, el = $('#fbContent');
+  el.innerHTML = skels(5);
+  try {
+    if (!cache.scorers[lg]) cache.scorers[lg] = await fetchJSON(`${OLD}/getgoalgetters/${lg}/${SEASON}`);
+    const gg = (cache.scorers[lg] || []).slice(0, 20);
+    if (!gg.length) { el.innerHTML = '<div class="err">Keine Torjägerliste verfügbar.</div>'; return; }
+    const medals = ['🥇','🥈','🥉'];
+    el.innerHTML = `<div class="card"><table class="tbl"><thead><tr><th>#</th><th>Spieler</th><th class="num">Tore</th></tr></thead><tbody>
+      ${gg.map((g, i) => `<tr><td>${medals[i] || (i+1)}</td><td><b>${esc(g.goalGetterName)}</b></td><td class="num"><b>${g.goalCount}</b> ⚽</td></tr>`).join('')}
+    </tbody></table></div>`;
+  } catch(e){ errBox(el, 'Torjäger konnten nicht geladen werden.', renderScorers); }
+}
+
+/* Nächstes Spiel eines Teams suchen (über bekannte Ligen) */
+async function loadFavNext(teamId){
+  if (cache.favNext[teamId]) return cache.favNext[teamId];
+  for (const lg of ['bl1','bl2','bl3']) {
+    const lid = cache.leagueIds[lg];
+    if (!lid) continue;
+    try {
+      const m = await fetchJSON(`${OLD}/getnextmatchbyleagueteam/${lid}/${teamId}`);
+      if (m && m.matchID) { cache.favNext[teamId] = m; return m; }
+    } catch(e){}
+  }
+  return null;
+}
+
+/* Favoriten-Leiste: nächstes Spiel je Lieblingsteam */
+async function renderFavStrip(){
+  const w = $('#favStrip');
+  if (!state.favTeams.length) {
+    w.innerHTML = `<div class="card favnext" style="min-width:100%"><div class="hint">⭐ Lege in den <b>Einstellungen</b> Lieblingsteams fest — dann siehst du hier ihre nächsten Spiele und bekommst automatisch Tor-Alarm!</div></div>`;
+    return;
+  }
+  w.innerHTML = '';
+  for (const t of state.favTeams) {
+    const c = document.createElement('div'); c.className = 'card favnext';
+    c.innerHTML = `<div class="hint">⭐ ${esc(t.name)}</div><div class="vs"><span class="skel" style="height:20px;width:100%;margin:0"></span></div>`;
+    w.appendChild(c);
+    (async () => {
+      try {
+        const m = await loadFavNext(t.id);
+        if (!m || !m.matchID) { c.querySelector('.vs').outerHTML = '<div class="hint">Kein anstehendes Spiel gefunden.</div>'; return; }
+        const vs = c.querySelector('.vs'); vs.innerHTML = '';
+        vs.appendChild(teamBadge(m.team1));
+        vs.insertAdjacentHTML('beforeend', `<span>${esc(m.team1.shortName || m.team1.teamName)} – ${esc(m.team2.shortName || m.team2.teamName)}</span>`);
+        vs.appendChild(teamBadge(m.team2));
+        c.insertAdjacentHTML('beforeend', `<div class="cd">🕒 ${fmtDay(m.matchDateTimeUTC)}, ${fmtTime(m.matchDateTimeUTC)} Uhr · ${countdown(m.matchDateTimeUTC)}</div>`);
+      } catch(e){ c.querySelector('.vs').outerHTML = '<div class="hint">Spielplan gerade nicht erreichbar.</div>'; }
+    })();
+  }
+}
+
+$('#mdPrev').onclick = () => { if (fbView.group > 1) { fbView.group--; loadFb(); } };
+$('#mdNext').onclick = () => { fbView.group++; loadFb(); };
+$$('#segFb button').forEach(b => b.onclick = () => { fbView.seg = b.dataset.seg; renderFb(); });
+
+let fbLoaded = false;
+function fbEnsure(){ renderLeaguePills(); if (!fbLoaded) { fbLoaded = true; loadFb(); } else renderFb(); }
+
+/* ---------- Live-Ticker-Engine ---------- */
+let liveSnap = null; // matchID -> Signatur
+function sigOf(m){
+  const s = scoreOf(m) || ['-','-'];
+  const started = Date.now() >= Date.parse(m.matchDateTimeUTC);
+  return `${(m.goals || []).length}|${s[0]}:${s[1]}|${m.matchIsFinished ? 1 : 0}|${started ? 1 : 0}`;
+}
+async function pollLive(){
+  const snap = {};
+  let changedUI = false;
+  for (const lg of ['bl1','bl2']) {
+    let ms;
+    try { ms = await fetchJSON(`${OLD}/getmatchdata/${lg}`); } catch(e){ continue; }
+    if (!ms || !ms.length) continue;
+    if (ms[0].leagueId) cache.leagueIds[lg] = ms[0].leagueId;
+    const cur = cache.matchday[lg];
+    if (cur && cur.group === (ms[0].group?.groupOrderID ?? cur.group)) { cache.matchday[lg] = {group: cur.group, matches: ms, ts: Date.now()}; changedUI = true; }
+    for (const m of ms) {
+      const sig = sigOf(m);
+      snap[m.matchID] = sig;
+      if (!liveSnap || !(m.matchID in liveSnap) || liveSnap[m.matchID] === sig) continue;
+      const [pg, ps, pf, pst] = liveSnap[m.matchID].split('|');
+      const [ng, nsc, nf, nst] = sig.split('|');
+      const name = `${m.team1.shortName || m.team1.teamName} – ${m.team2.shortName || m.team2.teamName}`;
+      const wants = state.notifMaster && notifOn(m);
+      if (pst === '0' && nst === '1' && nf === '0') { if (wants) pushNote('Anpfiff! 🟢', name + ' läuft jetzt.', '⚽'); }
+      if (+ng > +pg) {
+        const g = m.goals[m.goals.length - 1] || {};
+        if (wants) pushNote(`TOOOR! ${nsc}`, `${name} — ${g.goalGetterName ? g.goalGetterName + ', ' : ''}${g.matchMinute ?? '?'}. Minute${g.isPenalty ? ' (Elfmeter)' : ''}${g.isOwnGoal ? ' (Eigentor)' : ''}`, '🥅');
+        if (isFavMatch(m)) confetti();
+        flashMatch(m.matchID);
+      } else if (ps !== nsc && nf === pf) {
+        if (wants) pushNote(`Neuer Spielstand: ${nsc}`, name, '⚽');
+        flashMatch(m.matchID);
+      }
+      if (pf === '0' && nf === '1') { if (wants) pushNote(`Abpfiff: ${nsc} 🏁`, name + ' ist beendet.', '🏁'); flashMatch(m.matchID); }
+    }
+  }
+  liveSnap = {...(liveSnap || {}), ...snap};
+  if (changedUI && curPage === 'fussball' && fbView.seg === 'spiele' && cache.matchday[fbView.league]) renderMatches();
+  if (changedUI && curPage === 'home') renderHome();
+}
+function flashMatch(id){
+  const el = document.querySelector(`.match[data-mid="${id}"]`);
+  if (el) { el.classList.remove('goalflash'); void el.offsetWidth; el.classList.add('goalflash'); }
+}
+
+/* ================================================================
+   WETTER  (Open-Meteo)
+   ================================================================ */
+const WMO = {
+  0:['Klar','☀️','🌙'], 1:['Überwiegend klar','🌤️','🌙'], 2:['Teils bewölkt','⛅','☁️'], 3:['Bedeckt','☁️','☁️'],
+  45:['Nebel','🌫️','🌫️'], 48:['Reifnebel','🌫️','🌫️'],
+  51:['Leichter Niesel','🌦️','🌧️'], 53:['Niesel','🌦️','🌧️'], 55:['Starker Niesel','🌧️','🌧️'],
+  56:['Gefr. Niesel','🌧️','🌧️'], 57:['Gefr. Niesel','🌧️','🌧️'],
+  61:['Leichter Regen','🌦️','🌧️'], 63:['Regen','🌧️','🌧️'], 65:['Starkregen','🌧️','🌧️'],
+  66:['Gefr. Regen','🌧️','🌧️'], 67:['Gefr. Regen','🌧️','🌧️'],
+  71:['Leichter Schnee','🌨️','🌨️'], 73:['Schnee','🌨️','🌨️'], 75:['Starker Schnee','❄️','❄️'], 77:['Schneegriesel','🌨️','🌨️'],
+  80:['Leichte Schauer','🌦️','🌧️'], 81:['Schauer','🌧️','🌧️'], 82:['Heftige Schauer','⛈️','⛈️'],
+  85:['Schneeschauer','🌨️','🌨️'], 86:['Schneeschauer','❄️','❄️'],
+  95:['Gewitter','⛈️','⛈️'], 96:['Gewitter + Hagel','⛈️','⛈️'], 99:['Schweres Gewitter','⛈️','⛈️'],
+};
+const wmo = (c, day = 1) => WMO[c] ? {label: WMO[c][0], em: WMO[c][day ? 1 : 2]} : {label:'Wetter', em:'🌈'};
+
+async function loadWeather(){
+  if (!state.place) { renderWxEmpty(); return; }
+  const {lat, lon} = state.place;
+  try {
+    const d = await fetchJSON(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+      `&current=temperature_2m,apparent_temperature,relative_humidity_2m,is_day,weather_code,wind_speed_10m,precipitation` +
+      `&hourly=temperature_2m,precipitation_probability,weather_code,is_day` +
+      `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max,wind_speed_10m_max` +
+      `&timezone=auto&forecast_days=7`);
+    cache.weather = {...d, ts: Date.now()};
+    renderWeather();
+    if (curPage === 'home') renderHome();
+  } catch(e){ errBox($('#wxContent'), 'Wetterdaten konnten nicht geladen werden.', loadWeather); }
+}
+function renderWxEmpty(){
+  $('#wxContent').innerHTML = `<div class="card" style="text-align:center; padding:44px 20px;">
+    <div style="font-size:52px; margin-bottom:12px;">🌍</div>
+    <p style="margin-bottom:18px;">Sag mir, wo du bist — dann bekommst du hier deine persönliche Vorhersage.</p>
+    <button class="btn" id="wxEmptyGeo">📍 Standort verwenden</button>
+    <p class="hint mt">…oder such oben einfach nach deiner Stadt.</p></div>`;
+  $('#wxEmptyGeo').onclick = geoLocate;
+}
+function renderWeather(){
+  const d = cache.weather; if (!d) return;
+  const c = d.current, ic = wmo(c.weather_code, c.is_day);
+  const el = $('#wxContent');
+  const hi = d.daily.temperature_2m_max[0], lo = d.daily.temperature_2m_min[0];
+  const nowH = new Date(d.current.time).getHours();
+  let startIdx = d.hourly.time.findIndex(t => new Date(t).getHours() === nowH && new Date(t).getDate() === new Date(d.current.time).getDate());
+  if (startIdx < 0) startIdx = 0;
+  const hours = d.hourly.time.slice(startIdx, startIdx + 24).map((t, i) => ({
+    t, temp: d.hourly.temperature_2m[startIdx + i],
+    rp: d.hourly.precipitation_probability[startIdx + i],
+    ic: wmo(d.hourly.weather_code[startIdx + i], d.hourly.is_day[startIdx + i]),
+  }));
+  const allMin = Math.min(...d.daily.temperature_2m_min), allMax = Math.max(...d.daily.temperature_2m_max);
+  const range = Math.max(1, allMax - allMin);
+  el.innerHTML = `
+  <div class="card glow" id="wxHero">
+    <div><div class="hint">📍 ${esc(state.place.name)}</div>
+      <div class="t">${Math.round(c.temperature_2m)}<span class="grad-text">°</span></div>
+      <div class="cond">${ic.label} · gefühlt ${Math.round(c.apparent_temperature)}°</div>
+      <div class="wxstats">
+        <div class="wxstat">💨 Wind<b>${Math.round(c.wind_speed_10m)} km/h</b></div>
+        <div class="wxstat">💧 Luftfeuchte<b>${c.relative_humidity_2m} %</b></div>
+        <div class="wxstat">🌡️ Hoch/Tief<b>${Math.round(hi)}° / ${Math.round(lo)}°</b></div>
+        <div class="wxstat">🔆 UV max<b>${d.daily.uv_index_max[0] != null ? d.daily.uv_index_max[0].toFixed(1) : '–'}</b></div>
+        <div class="wxstat">🌅 Sonne<b>${fmtTime(d.daily.sunrise[0])} – ${fmtTime(d.daily.sunset[0])}</b></div>
+      </div></div>
+    <div class="bigicon" style="margin-left:auto">${ic.em}</div>
+  </div>
+  <div class="card mt"><h3>🕐 Nächste 24 Stunden</h3>
+    <div class="hours">${hours.map((h, i) => `<div class="hour"><div>${i === 0 ? 'Jetzt' : String(new Date(h.t).getHours()).padStart(2,'0') + ' Uhr'}</div><div class="e">${h.ic.em}</div><b>${Math.round(h.temp)}°</b><div class="rp">☔ ${h.rp ?? 0}%</div></div>`).join('')}</div>
+    <canvas id="wxChart" style="width:100%; height:74px; margin-top:10px;"></canvas>
+  </div>
+  <div class="card mt"><h3>📅 7-Tage-Vorhersage</h3><div class="days">
+    ${d.daily.time.map((t, i) => {
+      const wic = wmo(d.daily.weather_code[i]);
+      const l = d.daily.temperature_2m_min[i], h = d.daily.temperature_2m_max[i];
+      const left = ((l - allMin) / range) * 100, wdt = Math.max(6, ((h - l) / range) * 100);
+      return `<div class="day"><span>${i === 0 ? '<b>Heute</b>' : WD[new Date(t).getDay()] + ' ' + new Date(t).getDate() + '.'}</span>
+        <span class="e" title="${wic.label}">${wic.em}</span>
+        <div><div class="tempbar"><i style="left:${left}%; width:${wdt}%"></i></div></div>
+        <span class="mm"><span class="lo">${Math.round(l)}°</span> / <b>${Math.round(h)}°</b> <span class="rp hint">☔${d.daily.precipitation_probability_max[i] ?? 0}%</span></span></div>`;
+    }).join('')}
+  </div></div>
+  <div class="stamp">Stand: ${fmtTime(cache.weather.ts)} Uhr · Quelle: Open-Meteo</div>`;
+  drawTempChart($('#wxChart'), hours.map(h => h.temp));
+}
+function drawTempChart(cv, temps){
+  if (!cv || !temps.length) return;
+  const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+  const min = Math.min(...temps), max = Math.max(...temps), r = Math.max(1, max - min);
+  const x = i => 8 + i * (W - 16) / (temps.length - 1);
+  const y = t => H - 12 - ((t - min) / r) * (H - 26);
+  const cs = getComputedStyle(document.documentElement);
+  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0, cs.getPropertyValue('--a2').trim());
+  grad.addColorStop(1, cs.getPropertyValue('--a1').trim());
+  ctx.beginPath();
+  temps.forEach((t, i) => i ? ctx.lineTo(x(i), y(t)) : ctx.moveTo(x(i), y(t)));
+  ctx.strokeStyle = grad; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.stroke();
+  ctx.lineTo(x(temps.length - 1), H); ctx.lineTo(x(0), H); ctx.closePath();
+  ctx.globalAlpha = 0.14; ctx.fillStyle = grad; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.fillStyle = cs.getPropertyValue('--muted').trim(); ctx.font = '10px sans-serif';
+  ctx.fillText(Math.round(max) + '°', 8, 10);
+  ctx.fillText(Math.round(min) + '°', 8, H - 2);
+}
+function geoLocate(){
+  if (!navigator.geolocation) { toast('Kein GPS', 'Dein Browser gibt keinen Standort her. Nutze die Suche!', '🙁'); return; }
+  toast('Standort…', 'Einen Moment, ich orte dich.', '📍', 3000);
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const {latitude: lat, longitude: lon} = pos.coords;
+    let name = 'Mein Standort';
+    try {
+      const g = await fetchJSON(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=de`);
+      name = g.city || g.locality || g.principalSubdivision || name;
+    } catch(e){}
+    state.place = {name, lat: +lat.toFixed(4), lon: +lon.toFixed(4)}; save();
+    toast('Gefunden! 📍', name, '✅', 3500);
+    loadWeather();
+  }, () => toast('Kein Zugriff', 'Standort wurde blockiert — such einfach oben nach deiner Stadt.', '🙁'));
+}
+const wxSearchGo = debounce(async q => {
+  const box = $('#wxSug');
+  if (!q || q.length < 2) { box.classList.remove('show'); return; }
+  try {
+    const d = await fetchJSON(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=de&format=json`);
+    const rs = d.results || [];
+    box.innerHTML = rs.length ? '' : '<button disabled>Nichts gefunden 🤷</button>';
+    rs.forEach(r => {
+      const b = document.createElement('button');
+      b.innerHTML = `<b>${esc(r.name)}</b> <span class="hint">${esc([r.admin1, r.country].filter(Boolean).join(', '))}</span>`;
+      b.onclick = () => {
+        state.place = {name: r.name, lat: r.latitude, lon: r.longitude}; save();
+        box.classList.remove('show'); $('#wxSearch').value = '';
+        loadWeather();
+      };
+      box.appendChild(b);
+    });
+    box.classList.add('show');
+  } catch(e){}
+}, 350);
+$('#wxSearch').addEventListener('input', e => wxSearchGo(e.target.value.trim()));
+document.addEventListener('click', e => { if (!e.target.closest('#wxSug') && e.target.id !== 'wxSearch') $('#wxSug').classList.remove('show'); });
+$('#wxGeo').onclick = geoLocate;
+let wxLoaded = false;
+function wxEnsure(){ if (!wxLoaded) { wxLoaded = true; loadWeather(); } }
+
+/* ================================================================
+   KRYPTO  (CoinGecko + alternative.me)
+   ================================================================ */
+async function loadCrypto(){
+  try {
+    const coins = await fetchJSON('https://api.coingecko.com/api/v3/coins/markets?vs_currency=eur&order=market_cap_desc&per_page=30&page=1&sparkline=true&price_change_percentage=24h,7d');
+    cache.coins = coins; cache.coinsTs = Date.now();
+    renderCoins(); renderMovers();
+    if (curPage === 'home') renderHome();
+  } catch(e){ errBox($('#coinList'), 'Kurse konnten nicht geladen werden (CoinGecko-Limit? Kurz warten).', loadCrypto); }
+}
+async function loadFng(){
+  try {
+    const d = await fetchJSON('https://api.alternative.me/fng/?limit=1');
+    cache.fng = d.data?.[0] || null;
+    renderFng();
+  } catch(e){ $('#fngBody').innerHTML = '<div class="hint">Index gerade nicht erreichbar.</div>'; }
+}
+async function loadTrending(){
+  try {
+    const d = await fetchJSON('https://api.coingecko.com/api/v3/search/trending');
+    cache.trending = (d.coins || []).slice(0, 7).map(c => c.item);
+    const w = $('#trendWrap'); w.innerHTML = '';
+    cache.trending.forEach((c, i) => {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.innerHTML = `<img src="${esc(c.small || c.thumb)}" alt="">#${i+1} ${esc(c.symbol)}${c.market_cap_rank ? ` <span class="hint">Rang ${c.market_cap_rank}</span>` : ''}`;
+      w.appendChild(chip);
+    });
+  } catch(e){ $('#trendWrap').innerHTML = '<span class="hint">Gerade nicht verfügbar.</span>'; }
+}
+const fngTone = v => v < 25 ? ['Extreme Angst','😱'] : v < 45 ? ['Angst','😨'] : v < 55 ? ['Neutral','😐'] : v < 75 ? ['Gier','🤑'] : ['Extreme Gier','🤯'];
+function renderFng(){
+  const f = cache.fng; if (!f) return;
+  const v = +f.value, [lbl, em] = fngTone(v);
+  const ang = -90 + v * 1.8;
+  const col = v < 45 ? 'var(--bad)' : v < 55 ? 'var(--warn)' : 'var(--good)';
+  $('#fngBody').innerHTML = `
+    <svg class="gauge" viewBox="0 0 120 70">
+      <path d="M10 62 A52 52 0 0 1 110 62" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="10" stroke-linecap="round"/>
+      <path d="M10 62 A52 52 0 0 1 110 62" fill="none" stroke="url(#fg)" stroke-width="10" stroke-linecap="round"
+        stroke-dasharray="${(v/100)*163} 999"/>
+      <defs><linearGradient id="fg" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#fb7185"/><stop offset=".5" stop-color="#fbbf24"/><stop offset="1" stop-color="#34d399"/>
+      </linearGradient></defs>
+      <g transform="rotate(${ang} 60 62)"><line x1="60" y1="62" x2="60" y2="22" stroke="#fff" stroke-width="3" stroke-linecap="round"/></g>
+      <circle cx="60" cy="62" r="5" fill="#fff"/>
+    </svg>
+    <div><div class="val" style="color:${col}">${v} ${em}</div>
+    <div style="font-weight:600">${lbl}</div>
+    <div class="hint">Marktstimmung Bitcoin &amp; Co.</div></div>`;
+}
+function drawSpark(cv, data, up){
+  if (!cv || !data?.length) return;
+  const dpr = devicePixelRatio || 1, W = 74, H = 30;
+  cv.width = W * dpr; cv.height = H * dpr;
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+  const pts = data.filter((_, i) => i % 4 === 0);
+  const min = Math.min(...pts), max = Math.max(...pts), r = Math.max(1e-9, max - min);
+  ctx.beginPath();
+  pts.forEach((p, i) => { const x = i * W / (pts.length - 1), y = H - 2 - ((p - min) / r) * (H - 4); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+  ctx.strokeStyle = up ? '#34d399' : '#fb7185'; ctx.lineWidth = 1.6; ctx.stroke();
+}
+function renderCoins(){
+  const q = ($('#coinSearch').value || '').toLowerCase();
+  const list = [...cache.coins].sort((a, b) => (state.favCoins.includes(b.id) ? 1 : 0) - (state.favCoins.includes(a.id) ? 1 : 0))
+    .filter(c => !q || c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q));
+  const el = $('#coinList'); el.innerHTML = '';
+  if (!list.length) { el.innerHTML = '<div class="hint" style="padding:14px">Kein Coin gefunden.</div>'; return; }
+  list.forEach(c => {
+    const row = document.createElement('div'); row.className = 'coin';
+    const fav = state.favCoins.includes(c.id);
+    row.innerHTML = `<span class="rk">${c.market_cap_rank ?? '–'}</span>
+      <img src="${esc(c.image)}" alt="" loading="lazy">
+      <div class="nm"><b>${esc(c.name)}${fav ? ' ⭐' : ''}</b><span>${esc(c.symbol)}</span></div>
+      <div class="pr">${fmtEUR(c.current_price)}<small class="${pctCls(c.price_change_percentage_24h ?? 0)}">${fmtPct(c.price_change_percentage_24h)}</small></div>
+      <canvas></canvas>
+      <button class="star ${fav ? 'on' : ''}" title="Als Favorit ${fav ? 'entfernen' : 'markieren'}">${fav ? '⭐' : '☆'}</button>`;
+    drawSpark(row.querySelector('canvas'), c.sparkline_in_7d?.price, (c.price_change_percentage_7d_in_currency ?? 0) >= 0);
+    row.querySelector('.star').onclick = () => {
+      state.favCoins = fav ? state.favCoins.filter(x => x !== c.id) : [...state.favCoins, c.id];
+      save(); renderCoins();
+    };
+    el.appendChild(row);
+  });
+  $('#cryStamp').textContent = 'Stand: ' + fmtTime(cache.coinsTs || Date.now()) + ' Uhr · Quelle: CoinGecko';
+}
+function renderMovers(){
+  const w = $('#moversWrap');
+  if (!cache.coins.length) { w.innerHTML = '<div class="hint">…</div>'; return; }
+  const sorted = [...cache.coins].sort((a, b) => (b.price_change_percentage_24h ?? 0) - (a.price_change_percentage_24h ?? 0));
+  const picks = [
+    {t:'🚀 Top-Gewinner', c: sorted[0]},
+    {t:'📉 Größter Verlierer', c: sorted[sorted.length - 1]},
+    {t:'👑 Bitcoin', c: cache.coins.find(x => x.id === 'bitcoin')},
+  ].filter(p => p.c);
+  w.innerHTML = '';
+  picks.forEach(p => {
+    const d = document.createElement('div'); d.className = 'card mover';
+    d.innerHTML = `<div class="hint">${p.t}</div>
+      <div class="sym">${esc(p.c.name)} <span class="hint">${esc(p.c.symbol.toUpperCase())}</span></div>
+      <div class="pc ${pctCls(p.c.price_change_percentage_24h ?? 0)}">${fmtPct(p.c.price_change_percentage_24h)}</div>
+      <div class="hint">${fmtEUR(p.c.current_price)}</div>`;
+    w.appendChild(d);
+  });
+}
+$('#coinSearch').addEventListener('input', () => renderCoins());
+
+const CRYPTO_WORDS = ['bitcoin','krypto','ethereum','blockchain','stablecoin','binance','coinbase','digitalwährung','kryptowährung'];
+function renderCryptoNews(){
+  const arts = [...cache.corpus.values()].filter(a => {
+    const t = (a.title + ' ' + (a.firstSentence || '') + ' ' + (a.topline || '')).toLowerCase();
+    return CRYPTO_WORDS.some(w => t.includes(w));
+  }).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+  const w = $('#cnewsWrap');
+  if (!arts.length) { w.innerHTML = '<div class="hint">Gerade keine Krypto-Schlagzeilen in den Nachrichten — schau dir solange den Markt-Radar oben an. 📡</div>'; return; }
+  w.innerHTML = ''; arts.forEach(a => w.appendChild(newsCard(a)));
+}
+let cryLoaded = false;
+function cryEnsure(){ if (!cryLoaded) { cryLoaded = true; loadCrypto(); loadFng(); loadTrending(); } renderCryptoNews(); }
+
+/* ================================================================
+   NEWS  (tagesschau API)
+   ================================================================ */
+const TS = 'https://www.tagesschau.de/api2u';
+const NEWS_CATS = [
+  {k:'top', name:'🔝 Top', url:`${TS}/homepage`},
+  {k:'meine', name:'🎯 Meine Themen', url:null},
+  {k:'inland', name:'🇩🇪 Inland', url:`${TS}/news/?ressort=inland`},
+  {k:'ausland', name:'🌍 Ausland', url:`${TS}/news/?ressort=ausland`},
+  {k:'wirtschaft', name:'📈 Wirtschaft', url:`${TS}/news/?ressort=wirtschaft`},
+  {k:'sport', name:'🏅 Sport', url:`${TS}/news/?ressort=sport`},
+  {k:'wissen', name:'🔬 Wissen', url:`${TS}/news/?ressort=wissen`},
+];
+let newsCat = 'top';
+function artImg(a){
+  const v = a.teaserImage?.imageVariants;
+  return v ? (v['16x9-384'] || v['16x9-256'] || v['16x9-640'] || Object.values(v)[0]) : null;
+}
+function normArts(d){
+  return (d.news || []).filter(a => a.title)
+    .map(a => ({id: a.externalId || a.sophoraId || a.shareURL || a.title, title: a.title, topline: a.topline,
+      firstSentence: a.firstSentence, date: a.date, url: a.shareURL || a.detailsweb, img: artImg(a), ressort: a.ressort}));
+}
+async function loadNewsCat(cat){
+  const C = NEWS_CATS.find(c => c.k === cat);
+  if (!C?.url) return [];
+  const d = await fetchJSON(C.url, {proxy: true});
+  const arts = normArts(d);
+  arts.forEach(a => cache.corpus.set(a.id, a));
+  cache.news[cat] = arts;
+  return arts;
+}
+function newsCard(a){
+  const el = document.createElement('a');
+  el.className = 'news'; el.href = a.url || '#'; el.target = '_blank'; el.rel = 'noopener';
+  el.innerHTML = `${a.img ? `<img src="${esc(a.img)}" alt="" loading="lazy">` : ''}
+    <div class="tx">${a.topline ? `<div class="top">${esc(a.topline)}</div>` : ''}
+    <h4>${esc(a.title)}</h4>
+    ${a.firstSentence ? `<p>${esc(a.firstSentence)}</p>` : ''}
+    <div class="meta">${timeAgo(a.date)}${a.ressort ? ' · ' + esc(a.ressort) : ''} · tagesschau</div></div>`;
+  return el;
+}
+function topicMatches(a){
+  if (!state.topics.length) return false;
+  const t = (a.title + ' ' + (a.firstSentence || '') + ' ' + (a.topline || '')).toLowerCase();
+  return state.topics.some(k => t.includes(k.toLowerCase()));
+}
+function renderNewsPills(){
+  const w = $('#newsPills'); w.innerHTML = '';
+  NEWS_CATS.forEach(C => {
+    const b = document.createElement('button');
+    b.className = 'pill' + (newsCat === C.k ? ' active' : '');
+    b.textContent = C.name;
+    b.onclick = () => { newsCat = C.k; renderNewsPills(); showNews(); };
+    w.appendChild(b);
+  });
+}
+async function showNews(){
+  const el = $('#newsList');
+  if (newsCat === 'meine') {
+    const arts = [...cache.corpus.values()].filter(topicMatches).sort((a, b) => new Date(b.date) - new Date(a.date));
+    el.innerHTML = '';
+    if (!state.topics.length) { el.innerHTML = `<div class="card err">Du hast noch keine Themen. 🎯<br><span class="hint">Leg in den Einstellungen Stichwörter fest (z.&nbsp;B. „KI", „Dortmund", „Gaming") — ich durchsuche dann alle News für dich.</span><br><button class="btn sm mt" onclick="openSettings()">Themen festlegen</button></div>`; return; }
+    if (!arts.length) { el.innerHTML = `<div class="card err">Zu deinen Themen (${state.topics.map(esc).join(', ')}) ist gerade nichts dabei. Ich halte die Augen offen! 👀</div>`; return; }
+    arts.slice(0, 30).forEach(a => el.appendChild(newsCard(a)));
+    return;
+  }
+  if (!cache.news[newsCat]) {
+    el.innerHTML = skels(5);
+    try { await loadNewsCat(newsCat); }
+    catch(e){ errBox(el, 'News konnten nicht geladen werden.', showNews); return; }
+  }
+  el.innerHTML = '';
+  cache.news[newsCat].slice(0, 30).forEach(a => el.appendChild(newsCard(a)));
+  $('#newsStamp').textContent = 'Quelle: tagesschau.de';
+}
+async function refreshNewsCorpus(notifyNew = true){
+  const cats = ['top','inland','ausland','wirtschaft','sport','wissen'];
+  const fresh = [];
+  for (const c of cats) {
+    try {
+      const before = new Set(cache.corpus.keys());
+      const arts = await loadNewsCat(c);
+      arts.forEach(a => { if (!before.has(a.id) && !seenNews.has(a.id)) fresh.push(a); });
+    } catch(e){}
+  }
+  fresh.forEach(a => seenNews.add(a.id)); saveSeen();
+  if (notifyNew && state.notifMaster && state.notifTopics) {
+    const hits = fresh.filter(topicMatches).slice(0, 2);
+    hits.forEach(a => pushNote('🎯 Neues zu deinen Themen', a.title, '📰'));
+  }
+  if (curPage === 'news') showNews();
+  if (curPage === 'krypto') renderCryptoNews();
+  renderTicker();
+  if (curPage === 'home') renderHome();
+}
+let newsLoaded = false;
+function newsEnsure(){ renderNewsPills(); if (!newsLoaded) { newsLoaded = true; showNews(); } }
+
+/* ================================================================
+   FUN  (Witze, Fakten, ISS, Feiertage, On this day)
+   ================================================================ */
+async function loadJoke(){
+  const el = $('#jokeBody'); el.innerHTML = '…';
+  try {
+    const d = await fetchJSON('https://v2.jokeapi.dev/joke/Any?lang=de&safe-mode');
+    if (d.type === 'twopart') {
+      el.innerHTML = `${esc(d.setup)}<br><br><span class="reveal" title="Tippen zum Aufdecken">🥁 ${esc(d.delivery)}</span>`;
+      el.querySelector('.reveal').onclick = function(){ this.classList.add('shown'); };
+    } else el.textContent = d.joke || 'Kein Witz gefunden — das ist der eigentliche Witz. 😅';
+  } catch(e){ el.innerHTML = '<span class="hint">Witz-API macht gerade Pause. 😴</span>'; }
+}
+async function loadFact(){
+  const el = $('#factBody'); el.innerHTML = '…';
+  try {
+    const d = await fetchJSON('https://uselessfacts.jsph.pl/api/v2/facts/random?language=de');
+    el.textContent = '💡 ' + d.text;
+  } catch(e){ el.innerHTML = '<span class="hint">Fakten-API gerade nicht erreichbar.</span>'; }
+}
+async function loadOtd(){
+  const el = $('#otdBody');
+  try {
+    const n = new Date();
+    const mm = String(n.getMonth() + 1).padStart(2, '0'), dd = String(n.getDate()).padStart(2, '0');
+    const d = await fetchJSON(`https://api.wikimedia.org/feed/v1/wikipedia/de/onthisday/events/${mm}/${dd}`);
+    const evs = (d.events || []).sort(() => Math.random() - 0.5).slice(0, 4);
+    el.innerHTML = evs.map(e => `<div class="otd"><b>${e.year}</b>${esc(e.text)}</div>`).join('') || '<span class="hint">Heute war wohl nichts los. 😄</span>';
+  } catch(e){ el.innerHTML = '<span class="hint">Geschichte gerade nicht abrufbar.</span>'; }
+}
+async function loadISS(){
+  const el = $('#issBody');
+  try {
+    const d = await fetchJSON('https://api.wheretheiss.at/v1/satellites/25544');
+    cache.iss = d;
+    const dist = state.place ? haversine(state.place.lat, state.place.lon, d.latitude, d.longitude) : null;
+    el.innerHTML = `
+      <div class="issrow"><span>📍 Position</span><b>${d.latitude.toFixed(2)}°, ${d.longitude.toFixed(2)}°</b></div>
+      <div class="issrow"><span>🚀 Geschwindigkeit</span><b>${fmtNum(d.velocity)} km/h</b></div>
+      <div class="issrow"><span>📏 Höhe</span><b>${Math.round(d.altitude)} km</b></div>
+      <div class="issrow"><span>${d.visibility === 'daylight' ? '☀️ Im Sonnenlicht' : '🌑 Im Erdschatten'}</span><b></b></div>
+      ${dist != null ? `<div class="issrow"><span>🏠 Entfernung zu dir</span><b>${fmtNum(dist)} km</b></div>` : ''}
+      <div class="hint" style="margin-top:8px">Aktualisiert sich alle 10 Sekunden ✨</div>`;
+  } catch(e){ el.innerHTML = '<span class="hint">Houston, wir haben ein Problem — ISS-API offline. 🛰️</span>'; }
+}
+async function loadHolidays(){
+  const el = $('#holiBody');
+  try {
+    const y = new Date().getFullYear();
+    if (!cache.holidays.length) {
+      const [a, b] = await Promise.all([
+        fetchJSON(`https://date.nager.at/api/v3/PublicHolidays/${y}/DE`),
+        fetchJSON(`https://date.nager.at/api/v3/PublicHolidays/${y + 1}/DE`),
+      ]);
+      cache.holidays = [...a, ...b];
+    }
+    const today = new Date(); today.setHours(0,0,0,0);
+    const next = cache.holidays.filter(h => new Date(h.date) >= today).slice(0, 4);
+    el.innerHTML = next.map(h => {
+      const days = Math.round((new Date(h.date) - today) / 86400000);
+      return `<div class="holi"><span>🎈 <b>${esc(h.localName)}</b>${h.global ? '' : ' <span class="badge">regional</span>'}</span>
+        <span class="d">${days === 0 ? 'HEUTE! 🎉' : days === 1 ? 'morgen' : `in ${days} Tagen`}</span></div>`;
+    }).join('');
+  } catch(e){ el.innerHTML = '<span class="hint">Feiertage nicht abrufbar.</span>'; }
+}
+function tickWeekend(){
+  const el = $('#wkndBody'); if (!el) return;
+  const n = new Date(), day = n.getDay();
+  if (day === 6 || day === 0 || (day === 5 && n.getHours() >= 15)) {
+    el.innerHTML = `Es ist <b class="grad-text">WOCHENENDE!</b> 🎉<div class="big">Genieß es! 🏖️</div>`;
+    return;
+  }
+  const fri = new Date(n);
+  fri.setDate(n.getDate() + ((5 - day + 7) % 7)); fri.setHours(15, 0, 0, 0);
+  let s = (fri - n) / 1000;
+  const t = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), sec = Math.floor(s % 60);
+  el.innerHTML = `Bis Freitag, 15:00 Uhr:<div class="big grad-text">${t > 0 ? t + ' T ' : ''}${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}</div>`;
+}
+$('#jokeReload').onclick = loadJoke;
+$('#factReload').onclick = loadFact;
+let funLoaded = false, issTimer = null;
+function funEnsure(){
+  if (!funLoaded) { funLoaded = true; loadJoke(); loadFact(); loadOtd(); loadHolidays(); }
+  loadISS();
+  clearInterval(issTimer);
+  issTimer = setInterval(() => { if (curPage === 'fun' && !document.hidden) loadISS(); }, 10000);
+}
+setInterval(tickWeekend, 1000);
+
+/* ================================================================
+   HOME — Dashboard
+   ================================================================ */
+function greeting(){
+  const h = new Date().getHours();
+  const nm = state.name ? `, ${state.name}` : '';
+  if (h < 5)  return `Späte Stunde${nm}! 🌙`;
+  if (h < 11) return `Guten Morgen${nm}! ☀️`;
+  if (h < 14) return `Mahlzeit${nm}! 🍽️`;
+  if (h < 18) return `Hey${nm}! 👋`;
+  return `Guten Abend${nm}! 🌆`;
+}
+function briefing(){
+  const parts = [];
+  if (cache.weather) {
+    const c = cache.weather.current;
+    parts.push(`In ${state.place.name} sind es gerade <b>${Math.round(c.temperature_2m)}°</b> (${wmo(c.weather_code, c.is_day).label.toLowerCase()})`);
+  }
+  const favM = Object.values(cache.favNext)[0];
+  if (favM) parts.push(`<b>${esc(favM.team1.shortName || favM.team1.teamName)} – ${esc(favM.team2.shortName || favM.team2.teamName)}</b> steigt ${countdown(favM.matchDateTimeUTC)}`);
+  const btc = cache.coins.find(c => c.id === 'bitcoin');
+  if (btc) parts.push(`Bitcoin steht bei <b>${fmtEUR(btc.current_price)}</b> (${fmtPct(btc.price_change_percentage_24h)})`);
+  const top = cache.news.top?.[0];
+  if (top) parts.push(`Top-Thema: <b>${esc(top.title)}</b>`);
+  return parts.length ? parts.join(' · ') + '.' : 'Ich sammle gerade deine Daten ein — gleich geht\'s los! ⏳';
+}
+function renderTicker(){
+  const arts = (cache.news.top || []).slice(0, 10);
+  if (!arts.length) return;
+  const html = arts.map(a => `<span>▪ <b>${esc(a.title)}</b></span>`).join('');
+  $('#homeTicker').innerHTML = html + html; // doppelt für nahtlose Schleife
+}
+function miniCard(emoji, title, big, sub, page){
+  const d = document.createElement('div');
+  d.className = 'card mini';
+  d.innerHTML = `<span class="emoji">${emoji}</span><h3>${title}</h3><div class="big">${big}</div><div class="sub">${sub}</div>`;
+  d.onclick = () => showPage(page);
+  return d;
+}
+function renderHome(){
+  $('#homeGreet').innerHTML = greeting();
+  $('#homeSub').innerHTML = briefing();
+  const g = $('#homeGrid'); g.innerHTML = '';
+
+  if (cache.weather) {
+    const c = cache.weather.current, ic = wmo(c.weather_code, c.is_day);
+    g.appendChild(miniCard(ic.em, 'Wetter', `${Math.round(c.temperature_2m)}°`, `${ic.label} · ${esc(state.place.name)}`, 'wetter'));
+  } else {
+    g.appendChild(miniCard('🌍', 'Wetter', '–', 'Standort festlegen für deine Vorhersage', 'wetter'));
+  }
+
+  const favM = Object.values(cache.favNext)[0];
+  const liveFav = Object.values(cache.matchday).flatMap(x => x?.matches || []).find(m => isFavMatch(m) && matchStatus(m).live);
+  if (liveFav) {
+    const sc = scoreOf(liveFav) || ['-','-'];
+    g.appendChild(miniCard('🔴', 'Live!', `${sc[0]} : ${sc[1]}`, `${esc(liveFav.team1.shortName || liveFav.team1.teamName)} – ${esc(liveFav.team2.shortName || liveFav.team2.teamName)}`, 'fussball'));
+  } else if (favM) {
+    g.appendChild(miniCard('⚽', 'Nächstes Spiel', countdown(favM.matchDateTimeUTC), `${esc(favM.team1.shortName || favM.team1.teamName)} – ${esc(favM.team2.shortName || favM.team2.teamName)}`, 'fussball'));
+  } else {
+    g.appendChild(miniCard('⚽', 'Fußball', 'Bundesliga', 'Spieltag, Tabelle & Live-Ticker', 'fussball'));
+  }
+
+  const btc = cache.coins.find(c => c.id === 'bitcoin');
+  if (btc) g.appendChild(miniCard('₿', 'Bitcoin', fmtEUR(btc.current_price), `<span class="${pctCls(btc.price_change_percentage_24h ?? 0)}">${fmtPct(btc.price_change_percentage_24h)}</span> in 24h`, 'krypto'));
+  if (cache.fng) { const [l, e] = fngTone(+cache.fng.value); g.appendChild(miniCard(e, 'Marktstimmung', cache.fng.value, l, 'krypto')); }
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const hol = cache.holidays.find(h => new Date(h.date) >= today);
+  if (hol) {
+    const days = Math.round((new Date(hol.date) - today) / 86400000);
+    g.appendChild(miniCard('🎈', 'Nächster Feiertag', days === 0 ? 'HEUTE!' : `in ${days} T`, esc(hol.localName), 'fun'));
+  }
+  g.appendChild(miniCard('🎲', 'Fun-Zone', 'ISS, Witze…', 'Unnützes Wissen, Feiertage & mehr', 'fun'));
+
+  // Für dich (Themen)
+  const fy = $('#forYou');
+  const hits = [...cache.corpus.values()].filter(topicMatches).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+  if (!state.topics.length) {
+    fy.innerHTML = '<div class="hint">Sag mir, was dich interessiert (z. B. „KI", „Dortmund", „Gaming") — ich fische die passenden News aus allen Ressorts für dich raus. 🎣</div>';
+  } else if (!hits.length) {
+    fy.innerHTML = `<div class="hint">Zu <b>${state.topics.map(esc).join(', ')}</b> ist gerade nichts Neues dabei — ich bleibe dran! 👀</div>`;
+  } else {
+    fy.innerHTML = ''; hits.forEach(a => fy.appendChild(newsCard(a)));
+  }
+}
+$('#btnEditTopics').onclick = () => openSettings('topics');
+
+/* ================================================================
+   Einstellungen
+   ================================================================ */
+function toggleRow(label, sub, key, onchange){
+  const r = document.createElement('div'); r.className = 'setrow';
+  r.innerHTML = `<div class="tx"><b>${label}</b><span>${sub}</span></div><button class="toggle ${state[key] ? 'on' : ''}"></button>`;
+  r.querySelector('.toggle').onclick = async function(){
+    state[key] = !state[key]; save();
+    this.classList.toggle('on', state[key]);
+    if (onchange) onchange(state[key]);
+  };
+  return r;
+}
+async function teamsChips(container){
+  container.innerHTML = '<div class="skel" style="height:40px"></div>';
+  try {
+    const lists = await Promise.all(['bl1','bl2'].map(lg =>
+      cache.teams[lg] ? Promise.resolve(cache.teams[lg]) :
+      fetchJSON(`${OLD}/getavailableteams/${lg}/${SEASON}`).then(d => (cache.teams[lg] = d))
+    ));
+    container.innerHTML = '';
+    lists.forEach((teams, li) => {
+      const h = document.createElement('div'); h.className = 'hint'; h.style.margin = '10px 0 7px';
+      h.textContent = li === 0 ? '· Bundesliga' : '· 2. Bundesliga';
+      container.appendChild(h);
+      const row = document.createElement('div'); row.className = 'chiprow';
+      teams.forEach(t => {
+        const on = isFavTeam(t.teamId);
+        const c = document.createElement('button');
+        c.className = 'chip' + (on ? ' on' : '');
+        if (t.teamIconUrl?.startsWith('http')) c.innerHTML = `<img src="${esc(t.teamIconUrl)}" alt="" loading="lazy" onerror="this.remove()">`;
+        c.insertAdjacentHTML('beforeend', esc(t.shortName || t.teamName));
+        c.onclick = () => {
+          if (isFavTeam(t.teamId)) state.favTeams = state.favTeams.filter(x => x.id !== t.teamId);
+          else state.favTeams.push({id: t.teamId, name: t.teamName, short: t.shortName, icon: t.teamIconUrl});
+          save(); c.classList.toggle('on');
+          delete cache.favNext[t.teamId];
+        };
+        row.appendChild(c);
+      });
+      container.appendChild(row);
+    });
+  } catch(e){ container.innerHTML = '<div class="hint">Teamliste konnte nicht geladen werden.</div>'; }
+}
+function topicsEditor(container){
+  const render = () => {
+    container.innerHTML = '';
+    const row = document.createElement('div'); row.className = 'chiprow'; row.style.marginBottom = '10px';
+    state.topics.forEach(t => {
+      const c = document.createElement('button'); c.className = 'chip on';
+      c.innerHTML = `${esc(t)} ✕`;
+      c.onclick = () => { state.topics = state.topics.filter(x => x !== t); save(); render(); };
+      row.appendChild(c);
+    });
+    if (!state.topics.length) row.innerHTML = '<span class="hint">Noch keine Themen.</span>';
+    container.appendChild(row);
+    const inp = document.createElement('input'); inp.className = 'input'; inp.placeholder = '+ Thema eingeben und Enter (z. B. KI, Dortmund, Gaming)';
+    inp.onkeydown = e => {
+      if (e.key === 'Enter' && inp.value.trim()) {
+        const v = inp.value.trim();
+        if (!state.topics.includes(v)) { state.topics.push(v); save(); }
+        render(); container.querySelector('input').focus();
+      }
+    };
+    container.appendChild(inp);
+    const sug = document.createElement('div'); sug.className = 'chiprow'; sug.style.marginTop = '10px';
+    ['KI','Gaming','Bundesliga','Klima','USA','Musik','Auto','Handy'].filter(s => !state.topics.includes(s)).forEach(s => {
+      const c = document.createElement('button'); c.className = 'chip'; c.textContent = '+ ' + s;
+      c.onclick = () => { state.topics.push(s); save(); render(); };
+      sug.appendChild(c);
+    });
+    container.appendChild(sug);
+  };
+  render();
+}
+function openSettings(focus){
+  const b = $('#modalBody'); b.innerHTML = '';
+
+  const secP = document.createElement('div');
+  secP.innerHTML = '<div class="sethead">👤 Profil</div>';
+  const nameIn = document.createElement('input');
+  nameIn.className = 'input'; nameIn.placeholder = 'Wie soll ich dich nennen?'; nameIn.value = state.name;
+  nameIn.oninput = () => { state.name = nameIn.value.trim(); save(); };
+  secP.appendChild(nameIn);
+  b.appendChild(secP);
+
+  const secD = document.createElement('div');
+  secD.innerHTML = '<div class="sethead">🎨 Design</div>';
+  const sw = document.createElement('div'); sw.className = 'chiprow';
+  [['plasma','#8b5cf6','#06b6d4'],['volt','#a3e635','#22d3ee'],['sunset','#fb923c','#ec4899'],['crimson','#f43f5e','#f59e0b']].forEach(([k, c1, c2]) => {
+    const s = document.createElement('button');
+    s.className = 'swatch' + (state.accent === k ? ' on' : '');
+    s.style.background = `linear-gradient(135deg, ${c1}, ${c2})`;
+    s.title = k;
+    s.onclick = () => { state.accent = k; save(); applyAccent(); $$('.swatch').forEach(x => x.classList.remove('on')); s.classList.add('on'); };
+    sw.appendChild(s);
+  });
+  secD.appendChild(sw);
+  b.appendChild(secD);
+
+  const secT = document.createElement('div');
+  secT.innerHTML = '<div class="sethead">⭐ Lieblingsteams</div>';
+  const tc = document.createElement('div'); secT.appendChild(tc);
+  b.appendChild(secT);
+  teamsChips(tc);
+
+  const secTo = document.createElement('div');
+  secTo.innerHTML = '<div class="sethead">🎯 Meine Themen</div><div class="hint" style="margin-bottom:8px">Stichwörter, nach denen ich alle News für dich durchsuche.</div>';
+  const toc = document.createElement('div'); secTo.appendChild(toc);
+  b.appendChild(secTo);
+  topicsEditor(toc);
+
+  const secL = document.createElement('div');
+  secL.innerHTML = `<div class="sethead">📍 Standort</div><div class="hint" style="margin-bottom:8px">Aktuell: <b>${state.place ? esc(state.place.name) : 'nicht festgelegt'}</b></div>`;
+  const geoBtn = document.createElement('button'); geoBtn.className = 'btn sm ghost'; geoBtn.textContent = '📍 Standort neu bestimmen';
+  geoBtn.onclick = geoLocate;
+  secL.appendChild(geoBtn);
+  b.appendChild(secL);
+
+  const secN = document.createElement('div');
+  secN.innerHTML = '<div class="sethead">🔔 Benachrichtigungen</div>';
+  secN.appendChild(toggleRow('Alle Benachrichtigungen', 'Hauptschalter für Ticker & Themen-Alarm', 'notifMaster', async on => { if (on) await askNotifPermission(); }));
+  secN.appendChild(toggleRow('Auto-Ticker für Favoriten', 'Spiele deiner Lieblingsteams automatisch melden', 'notifFavAuto'));
+  secN.appendChild(toggleRow('Themen-Alarm', 'Melden, wenn neue News zu deinen Themen erscheinen', 'notifTopics'));
+  secN.appendChild(toggleRow('Sound', 'Tor-Fanfare bei Meldungen 🎺', 'notifSound'));
+  const test = document.createElement('button'); test.className = 'btn sm ghost'; test.style.marginTop = '12px';
+  test.textContent = '🧪 Test-Benachrichtigung';
+  test.onclick = async () => { await askNotifPermission(); pushNote('TOOOR! 3:2', 'So sieht dein Tor-Alarm aus. 🥅', '🎺'); confetti(); };
+  secN.appendChild(test);
+  const nHint = document.createElement('div'); nHint.className = 'hint'; nHint.style.marginTop = '10px';
+  nHint.textContent = 'ℹ️ Ehrlich gesagt: Meldungen kommen, solange PULSE geöffnet ist (auch im Hintergrund-Tab). Komplett geschlossen kann eine Webseite ohne eigenen Server keine Pushes schicken.';
+  secN.appendChild(nHint);
+  b.appendChild(secN);
+
+  const secX = document.createElement('div');
+  secX.innerHTML = '<div class="sethead">🧹 Sonstiges</div>';
+  const reset = document.createElement('button'); reset.className = 'btn sm ghost'; reset.textContent = '🗑️ Alles zurücksetzen';
+  reset.onclick = () => { if (confirm('Wirklich alle Einstellungen & Favoriten löschen?')) { localStorage.removeItem('pulseState_v1'); localStorage.removeItem('pulseSeen_v1'); location.reload(); } };
+  secX.appendChild(reset);
+  const src = document.createElement('div'); src.className = 'hint'; src.style.marginTop = '14px';
+  src.innerHTML = 'Datenquellen: OpenLigaDB · Open-Meteo · CoinGecko · alternative.me · tagesschau.de · date.nager.at · uselessfacts · JokeAPI · wheretheiss.at · Wikimedia — alle kostenlos, ohne Anmeldung. ❤️';
+  secX.appendChild(src);
+  b.appendChild(secX);
+
+  $('#modal').classList.add('show');
+  if (focus === 'topics') setTimeout(() => secTo.scrollIntoView({behavior:'smooth'}), 120);
+}
+window.openSettings = openSettings;
+$('#btnSettings').onclick = () => openSettings();
+$('#modalClose').onclick = () => { $('#modal').classList.remove('show'); renderAllSoft(); };
+$('#modal').addEventListener('click', e => { if (e.target.id === 'modal') { $('#modal').classList.remove('show'); renderAllSoft(); } });
+function renderAllSoft(){
+  renderHome();
+  if (fbLoaded) renderFb();
+  if (cache.coins.length) renderCoins();
+}
+
+/* ================================================================
+   Onboarding
+   ================================================================ */
+let onbStep = 0;
+const ONB_STEPS = 4;
+function renderOnb(){
+  const dots = $('#onbDots');
+  dots.innerHTML = Array.from({length: ONB_STEPS}, (_, i) => `<i class="${i <= onbStep ? 'on' : ''}"></i>`).join('');
+  const b = $('#onbBody'); b.innerHTML = '';
+  const nav = (nextLbl = 'Weiter →') => {
+    const n = document.createElement('div'); n.className = 'onbnav';
+    if (onbStep > 0) { const back = document.createElement('button'); back.className = 'btn ghost'; back.textContent = '← Zurück'; back.onclick = () => { onbStep--; renderOnb(); }; n.appendChild(back); }
+    const nx = document.createElement('button'); nx.className = 'btn'; nx.textContent = nextLbl;
+    nx.onclick = () => { if (onbStep < ONB_STEPS - 1) { onbStep++; renderOnb(); } else finishOnb(); };
+    n.appendChild(nx);
+    return n;
+  };
+  if (onbStep === 0) {
+    b.innerHTML = `<h1>⚡ Willkommen bei <span class="grad-text">PULSE</span></h1>
+      <p class="lead">Deine persönliche Kommandozentrale: Fußball-Liveticker, Wetter, Krypto, News zu deinen Themen — und ein bisschen Spaß obendrauf. Lass uns das kurz einrichten (dauert 30 Sekunden).</p>`;
+    const inp = document.createElement('input'); inp.className = 'input'; inp.placeholder = 'Wie heißt du? (optional)'; inp.value = state.name;
+    inp.oninput = () => { state.name = inp.value.trim(); save(); };
+    b.appendChild(inp);
+    b.appendChild(nav('Los geht\'s →'));
+  } else if (onbStep === 1) {
+    b.innerHTML = `<h1>⭐ Deine Teams</h1><p class="lead">Wähle deine Lieblingsvereine — du bekommst automatisch Tor-Alarm und siehst ihre nächsten Spiele zuerst.</p>`;
+    const tc = document.createElement('div'); b.appendChild(tc);
+    teamsChips(tc);
+    b.appendChild(nav());
+  } else if (onbStep === 2) {
+    b.innerHTML = `<h1>📍 Dein Standort</h1><p class="lead">Für deine persönliche Wettervorhersage. Deine Position bleibt auf deinem Gerät.</p>`;
+    const gb = document.createElement('button'); gb.className = 'btn'; gb.style.width = '100%';
+    gb.textContent = state.place ? `✅ ${state.place.name}` : '📍 Standort verwenden';
+    gb.onclick = () => { geoLocate(); setTimeout(() => { if (state.place) gb.textContent = `✅ ${state.place.name}`; }, 3000); };
+    b.appendChild(gb);
+    const or = document.createElement('p'); or.className = 'hint'; or.style.margin = '14px 0 8px'; or.textContent = '…oder Stadt eintippen:';
+    b.appendChild(or);
+    const wrap = document.createElement('div'); wrap.style.position = 'relative';
+    const inp = document.createElement('input'); inp.className = 'input'; inp.placeholder = '🔍 z. B. Stuttgart';
+    const sug = document.createElement('div'); sug.className = 'sugbox';
+    inp.oninput = debounce(async () => {
+      const q = inp.value.trim();
+      if (q.length < 2) { sug.classList.remove('show'); return; }
+      try {
+        const d = await fetchJSON(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=de&format=json`);
+        sug.innerHTML = '';
+        (d.results || []).forEach(r => {
+          const bt = document.createElement('button');
+          bt.innerHTML = `<b>${esc(r.name)}</b> <span class="hint">${esc([r.admin1, r.country].filter(Boolean).join(', '))}</span>`;
+          bt.onclick = () => { state.place = {name: r.name, lat: r.latitude, lon: r.longitude}; save(); gb.textContent = `✅ ${r.name}`; sug.classList.remove('show'); inp.value = r.name; };
+          sug.appendChild(bt);
+        });
+        sug.classList.add('show');
+      } catch(e){}
+    }, 350);
+    wrap.append(inp, sug);
+    b.appendChild(wrap);
+    b.appendChild(nav());
+  } else {
+    b.innerHTML = `<h1>🎯 Themen &amp; 🔔 Alarm</h1><p class="lead">Welche Stichwörter interessieren dich? Ich durchsuche die News danach. Und: Soll ich dich bei Toren &amp; Co. benachrichtigen?</p>`;
+    const toc = document.createElement('div'); b.appendChild(toc);
+    topicsEditor(toc);
+    const nb = document.createElement('button'); nb.className = 'btn ghost'; nb.style.cssText = 'width:100%; margin-top:18px;';
+    nb.textContent = '🔔 Benachrichtigungen erlauben';
+    nb.onclick = async () => { const ok = await askNotifPermission(); nb.textContent = ok ? '✅ Benachrichtigungen aktiv' : '🙁 Blockiert — Toasts gehen trotzdem'; };
+    b.appendChild(nb);
+    b.appendChild(nav('Fertig! 🎉'));
+  }
+}
+function finishOnb(){
+  state.onboarded = true; save();
+  $('#onb').classList.remove('show');
+  confetti();
+  toast(`Willkommen an Bord${state.name ? ', ' + state.name : ''}! ⚡`, 'PULSE ist startklar. Viel Spaß!', '🎉');
+  boot();
+}
+
+/* ================================================================
+   Boot & Intervalle
+   ================================================================ */
+$('#btnRefresh').onclick = async function(){
+  this.classList.add('spin');
+  cache.news = {}; cache.corpus.clear(); cache.tables = {}; cache.scorers = {}; cache.favNext = {};
+  const jobs = [refreshNewsCorpus(false), loadCrypto(), loadFng(), loadTrending(), pollLive()];
+  if (state.place) jobs.push(loadWeather());
+  if (fbLoaded) jobs.push(loadFb());
+  await Promise.allSettled(jobs);
+  renderAllSoft();
+  this.classList.remove('spin');
+  toast('Frisch! ✨', 'Alle Daten wurden neu geladen.', '⟳', 2800);
+};
+
+let booted = false;
+async function boot(){
+  if (booted) return; booted = true;
+  renderHome();
+  pollLive().then(async () => {                // Baseline für Live-Ticker,
+    for (const t of state.favTeams) await loadFavNext(t.id);   // dann „Nächstes Spiel“
+    if (curPage === 'home') renderHome();
+  });
+  loadCrypto(); loadFng(); loadTrending();
+  refreshNewsCorpus(false);
+  loadHolidays();
+  if (state.place) loadWeather();
+  setInterval(pollLive, 60000);                // Live-Ticker: läuft immer weiter
+  setInterval(() => { if (!document.hidden) { loadCrypto(); loadFng(); } }, 120000);
+  setInterval(() => { if (!document.hidden) refreshNewsCorpus(true); }, 600000);
+  setInterval(() => { if (!document.hidden && state.place) loadWeather(); }, 900000);
+  setInterval(() => { if (curPage === 'home') renderHome(); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderAllSoft(); } });
+}
+
+if (state.onboarded) boot();
+else { $('#onb').classList.add('show'); renderOnb(); }
+</script>
+</body>
+</html>
