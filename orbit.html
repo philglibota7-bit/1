@@ -50,20 +50,10 @@ button{background:none; border:none; cursor:pointer;}
 ::-webkit-scrollbar-track{background:transparent;}
 
 /* ---------- Schicht 1: Farbnebel ---------- */
-#nebel{position:fixed; inset:0; z-index:0; overflow:hidden; background:var(--p0);}
-#nebel::before{content:''; position:absolute; inset:-20%;
-  background:
-    radial-gradient(46% 42% at 24% 26%, var(--f1) 0%, transparent 68%),
-    radial-gradient(42% 38% at 78% 16%, var(--f2) 0%, transparent 70%),
-    radial-gradient(48% 44% at 74% 80%, var(--f3) 0%, transparent 70%),
-    radial-gradient(40% 38% at 20% 82%, var(--f4) 0%, transparent 70%);
-  filter:blur(38px) saturate(1.05); opacity:.44;
-  animation:nebel 64s ease-in-out infinite alternate;}
-@keyframes nebel{
-  0%  {transform:scale(1) translate(0,0);}
-  50% {transform:scale(1.12) translate(-2.5%,1.8%);}
-  100%{transform:scale(1.05) translate(2%,-2%);}
-}
+/* Nur noch die Grundflaeche — Nebel, Galaxie und Sterne zeichnet das
+   Canvas darueber, mit echtem Rauschen statt Farbverlaeufen. */
+#nebel{position:fixed; inset:0; z-index:0; background:var(--p0);
+  transition:background .6s var(--ease);}
 /* Filmkorn — bricht die Farbverlaeufe, sonst bandet es auf dem Handy */
 #korn{position:fixed; inset:0; z-index:3; pointer-events:none; opacity:.15;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");}
@@ -82,13 +72,34 @@ button{background:none; border:none; cursor:pointer;}
 body.kino #ui{opacity:0; pointer-events:none;}
 body.kino #vignette{background:radial-gradient(ellipse 74% 64% at 50% 46%, transparent 40%, rgba(0,0,0,.55) 100%);}
 
+/* Grosse Blenden duerfen echtes Glas sein: sie sind meist zu, und
+   solange eine offen ist, pausiert die Szene dahinter ohnehin. */
 .glas{
   background:var(--p1);
   border:1px solid var(--edge);
   border-radius:var(--r2);
+  box-shadow:0 14px 44px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.07);
+}
+/* Der Weichzeichner wird NUR an der gerade offenen Blende eingeschaltet.
+   Alle Blenden liegen dauerhaft im Dokument und sind bloss aus dem Bild
+   geschoben — mit dauerhaftem backdrop-filter zeichnet der Browser sie
+   trotzdem in jedem Einzelbild weich. Das kostete zwei Drittel der
+   Bildrate, obwohl nichts davon zu sehen war. */
+.blende.offen{
   backdrop-filter:blur(22px) saturate(1.3);
   -webkit-backdrop-filter:blur(22px) saturate(1.3);
-  box-shadow:0 14px 44px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.07);
+}
+
+/* Die staendig sichtbare Bedienung bekommt dasselbe Aussehen OHNE
+   Weichzeichner. Ueber einer laufenden Szene muss der Browser sonst in
+   jedem Einzelbild neu weichzeichnen — gemessen kostete das vier Fuenftel
+   der Bildrate, bei einem 38 Pixel hohen Knopf sieht man davon nichts. */
+.scheibe{
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.04)),
+    rgba(10,12,20,.62);
+  border:1px solid var(--edge);
+  box-shadow:0 10px 30px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.09);
 }
 
 /* ---------- Kopfzeile ---------- */
@@ -102,7 +113,15 @@ header{
   width:32px; height:32px; border-radius:50%; flex:0 0 auto; position:relative;
   background:radial-gradient(circle at 38% 34%, #cfe2ff 0%, var(--acc) 34%, #16243a 70%, transparent 74%);
   box-shadow:0 0 16px rgba(123,164,216,.5), inset 0 0 6px rgba(255,255,255,.4);
-  animation:puls 4.5s ease-in-out infinite;}
+  will-change:transform, opacity;}
+/* Die Kugel pulsiert NUR, wenn wirklich etwas arbeitet.
+   Eine dauernd laufende CSS-Animation liegt im bildschirmfuellenden #ui
+   und zwingt den Browser, bei jedem Schritt die gesamte Flaeche neu zu
+   zeichnen — gemessen 14 statt 60 Bilder pro Sekunde, wegen eines
+   32 Pixel grossen Punktes. Eigene Zeichenebene, contain und der
+   Verzicht auf opacity halfen alle nicht. So ist sie im Ruhezustand
+   gratis und sagt obendrein etwas aus. */
+.marke .sat.aktiv{animation:puls 2.2s ease-in-out infinite;}
 @keyframes puls{0%,100%{transform:scale(1); opacity:.9;} 50%{transform:scale(1.07); opacity:1;}}
 .marke h1{font-size:15px; font-weight:600; letter-spacing:.16em;}
 .marke small{display:block; font-size:10.5px; color:var(--tx3); letter-spacing:.1em;
@@ -112,12 +131,15 @@ header{
 .kopf-knopf{
   display:flex; align-items:center; justify-content:center; gap:7px;
   height:38px; padding:0 14px; border-radius:99px;
-  background:var(--p1); border:1px solid var(--edge);
-  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.04)),
+    rgba(10,12,20,.62);
+  border:1px solid var(--edge);
+  box-shadow:0 8px 24px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.09);
   color:var(--tx2); font-size:12.5px; font-weight:500; letter-spacing:.02em;
   transition:all .22s var(--ease); white-space:nowrap;
 }
-.kopf-knopf:hover{background:var(--p2); color:var(--tx); border-color:var(--edge2);}
+.kopf-knopf:hover{color:var(--tx); border-color:var(--edge2);}
 .kopf-knopf:active{transform:scale(.96);}
 .kopf-knopf.an{background:var(--acc-tint); border-color:rgba(123,164,216,.4); color:var(--acc);}
 .kopf-knopf svg{width:15px; height:15px; flex:0 0 auto;}
@@ -146,12 +168,15 @@ footer{
 .crew-chip{
   display:flex; align-items:center; gap:8px; flex:0 0 auto;
   height:40px; padding:0 13px 0 9px; border-radius:99px;
-  background:var(--p1); border:1px solid var(--edge);
-  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.04)),
+    rgba(10,12,20,.62);
+  border:1px solid var(--edge);
+  box-shadow:0 8px 24px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.09);
   transition:all .22s var(--ease); max-width:210px;
 }
-.crew-chip:hover{background:var(--p2); border-color:var(--edge2);}
-.crew-chip.gewaehlt{background:var(--p3); border-color:var(--edge2); box-shadow:0 0 0 1px var(--edge2);}
+.crew-chip:hover{border-color:var(--edge2);}
+.crew-chip.gewaehlt{border-color:var(--edge2); box-shadow:0 0 0 1px var(--edge2), 0 8px 24px rgba(0,0,0,.36);}
 .crew-chip .punkt{width:9px; height:9px; border-radius:50%; flex:0 0 auto; box-shadow:0 0 9px currentColor;}
 .crew-chip .nm{font-size:12.5px; font-weight:550; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .crew-chip .zust{font-size:10px; color:var(--tx3); letter-spacing:.04em;}
@@ -159,7 +184,8 @@ footer{
 .crew-chip.neu{color:var(--tx3); padding:0 15px;}
 .crew-chip.neu:hover{color:var(--acc);}
 
-#missionsfeld{padding:11px 11px 11px 15px; display:flex; align-items:flex-end; gap:10px;}
+#missionsfeld{padding:11px 11px 11px 15px; display:flex; align-items:flex-end; gap:10px;
+  border-radius:var(--r2);}
 #auftrag{
   flex:1; background:none; border:none; outline:none; resize:none;
   color:var(--tx); font-size:15px; line-height:1.45; max-height:132px; min-height:24px;
@@ -282,9 +308,9 @@ body.kino #kino-tipp{opacity:1; animation:tippweg 4s ease forwards;}
 @keyframes tippweg{0%,55%{opacity:1;} 100%{opacity:0;}}
 
 #schleier{position:fixed; inset:0; z-index:9; background:rgba(0,0,0,.5);
-  opacity:0; pointer-events:none; transition:opacity .4s var(--ease);
+  opacity:0; pointer-events:none; transition:opacity .4s var(--ease);}
+#schleier.an{opacity:1; pointer-events:auto;
   backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px);}
-#schleier.an{opacity:1; pointer-events:auto;}
 
 .feld-hinweis{font-size:11.5px; color:var(--tx3); line-height:1.5; margin-top:7px;
   text-transform:none; letter-spacing:0; font-weight:400;}
@@ -300,8 +326,10 @@ body.kino #kino-tipp{opacity:1; animation:tippweg 4s ease forwards;}
   top:calc(env(safe-area-inset-top) + 62px);
   display:none; align-items:center; gap:11px;
   padding:11px 12px 11px 14px; border-radius:var(--r2);
-  background:var(--p2); border:1px solid var(--edge2);
-  backdrop-filter:blur(24px) saturate(1.3); -webkit-backdrop-filter:blur(24px) saturate(1.3);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.05)),
+    rgba(10,12,20,.72);
+  border:1px solid var(--edge2);
   box-shadow:0 14px 44px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.08);
   transform:translateY(-14px); opacity:0; transition:all .45s var(--ease);
 }
@@ -401,7 +429,7 @@ body.kino #install{display:none;}
 
   <footer>
     <div id="crew-leiste"></div>
-    <div class="glas" id="missionsfeld">
+    <div class="scheibe" id="missionsfeld">
       <textarea id="auftrag" rows="1" placeholder="Auftrag an die Crew…"></textarea>
       <button id="senden" disabled title="Absenden (⌘/Strg + Enter)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
@@ -606,6 +634,7 @@ let Z = {
   key: "",
   maxTok: 8000,
   gewaehlt: null,     // ID des aktiven Agenten, null = ganze Crew
+  thema: "orion",
   bruecke: {
     typen: { session: true, ordner: true, prozess: true, github: true },
     ordner: [],                 // beobachtete Projektordner
@@ -626,6 +655,7 @@ function laden() {
       Z.key     = typeof d.key === "string" ? d.key : "";
       Z.maxTok  = Number(d.maxTok) || 8000;
       Z.gewaehlt = d.gewaehlt ?? null;
+      if (typeof d.thema === "string") Z.thema = d.thema;
       if (d.bruecke && typeof d.bruecke === "object") {
         Z.bruecke = Object.assign(Z.bruecke, d.bruecke);
         Z.bruecke.typen = Object.assign({ session: true, ordner: true, prozess: true, github: true },
@@ -658,7 +688,7 @@ function sichern() {
       agenten: Z.agenten,
       log: Z.log.slice(0, 60),
       key: Z.key, maxTok: Z.maxTok, gewaehlt: Z.gewaehlt,
-      bruecke: Z.bruecke,
+      thema: Z.thema, bruecke: Z.bruecke,
     }));
   } catch (e) {
     /* Speicher voll oder privater Modus — die App laeuft trotzdem weiter */
@@ -1157,6 +1187,13 @@ const sparsam = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 let sterne = [];
 let sternschnuppe = null;
 
+let backUhr = null;
+function himmelSpaeterBacken() {
+  /* Waehrend des Ziehens am Fenster nicht bei jedem Pixel neu rechnen */
+  clearTimeout(backUhr);
+  backUhr = setTimeout(himmelBacken, 220);
+}
+
 function groesseAnpassen() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   W = window.innerWidth; H = window.innerHeight;
@@ -1166,17 +1203,23 @@ function groesseAnpassen() {
   cv.style.height = H + "px";
   cx.setTransform(DPR, 0, 0, DPR, 0, 0);
   sterneStreuen();
+  himmelSpaeterBacken();
 }
 
 function sterneStreuen() {
-  const anzahl = Math.round(Math.min(340, (W * H) / 3400));
+  /* Nur die NAHEN Sterne — sie funkeln und wandern mit. Die Masse steht
+     im gebackenen Bild dahinter. */
+  const anzahl = Math.round(Math.min(150, (W * H) / 8200));
   sterne = new Array(anzahl).fill(0).map(() => {
     const tiefe = Math.random();
+    const hell = Math.pow(Math.random(), 1.8);
     return {
       x: Math.random() * W, y: Math.random() * H,
-      r: 0.35 + tiefe * 1.25,
-      tiefe: 0.22 + tiefe * 0.78,
-      hell: 0.2 + Math.random() * 0.6,
+      r: 0.5 + tiefe * 1.5,
+      tiefe: 0.3 + tiefe * 0.7,
+      hell: 0.25 + hell * 0.75,
+      farbe: sternfarbe(Math.random()),
+      spitzen: hell > 0.82,          // nur die hellsten bekommen Beugungsspitzen
       takt: Math.random() * Math.PI * 2,
       tempo: 0.4 + Math.random() * 1.4,
     };
@@ -1208,14 +1251,48 @@ function zeichneSterne(t, kamX, kamY) {
   for (const s of sterne) {
     const x = ((s.x - kamX * s.tiefe) % W + W) % W;
     const y = ((s.y - kamY * s.tiefe) % H + H) % H;
-    const flimmern = sparsam ? 1 : 0.62 + 0.38 * Math.sin(t * 0.0013 * s.tempo + s.takt);
-    cx.globalAlpha = s.hell * flimmern;
-    cx.fillStyle = "#cfe0ff";
-    cx.beginPath();
-    cx.arc(x, y, s.r, 0, Math.PI * 2);
-    cx.fill();
+    const flimmern = sparsam ? 1 : 0.6 + 0.4 * Math.sin(t * 0.0013 * s.tempo + s.takt);
+    const a = s.hell * flimmern;
+    const [r, g, b] = s.farbe;
+    const f = `rgba(${r},${g},${b},`;
+
+    /* Weicher Hof — ohne ihn wirken Sterne wie aufgemalte Punkte */
+    cx.fillStyle = f + (a * 0.16) + ")";
+    cx.beginPath(); cx.arc(x, y, s.r * 3.6, 0, Math.PI * 2); cx.fill();
+
+    cx.fillStyle = f + a + ")";
+    cx.beginPath(); cx.arc(x, y, s.r, 0, Math.PI * 2); cx.fill();
+
+    /* Beugungsspitzen, wie sie ein Teleskop an hellen Sternen erzeugt */
+    if (s.spitzen && !sparsam) {
+      const l = s.r * (5.5 + flimmern * 2.5);
+      cx.strokeStyle = f + (a * 0.5) + ")";
+      cx.lineWidth = 0.7;
+      cx.beginPath();
+      cx.moveTo(x - l, y); cx.lineTo(x + l, y);
+      cx.moveTo(x, y - l); cx.lineTo(x, y + l);
+      cx.stroke();
+    }
   }
   cx.globalAlpha = 1;
+}
+
+/* --- Den fertigen Himmel aufs Bild kopieren ---
+   Eins zu eins, ohne Skalierung und ohne Mischmodus: die Verschiebung
+   wird auf ganze Geraetepixel gerundet, sonst muesste der Browser bei
+   jedem Bild neu abtasten und wir waeren wieder beim alten Tempo. */
+function zeichneHimmel(t) {
+  const bild = HIMMEL.bild;
+  if (!bild) return;
+  const d = sparsam ? 0 : 1;
+  const dx = Math.sin(t * 0.0000085) * 36 * d;
+  const dy = Math.cos(t * 0.0000067) * 28 * d;
+  cx.save();
+  cx.setTransform(1, 0, 0, 1, 0, 0);
+  cx.drawImage(bild,
+    Math.round((-HIMMEL_RAND + dx) * DPR),
+    Math.round((-HIMMEL_RAND + dy) * DPR));
+  cx.restore();
 }
 
 function zeichneSternschnuppe(t, dt) {
@@ -1613,6 +1690,355 @@ function blaseZeichnen(b, farbe) {
 }
 
 /* ================================================================
+   3 — Himmelsthemen
+   Jedes Thema beruht auf einem echten Objekt am Himmel. Die Farben
+   kommen aus der Astrofotografie: welche Emissionslinien dominieren,
+   ob Staub das Licht roetet, ob es ein Reflexionsnebel ist.
+   ================================================================ */
+
+/* THEMEN-ANFANG — dieser Block wird als Ganzes ersetzt */
+const THEMEN = [
+  { id: "orion", name: "Orion", objekt: "M42, Orionnebel",
+    stimmung: "gluehender Wasserstoff, warm und koernig",
+    raum: "#05060c", nebel: ["#8f3b4e", "#c25f52", "#4a6f9c", "#d69a72"],
+    staub: "#1a0f14", sterne: "#ffe9d6", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#e08a72", helligkeit: 0.62 },
+  { id: "plejaden", name: "Plejaden", objekt: "M45, Siebengestirn",
+    stimmung: "Staub, der blaues Sternlicht streut",
+    raum: "#04060e", nebel: ["#3f6bb0", "#5b8ed6", "#26406e", "#8fb4e8"],
+    staub: "#0b1424", sterne: "#e8f0ff", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#7ba4d8", helligkeit: 0.5 },
+  { id: "helix", name: "Helixnebel", objekt: "NGC 7293",
+    stimmung: "abgestossene Huelle eines sterbenden Sterns",
+    raum: "#03080a", nebel: ["#2f8f8a", "#48b3a2", "#1d5f70", "#9c5f8e"],
+    staub: "#08191c", sterne: "#dff5f2", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#5fb2b8", helligkeit: 0.54 },
+  { id: "andromeda", name: "Andromeda", objekt: "M31",
+    stimmung: "alter goldener Kern, junge blaue Arme",
+    raum: "#04050b", nebel: ["#3a4a78", "#5a5f8f", "#22304f", "#7a6f9c"],
+    staub: "#0a0c16", sterne: "#f2efe6", galaxie: "#f0d9a8", galaxiearm: "#9fc0e8",
+    akzent: "#cfa456", helligkeit: 0.4 },
+];
+/* THEMEN-ENDE */
+
+/* Eine feste Saat je Thema, damit derselbe Himmel wiederkommt */
+THEMEN.forEach((t, i) => { t.saat = i * 7919 + 13; });
+
+function aktivesThema() {
+  return THEMEN.find(t => t.id === Z.thema) || THEMEN[0];
+}
+
+/* Die Oberflaeche zieht ihre Farben mit — sonst passt das Glas nicht
+   mehr zum Himmel dahinter. */
+function themaAnwenden() {
+  const t = aktivesThema();
+  const w = document.documentElement.style;
+  w.setProperty("--p0", t.raum);
+  w.setProperty("--acc", t.akzent);
+  w.setProperty("--acc-tint", t.akzent + "29");
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute("content", t.raum);
+}
+
+/* ================================================================
+   3a — Der Himmel
+   Nebel, Galaxie und ferne Sterne werden EINMAL in Zwischenbilder
+   gezeichnet und danach nur noch verschoben. Echtes Rauschen pro Bild
+   waere auf einem Canvas viel zu teuer; so kostet ein Bild drei
+   Kopiervorgaenge, und der Nebel sieht trotzdem gewachsen aus statt
+   nach uebereinandergelegten Farbkreisen.
+   ================================================================ */
+
+const HIMMEL = {
+  nebel: null, galaxie: null, fern: null,
+  breite: 0, hoehe: 0, thema: null, baut: false,
+};
+
+/* --- Wertrauschen: Gitter aus Zufallszahlen, dazwischen weich verlaufend --- */
+function streu(x, y, saat) {
+  let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(saat, 1274126177);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+function wert(x, y, saat) {
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const xf = x - xi, yf = y - yi;
+  /* Glaettung: ohne sie sieht man das Gitter als Rautenmuster */
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = streu(xi, yi, saat),     b = streu(xi + 1, yi, saat);
+  const c = streu(xi, yi + 1, saat), d = streu(xi + 1, yi + 1, saat);
+  return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v;
+}
+
+/* Mehrere Oktaven uebereinander — grobe Form plus feine Fasern */
+function fbm(x, y, saat, oktaven) {
+  let summe = 0, anteil = 0.5, dichte = 1, gesamt = 0;
+  for (let i = 0; i < oktaven; i++) {
+    summe += anteil * wert(x * dichte, y * dichte, saat + i * 131);
+    gesamt += anteil;
+    dichte *= 2.07;          // kein glattes Vielfaches, sonst wiederholt es sich sichtbar
+    anteil *= 0.52;
+  }
+  return summe / gesamt;
+}
+
+const hexZuRgb = (h) => {
+  const v = String(h || "#000000").replace("#", "");
+  return [parseInt(v.slice(0, 2), 16) || 0, parseInt(v.slice(2, 4), 16) || 0, parseInt(v.slice(4, 6), 16) || 0];
+};
+
+/* --- Nebel backen --- */
+function backeNebel(breite, hoehe, thema) {
+  /* Zwei Drittel der Aufloesung: genug fuer feine Fasern, aber nur gut
+     ein Drittel der Rechenarbeit einer vollen Berechnung. */
+  const w = Math.max(260, Math.round(breite * 0.66));
+  const h = Math.max(260, Math.round(hoehe * 0.66));
+  const lw = document.createElement("canvas");
+  lw.width = w; lw.height = h;
+  const c = lw.getContext("2d");
+  const bild = c.createImageData(w, h);
+  const d = bild.data;
+
+  const farben = (thema.nebel || []).map(hexZuRgb);
+  while (farben.length < 4) farben.push(farben[0] || [60, 90, 150]);
+  const staub = hexZuRgb(thema.staub || "#000000");
+  const saat = thema.saat || 1;
+  const staerke = thema.helligkeit ?? 0.55;
+
+  /* Auf die kuerzere Seite beziehen, damit der Nebel im Hoch- wie im
+     Querformat gleich grob wirkt */
+  const mass = Math.min(w, h);
+  const s1 = 5.2 / mass, s2 = 7.4 / mass, s3 = 1.35 / mass;
+  const s4 = 13.5 / mass;          // feine Faserung obendrauf
+
+  /* Mehrere Oktaven Rauschen mitteln sich zur Mitte hin aus: die Werte
+     liegen fast alle zwischen 0,33 und 0,67. Ungespreizt ergibt das einen
+     gleichmaessigen Grauschleier statt Wolken. Also um die Mitte dehnen. */
+  const spreiz = (v, k) => {
+    const o = (v - 0.5) * k + 0.5;
+    return o < 0 ? 0 : o > 1 ? 1 : o;
+  };
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      /* Grosse Form: wo ist ueberhaupt Nebel */
+      const huelle = spreiz(fbm(x * s3, y * s3, saat, 3), 2.7);
+      if (huelle <= 0.02) continue;
+      /* Feinstruktur: Fasern und Knoten */
+      const fein = spreiz(fbm(x * s1, y * s1, saat + 7, 5), 2.3);
+      /* Welche der vier Farben dominiert hier */
+      const misch = spreiz(fbm(x * s2, y * s2, saat + 23, 3), 1.8);
+
+      /* Noch feinere Struktur — ohne sie wirken die Wolken wie unscharfe Flecken */
+      const faser = spreiz(fbm(x * s4, y * s4, saat + 53, 3), 2.0);
+
+      let dichte = Math.pow(huelle, 1.45) * Math.pow(fein, 1.25) * (0.5 + faser * 0.7) * 2.2;
+
+      /* Die Mitte bleibt absichtlich frei: dort steht die Station, und sie
+         braucht dunklen Hintergrund, um lesbar zu bleiben. */
+      const dx = (x - w / 2) / (w / 2), dy = (y - h / 2) / (h / 2);
+      const rad = Math.sqrt(dx * dx + dy * dy);
+      const frei = Math.max(0, Math.min(1, (rad - 0.20) / 0.42));
+      dichte *= 0.14 + 0.86 * frei;
+
+      if (dichte <= 0.006) continue;
+
+      /* Zwischen zwei benachbarten Farben ueberblenden */
+      const stufe = Math.min(2.999, misch * 3);
+      const i0 = Math.floor(stufe), t = stufe - i0;
+      const a = farben[i0], b = farben[i0 + 1];
+      let r = a[0] + (b[0] - a[0]) * t;
+      let g = a[1] + (b[1] - a[1]) * t;
+      let bl = a[2] + (b[2] - a[2]) * t;
+
+      /* Dunkelbahnen: kalter Staub schluckt das Licht dahinter */
+      const staubfeld = spreiz(fbm(x * s1 * 0.62, y * s1 * 0.62, saat + 91, 4), 2.4);
+      const schlucken = Math.max(0, staubfeld - 0.58) * 2.2;
+      if (schlucken > 0) {
+        const k = Math.min(1, schlucken);
+        r = r * (1 - k) + staub[0] * k;
+        g = g * (1 - k) + staub[1] * k;
+        bl = bl * (1 - k) + staub[2] * k;
+        dichte *= 1 - k * 0.72;
+      }
+
+      /* Nur die dichtesten Knoten leuchten aus. Frueher hellte das zu
+         grossflaechig auf und der ganze Nebel wurde milchig-grau. */
+      const kern = Math.pow(Math.max(0, fein - 0.84) * 5.2, 2);
+      r = Math.min(255, r + kern * 62);
+      g = Math.min(255, g + kern * 58);
+      bl = Math.min(255, bl + kern * 54);
+
+      const o = (y * w + x) * 4;
+      d[o] = r; d[o + 1] = g; d[o + 2] = bl;
+      d[o + 3] = Math.min(255, dichte * 255 * staerke);
+    }
+  }
+  c.putImageData(bild, 0, 0);
+  return lw;
+}
+
+/* --- Spiralgalaxie backen --- */
+function backeGalaxie(breite, hoehe, thema) {
+  if (!thema.galaxie || thema.galaxie === "keine") return null;
+  const gr = Math.round(Math.min(breite, hoehe) * 0.98);
+  const lw = document.createElement("canvas");
+  lw.width = gr; lw.height = gr;
+  const c = lw.getContext("2d");
+  const m = gr / 2;
+
+  const kern = hexZuRgb(thema.galaxie);
+  const arm = hexZuRgb(thema.galaxiearm && thema.galaxiearm !== "keine" ? thema.galaxiearm : thema.galaxie);
+  const saat = (thema.saat || 1) + 555;
+  let n = saat >>> 0;
+  const rnd = () => { n = (Math.imul(n, 1664525) + 1013904223) >>> 0; return n / 4294967296; };
+
+  /* Kernwulst */
+  const wulst = c.createRadialGradient(m, m, 0, m, m, gr * 0.18);
+  wulst.addColorStop(0, `rgba(${kern[0]},${kern[1]},${kern[2]},.85)`);
+  wulst.addColorStop(0.45, `rgba(${kern[0]},${kern[1]},${kern[2]},.28)`);
+  wulst.addColorStop(1, `rgba(${kern[0]},${kern[1]},${kern[2]},0)`);
+  c.fillStyle = wulst;
+  c.beginPath(); c.arc(m, m, gr * 0.18, 0, Math.PI * 2); c.fill();
+
+  /* Scheibenschimmer */
+  const scheibe = c.createRadialGradient(m, m, gr * 0.05, m, m, gr * 0.47);
+  scheibe.addColorStop(0, `rgba(${arm[0]},${arm[1]},${arm[2]},.16)`);
+  scheibe.addColorStop(1, `rgba(${arm[0]},${arm[1]},${arm[2]},0)`);
+  c.fillStyle = scheibe;
+  c.beginPath(); c.arc(m, m, gr * 0.47, 0, Math.PI * 2); c.fill();
+
+  /* Arme: logarithmische Spirale, Sterne darum gestreut */
+  c.globalCompositeOperation = "lighter";
+  const arme = 2, windung = 0.30;
+  const anzahl = Math.min(26000, Math.round(gr * gr / 42));
+  for (let i = 0; i < anzahl; i++) {
+    const a = Math.floor(rnd() * arme);
+    /* Wurzel, damit die Sterne zur Mitte hin dichter stehen */
+    const t = Math.sqrt(rnd());
+    const r = gr * 0.06 + t * gr * 0.44;
+    const theta = Math.log(r / (gr * 0.05)) / windung + (a / arme) * Math.PI * 2;
+    /* Streuung waechst nach aussen — innen sind die Arme schaerfer */
+    const streuung = (0.05 + t * 0.20) * (rnd() + rnd() + rnd() - 1.5);
+    const w = theta + streuung;
+    const rr = r * (1 + (rnd() - 0.5) * 0.10);
+    const x = m + Math.cos(w) * rr;
+    const y = m + Math.sin(w) * rr * 0.42;      // von der Seite gekippt
+    const hell = 0.10 + rnd() * rnd() * 0.65;
+    const jung = rnd() < 0.20;                  // blaue junge Sterne in den Armen
+    const f = jung ? [Math.min(255, arm[0] + 40), Math.min(255, arm[1] + 45), 255] : arm;
+    c.fillStyle = `rgba(${f[0]},${f[1]},${f[2]},${hell * (1 - t * 0.45)})`;
+    c.fillRect(x, y, 1.15, 1.15);
+  }
+
+  /* Staubbahn vor den Armen */
+  c.globalCompositeOperation = "source-over";
+  const staub = hexZuRgb(thema.staub || "#000000");
+  for (let i = 0; i < 2600; i++) {
+    const t = Math.sqrt(rnd());
+    const r = gr * 0.10 + t * gr * 0.40;
+    const theta = Math.log(r / (gr * 0.05)) / windung + (rnd() < 0.5 ? 0 : Math.PI) + 0.38;
+    const w = theta + (rnd() - 0.5) * 0.16;
+    const x = m + Math.cos(w) * r;
+    const y = m + Math.sin(w) * r * 0.42;
+    c.fillStyle = `rgba(${staub[0]},${staub[1]},${staub[2]},${0.05 + rnd() * 0.16})`;
+    c.fillRect(x, y, 2.4, 2.0);
+  }
+  return lw;
+}
+
+/* --- Ferne Sterne backen: Farbe nach Temperatur --- */
+const STERNKLASSEN = [
+  { f: [155, 176, 255], p: 0.04 },   // O und B, heiss und blau
+  { f: [202, 215, 255], p: 0.10 },   // A
+  { f: [248, 247, 255], p: 0.16 },   // F
+  { f: [255, 244, 234], p: 0.22 },   // G, wie die Sonne
+  { f: [255, 210, 161], p: 0.26 },   // K
+  { f: [255, 186, 130], p: 0.22 },   // M, kuehl und rot
+];
+
+function sternfarbe(r) {
+  let summe = 0;
+  for (const k of STERNKLASSEN) { summe += k.p; if (r <= summe) return k.f; }
+  return STERNKLASSEN[STERNKLASSEN.length - 1].f;
+}
+
+function backeFerneSterne(breite, hoehe, thema) {
+  const lw = document.createElement("canvas");
+  lw.width = breite; lw.height = hoehe;
+  const c = lw.getContext("2d");
+  let n = ((thema.saat || 1) + 999) >>> 0;
+  const rnd = () => { n = (Math.imul(n, 1664525) + 1013904223) >>> 0; return n / 4294967296; };
+  const ton = hexZuRgb(thema.sterne || "#ffffff");
+
+  /* Milchstrassenband: eine schraege Verdichtung, wie am echten Himmel */
+  const bandW = (rnd() * 0.6 - 0.3) + 0.35;
+  const anzahl = Math.round((breite * hoehe) / 620);
+  for (let i = 0; i < anzahl; i++) {
+    const x = rnd() * breite, y = rnd() * hoehe;
+    /* Abstand zum Band bestimmt, wie wahrscheinlich hier ein Stern steht */
+    const dz = Math.abs((y - hoehe * 0.42) - (x - breite / 2) * bandW) / (hoehe * 0.5);
+    if (rnd() > Math.exp(-dz * dz * 2.1) * 0.85 + 0.15) continue;
+    const f = sternfarbe(rnd());
+    /* Sternton des Themas leicht einmischen */
+    const r = f[0] * 0.78 + ton[0] * 0.22;
+    const g = f[1] * 0.78 + ton[1] * 0.22;
+    const b = f[2] * 0.78 + ton[2] * 0.22;
+    const hell = Math.pow(rnd(), 2.4);          // viele schwache, wenige helle
+    c.fillStyle = `rgba(${r | 0},${g | 0},${b | 0},${0.12 + hell * 0.7})`;
+    const gr = hell > 0.72 ? 1.5 : 1;
+    c.fillRect(x, y, gr, gr);
+  }
+  return lw;
+}
+
+/* Rand, damit der Himmel driften kann, ohne dass eine Kante ins Bild kommt */
+const HIMMEL_RAND = 90;
+
+/* --- Alles neu backen und zu EINEM Bild zusammenfuegen ---
+   Frueher wurden die drei Schichten in jedem Einzelbild skaliert und
+   additiv verrechnet — das kostete so viel, dass nur noch sieben Bilder
+   pro Sekunde herauskamen. Jetzt passiert das genau einmal; im laufenden
+   Betrieb wird nur noch ein fertiges Bild eins zu eins kopiert. */
+function himmelBacken() {
+  const t = aktivesThema();
+  const start = performance.now();
+  HIMMEL.baut = true;
+
+  const bW = W + HIMMEL_RAND * 2, bH = H + HIMMEL_RAND * 2;
+  const nebel = backeNebel(bW, bH, t);
+  const galaxie = backeGalaxie(bW, bH, t);
+  const fern = backeFerneSterne(bW, bH, t);
+
+  const bild = document.createElement("canvas");
+  bild.width = Math.round(bW * DPR);
+  bild.height = Math.round(bH * DPR);
+  const c = bild.getContext("2d");
+  c.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+  if (galaxie) {
+    c.save();
+    c.globalCompositeOperation = "lighter";
+    c.globalAlpha = 0.78;
+    c.translate(bW * 0.76, bH * 0.20);
+    c.rotate(-0.42);
+    c.drawImage(galaxie, -galaxie.width / 2, -galaxie.height / 2);
+    c.restore();
+  }
+  c.drawImage(fern, 0, 0, bW, bH);
+  c.save();
+  c.globalCompositeOperation = "lighter";
+  c.drawImage(nebel, 0, 0, bW, bH);
+  c.restore();
+
+  HIMMEL.bild = bild;
+  HIMMEL.breite = W; HIMMEL.hoehe = H; HIMMEL.thema = t.id;
+  HIMMEL.dauer = Math.round(performance.now() - start);
+  HIMMEL.baut = false;
+}
+
+/* ================================================================
    4 — Der Bildlauf
    ================================================================ */
 
@@ -1628,16 +2054,24 @@ function sicht(id, i, n, startWinkel) {
   return SICHT.get(id);
 }
 
+let blendeOffen = false;
+
 function rahmen(jetzt) {
   const dt = Math.min(64, jetzt - letzteZeit);
   letzteZeit = jetzt;
   const t = jetzt - T0;
 
+  /* Liegt eine Blende darueber, sieht man von der Szene ohnehin nichts.
+     Weiterzuzeichnen wuerde nur den Weichzeichner der Blende in jedem
+     Einzelbild neu anwerfen. */
+  if (blendeOffen || window.__STOP) { requestAnimationFrame(rahmen); return; }
+
   cx.clearRect(0, 0, W, H);
 
-  /* Sterne driften langsam — gibt Tiefe, auch wenn nichts passiert */
-  const driftX = t * 0.0035, driftY = t * 0.0012;
-  zeichneSterne(t, driftX, driftY);
+  zeichneHimmel(t);
+  /* Nahe Sterne driften staerker als der Himmel dahinter — das erzeugt
+     die Tiefe, auch wenn sonst nichts passiert */
+  zeichneSterne(t, t * 0.0035, t * 0.0012);
   zeichneSternschnuppe(t, dt);
 
   const ccx = W / 2;
@@ -2138,6 +2572,10 @@ function zeichneCrewLeiste() {
   const laufend = Z.agenten.filter(a => lauf(a.id).abbruch).length;
   $("#log-zahl").textContent = laufend ? laufend + " aktiv" : "Log";
   $("#btn-log").classList.toggle("an", laufend > 0);
+
+  /* Der Punkt im Logo pulsiert genau dann, wenn irgendwo gearbeitet wird */
+  const regt = laufend > 0 || BR.live.some(x => x.zustand === "sendet" || x.zustand === "denkt");
+  document.querySelector(".marke .sat").classList.toggle("aktiv", regt);
 }
 
 function zeitText(ms) {
@@ -2585,6 +3023,7 @@ function ordnerDazu(pfad) {
    ================================================================ */
 
 function blendeAuf(id) {
+  blendeOffen = true;
   /* Wechselt man vom Detail zu einer anderen Blende, gehoert der
      Auswahlring am Astronauten weg */
   if (id !== "blende-detail" && offeneDetailId) { offeneDetailId = null; zeichneCrewLeiste(); }
@@ -2595,6 +3034,7 @@ function blendeAuf(id) {
   if (id === "blende-bruecke") zeichneBrueckeLage();
 }
 function blendeZu() {
+  blendeOffen = false;
   $$(".blende").forEach(b => b.classList.remove("offen"));
   $("#schleier").classList.remove("an");
   offeneDetailId = null;
@@ -2822,7 +3262,9 @@ window.addEventListener("orientationchange", () => setTimeout(groesseAnpassen, 1
    10 — Start
    ================================================================ */
 laden();
+themaAnwenden();
 groesseAnpassen();
+himmelBacken();
 zeichneCrewLeiste();
 zeichneLog();
 hoeheAnpassen();
@@ -2891,6 +3333,12 @@ if (!imProgramm() && !schonInstalliert()
 /* Haken fuer automatische Tests — im Betrieb ungenutzt */
 window.__BR_LIVE = () => BR.live;
 window.__DETAIL = (id) => detailOeffnen(id);
+window.__HIMMEL = () => HIMMEL;
+window.__STERNE = (t,a,b) => zeichneSterne(t,a,b);
+window.__STATION = (t,x,y,r) => zeichneStation(t,x,y,r);
+window.__ASTRO = (...a) => zeichneAstronaut(...a);
+window.__STERNZAHL = () => sterne.length;
+window.__THEMA = (id) => { Z.thema = id; themaAnwenden(); himmelBacken(); sichern(); };
 window.__SET_GED = (id, an) => { const a = agentNach(id); if (a) { a.gedaechtnis = an; sichern(); } };
 
 /* Beim allerersten Besuch direkt zum Schluessel fuehren — sonst steht
