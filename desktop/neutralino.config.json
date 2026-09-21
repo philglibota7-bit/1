@@ -7,9 +7,17 @@
   "url": "/",
   "enableServer": true,
   "enableNativeAPI": true,
-  "tokenSecurity": "one-time",
-  "logging": { "enabled": false, "writeToLogFile": false },
-  "nativeAllowList": ["app.*", "os.open", "window.*", "events.*"],
+  "tokenSecurity": "none",
+  "logging": {
+    "enabled": false,
+    "writeToLogFile": false
+  },
+  "nativeAllowList": [
+    "app.*",
+    "os.open",
+    "window.*",
+    "events.*"
+  ],
   "modes": {
     "window": {
       "title": "PULSE",
