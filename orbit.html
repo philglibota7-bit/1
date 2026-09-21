@@ -1617,7 +1617,7 @@ function endkappe(c, x, y, r) {
    sieht — der hintere Rahmen wird schwaecher und versetzt gezeichnet,
    dazwischen bleibt die Schwaerze des Alls stehen. Ein massiver Balken
    sieht sofort nach Spielzeug aus. */
-function gittertraeger(c, x1, x2, y, hoehe, saat) {
+function gittertraeger(c, x1, x2, y, hoehe, saat, plaetze) {
   const laenge = x2 - x1;
   const felder = Math.max(8, Math.round(laenge / (hoehe * 0.85)));
   const versatz = hoehe * 0.28;
@@ -1675,9 +1675,9 @@ function gittertraeger(c, x1, x2, y, hoehe, saat) {
   /* Aufgeschnallte Kisten: Akkus, Pumpen, Tanks. Unregelmaessig verteilt
      — die Asymmetrie ist das, was eine gebaute von einer gezeichneten
      Station unterscheidet. */
-  const plaetze = [0.08, 0.2, 0.36, 0.52, 0.63, 0.78, 0.9];
-  for (let i = 0; i < plaetze.length; i++) {
-    const xx = x1 + laenge * plaetze[i];
+  const kisten = [0.08, 0.2, 0.36, 0.52, 0.63, 0.78, 0.9];
+  for (let i = 0; i < kisten.length; i++) {
+    const xx = x1 + laenge * kisten[i];
     const bw = hoehe * (0.5 + streu(i, saat, 3) * 0.55);
     const bh = hoehe * (0.3 + streu(i, saat, 5) * 0.3);
     const oben = streu(i, saat, 9) > 0.5;
@@ -1690,6 +1690,14 @@ function gittertraeger(c, x1, x2, y, hoehe, saat) {
       c.strokeStyle = "rgba(24,28,32,.55)"; c.lineWidth = 0.4;
       rundRect(c, xx, yy, bw, bh, bh * 0.16); c.stroke();
     }
+  }
+
+  /* Arbeitsplaetze am Traeger: an den Segmentfugen sitzen die
+     Fussrasten und Handlaeufe, an denen wirklich gearbeitet wird. */
+  for (const f of [0.2, 0.36, 0.64, 0.8]) {
+    const xx = x1 + laenge * f;
+    merkePlatz(c, plaetze, xx, y - hoehe / 2, "traeger", 0);
+    merkePlatz(c, plaetze, xx + laenge * 0.06, y + hoehe / 2, "traeger", Math.PI);
   }
 
   /* Die Schienen der Transportwagen: zwei feine Linien auf der
@@ -1813,7 +1821,7 @@ function radiator(c, x, y, w, h, quer) {
    Schirm landet, gestuft nach einer festen Leiter. Ohne die Stufen
    muesste bei jedem Zoomschritt neu gebacken werden, und das waere als
    Ruckler zu sehen. */
-const STLEITER = [48, 72, 108, 160, 232];
+const STLEITER = [48, 72, 108, 160, 232, 340];
 let STBILD = null;
 
 /* Merkt sich, wo ein Fenster im fertigen Bild liegt, statt es zu
@@ -1826,23 +1834,102 @@ function merkeFenster(c, liste, x, y, r, ton, ph, takt, grund, hub) {
   liste.push({ x: p.x, y: p.y, r: r * Math.hypot(m.a, m.b), ton, ph, takt, grund, hub });
 }
 
+/* Ein Arbeitsplatz an der Station: eine Stelle, an der ein Astronaut
+   wirklich sein kann. Echte Aussenbordeinsaetze finden nicht im freien
+   Raum statt, sondern an der Struktur — man zieht sich von Handlauf zu
+   Handlauf, stellt sich in eine Fussraste und arbeitet mit beiden
+   Haenden, oder man faehrt auf dem Roboterarm mit.
+
+   Die Stellen werden beim Backen mitgeschrieben, weil nur dort die
+   Kette aus Drehungen und Verschiebungen bekannt ist. Gespeichert wird
+   in Vielfachen von R, damit sie in jeder Groesse stimmen. */
+function merkePlatz(c, liste, x, y, art, dreh) {
+  if (!liste) return;
+  const m = c.getTransform();
+  const p = new DOMPoint(x, y).matrixTransform(m);
+  /* Aus der Abbildung faellt auch heraus, wie das Bauteil gedreht ist —
+     der Astronaut soll parallel zur Flaeche stehen, nicht schraeg
+     dazu. Auf das Vielfache von R umgerechnet wird erst am Ende, wenn
+     der Backmassstab feststeht. */
+  liste.push({ x: p.x, y: p.y, art, winkel: Math.atan2(m.b, m.a) + (dreh || 0) });
+}
+
+/* Die Station ist ein schmales Band mit einem Klumpen in der Mitte —
+   die Ecken des gebackenen Bildes sind leer. Wir messen einmal nach,
+   wie hoch das Bild in jeder Spalte wirklich ist, und kopieren spaeter
+   nur diese Streifen. Das spart beim Kopieren rund ein Drittel der
+   Flaeche, ohne dass man einen Unterschied sieht. Einmal messen kostet
+   weniger, als die Leere sechzigmal je Sekunde mitzukopieren. */
+function streifenMessen(cv, n) {
+  const w = cv.width, h = cv.height;
+  let d;
+  try { d = cv.getContext("2d").getImageData(0, 0, w, h).data; }
+  catch (e) { return [{ x: 0, y: 0, w, h }]; }
+  const streifen = [];
+  for (let i = 0; i < n; i++) {
+    const x0 = Math.floor((w * i) / n), x1 = Math.floor((w * (i + 1)) / n);
+    let oben = h, unten = -1;
+    for (let y = 0; y < h; y++) {
+      for (let x = x0; x < x1; x += 2) {
+        if (d[(y * w + x) * 4 + 3] > 2) {
+          if (y < oben) oben = y;
+          unten = y;
+          break;
+        }
+      }
+    }
+    if (unten < 0) continue;
+    const y0 = Math.max(0, oben - 1), y1 = Math.min(h, unten + 2);
+    streifen.push({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+  }
+  return streifen.length ? streifen : [{ x: 0, y: 0, w, h }];
+}
+
+/* Die Arbeitsplaetze so umsortieren, dass zwei aufeinanderfolgende
+   moeglichst weit auseinanderliegen. Sonst haengen bei drei Agenten
+   alle drei am selben Traegerabschnitt, und die halbe Station bleibt
+   leer. Immer den Platz nehmen, der am weitesten von allen bisher
+   vergebenen entfernt ist. */
+function weitOrdnen(liste) {
+  if (liste.length < 3) return liste;
+  const rest = liste.slice();
+  const raus = [rest.shift()];
+  while (rest.length) {
+    let best = 0, bestAbstand = -1;
+    for (let i = 0; i < rest.length; i++) {
+      let nah = Infinity;
+      for (const g of raus) {
+        const d = (rest[i].x - g.x) ** 2 + (rest[i].y - g.y) ** 2;
+        if (d < nah) nah = d;
+      }
+      if (nah > bestAbstand) { bestAbstand = nah; best = i; }
+    }
+    raus.push(rest.splice(best, 1)[0]);
+  }
+  return raus;
+}
+
 function stationBacken(Rpx) {
   /* Die Station ist breit und flach — das Bild wird genauso
      zugeschnitten. Quadratisch waere die Haelfte davon leer. */
-  const rx = Math.ceil(Rpx * 4), ry = Math.ceil(Rpx * 1.6);
+  const rx = Math.ceil(Rpx * 4), ry = Math.ceil(Rpx * 1.55);
   const cv = document.createElement("canvas");
   cv.width = rx * 2; cv.height = ry * 2;
   const c = cv.getContext("2d");
   c.translate(rx, ry);
-  const fenster = [];
-  stationStatisch(c, Rpx, fenster);
+  const fenster = [], plaetze = [];
+  stationStatisch(c, Rpx, fenster, plaetze);
   /* Die gemerkten Punkte liegen in Bildkoordinaten — auf die Mitte
      umrechnen, damit sie beim Kopieren mitwandern. */
   for (const f of fenster) { f.x -= rx; f.y -= ry; }
-  return { R: Rpx, rx, ry, bild: cv, fenster };
+  /* Die Arbeitsplaetze dagegen stehen in Vielfachen von R: sie werden
+     nicht ins Bild kopiert, sondern in der Szene gebraucht. */
+  for (const q of plaetze) { q.x = (q.x - rx) / Rpx; q.y = (q.y - ry) / Rpx; }
+  return { R: Rpx, rx, ry, bild: cv, fenster, plaetze: weitOrdnen(plaetze),
+           streifen: streifenMessen(cv, 16) };
 }
 
-function stationStatisch(c, R, fenster) {
+function stationStatisch(c, R, fenster, plaetze) {
   const saat = 17;
   const t = 0;
 
@@ -1850,13 +1937,13 @@ function stationStatisch(c, R, fenster) {
      Ein runder Schein wuerde das gebackene Bild quadratisch machen und
      damit doppelt so viel Flaeche kosten wie noetig. */
   c.save();
-  c.scale(1, 0.42);
-  const schein = c.createRadialGradient(0, 0, R * 0.4, 0, 0, R * 3.8);
-  schein.addColorStop(0, "rgba(150,186,234,.16)");
-  schein.addColorStop(0.45, "rgba(123,164,216,.05)");
+  c.scale(1, 0.5);
+  const schein = c.createRadialGradient(0, 0, R * 0.3, 0, 0, R * 2.2);
+  schein.addColorStop(0, "rgba(150,186,234,.15)");
+  schein.addColorStop(0.5, "rgba(123,164,216,.05)");
   schein.addColorStop(1, "rgba(123,164,216,0)");
   c.fillStyle = schein;
-  c.beginPath(); c.arc(0, 0, R * 3.8, 0, Math.PI * 2); c.fill();
+  c.beginPath(); c.arc(0, 0, R * 2.2, 0, Math.PI * 2); c.fill();
   c.restore();
 
   /* ---------- Gittertraeger: das Rueckgrat ---------- */
@@ -1864,7 +1951,7 @@ function stationStatisch(c, R, fenster) {
   const trh = R * 0.24;                      // Traegerhoehe
   c.save();
   c.rotate(-0.045);                          // leicht schraeg, nie exakt waagerecht
-  gittertraeger(c, -tr, tr, 0, trh, saat);
+  gittertraeger(c, -tr, tr, 0, trh, saat, plaetze);
 
   /* ---------- Solarfluegel: vier Paare, aussen am Traeger ---------- */
   const flW = R * 1.1, flH = R * 0.37;        // rund 3:1
@@ -1973,6 +2060,10 @@ function stationStatisch(c, R, fenster) {
     const s = stapel[i];
     const l = s.l * stauch;
     modul(c, pos, -md / 2, l, md, saat + i * 4, { rein: s.rein });
+    /* Auf jedem Modul liegt oben und unten ein Handlauf — dort haengt
+       sich ein Astronaut ein. */
+    merkePlatz(c, plaetze, pos + l * 0.4, -md / 2, "handlauf", 0);
+    merkePlatz(c, plaetze, pos + l * 0.65, md / 2, "handlauf", Math.PI);
     pos += l;
     if (i < stapel.length - 1) {
       /* Kopplungsknoten: kurz, dicker als das Modul, mit Bolzenkranz */
@@ -1991,6 +2082,11 @@ function stationStatisch(c, R, fenster) {
       pos += md * 0.3;
     }
   }
+  /* Zwei Fussrasten: hier steht man fest und arbeitet mit beiden
+     Haenden. Das ist die haeufigste Arbeitshaltung ueberhaupt. */
+  merkePlatz(c, plaetze, knoten[0] !== undefined ? knoten[0] : 0, -md * 0.62, "fussraste", 0);
+  merkePlatz(c, plaetze, knoten[1] !== undefined ? knoten[1] : pos * 0.5, md * 0.62, "fussraste", Math.PI);
+
   /* Endkappe vorn: die feste Ellipse mit halber Breite */
   endkappe(c, pos, 0, md / 2);
 
@@ -2107,15 +2203,17 @@ function zeichneStation(t, cxp, cyp, R) {
   cx.save();
   cx.setTransform(1, 0, 0, 1, 0, 0);
   const zx = mitte.x - b.rx * f, zy = mitte.y - b.ry * f;
-  const zw = b.rx * 2 * f, zh = b.ry * 2 * f;
-  /* Nur den Teil kopieren, der wirklich auf dem Schirm landet. Beim
-     Hineinzoomen haengt sonst der groesste Teil des Bildes ausserhalb
-     und kostet trotzdem. */
-  const ax = Math.max(0, zx), ay = Math.max(0, zy);
-  const bx = Math.min(cv.width, zx + zw), by = Math.min(cv.height, zy + zh);
-  if (bx > ax && by > ay) {
+  /* Streifenweise kopieren, und von jedem Streifen nur den Teil, der
+     wirklich auf dem Schirm landet. Beim Hineinzoomen haengt sonst der
+     groesste Teil des Bildes ausserhalb und kostet trotzdem. */
+  for (const st of b.streifen) {
+    const dx = zx + st.x * f, dy = zy + st.y * f;
+    const dw = st.w * f, dh = st.h * f;
+    const ax = Math.max(0, dx), ay = Math.max(0, dy);
+    const bx = Math.min(cv.width, dx + dw), by = Math.min(cv.height, dy + dh);
+    if (bx <= ax || by <= ay) continue;
     cx.drawImage(b.bild,
-      (ax - zx) / f, (ay - zy) / f, (bx - ax) / f, (by - ay) / f,
+      st.x + (ax - dx) / f, st.y + (ay - dy) / f, (bx - ax) / f, (by - ay) / f,
       ax, ay, bx - ax, by - ay);
   }
 
@@ -3415,20 +3513,22 @@ function rahmen(jetzt) {
 
   const ccx = W / 2;
   const ccy = H * (kinoAn ? 0.47 : 0.43);
-  /* An der Breite ausrichten: im Hochformat wuerde min(W,H) die Szene
-     zu einem Punkt in einem schwarzen Feld schrumpfen lassen. */
-  let Rbahn = Math.min(W * 0.40, H * 0.34);
-  const anzahl = Math.max(1, Z.agenten.length + BR.live.length);
-  /* So gross, dass die Figuren auf der Bahn nicht aneinanderstossen */
-  const platz = (2 * Math.PI * Rbahn) / anzahl;
-  const groesse = Math.max(11, Math.min(27, Rbahn * 0.125, platz * 0.82 / 3.4));
-  /* Der weiteste Zustand (Fehler, Faktor 1.17) plus Statusring darf
-     nicht aus dem Bild laufen — sonst haengen Astronauten halb im Rand. */
-  const luft = groesse * 2.4;
-  Rbahn = Math.min(Rbahn, (W / 2 - luft) / 1.2, (H * 0.42 - luft) / (1.2 * 0.82));
-  /* Die Station misst mit Traeger und Fluegeln rund das Vierfache von R.
-     Bei 0,34 ragte sie ueber die Bahn der Astronauten hinaus. */
-  const Rst = Math.max(16, Rbahn * 0.2);
+  /* --- Groessenverhaeltnisse ----------------------------------------
+     Ein Druckmodul misst 4,3 m im Durchmesser, ein Mensch im Anzug
+     1,9 m. Die Figur ist also nur knapp halb so hoch wie ein Modul
+     dick ist. Damit das stimmen kann und man die Figuren trotzdem
+     erkennt, muss die Station gross sein und fast bis an den Bildrand
+     reichen. Eine kleine Station mit grossen Astronauten davor ist der
+     haeufigste Groessenfehler in gezeichnetem Weltraum.
+
+     Die Station misst mit Traeger und Fluegeln rund das Vierfache von
+     R nach jeder Seite. */
+  const Rst = Math.max(26, Math.min(W * 0.115, H * 0.3));
+  const modulR = Rst * 0.25;               // Radius eines Druckmoduls
+  /* Auf schmalen Bildschirmen waere die richtige Figur neun Bildpunkte
+     hoch und damit nicht mehr zu erkennen. Dort gewinnt die Lesbarkeit
+     gegen das Verhaeltnis — aber erst dort. */
+  const groesse = Math.max(9, (modulR * 0.88) / 2.1);
 
   /* Im Kinomodus atmet die Kamera leicht — reicht fuer einen Loop */
   const hoch = H / W > 1.3;
@@ -3448,30 +3548,55 @@ function rahmen(jetzt) {
   const blasen = [];
   const hindernisse = [];
 
-  /* Alle auf einer Bahn, gleichmaessig verteilt und gleich schnell.
-     Frueher hatte jeder sein eigenes Tempo und seine eigene Richtung —
-     das sieht bei drei Astronauten lebendig aus und bei neun wie ein
-     Auffahrunfall. Die gemeinsame Drehung haelt die Abstaende. */
-  const gemeinsam = t * 0.000022 * Math.PI * 2;
+  /* --- Wer steht wo? -------------------------------------------------
+     Ein Aussenbordeinsatz findet nicht im freien Raum statt, sondern an
+     der Struktur: man zieht sich von Handlauf zu Handlauf, stellt sich
+     in eine Fussraste und arbeitet mit beiden Haenden. Frei zu treiben
+     ist der Ausnahmefall, nicht der Normalfall — genau andersherum als
+     in den meisten Zeichnungen.
+
+     Die Plaetze stammen aus der Station selbst: beim Backen wird
+     mitgeschrieben, wo Handlaeufe, Fussrasten und Traegerknoten
+     wirklich liegen. */
+  const plaetze = (STBILD && STBILD.plaetze && STBILD.plaetze.length)
+    ? STBILD.plaetze : [{ x: 0, y: -0.4, art: "handlauf", winkel: 0 }];
+  /* Nach dem Namen sortiert, damit dieselbe Mannschaft immer dieselbe
+     Aufstellung ergibt — sonst springen die Figuren, sobald eine
+     Live-Quelle kurz verschwindet und wiederkommt. */
+  const reihe = liste.map(a => a.id).sort();
 
   liste.forEach((a, i) => {
-    const v = sicht(a.id, i, n, gemeinsam + (i / n) * Math.PI * 2);
+    const v = sicht(a.id, i, n, 0);
     const l = lauf(a.id);
     /* Live-Astronauten bringen ihren Zustand selbst mit */
     if (a.typ !== "agent") l.zustand = a.zustand;
 
-    /* Auf den eigenen Platz zugleiten — kommt ein Astronaut dazu oder
-       faellt einer weg, ruecken die anderen sanft nach. */
-    v.winkel = winkelZu(v.winkel, gemeinsam + (i / n) * Math.PI * 2,
-                        1 - Math.pow(0.12, dt / 1000));
+    const q = plaetze[reihe.indexOf(a.id) % plaetze.length];
+    const anker = { x: ccx + q.x * Rst, y: ccy + q.y * Rst };
+    /* Vom Bauteil weg zeigt die Senkrechte auf seine Oberflaeche */
+    const auf = q.winkel - Math.PI / 2;
 
-    const ziel = ZUSTAND_RADIUS[l.zustand] ?? 1;
-    v.r = lerp(v.r, ziel, 1 - Math.pow(0.0025, dt / 1000));
+    /* Wie weit vom Bauteil weg? Wer arbeitet, steht darauf. Wer fertig
+       ist, laesst sich ein Stueck treiben. Wer haengt, taumelt am Ende
+       der Leine — das ist der einzige Zustand, in dem jemand wirklich
+       frei im Raum ist. */
+    const weg = l.zustand === "fehler" ? 6.2
+              : l.zustand === "fertig" ? 3.0
+              : l.zustand === "ruht"   ? 1.6
+              : 1.18;
+    v.weg = lerp(v.weg === undefined ? weg : v.weg, weg, 1 - Math.pow(0.0025, dt / 1000));
 
-    const atem = sparsam ? 0 : Math.sin(t * 0.0009 + v.phase) * 0.035;
-    const rr = Rbahn * (v.r + atem);
-    const x = ccx + Math.cos(v.winkel) * rr;
-    const y = ccy + Math.sin(v.winkel) * rr * 0.82;
+    /* Im Schwerelosen bremst nichts. Wer frei treibt, driftet langsam
+       weiter und dreht sich dabei — wer sich festhaelt, bewegt sich
+       kaum. Deshalb haengt das Schwingen davon ab, wie weit jemand von
+       der Struktur weg ist. */
+    const frei = Math.max(0, v.weg - 1.3);
+    const trift = sparsam ? 0 : Math.sin(t * 0.00042 + v.phase) * frei * groesse * 0.9;
+    const atem  = sparsam ? 0 : Math.sin(t * 0.0009 + v.phase) * groesse * 0.06;
+
+    const abstand = groesse * (1.05 * v.weg) + atem;
+    const x = anker.x + Math.cos(auf) * abstand - Math.sin(auf) * trift;
+    const y = anker.y + Math.sin(auf) * abstand + Math.cos(auf) * trift;
     v.sx = x; v.sy = y;
 
     /* Impulse auf der Leine, solange gesendet wird */
@@ -3483,12 +3608,14 @@ function rahmen(jetzt) {
     for (const b of l.blitze) b.p += dt * 0.0013;
     l.blitze = l.blitze.filter(b => b.p < 1);
 
-    const anker = { x: ccx + Math.cos(v.winkel) * Rst * 0.72,
-                    y: ccy + Math.sin(v.winkel) * Rst * 0.72 };
+    /* Die Sicherungsleine geht an den Haltepunkt daneben, nicht ins
+       Nichts — im Vakuum haengt sie nicht durch, sondern steht in der
+       Schlaufe, in der sie zuletzt losgelassen wurde. */
     zeichneLeine(anker, { x, y }, a.farbe, l.zustand, t, l.blitze, v.phase);
 
-    /* Der Astronaut kippt in Flugrichtung */
-    const kipp = Math.cos(v.winkel) * 0.18;
+    /* Der Anzug steht senkrecht auf dem Bauteil. Wer frei treibt,
+       kippt langsam weg — ein Drehimpuls, den nichts wieder abbremst. */
+    const kipp = q.winkel + (sparsam ? 0 : Math.sin(t * 0.00031 + v.phase) * frei * 0.22);
     const hervor = Z.gewaehlt === a.id || offeneDetailId === a.id;
     zeichneAstronaut(x, y, groesse, kipp, a.farbe, l.zustand, t, v.phase, hervor);
 
@@ -3551,18 +3678,18 @@ function rahmen(jetzt) {
   const maxBlasen = W < 520 ? 2 : 4;
   blasen.sort((a, b) => (b.seit || 0) - (a.seit || 0));
   const zeigen = blasen.slice(0, maxBlasen).sort((a, b) => a.y - b.y);
-  const belegt = hindernisse.slice();
+  const frei = hindernisse.slice();
   for (const bl of zeigen) {
     const box = blaseLayout(bl.x, bl.y, bl.text);
     for (let versuch = 0; versuch < 8; versuch++) {
-      const stoert = belegt.find(o =>
+      const stoert = frei.find(o =>
         box.bx < o.bx + o.bw + 6 && box.bx + box.bw + 6 > o.bx &&
         box.by < o.by + o.bh + 6 && box.by + box.bh + 6 > o.by);
       if (!stoert) break;
       box.by = stoert.by - box.bh - 8;
     }
     if (box.by < 8) box.by = 8;
-    belegt.push(box);
+    frei.push(box);
     blaseZeichnen(box, bl.farbe);
   }
 
@@ -4952,6 +5079,7 @@ window.__ALLE = () => alleAstronauten();
 window.__BLENDE_OFFEN = () => blendeOffen;
 window.__STERNE = (t,a,b) => zeichneSterne(t,a,b);
 window.__STATION = (t,x,y,r) => zeichneStation(t,x,y,r);
+window.__STBILD = () => STBILD;
 window.__ASTRO = (...a) => zeichneAstronaut(...a);
 window.__STERNZAHL = () => sterne.length;
 window.__THEMA = (id) => { Z.thema = id; themaAnwenden(); himmelBacken(); sichern(); };
