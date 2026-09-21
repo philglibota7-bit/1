@@ -326,7 +326,10 @@ main{max-width:1000px; margin:0 auto; padding:20px 20px calc(104px + env(safe-ar
   backdrop-filter:var(--glas-weich); -webkit-backdrop-filter:var(--glas-weich); box-shadow:0 6px 20px rgba(0,0,0,.26);}
 .tickerwrap::before{content:'AKTUELL'; position:absolute; left:0; top:0; bottom:0; z-index:2; display:flex; align-items:center;
   min-width:126px; padding:0 18px 0 16px; font-size:9.5px; font-weight:700; letter-spacing:.16em; color:var(--acc);
-  background:linear-gradient(90deg, rgba(18,18,24,.99) 62%, rgba(18,18,24,.75) 86%, transparent);}
+  /* Deckt die durchlaufende Zeile ab — Ton kommt aus der Farbwelt, sonst passt er nur zu einer */
+  background:linear-gradient(90deg,
+    color-mix(in srgb, var(--p0) 94%, var(--tx)) 0 78%,
+    color-mix(in srgb, var(--p0) 94%, var(--tx)) 88%, transparent);}
 .ticker{display:flex; gap:42px; padding:12px 0; white-space:nowrap; animation:tick 62s linear infinite; padding-left:132px; width:max-content;}
 .tickerwrap:hover .ticker{animation-play-state:paused;}
 .ticker span{font-size:12.5px; color:var(--tx3);}
@@ -603,6 +606,24 @@ html.desktop-app #installCard{display:none !important;}
 .farbfeld.on i{box-shadow:inset 0 0 0 1px rgba(255,255,255,.12), 0 0 0 2px var(--tx);}
 .farbfeld.on span{color:var(--tx); font-weight:600;}
 
+/* Stimmungen — fertige Kombinationen */
+.stimmblock{padding-bottom:18px; margin-bottom:4px;
+  border-bottom:1px solid color-mix(in srgb, var(--tx) 10%, transparent);}
+.stimmrow{display:grid; grid-template-columns:repeat(2,1fr); gap:9px;}
+@media (max-width:420px){ .stimmrow{grid-template-columns:1fr;} }
+.stimmfeld{display:grid; grid-template-columns:34px 1fr; grid-template-rows:auto auto;
+  column-gap:11px; align-items:center; text-align:left; cursor:pointer;
+  padding:10px 12px; border:0; border-radius:var(--rad-m);
+  background:color-mix(in srgb, var(--tx) 5%, transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--tx) 9%, transparent);
+  transition:.22s var(--ease);}
+.stimmfeld i{grid-row:1 / span 2; width:34px; height:34px; border-radius:var(--rad-s);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.13);}
+.stimmfeld b{font-size:13px; font-weight:650; color:var(--tx); line-height:1.25;}
+.stimmfeld span{font-size:11px; color:var(--tx3); line-height:1.3;}
+.stimmfeld:hover{background:color-mix(in srgb, var(--tx) 9%, transparent);}
+.stimmfeld.on{box-shadow:inset 0 0 0 1.5px var(--tx);}
+
 .regler{-webkit-appearance:none; appearance:none; width:100%; height:4px; border-radius:99px;
   background:rgba(255,255,255,.14); outline:none; cursor:pointer;}
 .regler::-webkit-slider-thumb{-webkit-appearance:none; appearance:none; width:20px; height:20px;
@@ -614,6 +635,100 @@ html.desktop-app #installCard{display:none !important;}
 .arcadehead{font-size:11px; text-transform:uppercase; letter-spacing:.16em; color:var(--tx3);
   font-weight:600; margin:22px 2px 10px;}
 .arcadehead:first-child{margin-top:4px;}
+
+/* ================================================================
+   Einstellbarer Aufbau
+   ================================================================ */
+/* Inhaltsbreite */
+@media (min-width:920px){
+  html[data-nav="links"] main, html[data-nav="schmal"] main{
+    max-width:var(--inhalt-breite, 940px);
+  }
+  html[data-nav="unten"] main{max-width:var(--inhalt-breite, 940px); margin-left:auto; margin-right:auto;}
+}
+
+/* Navigation unten, auch auf breiten Fenstern */
+@media (min-width:920px){
+  html[data-nav="unten"] #tabbar{
+    left:50%; top:auto; bottom:calc(16px + env(safe-area-inset-bottom)); transform:translateX(-50%);
+    width:auto; flex-direction:row; align-items:center; gap:3px; padding:7px;
+    border-radius:24px; justify-content:center;
+  }
+  html[data-nav="unten"] #tabbar::before{display:none;}
+  html[data-nav="unten"] .tabbtn{flex-direction:column; gap:4px; padding:9px 14px; font-size:9.5px; border-radius:17px;}
+  html[data-nav="unten"] .tabbtn .em{width:20px; height:20px;}
+  html[data-nav="unten"] header{margin-left:0; padding-left:24px;}
+  html[data-nav="unten"] main{margin-left:auto; padding-bottom:calc(104px + env(safe-area-inset-bottom));}
+  html[data-nav="unten"] .logo{display:flex;}
+  html[data-nav="unten"] #clockwrap{margin-left:auto;}
+  html[data-nav="unten"] #toasts{left:50%;}
+}
+
+/* Schmale Seitenleiste: nur Symbole */
+@media (min-width:920px){
+  html[data-nav="schmal"] #tabbar{width:74px; padding:18px 10px;}
+  html[data-nav="schmal"] #tabbar::before{content:'⚡'; font-size:19px; letter-spacing:0; padding:4px 0 18px; text-align:center;}
+  html[data-nav="schmal"] .tabbtn{justify-content:center; padding:12px 0;}
+  html[data-nav="schmal"] .tabbtn span.lbl{display:none;}
+  html[data-nav="schmal"] .tabbtn .em{width:20px; height:20px;}
+  html[data-nav="schmal"] header{margin-left:88px;}
+  html[data-nav="schmal"] main{margin-left:88px;}
+  html[data-nav="schmal"] #toasts{left:calc(88px + (100vw - 88px)/2);}
+}
+
+/* Hintergrund-Art */
+html[data-hintergrund="verlauf"] #bg::before{
+  background:linear-gradient(155deg, var(--f1) 0%, var(--f2) 38%, var(--f3) 72%, var(--f4) 100%);
+  filter:blur(0) saturate(.85); animation:none; inset:0;
+}
+html[data-hintergrund="einfarbig"] #bg::before{display:none;}
+html[data-hintergrund="einfarbig"] #bg::after{opacity:.08;}
+
+/* Bewegung drosseln oder abschalten */
+html[data-bewegung="wenig"] #bg::before{animation-duration:120s;}
+html[data-bewegung="wenig"] .page.active > *{animation-duration:.25s;}
+html[data-bewegung="aus"] #bg::before{animation:none;}
+html[data-bewegung="aus"] .page.active > *{animation:none;}
+html[data-bewegung="aus"] .ticker{animation:none;}
+html[data-bewegung="aus"] #wxHero .bigicon{animation:none;}
+html[data-bewegung="aus"] .badge.live::before{animation:none;}
+html[data-bewegung="aus"] *{transition-duration:.06s !important;}
+
+/* Schattentiefe */
+.card, #homeGrid .tile, .match, .news, .toast{
+  box-shadow:0 calc(10px * var(--schatten, 1)) calc(34px * var(--schatten, 1)) rgba(0,0,0,calc(.34 * var(--schatten, 1)));
+}
+
+/* Aufklappbare Abschnitte im Bedienfeld */
+.klappe{border-top:1px solid var(--edge);}
+.klappe:first-child{border-top:0;}
+.klappekopf{display:flex; align-items:center; justify-content:space-between; width:100%;
+  padding:15px 2px; font-size:14px; font-weight:600; color:var(--tx); text-align:left;}
+.klappekopf i{font-style:normal; font-size:18px; color:var(--tx3); transition:transform .25s var(--ease);}
+.klappe.auf .klappekopf i{transform:rotate(90deg);}
+.klappeinhalt{display:none; padding:2px 0 14px;}
+.klappe.auf .klappeinhalt{display:block;}
+
+/* Freie Akzentfarbe */
+.akzentrow{display:flex; align-items:center; gap:12px;}
+.farbwahl{width:54px; height:38px; padding:0; border:0; border-radius:var(--rad-s);
+  background:transparent; cursor:pointer;}
+.farbwahl::-webkit-color-swatch-wrapper{padding:2px;}
+.farbwahl::-webkit-color-swatch{border:1px solid var(--edge2); border-radius:calc(var(--rad-s) - 2px);}
+
+/* Liste zum Ein-/Ausblenden und Sortieren */
+.sortliste{display:flex; flex-direction:column; gap:2px;}
+.sortzeile{display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:var(--rad-s);
+  background:var(--p1); font-size:13.5px; transition:.2s;}
+.sortzeile span{flex:1;}
+.sortzeile.aus{opacity:.45;}
+.sortzeile.aus span{text-decoration:line-through; text-decoration-thickness:1px;}
+.sortschalt{font-size:15px; color:var(--acc); width:22px; flex-shrink:0;}
+.sortzeile.aus .sortschalt{color:var(--tx3);}
+.sortpfeil{width:26px; height:26px; border-radius:7px; font-size:13px; color:var(--tx2);
+  background:var(--p2); flex-shrink:0; transition:.18s;}
+.sortpfeil:hover:not(:disabled){background:var(--p3); color:var(--tx);}
+.sortpfeil:disabled{opacity:.22; cursor:default;}
 </style>
 </head>
 <body>
@@ -879,7 +994,64 @@ const cache = {
    Jeder Wert landet als CSS-Variable am Wurzelelement.
    ================================================================ */
 const DESIGN = {
-  standard: { farbwelt: 'abendlicht', schriftwelt: 'einheimisch', dichte: 'normal', rundung: 'normal', glas: 2, schrift: 1 },
+  standard: {
+    // Aussehen
+    farbwelt: 'abendlicht', schriftwelt: 'einheimisch', dichte: 'normal',
+    rundung: 'normal', glas: 2, schrift: 1,
+    hintergrund: 'nebel', bewegung: 'voll', schatten: 'normal', eigenerAkzent: null,
+    // Aufbau
+    navPos: 'links', breite: 'normal', start: 'home',
+    tabsAus: [],
+    kacheln: ['wetter','fussball','bitcoin','stimmung','feiertag','arcade'],
+  },
+
+  /* --- Stimmungen: fertige Kombinationen, ein Klick statt elf Einstellungen.
+         Sie setzen nur das Aussehen — Aufbau, Kacheln und Bereiche bleiben. --- */
+  stimmungen: {
+    kaminabend: { name: 'Kaminabend', hinweis: 'warm, weich, viel Glas',
+      werte: { farbwelt:'abendlicht', schriftwelt:'einheimisch', dichte:'normal',
+               rundung:'rund', glas:3, schrift:1, hintergrund:'nebel', bewegung:'voll',
+               schatten:'tief', eigenerAkzent:null } },
+    werkbank: { name: 'Werkbank', hinweis: 'nüchtern, kantig, alles im Blick',
+      werte: { farbwelt:'werkstahl', schriftwelt:'kontor', dichte:'kompakt',
+               rundung:'kantig', glas:1, schrift:.95, hintergrund:'einfarbig', bewegung:'aus',
+               schatten:'flach', eigenerAkzent:null } },
+    lesesaal: { name: 'Lesesaal', hinweis: 'ruhig, luftig, große Schrift',
+      werte: { farbwelt:'leinenpapier', schriftwelt:'kontor', dichte:'luftig',
+               rundung:'normal', glas:1, schrift:1.12, hintergrund:'verlauf', bewegung:'wenig',
+               schatten:'flach', eigenerAkzent:null } },
+    mitternacht: { name: 'Mitternacht', hinweis: 'tief, kühl, stark gemattet',
+      werte: { farbwelt:'tiefsee', schriftwelt:'einheimisch', dichte:'normal',
+               rundung:'rund', glas:4, schrift:1, hintergrund:'nebel', bewegung:'wenig',
+               schatten:'tief', eigenerAkzent:null } },
+  },
+
+  hintergruende: {
+    nebel:      { name: 'Farbnebel',  hinweis: 'weiche Farbflecken, langsam bewegt' },
+    verlauf:    { name: 'Verlauf',    hinweis: 'ruhiger Farbverlauf ohne Bewegung' },
+    einfarbig:  { name: 'Einfarbig',  hinweis: 'nur die Grundfläche, ganz ruhig' },
+  },
+  bewegungen: {
+    voll:  { name: 'Voll',      faktor: 1 },
+    wenig: { name: 'Sparsam',   faktor: .45 },
+    aus:   { name: 'Aus',       faktor: 0 },
+  },
+  schattenstufen: {
+    flach:  { name: 'Flach',  f: .35 },
+    normal: { name: 'Normal', f: 1 },
+    tief:   { name: 'Tief',   f: 1.8 },
+  },
+  breiten: {
+    schmal: { name: 'Schmal', px: '760px' },
+    normal: { name: 'Normal', px: '940px' },
+    breit:  { name: 'Breit',  px: '1200px' },
+    voll:   { name: 'Voll',   px: 'none' },
+  },
+  navPositionen: {
+    links:  { name: 'Seitenleiste', hinweis: 'links mit Beschriftung' },
+    schmal: { name: 'Schmal',       hinweis: 'links, nur Symbole' },
+    unten:  { name: 'Unten',        hinweis: 'schwebende Leiste' },
+  },
 
   /* --- Farbwelten: Akzent, vier Nebelfarben, Grundfläche, Textton --- */
   farbwelten: {
@@ -1021,6 +1193,32 @@ function applyDesign(){
   r.style.setProperty('--rad-l',  Math.round(b.l  * f) + 'px');
   r.style.setProperty('--rad-xl', Math.round(b.xl * f) + 'px');
 
+  // Eigene Akzentfarbe hat Vorrang vor der Farbwelt
+  if (d.eigenerAkzent) {
+    r.style.setProperty('--acc', d.eigenerAkzent);
+    r.style.setProperty('--a1', d.eigenerAkzent);
+    r.style.setProperty('--acc-tint', hexA(d.eigenerAkzent, .16));
+  }
+
+  // Hintergrund-Art — nur bekannte Werte ans Wurzelelement, sonst greift keine Regel
+  r.dataset.hintergrund = DESIGN.hintergruende[d.hintergrund] ? d.hintergrund : 'nebel';
+
+  // Bewegung
+  const bwKey = DESIGN.bewegungen[d.bewegung] ? d.bewegung : 'voll';
+  r.style.setProperty('--bewegung', String(DESIGN.bewegungen[bwKey].faktor));
+  r.dataset.bewegung = bwKey;
+
+  // Schattentiefe
+  const sch = DESIGN.schattenstufen[d.schatten] || DESIGN.schattenstufen.normal;
+  r.style.setProperty('--schatten', String(sch.f));
+
+  // Aufbau: Navigationsposition und Inhaltsbreite
+  r.dataset.nav = DESIGN.navPositionen[d.navPos] ? d.navPos : 'links';
+  const br = DESIGN.breiten[d.breite] || DESIGN.breiten.normal;
+  r.style.setProperty('--inhalt-breite', br.px);
+
+  if (typeof applyTabs === 'function') applyTabs(false);
+
   // Schrift
   ladeSchrift(s.import);
   r.style.setProperty('--font-ui', s.ui);
@@ -1061,6 +1259,17 @@ function showPage(p){
   if (p === 'home')     renderHome();
 }
 $$('.tabbtn').forEach(b => b.onclick = () => showPage(b.dataset.page));
+
+/* Bereiche, die abgewählt wurden, verschwinden aus der Navigation.
+   umleiten nur aufrufen, wenn die Seite schon läuft — beim ersten Anwenden
+   der Einstellungen existiert die aktuelle Seite noch nicht. */
+function applyTabs(umleiten){
+  const aus = (designState().tabsAus) || [];
+  $$('.tabbtn').forEach(b => {
+    b.style.display = aus.includes(b.dataset.page) ? 'none' : '';
+  });
+  if (umleiten && aus.includes(curPage)) showPage('home');
+}
 
 /* ---------------- Uhr ---------------- */
 function tickClock(){
@@ -2059,54 +2268,90 @@ function renderStories(){
   });
   w.style.display = state.favTeams.length ? '' : 'none';
 }
+/* Alle Kacheln der Startseite. Reihenfolge und Auswahl sind einstellbar. */
+const KACHELN = [
+  { id:'wetter', name:'Wetter', bau(){
+      if (cache.weather) {
+        const c = cache.weather.current, ic = wmo(c.weather_code, c.is_day);
+        return miniCard(ic.em, 'Wetter · ' + esc(state.place.name), `${Math.round(c.temperature_2m)}°`,
+          `${ic.label}, gefühlt ${Math.round(c.apparent_temperature)}°`, 'wetter', 'tall');
+      }
+      return miniCard('🌍', 'Wetter', '–', 'Standort festlegen für deine Vorhersage', 'wetter', 'tall');
+    }},
+  { id:'fussball', name:'Nächstes Spiel', bau(){
+      const favM = Object.values(cache.favNext)[0];
+      const liveFav = Object.values(cache.matchday).flatMap(x => x?.matches || [])
+        .find(m => isFavMatch(m) && matchStatus(m).live);
+      if (liveFav) {
+        const sc = scoreOf(liveFav) || ['-','-'];
+        return miniCard('', 'Läuft gerade', `${sc[0]} : ${sc[1]}`,
+          `${esc(liveFav.team1.shortName || liveFav.team1.teamName)} – ${esc(liveFav.team2.shortName || liveFav.team2.teamName)}`, 'fussball', 'tall');
+      }
+      if (favM) {
+        const [cdBig, cdRest] = countdownShort(favM.matchDateTimeUTC);
+        return miniCard('', 'Nächstes Spiel', cdBig,
+          `${cdRest ? cdRest + ' · ' : ''}${esc(favM.team1.shortName || favM.team1.teamName)} – ${esc(favM.team2.shortName || favM.team2.teamName)}`, 'fussball', 'tall');
+      }
+      return miniCard('', 'Fußball', 'Bundesliga', 'Spieltag, Tabelle & Live-Ticker', 'fussball', 'tall');
+    }},
+  { id:'bitcoin', name:'Bitcoin', bau(){
+      const btc = cache.coins.find(c => c.id === 'bitcoin');
+      return btc ? miniCard('', 'Bitcoin', fmtEUR(btc.current_price),
+        `<span class="${pctCls(btc.price_change_percentage_24h ?? 0)}">${fmtPct(btc.price_change_percentage_24h)}</span> in 24h`, 'krypto', 'w1') : null;
+    }},
+  { id:'stimmung', name:'Marktstimmung', bau(){
+      if (!cache.fng) return null;
+      const [l] = fngTone(+cache.fng.value);
+      return miniCard('', 'Stimmung', cache.fng.value, l, 'krypto', 'w1');
+    }},
+  { id:'feiertag', name:'Feiertag', bau(){
+      const today = new Date(); today.setHours(0,0,0,0);
+      const hol = cache.holidays.find(x => new Date(x.date) >= today);
+      if (!hol) return null;
+      const days = Math.round((new Date(hol.date) - today) / 86400000);
+      return miniCard('', 'Feiertag', days === 0 ? 'HEUTE' : `${days} T`, esc(hol.localName), 'fun', 'w1');
+    }},
+  { id:'arcade', name:'Arcade', bau(){
+      return miniCard('', 'Arcade', 'Spiele', 'Deine Apps & Games', 'arcade', 'w1');
+    }},
+  { id:'news', name:'Nachrichten', bau(){
+      const a = cache.news.top?.[0];
+      return miniCard('', 'Nachrichten', a ? 'Heute' : '–',
+        a ? esc(a.title.slice(0, 54)) : 'Top-Themen & deine Stichwörter', 'news', 'w1');
+    }},
+  { id:'fun', name:'Fun-Zone', bau(){
+      return miniCard('', 'Fun', 'ISS & Co.', 'Wissen, Witze, Feiertage', 'fun', 'w1');
+    }},
+];
+
 function renderHome(){
   $('#homeGreet').innerHTML = greeting();
   $('#homeSub').innerHTML = briefing();
   const g = $('#homeGrid'); g.innerHTML = '';
 
-  // --- Bento: grosse Wetter-Kachel, breite Spiel-Kachel, kleine Kacheln darunter ---
-  if (cache.weather) {
-    const c = cache.weather.current, ic = wmo(c.weather_code, c.is_day);
-    g.appendChild(miniCard(ic.em, 'Wetter · ' + esc(state.place.name), `${Math.round(c.temperature_2m)}°`,
-      `${ic.label}, gefühlt ${Math.round(c.apparent_temperature)}°`, 'wetter', 'tall'));
-  } else {
-    g.appendChild(miniCard('🌍', 'Wetter', '–', 'Standort festlegen für deine Vorhersage', 'wetter', 'tall'));
-  }
+  // --- Bento: welche Kacheln, in welcher Reihenfolge — regelbar ---
+  const d = designState();
+  const gewaehlt = d.kacheln || KACHELN.map(k => k.id);
+  let fehlend = 0;                       // gewaehlt, aber mangels Daten nicht baubar
+  gewaehlt.forEach(id => {
+    const k = KACHELN.find(x => x.id === id);
+    if (!k) return;
+    const el = k.bau();
+    if (el) g.appendChild(el); else fehlend++;
+  });
 
-  const favM = Object.values(cache.favNext)[0];
-  const liveFav = Object.values(cache.matchday).flatMap(x => x?.matches || []).find(m => isFavMatch(m) && matchStatus(m).live);
-  if (liveFav) {
-    const sc = scoreOf(liveFav) || ['-','-'];
-    g.appendChild(miniCard('', 'Läuft gerade', `${sc[0]} : ${sc[1]}`, `${esc(liveFav.team1.shortName || liveFav.team1.teamName)} – ${esc(liveFav.team2.shortName || liveFav.team2.teamName)}`, 'fussball', 'tall'));
-  } else if (favM) {
-    const [cdBig, cdRest] = countdownShort(favM.matchDateTimeUTC);
-    g.appendChild(miniCard('', 'Nächstes Spiel', cdBig,
-      `${cdRest ? cdRest + ' · ' : ''}${esc(favM.team1.shortName || favM.team1.teamName)} – ${esc(favM.team2.shortName || favM.team2.teamName)}`, 'fussball', 'tall'));
-  } else {
-    g.appendChild(miniCard('', 'Fußball', 'Bundesliga', 'Spieltag, Tabelle & Live-Ticker', 'fussball', 'tall'));
-  }
-
-  const btc = cache.coins.find(c => c.id === 'bitcoin');
-  if (btc) g.appendChild(miniCard('', 'Bitcoin', fmtEUR(btc.current_price), `<span class="${pctCls(btc.price_change_percentage_24h ?? 0)}">${fmtPct(btc.price_change_percentage_24h)}</span> in 24h`, 'krypto', 'w1'));
-  if (cache.fng) { const [l] = fngTone(+cache.fng.value); g.appendChild(miniCard('', 'Stimmung', cache.fng.value, l, 'krypto', 'w1')); }
-
-  const today = new Date(); today.setHours(0,0,0,0);
-  const hol = cache.holidays.find(h => new Date(h.date) >= today);
-  if (hol) {
-    const days = Math.round((new Date(hol.date) - today) / 86400000);
-    g.appendChild(miniCard('', 'Feiertag', days === 0 ? 'HEUTE' : `${days} T`, esc(hol.localName), 'fun', 'w1'));
-  }
-  g.appendChild(miniCard('', 'Arcade', 'Spiele', 'Deine Apps & Games', 'arcade', 'w1'));
-
-  // Raster auffuellen, damit keine Luecke entsteht
+  // Luecken nur stopfen, wenn eine gewaehlte Kachel gerade keine Daten hat.
+  // Ausgeblendete Kacheln duerfen NICHT durch Fueller ersetzt werden — sonst
+  // waere die Einstellung wirkungslos.
   const small = g.querySelectorAll('.tile.w1').length;
-  if (small % 4 !== 0) {
+  if (fehlend > 0 && small % 4 !== 0) {
     const fillers = [
       ['Fun', 'ISS & Co.', 'Wissen, Witze, Feiertage', 'fun'],
       ['Nachrichten', 'Heute', 'Top-Themen & deine Stichwörter', 'news'],
       ['Wetter', 'Woche', '7-Tage-Vorhersage ansehen', 'wetter'],
     ];
-    for (let i = 0; i < (4 - small % 4) && i < fillers.length; i++) {
+    const luecke = Math.min(4 - small % 4, fehlend, fillers.length);
+    for (let i = 0; i < luecke; i++) {
       const [lab, big, sub, pg] = fillers[i];
       g.appendChild(miniCard('', lab, big, sub, pg, 'w1'));
     }
@@ -2212,6 +2457,9 @@ function setDesign(teil){
   state.design = { ...designState(), ...teil };
   save();
   applyDesign();
+  // Kacheln und Bereiche wirken sich auf den Inhalt aus, nicht nur auf die Optik
+  if ('tabsAus' in teil) applyTabs(true);
+  if ('kacheln' in teil || 'tabsAus' in teil) renderHome();
 }
 
 /* Reihe zur Auswahl aus wenigen Möglichkeiten */
@@ -2234,81 +2482,224 @@ function wahlReihe(titel, eintraege, aktiv, onWahl, hinweis){
   return box;
 }
 
+/* Aufklappbarer Abschnitt im Bedienfeld */
+function klappe(titel, offen, fuellen){
+  const box = document.createElement('div');
+  box.className = 'klappe' + (offen ? ' auf' : '');
+  const kopf = document.createElement('button');
+  kopf.className = 'klappekopf';
+  kopf.innerHTML = `<span>${esc(titel)}</span><i>›</i>`;
+  const inhalt = document.createElement('div');
+  inhalt.className = 'klappeinhalt';
+  fuellen(inhalt);
+  kopf.onclick = () => box.classList.toggle('auf');
+  box.append(kopf, inhalt);
+  return box;
+}
+
+/* Liste zum Ein- und Ausblenden samt Umsortieren */
+function sortierListe(eintraege, aktiv, onAendern){
+  const box = document.createElement('div');
+  box.className = 'sortliste';
+  const zeichne = () => {
+    box.innerHTML = '';
+    const reihenfolge = [...aktiv, ...eintraege.filter(e => !aktiv.includes(e.id)).map(e => e.id)];
+    reihenfolge.forEach((id, i) => {
+      const e = eintraege.find(x => x.id === id);
+      if (!e) return;
+      const an = aktiv.includes(id);
+      const z = document.createElement('div');
+      z.className = 'sortzeile' + (an ? '' : ' aus');
+      z.innerHTML = `<button class="sortschalt" title="${an ? 'Ausblenden' : 'Einblenden'}">${an ? '◉' : '○'}</button>` +
+                    `<span>${esc(e.name)}</span>`;
+      const hoch = document.createElement('button');
+      hoch.className = 'sortpfeil'; hoch.textContent = '↑'; hoch.title = 'Nach oben';
+      hoch.disabled = !an || aktiv.indexOf(id) <= 0;
+      const runter = document.createElement('button');
+      runter.className = 'sortpfeil'; runter.textContent = '↓'; runter.title = 'Nach unten';
+      runter.disabled = !an || aktiv.indexOf(id) === aktiv.length - 1;
+      hoch.onclick = () => { const p = aktiv.indexOf(id); [aktiv[p-1], aktiv[p]] = [aktiv[p], aktiv[p-1]]; onAendern([...aktiv]); zeichne(); };
+      runter.onclick = () => { const p = aktiv.indexOf(id); [aktiv[p+1], aktiv[p]] = [aktiv[p], aktiv[p+1]]; onAendern([...aktiv]); zeichne(); };
+      z.querySelector('.sortschalt').onclick = () => {
+        if (an) aktiv.splice(aktiv.indexOf(id), 1);
+        else aktiv.push(id);
+        onAendern([...aktiv]); zeichne();
+      };
+      z.append(hoch, runter);
+      box.appendChild(z);
+    });
+  };
+  zeichne();
+  return box;
+}
+
 function designPanel(){
   const wrap = document.createElement('div');
   const d = () => designState();
 
-  // --- Farbwelt ---
-  const farb = document.createElement('div'); farb.className = 'setblock';
-  farb.innerHTML = '<div class="setlabel">Farbwelt</div>';
-  const fr = document.createElement('div'); fr.className = 'farbrow';
-  Object.entries(DESIGN.farbwelten).forEach(([k, w]) => {
+  /* ---------- Stimmungen: ein Klick setzt das ganze Aussehen ---------- */
+  const stim = document.createElement('div'); stim.className = 'setblock stimmblock';
+  stim.innerHTML = '<div class="setlabel">Stimmung<span>setzt alles darunter auf einmal — Aufbau bleibt</span></div>';
+  const sr = document.createElement('div'); sr.className = 'stimmrow';
+  Object.entries(DESIGN.stimmungen).forEach(([k, s]) => {
+    const w = DESIGN.farbwelten[s.werte.farbwelt];
     const b = document.createElement('button');
-    b.className = 'farbfeld' + (k === d().farbwelt ? ' on' : '');
+    // aktiv nur, wenn wirklich jeder Wert der Stimmung gerade eingestellt ist
+    const passt = Object.entries(s.werte).every(([f, v]) => (d()[f] ?? null) === v);
+    b.className = 'stimmfeld' + (passt ? ' on' : '');
     b.innerHTML = `<i style="background:
-        radial-gradient(60% 60% at 25% 25%, ${w.nebel[0]}, transparent 70%),
-        radial-gradient(60% 60% at 80% 20%, ${w.nebel[1]}, transparent 70%),
-        radial-gradient(60% 60% at 75% 80%, ${w.nebel[2]}, transparent 70%),
-        radial-gradient(60% 60% at 20% 85%, ${w.nebel[3]}, transparent 70%),
-        ${w.grund}"><u style="background:${w.akzent}"></u></i><span>${esc(w.name)}</span>`;
+        radial-gradient(70% 70% at 28% 26%, ${w.nebel[0]}, transparent 72%),
+        radial-gradient(70% 70% at 78% 22%, ${w.nebel[1]}, transparent 72%),
+        radial-gradient(70% 70% at 72% 82%, ${w.nebel[2]}, transparent 72%),
+        ${w.grund}"></i>` +
+      `<b>${esc(s.name)}</b><span>${esc(s.hinweis)}</span>`;
     b.onclick = () => {
-      setDesign({ farbwelt: k });
-      [...fr.children].forEach(c => c.classList.remove('on'));
-      b.classList.add('on');
+      setDesign({ ...s.werte });
+      wrap.replaceWith(designPanel());   // Panel neu zeichnen, damit alle Regler mitziehen
+      toast(s.name, s.hinweis, '🎨', 2600);
     };
-    fr.appendChild(b);
+    sr.appendChild(b);
   });
-  farb.appendChild(fr);
-  wrap.appendChild(farb);
+  stim.appendChild(sr);
+  wrap.appendChild(stim);
 
-  // --- Glaseffekt ---
-  wrap.appendChild(wahlReihe('Glaseffekt',
-    DESIGN.glasstufen.map((g, i) => [i, g.name]),
-    d().glas,
-    v => setDesign({ glas: +v }),
-    'wie stark die Flächen durchscheinen'));
+  /* ---------- Farbe & Material ---------- */
+  wrap.appendChild(klappe('Farbe & Material', true, box => {
+    // Farbwelt
+    const farb = document.createElement('div'); farb.className = 'setblock';
+    farb.innerHTML = '<div class="setlabel">Farbwelt</div>';
+    const fr = document.createElement('div'); fr.className = 'farbrow';
+    Object.entries(DESIGN.farbwelten).forEach(([k, w]) => {
+      const b = document.createElement('button');
+      b.className = 'farbfeld' + (k === d().farbwelt ? ' on' : '');
+      b.innerHTML = `<i style="background:
+          radial-gradient(60% 60% at 25% 25%, ${w.nebel[0]}, transparent 70%),
+          radial-gradient(60% 60% at 80% 20%, ${w.nebel[1]}, transparent 70%),
+          radial-gradient(60% 60% at 75% 80%, ${w.nebel[2]}, transparent 70%),
+          radial-gradient(60% 60% at 20% 85%, ${w.nebel[3]}, transparent 70%),
+          ${w.grund}"><u style="background:${w.akzent}"></u></i><span>${esc(w.name)}</span>`;
+      b.onclick = () => {
+        setDesign({ farbwelt: k, eigenerAkzent: null });
+        [...fr.children].forEach(c => c.classList.remove('on'));
+        b.classList.add('on');
+        const wahl = box.querySelector('#akzentWahl'); if (wahl) wahl.value = w.akzent;
+      };
+      fr.appendChild(b);
+    });
+    farb.appendChild(fr);
+    box.appendChild(farb);
 
-  // --- Kastengröße ---
-  wrap.appendChild(wahlReihe('Kastengröße',
-    Object.entries(DESIGN.dichten).map(([k, v]) => [k, v.name]),
-    d().dichte,
-    v => setDesign({ dichte: v }),
-    'wie viel Inhalt aufs Bild passt'));
+    // Eigene Akzentfarbe
+    const ak = document.createElement('div'); ak.className = 'setblock';
+    ak.innerHTML = '<div class="setlabel">Akzentfarbe<span>überschreibt die der Farbwelt</span></div>';
+    const akr = document.createElement('div'); akr.className = 'akzentrow';
+    const inp = document.createElement('input');
+    inp.type = 'color'; inp.id = 'akzentWahl'; inp.className = 'farbwahl';
+    inp.value = d().eigenerAkzent || (DESIGN.farbwelten[d().farbwelt] || {}).akzent || '#e08a5e';
+    inp.oninput = () => setDesign({ eigenerAkzent: inp.value });
+    const zurueck = document.createElement('button');
+    zurueck.className = 'btn ghost sm'; zurueck.textContent = 'Zur Farbwelt zurück';
+    zurueck.onclick = () => {
+      setDesign({ eigenerAkzent: null });
+      inp.value = (DESIGN.farbwelten[d().farbwelt] || {}).akzent || '#e08a5e';
+    };
+    akr.append(inp, zurueck);
+    ak.appendChild(akr);
+    box.appendChild(ak);
 
-  // --- Eckenrundung ---
-  wrap.appendChild(wahlReihe('Ecken',
-    Object.entries(DESIGN.rundungen).map(([k, v]) => [k, v.name]),
-    d().rundung,
-    v => setDesign({ rundung: v })));
+    box.appendChild(wahlReihe('Glaseffekt', DESIGN.glasstufen.map((g, i) => [i, g.name]), d().glas,
+      v => setDesign({ glas: +v }), 'wie stark die Flächen durchscheinen'));
+    box.appendChild(wahlReihe('Hintergrund',
+      Object.entries(DESIGN.hintergruende).map(([k, v]) => [k, v.name, v.hinweis]), d().hintergrund,
+      v => setDesign({ hintergrund: v })));
+    box.appendChild(wahlReihe('Schattentiefe',
+      Object.entries(DESIGN.schattenstufen).map(([k, v]) => [k, v.name]), d().schatten,
+      v => setDesign({ schatten: v })));
+    box.appendChild(wahlReihe('Bewegung',
+      Object.entries(DESIGN.bewegungen).map(([k, v]) => [k, v.name]), d().bewegung,
+      v => setDesign({ bewegung: v }), 'Animationen im Hintergrund und beim Wechsel'));
+  }));
 
-  // --- Schrift ---
-  wrap.appendChild(wahlReihe('Schrift',
-    Object.entries(DESIGN.schriften).map(([k, v]) => [k, v.name, v.hinweis]),
-    d().schriftwelt,
-    v => setDesign({ schriftwelt: v })));
+  /* ---------- Größen & Schrift ---------- */
+  wrap.appendChild(klappe('Größen & Schrift', false, box => {
+    box.appendChild(wahlReihe('Kastengröße',
+      Object.entries(DESIGN.dichten).map(([k, v]) => [k, v.name]), d().dichte,
+      v => setDesign({ dichte: v }), 'wie viel Inhalt aufs Bild passt'));
+    box.appendChild(wahlReihe('Ecken',
+      Object.entries(DESIGN.rundungen).map(([k, v]) => [k, v.name]), d().rundung,
+      v => setDesign({ rundung: v })));
+    box.appendChild(wahlReihe('Schrift',
+      Object.entries(DESIGN.schriften).map(([k, v]) => [k, v.name, v.hinweis]), d().schriftwelt,
+      v => setDesign({ schriftwelt: v })));
 
-  // --- Schriftgröße ---
-  const fs = document.createElement('div'); fs.className = 'setblock';
-  fs.innerHTML = '<div class="setlabel">Schriftgröße<span id="fsWert"></span></div>';
-  const sl = document.createElement('input');
-  sl.type = 'range'; sl.className = 'regler'; sl.min = '85'; sl.max = '125'; sl.step = '5';
-  sl.value = String(Math.round(d().schrift * 100));
-  const zeigeFs = () => { const el = fs.querySelector('#fsWert'); if (el) el.textContent = sl.value + ' %'; };
-  zeigeFs();
-  sl.oninput = () => { setDesign({ schrift: +sl.value / 100 }); zeigeFs(); };
-  fs.appendChild(sl);
-  wrap.appendChild(fs);
+    const fs = document.createElement('div'); fs.className = 'setblock';
+    fs.innerHTML = '<div class="setlabel">Schriftgröße<span id="fsWert"></span></div>';
+    const sl = document.createElement('input');
+    sl.type = 'range'; sl.className = 'regler'; sl.min = '85'; sl.max = '125'; sl.step = '5';
+    sl.value = String(Math.round(d().schrift * 100));
+    const zeigeFs = () => { const el = fs.querySelector('#fsWert'); if (el) el.textContent = sl.value + ' %'; };
+    zeigeFs();
+    sl.oninput = () => { setDesign({ schrift: +sl.value / 100 }); zeigeFs(); };
+    fs.appendChild(sl);
+    box.appendChild(fs);
+  }));
 
-  // --- Zurücksetzen ---
+  /* ---------- Aufbau ---------- */
+  wrap.appendChild(klappe('Aufbau', false, box => {
+    box.appendChild(wahlReihe('Navigation',
+      Object.entries(DESIGN.navPositionen).map(([k, v]) => [k, v.name, v.hinweis]), d().navPos,
+      v => setDesign({ navPos: v }), 'nur bei breitem Fenster'));
+    box.appendChild(wahlReihe('Inhaltsbreite',
+      Object.entries(DESIGN.breiten).map(([k, v]) => [k, v.name]), d().breite,
+      v => setDesign({ breite: v })));
+
+    const BEREICHE = [
+      {id:'home', name:'Für dich'}, {id:'fussball', name:'Fußball'}, {id:'wetter', name:'Wetter'},
+      {id:'krypto', name:'Krypto'}, {id:'news', name:'News'}, {id:'fun', name:'Fun'}, {id:'arcade', name:'Arcade'},
+    ];
+    box.appendChild(wahlReihe('Beim Öffnen zeigen',
+      BEREICHE.filter(b => !(d().tabsAus || []).includes(b.id)).map(b => [b.id, b.name]), d().start,
+      v => setDesign({ start: v })));
+
+    // Bereiche ein- und ausblenden
+    const ber = document.createElement('div'); ber.className = 'setblock';
+    ber.innerHTML = '<div class="setlabel">Bereiche<span>was in der Navigation erscheint</span></div>';
+    const bl = document.createElement('div'); bl.className = 'chiprow';
+    BEREICHE.filter(b => b.id !== 'home').forEach(b => {
+      const aus = () => (designState().tabsAus || []).includes(b.id);
+      const c = document.createElement('button');
+      c.className = 'chip' + (aus() ? '' : ' on');
+      c.textContent = b.name;
+      c.onclick = () => {
+        const liste = [...(designState().tabsAus || [])];
+        const i = liste.indexOf(b.id);
+        if (i >= 0) liste.splice(i, 1); else liste.push(b.id);
+        setDesign({ tabsAus: liste });
+        c.classList.toggle('on', !liste.includes(b.id));
+      };
+      bl.appendChild(c);
+    });
+    ber.appendChild(bl);
+    box.appendChild(ber);
+
+    // Kacheln der Startseite
+    const kach = document.createElement('div'); kach.className = 'setblock';
+    kach.innerHTML = '<div class="setlabel">Kacheln auf der Startseite<span>Auswahl und Reihenfolge</span></div>';
+    const aktiv = [...(d().kacheln || KACHELN.map(k => k.id))];
+    kach.appendChild(sortierListe(KACHELN.map(k => ({id:k.id, name:k.name})), aktiv,
+      liste => setDesign({ kacheln: liste })));
+    box.appendChild(kach);
+  }));
+
+  /* ---------- Zurücksetzen ---------- */
   const zur = document.createElement('button');
-  zur.className = 'btn ghost sm'; zur.style.marginTop = '14px';
+  zur.className = 'btn ghost sm'; zur.style.marginTop = '16px';
   zur.textContent = '↺ Aussehen zurücksetzen';
   zur.onclick = () => {
-    state.design = { ...DESIGN.standard };
-    save(); applyDesign();
-    const neu = designPanel();
-    wrap.replaceWith(neu);
-    toast('Zurückgesetzt', 'Das Aussehen steht wieder auf den Werkseinstellungen.', '↺', 3000);
+    state.design = JSON.parse(JSON.stringify(DESIGN.standard));
+    save(); applyDesign(); renderHome();
+    wrap.replaceWith(designPanel());
+    toast('Zurückgesetzt', 'Aussehen und Aufbau stehen wieder auf den Werkseinstellungen.', '↺', 3000);
   };
   wrap.appendChild(zur);
 
@@ -2544,7 +2935,11 @@ function showInstallCard(){
   $('#homeHero').after(c);
 }
 
-if (state.onboarded) boot();
+if (state.onboarded) {
+  const startseite = designState().start;
+  if (startseite && startseite !== 'home' && pages.includes(startseite)) showPage(startseite);
+  boot();
+}
 else { $('#onb').classList.add('show'); renderOnb(); }
 </script>
 </body>
