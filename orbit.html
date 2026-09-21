@@ -1673,7 +1673,7 @@ function modul(c, x, y, w, h, saat, opt) {
      zusaetzlich um die Verkuerzung gestaucht. */
   if (h > 6) {
     const d = Math.max(0.5, h * 0.012);
-    const abstand = h * 0.142 * 0.5;
+    const abstand = h * 0.097;
     const n = Math.max(3, Math.round((w * 0.9) / abstand));
     const lang = abstand * 0.62;
     for (const ry of [0.2, 0.82]) {
@@ -1718,7 +1718,10 @@ function endkappe(c, x, y, r) {
    sieht sofort nach Spielzeug aus. */
 function gittertraeger(c, x1, x2, y, hoehe, saat, plaetze) {
   const laenge = x2 - x1;
-  const felder = Math.max(8, Math.round(laenge / (hoehe * 0.85)));
+  /* Feldteilung nicht nach Augenmass: das Segment S0 hat fuenf Felder
+     auf 13,4 Meter, also 2,68 m je Feld — rund das Anderthalbfache der
+     sichtbaren Bauhoehe. */
+  const felder = Math.max(8, Math.round(laenge / (hoehe * 1.3)));
   const versatz = hoehe * 0.28;
 
   /* Hinterer Rahmen: gleiche Form, schwaecher, nach unten versetzt */
@@ -1765,7 +1768,7 @@ function gittertraeger(c, x1, x2, y, hoehe, saat, plaetze) {
   c.strokeStyle = "rgba(226,232,240,.8)";
   c.lineWidth = Math.max(0.5, hoehe * 0.06);
   c.beginPath();
-  for (const f of [0.14, 0.3, 0.43, 0.57, 0.7, 0.86]) {
+  for (const f of [0.12, 0.25, 0.37, 0.44, 0.56, 0.63, 0.75, 0.88]) {
     const xx = x1 + laenge * f;
     c.moveTo(xx, y - hoehe / 2); c.lineTo(xx, y + hoehe / 2);
   }
@@ -2256,6 +2259,22 @@ function stationStatisch(c, R, fenster, plaetze) {
      auf die Kante: als schmale, sehr helle Striche. Zeigten Fluegel
      und Radiatoren gleichzeitig ihre volle Flaeche, waere das Bild
      physikalisch falsch. */
+  /* Zwei feste Radiatoren auf nur einer Seite, rechtwinklig zu den
+     anderen montiert. Sie sind der Grund, warum das Bild nicht
+     symmetrisch aussieht — an einer gebauten Station ist nie beides
+     gleich. */
+  for (let i = 0; i < 2; i++) {
+    c.save();
+    c.translate(-tr * (0.7 + i * 0.05), trh * (i ? 0.5 : -0.5));
+    c.rotate(0.05 + i * 0.28);
+    /* Ein kurzer Ausleger, sonst schwebt das Paneel frei */
+    c.strokeStyle = "rgba(186,192,200,.8)";
+    c.lineWidth = Math.max(0.5, R * 0.03);
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(R * 0.16, 0); c.stroke();
+    radiator(c, R * 0.1, -R * 0.17, R * 1.58 * 0.42, R * 0.34, true);
+    c.restore();
+  }
+
   const raL = R * 2.68 * 0.42, raB = R * 0.22;
   for (const seite of [-1, 1]) {
     for (let i = 0; i < 3; i++) {
@@ -3144,12 +3163,12 @@ function bezier(p0, p1, p2, t) {
    was daempfen koennte. Ueber die volle Laenge von fast sechsundzwanzig
    Metern braucht so eine Welle rund acht Sekunden. An beiden
    befestigten Enden steht sie still — dort sind die Knoten. */
-function leinePunkt(von, bis, nx, ny, laenge, u, t, phase, hub) {
+function leinePunkt(von, bis, nx, ny, laenge, u, t, phase, hub, bogen) {
   const welle = Math.sin(u * Math.PI * 1.5 - t * 0.0008 + phase)
               + 0.4 * Math.sin(u * Math.PI * 3.5 - t * 0.0013 + phase * 1.7);
   /* Am Anfang und am Ende festgehalten */
   const rand = Math.sin(u * Math.PI);
-  const a = welle * rand * laenge * hub;
+  const a = (welle * hub + (bogen || 0)) * rand * laenge;
   return { x: von.x + (bis.x - von.x) * u + nx * a,
            y: von.y + (bis.y - von.y) * u + ny * a };
 }
@@ -3159,6 +3178,12 @@ function zeichneLeine(von, bis, farbe, zustand, t, blitze, phase) {
   const laenge = Math.hypot(dx, dy) || 1;
   const nx = -dy / laenge, ny = dx / laenge;
   const hub = sparsam ? 0 : (zustand === "fehler" ? 0.055 : 0.028);
+  /* Eine schlaffe Leine haengt nicht durch — aber sie ist auch nicht
+     gerade. Sie behaelt die Form, in der sie zuletzt losgelassen
+     wurde, denn nichts zieht sie glatt. Deshalb eine bleibende,
+     langsam wandernde Schlaufe statt einer Kettenlinie. */
+  const schlaufe = sparsam ? 0
+    : Math.sin(phase * 2.3) * 0.09 + Math.sin(t * 0.00012 + phase) * 0.03;
 
   cx.strokeStyle = zustand === "fehler" ? "rgba(224,122,106,.45)" : "rgba(184,208,242,.34)";
   /* Gegen den Zoom herausgerechnet: eine Leine, die beim Heranfahren zum
@@ -3167,14 +3192,14 @@ function zeichneLeine(von, bis, farbe, zustand, t, blitze, phase) {
   cx.beginPath();
   const n = 16;
   for (let i = 0; i <= n; i++) {
-    const p = leinePunkt(von, bis, nx, ny, laenge, i / n, t, phase, hub);
+    const p = leinePunkt(von, bis, nx, ny, laenge, i / n, t, phase, hub, schlaufe);
     i ? cx.lineTo(p.x, p.y) : cx.moveTo(p.x, p.y);
   }
   cx.stroke();
 
   /* Impulse laufen zur Station — sichtbare Datenuebertragung */
   for (const b of blitze) {
-    const p = leinePunkt(von, bis, nx, ny, laenge, 1 - b.p, t, phase, hub);
+    const p = leinePunkt(von, bis, nx, ny, laenge, 1 - b.p, t, phase, hub, schlaufe);
     cx.fillStyle = farbe; cx.globalAlpha = 0.9 * (1 - Math.abs(b.p - 0.5) * 0.8);
     cx.beginPath(); cx.arc(p.x, p.y, 2.2, 0, Math.PI * 2); cx.fill();
     cx.globalAlpha = 0.22;
@@ -3857,7 +3882,12 @@ let kinoAn = false;
 
 function sicht(id, i, n, startWinkel) {
   if (!SICHT.has(id)) {
-    SICHT.set(id, { r: 1, winkel: startWinkel, sx: 0, sy: 0, phase: i * 1.7 });
+    /* Der Wuchs faellt aus dem Namen, damit dieselbe Figur immer
+       dieselbe Groesse behaelt. */
+    let h = 0;
+    for (let k = 0; k < id.length; k++) h = (h * 31 + id.charCodeAt(k)) | 0;
+    SICHT.set(id, { r: 1, winkel: startWinkel, sx: 0, sy: 0, phase: i * 1.7,
+                    wuchs: 0.93 + (Math.abs(h) % 1000) / 1000 * 0.14 });
   }
   return SICHT.get(id);
 }
@@ -4067,7 +4097,12 @@ function rahmen(jetzt) {
        schon, und zwar je nach dem, woran er haengt. */
     const haltung = frei > 0.25 ? "frei"
                   : q.art === "fussraste" ? "raste" : "griff";
-    zeichneAstronaut(x, y, groesse, kipp, a.farbe, l.zustand, t, v.phase, hervor, haltung);
+    /* Menschen sind nicht alle gleich gross. Belegt ist nur ein Wert:
+       2,04 m ist die Koerperhoehe im Anzug fuer den groessten
+       zugelassenen Menschen. Der Rest streut darum — und diese Streuung
+       ist selbst ein Realismushinweis, weil eine Mannschaft aus
+       Klonen sofort auffaellt. */
+    zeichneAstronaut(x, y, groesse * v.wuchs, kipp, a.farbe, l.zustand, t, v.phase, hervor, haltung);
 
     /* Namensschild — gegen den Zoom herausgerechnet. Schrift gehoert zur
        Bedienung, nicht in die Szene: sonst wird sie beim Heranfahren
