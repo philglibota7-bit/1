@@ -317,6 +317,10 @@ main{max-width:1000px; margin:0 auto; padding:20px 20px calc(104px + env(safe-ar
 
 .grid{display:grid; gap:12px;}
 .grid.g2{grid-template-columns:repeat(auto-fit,minmax(290px,1fr));}
+/* Fun-Karten nur so hoch wie ihr Inhalt. Sonst zieht das Raster eine Karte,
+   deren Quelle gerade nichts liefert, auf die Hoehe ihrer Nachbarin und sie
+   steht als riesiger leerer Kasten da. */
+#page-fun .grid.g2{align-items:start;}
 .grid.g3{grid-template-columns:repeat(auto-fit,minmax(230px,1fr));}
 .mt{margin-top:12px;} .mb{margin-bottom:12px;}
 
@@ -395,6 +399,9 @@ main{max-width:1000px; margin:0 auto; padding:20px 20px calc(104px + env(safe-ar
 table.tbl{width:100%; border-collapse:collapse; font-size:13.5px;}
 table.tbl th{color:var(--tx3); font-size:10px; text-transform:uppercase; letter-spacing:.13em; text-align:left;
   padding:10px 9px; font-weight:600;}
+/* Muss nach der Regel darueber stehen und sie an Spezifitaet erreichen, sonst
+   bleiben die Zahlen-Spaltenkoepfe linksbuendig, waehrend ihre Werte rechts sitzen. */
+table.tbl th.num{text-align:right;}
 table.tbl td{padding:12px 9px; border-top:1px solid var(--edge);}
 table.tbl tr.z-cl td:first-child{box-shadow:inset 2px 0 0 var(--mint);}
 table.tbl tr.z-el td:first-child{box-shadow:inset 2px 0 0 var(--gold);}
@@ -644,12 +651,16 @@ html.desktop-app #installCard{display:none !important;}
 /* ================================================================
    Einstellbarer Aufbau
    ================================================================ */
-/* Inhaltsbreite */
+/* Inhaltsbreite — die Kopfzeile muss mitgehen, sonst laeuft sie bis an den
+   Fensterrand, waehrend der Inhalt darunter viel frueher endet. */
 @media (min-width:920px){
-  html[data-nav="links"] main, html[data-nav="schmal"] main{
+  html[data-nav="links"] main, html[data-nav="schmal"] main,
+  html[data-nav="links"] header, html[data-nav="schmal"] header{
     max-width:var(--inhalt-breite, 940px);
   }
-  html[data-nav="unten"] main{max-width:var(--inhalt-breite, 940px); margin-left:auto; margin-right:auto;}
+  html[data-nav="unten"] main, html[data-nav="unten"] header{
+    max-width:var(--inhalt-breite, 940px); margin-left:auto; margin-right:auto;
+  }
 }
 
 /* Navigation unten, auch auf breiten Fenstern */
@@ -1980,8 +1991,12 @@ function artImg(a){
 }
 function normArts(d){
   return (d.news || []).filter(a => a.title)
-    .map(a => ({id: a.externalId || a.sophoraId || a.shareURL || a.title, title: a.title, topline: a.topline,
-      firstSentence: a.firstSentence, date: a.date, url: a.shareURL || a.detailsweb, img: artImg(a), ressort: a.ressort}));
+    // Die tagesschau liefert Titel und Dachzeile haeufig mit Leerzeichen am Ende.
+    // Ungetrimmt steht das spaeter mitten im Satz, z. B. "… fuer Merz ."
+    .map(a => ({id: a.externalId || a.sophoraId || a.shareURL || a.title, title: (a.title || '').trim(),
+      topline: (a.topline || '').trim(),
+      firstSentence: (a.firstSentence || '').trim(), date: a.date, url: a.shareURL || a.detailsweb,
+      img: artImg(a), ressort: a.ressort}));
 }
 async function loadNewsCat(cat){
   const C = NEWS_CATS.find(c => c.k === cat);
@@ -2099,7 +2114,7 @@ async function loadISS(){
       <div class="issrow"><span>📍 Position</span><b>${d.latitude.toFixed(2)}°, ${d.longitude.toFixed(2)}°</b></div>
       <div class="issrow"><span>🚀 Geschwindigkeit</span><b>${fmtNum(d.velocity)} km/h</b></div>
       <div class="issrow"><span>📏 Höhe</span><b>${Math.round(d.altitude)} km</b></div>
-      <div class="issrow"><span>${d.visibility === 'daylight' ? '☀️ Im Sonnenlicht' : '🌑 Im Erdschatten'}</span><b></b></div>
+      <div class="issrow"><span>👁️ Sichtbarkeit</span><b>${d.visibility === 'daylight' ? '☀️ Im Sonnenlicht' : '🌑 Im Erdschatten'}</b></div>
       ${dist != null ? `<div class="issrow"><span>🏠 Entfernung zu dir</span><b>${fmtNum(dist)} km</b></div>` : ''}
       <div class="hint" style="margin-top:8px">Aktualisiert sich alle 10 Sekunden ✨</div>`;
   } catch(e){ el.innerHTML = '<span class="hint">Houston, wir haben ein Problem — ISS-API offline. 🛰️</span>'; }
