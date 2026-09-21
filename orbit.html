@@ -1574,15 +1574,22 @@ function modul(c, x, y, w, h, saat, opt) {
     c.stroke();
   }
 
-  /* Handlaeufe: der EVA-Laufweg ueber das Modul */
+  /* Handlaeufe: der EVA-Laufweg ueber das Modul. Der Abstand ist nicht
+     frei gewaehlt — an der echten Station sitzen die Griffe hoechstens
+     0,284 Modulradien auseinander, weil das die Reichweite einer Hand
+     im Anzug ist. Genau dieser Abstand macht sie zum Massstab: wer ihn
+     kennt, liest daran ab, wie gross das Modul ist. Laengs sind sie
+     zusaetzlich um die Verkuerzung gestaucht. */
   if (h > 6) {
-    const d = Math.max(0.6, h * 0.035);
-    const n = Math.max(3, Math.round(w / (h * 0.55)));
-    for (const ry of [0.22, 0.8]) {
+    const d = Math.max(0.5, h * 0.012);
+    const abstand = h * 0.142 * 0.5;
+    const n = Math.max(3, Math.round((w * 0.9) / abstand));
+    const lang = abstand * 0.62;
+    for (const ry of [0.2, 0.82]) {
       const yy = y + h * ry;
       for (let i = 0; i < n; i++) {
-        const xa = x + w * (0.06 + 0.88 * i / n);
-        handlauf(c, xa, yy, xa + w * 0.88 / n * 0.62, yy, d);
+        const xa = x + w * 0.05 + (w * 0.9 * i) / n;
+        handlauf(c, xa, yy, xa + lang, yy, d);
       }
     }
   }
@@ -1608,7 +1615,7 @@ function endkappe(c, x, y, r) {
   const g = c.createLinearGradient(x, y - r, x, y + r);
   g.addColorStop(0, "#e8e6da"); g.addColorStop(0.55, "#7b7a70"); g.addColorStop(1, "#1a1c20");
   c.fillStyle = g;
-  c.beginPath(); c.ellipse(x, y, r * 0.5, r, 0, 0, Math.PI * 2); c.fill();
+  c.beginPath(); c.ellipse(x, y, r * 0.68, r, 0, 0, Math.PI * 2); c.fill();
   c.strokeStyle = "rgba(40,40,36,.6)"; c.lineWidth = Math.max(0.4, r * 0.06);
   c.stroke();
 }
@@ -1821,7 +1828,12 @@ function radiator(c, x, y, w, h, quer) {
    Schirm landet, gestuft nach einer festen Leiter. Ohne die Stufen
    muesste bei jedem Zoomschritt neu gebacken werden, und das waere als
    Ruckler zu sehen. */
-const STLEITER = [48, 72, 108, 160, 232, 340];
+/* Feine Stufen statt grober: das gebackene Bild ist jetzt breit genug,
+   dass eine Stufe zu viel schnell zwanzig Megabyte kostet. Zwischen
+   zwei Stufen liegt gut ein Fuenftel, das reicht, um nie mehr als ein
+   Fuenftel zu verschwenden, und die Hysterese darunter verhindert,
+   dass beim Zoomen staendig neu gebacken wird. */
+const STLEITER = [40, 49, 60, 73, 89, 108, 132, 161, 196, 239, 292, 356];
 let STBILD = null;
 
 /* Merkt sich, wo ein Fenster im fertigen Bild liegt, statt es zu
@@ -1912,7 +1924,7 @@ function weitOrdnen(liste) {
 function stationBacken(Rpx) {
   /* Die Station ist breit und flach — das Bild wird genauso
      zugeschnitten. Quadratisch waere die Haelfte davon leer. */
-  const rx = Math.ceil(Rpx * 4), ry = Math.ceil(Rpx * 1.55);
+  const rx = Math.ceil(Rpx * 6.6), ry = Math.ceil(Rpx * 3.1);
   const cv = document.createElement("canvas");
   cv.width = rx * 2; cv.height = ry * 2;
   const c = cv.getContext("2d");
@@ -1932,6 +1944,12 @@ function stationBacken(Rpx) {
 function stationStatisch(c, R, fenster, plaetze) {
   const saat = 17;
   const t = 0;
+  /* 30 Grad aus der reinen Seitenansicht gedreht: alles, was in
+     Flugrichtung zeigt, wird dadurch auf die halbe Laenge gestaucht —
+     jeder Modulzylinder und jeder Solarfluegel. Aus dem Kreis einer
+     Endkappe wird immer dieselbe Ellipse mit halber Breite, also
+     braucht es keine Perspektivrechnung, nur diese eine Zahl. */
+  const stauch = 0.68;
 
   /* Schein: flach gedrueckt, weil die Station breit und niedrig ist.
      Ein runder Schein wuerde das gebackene Bild quadratisch machen und
@@ -1947,58 +1965,75 @@ function stationStatisch(c, R, fenster, plaetze) {
   c.restore();
 
   /* ---------- Gittertraeger: das Rueckgrat ---------- */
-  const tr = R * 3.3;                        // halbe Traegerlaenge
-  const trh = R * 0.24;                      // Traegerhoehe
+  /* Alle Masse als Vielfache des Moduldurchmessers, und der ist
+     0,5 R. Der Traeger misst 94 m bei 4,3 m Moduldurchmesser, also
+     21,9 Moduldurchmesser — das ist der Grund, warum die Druckmodule
+     auf jedem echten Bild nur ein kleiner Klumpen in der Mitte sind.
+     Frueher war er halb so lang, und genau das liess die Station wie
+     ein Modell aussehen. */
+  const tr = R * 5.46;                       // halbe Traegerlaenge
+  const trh = R * 0.24;                      // Traegerhoehe (4,6 m)
   c.save();
   c.rotate(-0.045);                          // leicht schraeg, nie exakt waagerecht
   gittertraeger(c, -tr, tr, 0, trh, saat, plaetze);
 
-  /* ---------- Solarfluegel: vier Paare, aussen am Traeger ---------- */
-  const flW = R * 1.1, flH = R * 0.37;        // rund 3:1
+  /* ---------- Solarfluegel: vier Paare, QUER zum Traeger ----------
+     Ein Fluegel misst 34 auf 11,6 Meter, also 15,8 auf 5,4 Modulradien.
+     Entscheidend ist die Richtung: die Fluegel stehen senkrecht zum
+     Traeger, nicht laengs. Anders herum koennte das Alpha-Drehgelenk
+     sie gar nicht zur Sonne drehen — es dreht naemlich um die
+     Traegerachse. Daraus entsteht die bekannte Silhouette: ein langer
+     Balken mit vier Fluegelpaaren, die nach oben und unten abstehen. */
+  /* Wir sehen die Station nicht genau senkrecht zur Fluegelebene —
+     das tut man auf keinem echten Bild. Alles, was in Flugrichtung
+     zeigt, erscheint deshalb verkuerzt: die Fluegel, und genauso der
+     Modulstapel, der in dieselbe Richtung laeuft. Ein und derselbe
+     Faktor fuer beide, sonst kippt das Bild auseinander. */
+  const flL = R * 3.95 * stauch, flB = R * 1.35;
   const sonnendreh = Math.sin(t * 0.00004) * 0.04;
   for (const seite of [-1, 1]) {
     /* Alpha-Drehgelenk: sitzt IM Querschnitt, ragt nicht darueber hinaus */
-    const gx = seite * tr * 0.8;
+    const gx = seite * tr * 0.42;
     c.save();
     c.translate(gx, 0);
-    c.fillStyle = sonnenlauf(c, -trh * 0.5, -trh * 0.52, trh, trh * 1.04,
+    c.fillStyle = sonnenlauf(c, -trh * 0.6, -trh * 0.52, trh * 1.2, trh * 1.04,
       "#e4e8ec", "#8d959c", "#191d21");
-    rundRect(c, -trh * 0.5, -trh * 0.52, trh, trh * 1.04, trh * 0.2); c.fill();
+    rundRect(c, -trh * 0.6, -trh * 0.52, trh * 1.2, trh * 1.04, trh * 0.2); c.fill();
     c.strokeStyle = "rgba(24,28,32,.6)"; c.lineWidth = 0.4;
-    for (let i = 1; i < 5; i++) {
+    for (let i = 1; i < 6; i++) {
       c.beginPath();
-      c.moveTo(-trh * 0.5 + trh * i / 5, -trh * 0.52);
-      c.lineTo(-trh * 0.5 + trh * i / 5, trh * 0.52); c.stroke();
+      c.moveTo(-trh * 0.6 + trh * 1.2 * i / 6, -trh * 0.52);
+      c.lineTo(-trh * 0.6 + trh * 1.2 * i / 6, trh * 0.52); c.stroke();
     }
     c.restore();
 
-    /* Je zwei Fluegelpaare pro Seite. Das eine sitzt einwaerts vom
-       Gelenk, das andere auswaerts — so haengt kein Fluegel frei in der
-       Luft, sondern jeder haengt am Traeger. */
+    /* Zwei Mastpunkte je Seite, an jedem ein Fluegelpaar nach oben und
+       nach unten. Macht acht Fluegel — so viele hat die Station. */
     for (const paar of [0, 1]) {
-      const richt = paar === 0 ? -seite : seite;
-      const wurzel = gx + richt * trh * 0.5;
+      const wurzel = seite * tr * (paar ? 0.86 : 0.58);
+      /* Der Ausfahrkasten, aus dem der Mast herauswaechst */
+      c.fillStyle = sonnenlauf(c, wurzel - trh * 0.4, -trh * 0.45, trh * 0.8, trh * 0.9,
+        "#f0eee4", "#93918a", "#171a1d");
+      rundRect(c, wurzel - trh * 0.4, -trh * 0.45, trh * 0.8, trh * 0.9, trh * 0.15);
+      c.fill();
+
       for (const oben of [-1, 1]) {
         c.save();
-        c.translate(wurzel, oben * trh * 0.42);
-        c.rotate(oben * 0.035 + sonnendreh);
-        const x0 = richt < 0 ? -flW : 0;
-        const y0 = oben < 0 ? -flH : 0;
-        /* Alle Fluegel zeigen dieselbe Seite: sie drehen sich gemeinsam
-           der Sonne nach. Wir sehen die bernsteinfarbene Rueckseite,
-           die als einziges Bauteil der Station Licht durchlaesst. */
-        solarfluegel(c, x0, y0, flW, flH, saat + oben * 3 + paar, false);
+        c.translate(wurzel, oben * trh * 0.4);
+        /* Um 90 Grad gedreht: der Fluegel laeuft vom Traeger weg,
+           nicht an ihm entlang. */
+        c.rotate(oben * Math.PI / 2 + sonnendreh * seite);
+        solarfluegel(c, 0, -flB / 2, flL, flB, saat + oben * 3 + paar, false);
 
         /* iROSA: die neuen Rollfluegel liegen als kleinere, fast
-           schwarze Teppiche schraeg ueber der inneren Haelfte. Sie
-           liegen nicht auf allen — genau das gibt die Asymmetrie. */
+           schwarze Teppiche schraeg ueber der inneren Haelfte, also
+           der dem Traeger zugewandten. Sie liegen nicht auf allen —
+           genau das gibt die Asymmetrie gratis. */
         if (!(seite > 0 && paar === 1 && oben < 0)) {
           c.save();
-          /* Sie liegen ueber der INNEREN Haelfte, also der zur Station
-             zeigenden — deshalb haengt die Seite von der Fluegelseite ab. */
-          c.translate(x0 + flW * (seite < 0 ? 0.75 : 0.25), y0 + flH / 2);
-          c.rotate(0.17 * seite);
-          const iw = flW * 0.5, ih = flH * 0.66;
+          c.translate(flL * 0.3, 0);
+          c.rotate(0.17);
+          const iw = flL * 0.48, ih = flB * 0.62;
           const ig = c.createLinearGradient(-iw / 2, -ih / 2, iw / 2, ih / 2);
           ig.addColorStop(0, "#0c0e14"); ig.addColorStop(0.55, "#1d2130");
           ig.addColorStop(1, "#080a0f");
@@ -2006,8 +2041,8 @@ function stationStatisch(c, R, fenster, plaetze) {
           c.fillRect(-iw / 2, -ih / 2, iw, ih);
           c.strokeStyle = "rgba(150,162,196,.28)"; c.lineWidth = 0.4;
           c.beginPath();
-          for (let i = 1; i < 12; i++) {
-            const xx = -iw / 2 + (iw * i) / 12;
+          for (let i = 1; i < 14; i++) {
+            const xx = -iw / 2 + (iw * i) / 14;
             c.moveTo(xx, -ih / 2); c.lineTo(xx, ih / 2);
           }
           c.stroke();
@@ -2025,15 +2060,27 @@ function stationStatisch(c, R, fenster, plaetze) {
      das sicherste Erkennungszeichen einer echten Station. Schmal und
      hochkant, weil man auf die Kante schaut, und das hellste Weiss im
      ganzen Bild. */
+  /* Ein grosser Radiator misst 23 auf 3,4 Meter, also 10,7 auf 1,6
+     Modulradien. Er steht senkrecht vom Traeger ab und ragt damit
+     weiter nach oben und unten, als die Module dick sind — auf echten
+     Bildern sind die Radiatoren die zweitgroesste Flaeche nach den
+     Fluegeln. */
+  /* Die Radiatoren zeigen nicht in Flugrichtung, sondern zur Erde und
+     von ihr weg — also in eine dritte Richtung, die bei diesem Blick
+     fast auf den Betrachter zulaeuft. Deshalb sieht man sie beinahe
+     auf die Kante: als schmale, sehr helle Striche. Zeigten Fluegel
+     und Radiatoren gleichzeitig ihre volle Flaeche, waere das Bild
+     physikalisch falsch. */
+  const raL = R * 2.68 * 0.42, raB = R * 0.22;
   for (const seite of [-1, 1]) {
     for (let i = 0; i < 3; i++) {
-      const rx = seite * (R * 1.06 + i * R * 0.26);
+      const rx = seite * (tr * 0.12 + i * R * 0.46);
       const oben = i === 1 ? 1 : -1;
       c.save();
       c.translate(rx, 0);
-      c.rotate(seite * 0.04 * oben);
-      radiator(c, -R * 0.085, oben < 0 ? -R * 0.92 : trh * 0.5,
-        R * 0.17, R * 0.92 - trh * 0.5, false);
+      c.rotate(seite * 0.05 * oben);
+      radiator(c, -raB / 2, oben < 0 ? -raL : trh * 0.5,
+        raB, raL - trh * 0.5, false);
       c.restore();
     }
   }
@@ -2047,7 +2094,6 @@ function stationStatisch(c, R, fenster, plaetze) {
   c.save();
   c.rotate(0.72);                            // schraeg zum Traeger
   const md = R * 0.5;                         // Moduldurchmesser
-  const stauch = 0.5;                         // 30 Grad Drehung
   const stapel = [
     { l: R * 1.15, rein: false },
     { l: R * 0.78, rein: true  },
@@ -2190,7 +2236,7 @@ function zeichneStation(t, cxp, cyp, R) {
      und nicht unnoetig gross ist. Ohne das wackelt das Atmen des
      Kinomodus an einer Stufengrenze hin und her und backt jeden Frame
      neu — das waere schlimmer als gar nicht zu backen. */
-  if (STBILD && STBILD.R >= noetig && STBILD.R <= Rpx * 1.6) Rpx = STBILD.R;
+  if (STBILD && STBILD.R >= noetig && STBILD.R <= Rpx * 1.5) Rpx = STBILD.R;
   if (!STBILD || STBILD.R !== Rpx) STBILD = stationBacken(Rpx);
 
   const b = STBILD;
@@ -2233,8 +2279,13 @@ function zeichneStation(t, cxp, cyp, R) {
   c.translate(cxp, cyp);
   /* ---------- Roboterarm: sitzt auf dem Traeger, greift zum Modul ---------- */
   c.save();
-  const a1 = -0.62 + Math.sin(t * 0.00017) * 0.28;
-  const a2 = 1.15 + Math.cos(t * 0.00021) * 0.4;
+  /* Der Roboterarm ist 17,6 m lang und bewegt seine Spitze mit
+     wenigen Zentimetern je Sekunde. Ein voller Schwenk dauert damit
+     Minuten, nicht Sekunden. Zu schnell bewegt, sieht die ganze
+     Station sofort nach Spielzeug aus — Geschwindigkeit ist selbst
+     ein Groessenhinweis. */
+  const a1 = -0.62 + Math.sin(t * 0.000026) * 0.28;
+  const a2 = 1.15 + Math.cos(t * 0.000031) * 0.4;
   c.translate(R * 0.55, -R * 0.1);
   c.lineCap = "round";
   /* Fuss auf dem Traeger */
@@ -3512,7 +3563,7 @@ function rahmen(jetzt) {
   zeichneSternschnuppe(t, dt);
 
   const ccx = W / 2;
-  const ccy = H * (kinoAn ? 0.47 : 0.43);
+  const ccy = H * (H / W > 1.3 ? 0.46 : kinoAn ? 0.47 : 0.43);
   /* --- Groessenverhaeltnisse ----------------------------------------
      Ein Druckmodul misst 4,3 m im Durchmesser, ein Mensch im Anzug
      1,9 m. Die Figur ist also nur knapp halb so hoch wie ein Modul
@@ -3523,7 +3574,19 @@ function rahmen(jetzt) {
 
      Die Station misst mit Traeger und Fluegeln rund das Vierfache von
      R nach jeder Seite. */
-  const Rst = Math.max(26, Math.min(W * 0.115, H * 0.3));
+  /* Die Station waechst bewusst ueber den Bildrand hinaus. Man sieht
+     nie die ganze Station und ein einzelnes Modul gleichzeitig scharf
+     — wer beides ins Bild zwingt, macht eines von beidem falsch. Mit
+     abgeschnittenen Fluegelspitzen stimmen die Verhaeltnisse UND die
+     Figuren bleiben erkennbar. */
+  /* Im Hochformat ist die Station sonst ein schmaler Streifen in einem
+     hohen leeren Feld. Dort darf sie ueber die Seiten hinauswachsen —
+     die Fluegelspitzen fehlen dann, aber das tun sie auf echten
+     Bildern auch. */
+  const hochkant = H / W > 1.3;
+  const Rst = hochkant
+    ? Math.max(20, W * 0.125)
+    : Math.max(20, Math.min(W * 0.082, H * 0.132));
   const modulR = Rst * 0.25;               // Radius eines Druckmoduls
   /* Auf schmalen Bildschirmen waere die richtige Figur neun Bildpunkte
      hoch und damit nicht mehr zu erkennen. Dort gewinnt die Lesbarkeit
@@ -3542,6 +3605,14 @@ function rahmen(jetzt) {
   cx.translate(ccx, ccy); cx.scale(kinoZoom, kinoZoom); cx.translate(-ccx, -ccy);
 
   zeichneStation(t, ccx, ccy, Rst);
+
+  /* Von Szenen- in Bildschirmkoordinaten. Alles, was zur Bedienung
+     gehoert — Namen, Blasen —, wird damit aus der Kamera
+     herausgerechnet und bleibt in jeder Zoomstufe gleich gross. */
+  const inSicht = (px, py) => ({
+    x: (px - W / 2) * KAM.zoom * kinoZoom + W / 2 + KAM.x,
+    y: (py - H / 2) * KAM.zoom * kinoZoom + H / 2 + KAM.y,
+  });
 
   const liste = alleAstronauten();
   const n = liste.length;
@@ -3589,9 +3660,13 @@ function rahmen(jetzt) {
     /* Im Schwerelosen bremst nichts. Wer frei treibt, driftet langsam
        weiter und dreht sich dabei — wer sich festhaelt, bewegt sich
        kaum. Deshalb haengt das Schwingen davon ab, wie weit jemand von
-       der Struktur weg ist. */
+       der Struktur weg ist.
+
+       Die Zeiten sind gemessene: freies Treiben laeuft ueber gut eine
+       Minute, nicht ueber Sekunden. Zu schnelle Bewegung ist im All
+       der verlaesslichste Hinweis darauf, dass etwas gezeichnet ist. */
     const frei = Math.max(0, v.weg - 1.3);
-    const trift = sparsam ? 0 : Math.sin(t * 0.00042 + v.phase) * frei * groesse * 0.9;
+    const trift = sparsam ? 0 : Math.sin(t * 0.00009 + v.phase) * frei * groesse * 0.9;
     const atem  = sparsam ? 0 : Math.sin(t * 0.0009 + v.phase) * groesse * 0.06;
 
     const abstand = groesse * (1.05 * v.weg) + atem;
@@ -3614,8 +3689,19 @@ function rahmen(jetzt) {
     zeichneLeine(anker, { x, y }, a.farbe, l.zustand, t, l.blitze, v.phase);
 
     /* Der Anzug steht senkrecht auf dem Bauteil. Wer frei treibt,
-       kippt langsam weg — ein Drehimpuls, den nichts wieder abbremst. */
-    const kipp = q.winkel + (sparsam ? 0 : Math.sin(t * 0.00031 + v.phase) * frei * 0.22);
+       kippt langsam weg — ein Drehimpuls, den nichts wieder abbremst.
+
+       Wer dagegen mit einer Hand am Handlauf haengt und wartet, pendelt
+       um diese Hand: neun Grad Ausschlag, elf Sekunden fuer hin und
+       zurueck. Das ist gemessen, und es ist der Unterschied zwischen
+       einer wartenden Figur und einer eingefrorenen. In der Fussraste
+       steht man dagegen fest — dort sind die Beine starr und nur der
+       Rumpf arbeitet. */
+    const haelt = q.art === "handlauf" && frei < 0.2;
+    const pendeln = sparsam || !haelt ? 0
+      : Math.sin(t * 0.000571 + v.phase) * 0.157;
+    const kipp = q.winkel + pendeln
+      + (sparsam ? 0 : Math.sin(t * 0.00007 + v.phase) * frei * 0.22);
     const hervor = Z.gewaehlt === a.id || offeneDetailId === a.id;
     zeichneAstronaut(x, y, groesse, kipp, a.farbe, l.zustand, t, v.phase, hervor);
 
@@ -3623,9 +3709,14 @@ function rahmen(jetzt) {
        Bedienung, nicht in die Szene: sonst wird sie beim Heranfahren
        riesig und beim Herauszoomen unlesbar. */
     const sz = 1 / (KAM.zoom * kinoZoom);
+    /* Am Bildrand festhalten: sonst haengt der halbe Name draussen,
+       sobald ein Astronaut auf einem Fluegel weit aussen arbeitet. */
+    const schirm = inSicht(x, y + groesse * 1.5);
+    const randX = klemm(schirm.x, 54, W - 54);
     cx.save();
-    cx.translate(x, y + groesse * 1.5);
-    cx.scale(sz, sz);
+    cx.setTransform(1, 0, 0, 1, 0, 0);
+    cx.translate(randX * DPR, schirm.y * DPR);
+    cx.scale(DPR, DPR);
     cx.font = "600 10.5px -apple-system, system-ui, sans-serif";
     cx.textAlign = "center"; cx.textBaseline = "top";
     cx.fillStyle = l.zustand === "ruht" ? "rgba(210,220,238,.42)" : "rgba(226,234,248,.88)";
@@ -3661,10 +3752,6 @@ function rahmen(jetzt) {
   /* Blasen ab hier ohne Kameraabbildung: sie gehoeren zur Bedienung und
      sollen in jeder Zoomstufe gleich gross und gleich scharf sein. */
   cx.restore();
-  const inSicht = (px, py) => ({
-    x: (px - W / 2) * KAM.zoom * kinoZoom + W / 2 + KAM.x,
-    y: (py - H / 2) * KAM.zoom * kinoZoom + H / 2 + KAM.y,
-  });
   for (const b of blasen) { const s2 = inSicht(b.x, b.y); b.x = s2.x; b.y = s2.y; }
   for (const h of hindernisse) {
     const s2 = inSicht(h.bx + h.bw / 2, h.by + h.bh / 2);
