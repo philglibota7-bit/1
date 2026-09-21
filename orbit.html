@@ -466,6 +466,9 @@ body.sicht #blende-detail{
 .tm-buchzeile span{color:var(--tx2); overflow:hidden; text-overflow:ellipsis;}
 .tm-buchzeile:first-child span{color:var(--tx1);}
 #tm-buch:empty::after{content:"noch nichts"; color:var(--tx3); font-size:10.5px;}
+#vorschlaege{display:flex; flex-direction:column; gap:4px;}
+#vorschlaege .schalter{width:100%;}
+#vorschlaege .schalter:disabled{cursor:default;}
 @media (max-width:620px){ #telemetrie{left:10px; top:64px; width:196px; font-size:11px;} }
 
 .schalterliste{display:flex; flex-direction:column; gap:2px;}
@@ -615,6 +618,8 @@ body.sicht #blende-detail{
     <div id="schluessel-warnung"></div>
     <div id="crew-liste"></div>
     <button class="knopf leer" id="btn-neuer-agent" style="margin-top:4px">+ Neuer Agent</button>
+    <div class="tm-kopf" style="margin:18px 0 8px">FERTIGE AGENTEN</div>
+    <div id="vorschlaege"></div>
   </div>
 </div>
 
@@ -4529,8 +4534,14 @@ function backeFerneSterne(breite, hoehe, thema) {
 const ERDE = { bild: null, lichter: null, breite: 0, hoehe: 0, oben: 0, rand: 0 };
 
 function erdeMasse() {
-  const r = W * 1.5;                   // Kugelradius in Bildpunkten
-  const cy = H + r * 0.88;             // Mittelpunkt weit unter dem Bild
+  /* Im Hochformat ist der Schirm schmal und hoch: eine Kugel, deren
+     Radius an der Breite haengt, waere dort so flach, dass von ihr
+     nur ein Streifen hinter der Fusszeile bliebe. Also dort groesser
+     und weniger tief abgesenkt — wir sehen dann mehr von ihr, so wie
+     aus groesserer Entfernung. */
+  const hoch = H / W > 1.3;
+  const r = W * (hoch ? 2.4 : 1.5);    // Kugelradius in Bildpunkten
+  const cy = H + r * (hoch ? 0.78 : 0.88);
   return { r, cx: W / 2, cy, oben: cy - r };
 }
 
@@ -5828,6 +5839,96 @@ function zeichneLog() {
   }
 }
 
+/* --- Fertige Agenten -------------------------------------------------
+   Einen guten Agenten zu schreiben ist die eigentliche Arbeit. Diese
+   vier decken ab, was man am haeufigsten braucht, und sind so
+   formuliert, dass sie nicht ausweichen: jeder hat eine Aufgabe, eine
+   Form fuer die Antwort und eine Grenze. Die Rollentexte selbst stehen
+   mit Umlauten da — sie landen im Systemprompt und werden gelesen.
+
+   Sie werden nicht automatisch angelegt — wer sie will, tippt sie an.
+   Eine Crew, die ungefragt waechst, ist eine Crew, die ungefragt
+   Geld kostet. */
+const VORSCHLAEGE = [
+  {
+    name: "Prüfer", farbe: "#e07a6a",
+    was: "Sucht Fehler, bevor jemand anders sie findet",
+    rolle: "Du prüfst, was dir vorgelegt wird, auf Fehler — sachliche, logische und handwerkliche. "
+      + "Du gehst davon aus, dass mindestens einer drin ist, und suchst so lange, bis du ihn hast oder "
+      + "begründet sagen kannst, dass keiner da ist. Zu jedem Fund: was ist falsch, warum, und was wäre "
+      + "richtig. Keine Stilfragen, solange es Sachfragen gibt. Am Ende eine Zeile: schwerster Fund, und "
+      + "ob das Vorgelegte so benutzbar ist.",
+    modell: "claude-opus-5", aufwand: "high",
+  },
+  {
+    name: "Lehrer", farbe: "#74b48d",
+    was: "Erklärt von Grund auf, in einfachen Worten",
+    rolle: "Du erklärst so, dass es jemand versteht, der das Thema zum ersten Mal hört. Du fängst bei "
+      + "dem an, was man schon kennt, und baust darauf auf. Fachwörter führst du ein, statt sie "
+      + "vorauszusetzen. Du gehst in Stufen vor: erst ein Satz, der den Kern trifft, dann das Wie, dann "
+      + "die Feinheiten. Wenn etwas oft missverstanden wird, sagst du das ausdrücklich. Keine Floskeln, "
+      + "keine Aufmunterung — die Erklärung trägt sich selbst.",
+    modell: "claude-opus-5", aufwand: "high",
+  },
+  {
+    name: "Gegenrede", farbe: "#b48ad8",
+    was: "Sucht das beste Argument dagegen",
+    rolle: "Du vertrittst die Gegenposition zu dem, was dir vorgelegt wird — nicht aus Prinzip, sondern "
+      + "so gut wie möglich. Du suchst die stärksten Einwände, nicht die naheliegenden, und führst sie "
+      + "aus, bis sie stehen. Wo die Gegenposition schwach ist, sagst du das. Am Ende: welcher Einwand "
+      + "hält stand, welcher nicht, und was müsste zutreffen, damit die ursprüngliche Position richtig ist.",
+    modell: "claude-opus-5", aufwand: "high",
+  },
+  {
+    name: "Kurzfassung", farbe: "#d9a54a",
+    was: "Macht aus viel Text das Wesentliche",
+    rolle: "Du fasst zusammen, ohne zu glätten. Du behältst, was jemand wissen muss, um zu handeln oder "
+      + "zu entscheiden, und lässt weg, was nur dasteht. Zahlen, Namen und Einschränkungen bleiben "
+      + "erhalten — gerade die Einschränkungen, denn die verschwinden in Zusammenfassungen zuerst. "
+      + "Widerspricht sich die Vorlage, sagst du das, statt eine Seite zu wählen. Form: Stichpunkte, "
+      + "das Wichtigste zuerst.",
+    modell: "claude-sonnet-5", aufwand: "medium",
+  },
+];
+
+function zeichneVorschlaege() {
+  const box = $("#vorschlaege");
+  if (!box) return;
+  box.textContent = "";
+  for (const v of VORSCHLAEGE) {
+    const da = Z.agenten.some(a => a.name.toLowerCase() === v.name.toLowerCase());
+    const k = document.createElement("button");
+    k.className = "schalter";
+    k.disabled = da;
+    if (da) k.style.opacity = "0.45";
+    const kug = document.createElement("span");
+    kug.className = "kugel";
+    kug.style.cssText = "flex:0 0 auto;width:9px;height:9px;border-radius:50%;background:" + v.farbe;
+    const bez = document.createElement("span");
+    bez.className = "bez";
+    const nm = document.createElement("b"); nm.textContent = v.name;
+    const br = document.createElement("br");
+    const wa = document.createElement("span");
+    wa.className = "zahl"; wa.textContent = da ? "ist schon an Bord" : v.was;
+    bez.append(nm, br, wa);
+    k.append(kug, bez);
+    k.onclick = () => {
+      if (da) return;
+      Z.agenten.push({
+        id: "a" + Date.now() + Math.floor(Math.random() * 1000),
+        name: v.name, rolle: v.rolle, farbe: v.farbe,
+        modell: v.modell, aufwand: v.aufwand,
+        laeufe: 0, tokens: 0, kosten: 0, gedaechtnis: true, verlauf: [],
+      });
+      sichern();
+      zeichneCrewListe();
+      zeichneCrewLeiste();
+      bordbuch(v.name + " kommt an Bord");
+    };
+    box.appendChild(k);
+  }
+}
+
 function zeichneCrewListe() {
   const box = $("#crew-liste");
   box.innerHTML = "";
@@ -5860,6 +5961,8 @@ function zeichneCrewListe() {
     k.append(z1, ro, me);
     box.appendChild(k);
   }
+  zeichneVorschlaege();
+
   /* Hinweis, solange kein Schluessel hinterlegt ist */
   $("#schluessel-warnung").innerHTML = Z.key
     ? ""
