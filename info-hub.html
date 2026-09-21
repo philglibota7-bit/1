@@ -93,11 +93,16 @@ input{font-family:inherit;}
 /* ---------- Farbnebel als Untergrund ---------- */
 #bg{position:fixed; inset:0; z-index:-2; overflow:hidden; background:var(--p0);}
 #bg::before{content:''; position:absolute; inset:-15%;
+  /* Vier kraeftige Wolken in den Ecken, zwei schwaechere mittig: ohne die
+     mittleren steht hinter den Karten nur Schwarz und starkes Glas bleibt
+     unsichtbar, weil es nichts zum Durchscheinen gibt. */
   background:
     radial-gradient(34% 38% at 8% 10%, var(--f1) 0%, transparent 66%),
     radial-gradient(36% 34% at 94% 6%, var(--f2) 0%, transparent 68%),
     radial-gradient(40% 38% at 88% 92%, var(--f3) 0%, transparent 68%),
-    radial-gradient(30% 32% at 12% 94%, var(--f4) 0%, transparent 68%);
+    radial-gradient(30% 32% at 12% 94%, var(--f4) 0%, transparent 68%),
+    radial-gradient(46% 42% at 38% 34%, color-mix(in srgb, var(--f2) 50%, transparent) 0%, transparent 72%),
+    radial-gradient(44% 40% at 66% 68%, color-mix(in srgb, var(--f1) 50%, transparent) 0%, transparent 72%);
   filter:blur(26px) saturate(.9); opacity:var(--nebel-deckkraft);
   animation:nebel 46s ease-in-out infinite alternate;}
 #bg::after{content:''; position:absolute; inset:0; opacity:.16; pointer-events:none;
@@ -677,8 +682,15 @@ html.desktop-app #installCard{display:none !important;}
 }
 
 /* Hintergrund-Art */
+/* Der Verlauf deckt die ganze Flaeche, nicht nur einzelne Wolken. In voller
+   Staerke scheint er bei hohen Glasstufen so hell durch die Karten, dass der
+   Nebentext darauf nicht mehr lesbar ist — daher zur Grundflaeche hin gemischt. */
 html[data-hintergrund="verlauf"] #bg::before{
-  background:linear-gradient(155deg, var(--f1) 0%, var(--f2) 38%, var(--f3) 72%, var(--f4) 100%);
+  background:linear-gradient(155deg,
+    color-mix(in srgb, var(--f1) 42%, var(--p0)) 0%,
+    color-mix(in srgb, var(--f2) 42%, var(--p0)) 38%,
+    color-mix(in srgb, var(--f3) 42%, var(--p0)) 72%,
+    color-mix(in srgb, var(--f4) 42%, var(--p0)) 100%);
   filter:blur(0) saturate(.85); animation:none; inset:0;
 }
 html[data-hintergrund="einfarbig"] #bg::before{display:none;}
