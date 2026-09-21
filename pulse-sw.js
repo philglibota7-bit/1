@@ -2,7 +2,7 @@
    Strategie: App-Shell vorab cachen; same-origin-Anfragen stale-while-revalidate
    (sofort aus dem Cache, im Hintergrund aktualisieren); API-Calls zu fremden
    Hosts laufen normal übers Netz und werden nicht gecacht. */
-const CACHE = 'pulse-v1';
+const CACHE = 'pulse-v2';
 const SHELL = [
   './info-hub.html',
   './pulse.webmanifest',
