@@ -606,7 +606,13 @@ body.sicht #blende-detail{
     <button class="zu" data-zu="blende-himmel">✕</button>
   </div>
   <div class="blende-inhalt">
-    <input class="eingabe" id="himmel-suche" placeholder="Suchen — Name oder Objekt" autocomplete="off" style="margin-bottom:12px">
+    <button class="schalter" id="umlauf-schalter">
+      <span class="kasten">✓</span>
+      <span class="bez">Tag und Nacht im Orbit<br>
+        <span class="zahl">Einmal um die Erde in 92 Minuten — 59 Prozent Sonne, 41 Prozent Erdschatten. Gerafft auf knapp acht.</span>
+      </span>
+    </button>
+    <input class="eingabe" id="himmel-suche" placeholder="Suchen — Name oder Objekt" autocomplete="off" style="margin:12px 0">
     <div id="himmel-gitter"></div>
   </div>
 </div>
@@ -721,6 +727,7 @@ let Z = {
   maxTok: 8000,
   gewaehlt: null,     // ID des aktiven Agenten, null = ganze Crew
   thema: "orion",
+  umlauf: true,       // Tag-Nacht-Wechsel im Orbit
   bruecke: {
     typen: { session: true, ordner: true, prozess: true, github: true },
     ordner: [],                 // beobachtete Projektordner
@@ -742,6 +749,7 @@ function laden() {
       Z.maxTok  = Number(d.maxTok) || 8000;
       Z.gewaehlt = d.gewaehlt ?? null;
       if (typeof d.thema === "string") Z.thema = d.thema;
+      if (typeof d.umlauf === "boolean") Z.umlauf = d.umlauf;
       if (d.bruecke && typeof d.bruecke === "object") {
         Z.bruecke = Object.assign(Z.bruecke, d.bruecke);
         Z.bruecke.typen = Object.assign({ session: true, ordner: true, prozess: true, github: true },
@@ -774,7 +782,7 @@ function sichern() {
       agenten: Z.agenten,
       log: Z.log.slice(0, 60),
       key: Z.key, maxTok: Z.maxTok, gewaehlt: Z.gewaehlt,
-      thema: Z.thema, bruecke: Z.bruecke,
+      thema: Z.thema, umlauf: Z.umlauf, bruecke: Z.bruecke,
     }));
   } catch (e) {
     /* Speicher voll oder privater Modus — die App laeuft trotzdem weiter */
@@ -1903,6 +1911,43 @@ function radiator(c, x, y, w, h, quer) {
    laesst eine gezeichnete Station so schnell nach Zeichentrick
    aussehen. */
 
+/* --- Der Umlauf ------------------------------------------------------
+   Alles, was sich an der Station bewegt oder woran sich das Licht
+   aendert, haengt an EINER Zahl: der Stelle im Umlauf. Ein Umlauf
+   dauert 92 Minuten, davon 59 Prozent in der Sonne und 41 Prozent im
+   Erdschatten — nicht halb und halb, wie man annehmen wuerde.
+
+   Die Zeit wird gerafft, sonst passierte eine Stunde lang nichts. Aber
+   nicht zu stark: der Uebergang von Tag auf Nacht dauert echte 43
+   Sekunden und ist der schoenste Augenblick des ganzen Umlaufs. Die
+   Sonnenscheibe selbst ist nach acht Sekunden weg, aber der Farbsaum
+   von Weiss ueber Gold und Orange bis Tiefrot bleibt so lange. Bei
+   1:12 werden daraus dreieinhalb Sekunden — kurz genug, dass man ihn
+   nicht verpasst, lang genug, dass man ihn sieht. */
+const UMLAUF = 5520000 / 12;      // ein Umlauf, auf 1:12 gerafft
+const TAGANTEIL = 0.59;
+const UEBERGANG = 43 / 5520;      // Anteil des Umlaufs, den der Wechsel dauert
+
+/* 1 = volle Sonne, 0 = voller Erdschatten. */
+function tageslicht(phase) {
+  if (phase < TAGANTEIL - UEBERGANG) return 1;
+  if (phase < TAGANTEIL) return (TAGANTEIL - phase) / UEBERGANG;
+  if (phase < 1 - UEBERGANG) return 0;
+  return (phase - (1 - UEBERGANG)) / UEBERGANG;
+}
+
+/* Wie stark der warme Saum gerade ist: nur waehrend der Uebergaenge,
+   am staerksten in deren Mitte. */
+function abendlicht(hell) {
+  return hell > 0.001 && hell < 0.999 ? 4 * hell * (1 - hell) : 0;
+}
+
+/* Wie hell die Station gerade beleuchtet ist. Der Anzug und die
+   Positionslichter richten sich danach. */
+let TAGLICHT = 1, ABENDLICHT = 0;
+/* Nur fuer automatische Tests: eine feste Stelle im Umlauf */
+let PHASE_TEST = null;
+
 /* --- Die Station als gebackenes Bild ---------------------------------
    Die Form der Station aendert sich nie. Nur der Roboterarm, die
    Positionslichter und die beleuchteten Fenster leben. Also wird alles
@@ -2006,6 +2051,26 @@ function weitOrdnen(liste) {
   return raus;
 }
 
+/* Aus dem Tagbild werden zwei weitere abgeleitet, ohne die Station
+   noch einmal zu zeichnen: mit "source-atop" faerbt eine Flaeche nur
+   dort, wo schon etwas steht — der leere Raum drumherum bleibt frei.
+   Das ist der Trick, mit dem die Beleuchtung wechseln kann, obwohl die
+   Form gebacken ist. */
+function umfaerben(tag, stufen, teiler) {
+  const f = teiler || 1;
+  const cv = document.createElement("canvas");
+  cv.width = Math.max(1, Math.round(tag.width / f));
+  cv.height = Math.max(1, Math.round(tag.height / f));
+  const c = cv.getContext("2d");
+  c.drawImage(tag, 0, 0, cv.width, cv.height);
+  c.globalCompositeOperation = "source-atop";
+  const g = c.createLinearGradient(0, 0, 0, cv.height);
+  for (const [p, farbe] of stufen) g.addColorStop(p, farbe);
+  c.fillStyle = g;
+  c.fillRect(0, 0, cv.width, cv.height);
+  return cv;
+}
+
 function stationBacken(Rpx) {
   /* Die Station ist breit und flach — das Bild wird genauso
      zugeschnitten. Quadratisch waere die Haelfte davon leer. */
@@ -2022,8 +2087,28 @@ function stationBacken(Rpx) {
   /* Die Arbeitsplaetze dagegen stehen in Vielfachen von R: sie werden
      nicht ins Bild kopiert, sondern in der Szene gebraucht. */
   for (const q of plaetze) { q.x = (q.x - rx) / Rpx; q.y = (q.y - ry) / Rpx; }
+  /* Nachts faellt kein Sonnenlicht mehr auf die Station, nur noch der
+     Erdschein von unten. Sie wird also nicht einfach dunkler, sondern
+     blauer — und von unten heller als von oben, genau umgekehrt zum
+     Tag. Der Abend liegt dazwischen: ein warmer Saum, weil das Licht
+     dann flach durch die Erdatmosphaere faellt.
+
+     Das Abendbild darf halb so fein sein. Es ist nur dreieinhalb
+     Sekunden im Umlauf zu sehen, und weich ist es dann ohnehin. */
   return { R: Rpx, rx, ry, bild: cv, fenster, plaetze: weitOrdnen(plaetze),
-           streifen: streifenMessen(cv, 16) };
+           streifen: streifenMessen(cv, 16),
+           nacht: umfaerben(cv, [
+             [0, "rgba(5,8,16,.95)"],
+             [0.5, "rgba(8,14,28,.92)"],
+             [0.86, "rgba(14,26,52,.82)"],
+             [1, "rgba(30,60,108,.6)"],
+           ]),
+           abend: umfaerben(cv, [
+             [0, "rgba(180,74,26,.5)"],
+             [0.42, "rgba(214,112,40,.42)"],
+             [0.78, "rgba(126,44,30,.5)"],
+             [1, "rgba(58,40,66,.55)"],
+           ], 2) };
 }
 
 function stationStatisch(c, R, fenster, plaetze) {
@@ -2337,23 +2422,45 @@ function zeichneStation(t, cxp, cyp, R) {
   /* Streifenweise kopieren, und von jedem Streifen nur den Teil, der
      wirklich auf dem Schirm landet. Beim Hineinzoomen haengt sonst der
      groesste Teil des Bildes ausserhalb und kostet trotzdem. */
+  /* Je nach Stelle im Umlauf werden bis zu drei Bilder uebereinander
+     gelegt: Tag, warmer Saum, Nacht. Meistens ist nur eines sichtbar —
+     die beiden anderen kosten dann nichts. */
+  const lagen = [[b.bild, 1, 1]];
+  if (ABENDLICHT > 0.01) lagen.push([b.abend, ABENDLICHT * 0.72, 2]);
+  if (TAGLICHT < 0.999) lagen.push([b.nacht, 1 - TAGLICHT, 1]);
+
   for (const st of b.streifen) {
     const dx = zx + st.x * f, dy = zy + st.y * f;
     const dw = st.w * f, dh = st.h * f;
     const ax = Math.max(0, dx), ay = Math.max(0, dy);
     const bx = Math.min(cv.width, dx + dw), by = Math.min(cv.height, dy + dh);
     if (bx <= ax || by <= ay) continue;
-    cx.drawImage(b.bild,
-      st.x + (ax - dx) / f, st.y + (ay - dy) / f, (bx - ax) / f, (by - ay) / f,
-      ax, ay, bx - ax, by - ay);
+    for (const [bild, deck, teiler] of lagen) {
+      cx.globalAlpha = deck;
+      cx.drawImage(bild,
+        (st.x + (ax - dx) / f) / teiler, (st.y + (ay - dy) / f) / teiler,
+        ((bx - ax) / f) / teiler, ((by - ay) / f) / teiler,
+        ax, ay, bx - ax, by - ay);
+    }
+    cx.globalAlpha = 1;
   }
 
   /* Die beleuchteten Fenster pulsieren — sie kommen live darueber */
+  /* Die beleuchteten Fenster pulsieren — und nachts fallen sie erst
+     richtig auf, weil dann nichts mehr um sie herum leuchtet. */
+  const nachthell = 1 + (1 - TAGLICHT) * 0.8;
   for (const fe of b.fenster) {
-    cx.fillStyle = `rgba(${fe.ton},${fe.grund + fe.hub * Math.sin(t * fe.takt + fe.ph)})`;
+    const staerke = Math.min(1, (fe.grund + fe.hub * Math.sin(t * fe.takt + fe.ph)) * nachthell);
+    cx.fillStyle = `rgba(${fe.ton},${staerke})`;
     cx.beginPath();
     cx.arc(mitte.x + fe.x * f, mitte.y + fe.y * f, Math.max(0.6, fe.r * f), 0, Math.PI * 2);
     cx.fill();
+    if (TAGLICHT < 0.7) {
+      cx.fillStyle = `rgba(${fe.ton},${0.16 * staerke * (1 - TAGLICHT)})`;
+      cx.beginPath();
+      cx.arc(mitte.x + fe.x * f, mitte.y + fe.y * f, Math.max(1.5, fe.r * f * 3.4), 0, Math.PI * 2);
+      cx.fill();
+    }
   }
   cx.restore();
 
@@ -2437,7 +2544,7 @@ function zeichneStation(t, cxp, cyp, R) {
    Feine Teile werden erst ab einer gewissen Groesse gezeichnet. Bei
    zwoelf Pixeln waere ein Schalterfeld nur noch Rauschen, und es kostet
    trotzdem Rechenzeit. */
-function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor) {
+function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltung) {
   const ruhig = sparsam;
   const wippen = ruhig ? 0 : Math.sin(t * 0.0022 + phase) * 0.12;
   const armA = ruhig ? 0 : Math.sin(t * 0.0026 + phase) * 0.16;
@@ -2466,10 +2573,27 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor) {
   const beinD  = H * 0.105;          // Roehrendicke Bein — kaum dicker
   const bandB  = H * 0.033;          // Kennstreifen 0,03–0,04 H
 
-  /* Mattes, leicht vergilbtes Elfenbein — kein Blaugrau. */
-  const WEISS = "#efebe1";
-  const HELL  = "#fdfcf7";
-  const SCHATTEN = "#6f6c64";
+  /* Mattes, leicht vergilbtes Elfenbein — kein Blaugrau. Im Erdschatten
+     faellt kein Sonnenlicht mehr darauf: der Anzug wird dann nicht
+     einfach dunkler, sondern blauer, weil nur noch der Erdschein und
+     die eigenen Helmlampen uebrig sind. */
+  /* Zwei klar getrennte Arbeitshaltungen, nicht eine:
+
+     In der Fussraste stecken die Stiefel fest, die Beine sind starr und
+     gestreckt, der Rumpf neigt sich nach vorn, und beide Haende
+     arbeiten in einem engen Feld vor der Brust. Das ist die haeufigste
+     Haltung ueberhaupt, weil man ohne festen Stand jede Schraube nur
+     um sich selbst dreht.
+
+     Am Handlauf haelt man sich dagegen mit EINER Hand fest und haengt
+     darunter; die Beine tragen nichts und haengen nach. */
+  const raste = haltung === "raste";
+  const griff = haltung === "griff";
+  const nachts = 1 - TAGLICHT;
+  const tf = (hell, dunkel) => nachts < 0.01 ? hell : mischen(hell, dunkel, nachts * 0.82);
+  const WEISS = tf("#efebe1", "#243449");
+  const HELL  = tf("#fdfcf7", "#33465f");
+  const SCHATTEN = tf("#6f6c64", "#161e2c");
 
   cx.save();
   cx.translate(x, y);
@@ -2498,6 +2622,79 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor) {
     cx.fillStyle = sch;
     cx.beginPath(); cx.arc(0, 0, H * 1.3, 0, Math.PI * 2); cx.fill();
   }
+
+  /* ---------- Beine ----------
+     Sie tragen nichts und arbeiten nicht: gefahren wird mit den Armen.
+     Knie 20–35 Grad gebeugt, die Beine haengen passiv nach. */
+  for (const [sd, sw] of [[-1, beinA], [1, beinB]]) {
+    /* Knie 20–35 Grad gebeugt, die Beine stehen leicht vom Koerper ab
+       und haengen passiv nach — nichts ist gestreckt. In der Fussraste
+       dagegen sind sie fast gerade und parallel: dort halten sie die
+       ganze Figur gegen das Drehmoment des Werkzeugs. */
+    const hx = sd * H * (raste ? 0.045 : 0.06), hy = hueftY;
+    const kx = raste ? hx + sd * H * 0.01
+                     : hx + sd * H * 0.075 + sw * H * 0.06;
+    const ky = hueftY + H * 0.2;
+    const fx = raste ? kx : kx - sd * H * 0.015 + sw * H * 0.1;
+    const fy = sohle - H * 0.035;
+    cx.lineCap = "round"; cx.lineJoin = "round";
+    cx.strokeStyle = "rgba(26,27,30,.7)"; cx.lineWidth = beinD * 1.18;
+    cx.beginPath(); cx.moveTo(hx, hy); cx.lineTo(kx, ky); cx.lineTo(fx, fy); cx.stroke();
+    cx.strokeStyle = WEISS; cx.lineWidth = beinD;
+    cx.beginPath(); cx.moveTo(hx, hy); cx.lineTo(kx, ky); cx.lineTo(fx, fy); cx.stroke();
+    /* Unterseite im Schatten — eine Roehre, keine flache Linie */
+    cx.strokeStyle = "rgba(24,24,22,.34)"; cx.lineWidth = beinD * 0.3;
+    cx.beginPath();
+    cx.moveTo(hx + beinD * 0.26, hy); cx.lineTo(kx + beinD * 0.26, ky); cx.lineTo(fx + beinD * 0.26, fy);
+    cx.stroke();
+    if (mittel) {
+      /* Konvoluten: Balgfalten an Huefte, Knie und Knoechel. Weich
+         gerippt — anders als die harten Lagerringe am Oberkoerper. */
+      cx.strokeStyle = "rgba(120,117,108,.55)"; cx.lineWidth = Math.max(0.35, H * 0.006);
+      for (const [gx, gy, ax, ay] of [[hx, hy, kx, ky], [kx, ky, fx, fy]]) {
+        const dx = ax - gx, dy = ay - gy, l = Math.hypot(dx, dy) || 1;
+        for (let i = 0; i < 3; i++) {
+          const f = 0.06 + i * 0.09;
+          cx.beginPath();
+          cx.moveTo(gx + dx * f - dy / l * beinD * 0.45, gy + dy * f + dx / l * beinD * 0.45);
+          cx.lineTo(gx + dx * f + dy / l * beinD * 0.45, gy + dy * f - dx / l * beinD * 0.45);
+          cx.stroke();
+        }
+      }
+      /* Kennstreifen am rechten Bein */
+      if (sd > 0) {
+        cx.strokeStyle = farbe; cx.lineWidth = beinD;
+        cx.lineCap = "butt";
+        const f0 = 0.5, f1 = f0 + bandB / H * 2.2;
+        cx.beginPath();
+        cx.moveTo(hx + (kx - hx) * f0, hy + (ky - hy) * f0);
+        cx.lineTo(hx + (kx - hx) * f1, hy + (ky - hy) * f1);
+        cx.stroke();
+        cx.lineCap = "round";
+      }
+    }
+    /* Stiefel: unten glatt und gequiltet, kein abstehender Buegel.
+       Der metallische Teil gehoert an die Plattform, nicht an den
+       Schuh — und er liegt DARUEBER, weil der Stiefel darunter
+       geschoben wird. */
+    cx.fillStyle = WEISS;
+    cx.save();
+    cx.translate(fx, fy);
+    cx.rotate(sd * 0.12);
+    rundRect(cx, -H * 0.052, -H * 0.02, H * 0.104, H * 0.055, H * 0.018); cx.fill();
+    cx.fillStyle = "rgba(38,38,34,.6)";
+    rundRect(cx, -H * 0.05, H * 0.026, H * 0.1, H * 0.014, H * 0.005); cx.fill();
+    cx.restore();
+  }
+
+  /* In der Fussraste neigt sich der ganze Oberkoerper nach vorn, waehrend
+     die Beine senkrecht in der Raste stehen bleiben. Deshalb wird ab
+     hier um die Huefte gedreht und nicht um die Figurmitte — sonst
+     kippte auch der Stand mit, und das sieht aus, als wuerde jemand
+     stuerzen. */
+  const neige = raste ? 0.3 : griff ? -0.12 : 0;
+  cx.save();
+  if (neige) { cx.translate(0, hueftY); cx.rotate(neige); cx.translate(0, -hueftY); }
 
   /* ---------- SAFER: die Rettungsduesen ----------
      Breiter als der Ruecksack (68 gegen 52 cm) und deckt dessen untere
@@ -2568,62 +2765,6 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor) {
     cx.beginPath(); cx.moveTo(pm - pb * 0.6, po + H * 0.01); cx.lineTo(pm - pb - H * 0.015, po - H * 0.055); cx.stroke();
   }
 
-  /* ---------- Beine ----------
-     Sie tragen nichts und arbeiten nicht: gefahren wird mit den Armen.
-     Knie 20–35 Grad gebeugt, die Beine haengen passiv nach. */
-  for (const [sd, sw] of [[-1, beinA], [1, beinB]]) {
-    /* Knie 20–35 Grad gebeugt, die Beine stehen leicht vom Koerper ab
-       und haengen passiv nach — nichts ist gestreckt. */
-    const hx = sd * H * 0.06, hy = hueftY;
-    const kx = hx + sd * H * 0.075 + sw * H * 0.06, ky = hueftY + H * 0.2;
-    const fx = kx - sd * H * 0.015 + sw * H * 0.1, fy = sohle - H * 0.035;
-    cx.lineCap = "round"; cx.lineJoin = "round";
-    cx.strokeStyle = "rgba(26,27,30,.7)"; cx.lineWidth = beinD * 1.18;
-    cx.beginPath(); cx.moveTo(hx, hy); cx.lineTo(kx, ky); cx.lineTo(fx, fy); cx.stroke();
-    cx.strokeStyle = WEISS; cx.lineWidth = beinD;
-    cx.beginPath(); cx.moveTo(hx, hy); cx.lineTo(kx, ky); cx.lineTo(fx, fy); cx.stroke();
-    /* Unterseite im Schatten — eine Roehre, keine flache Linie */
-    cx.strokeStyle = "rgba(24,24,22,.34)"; cx.lineWidth = beinD * 0.3;
-    cx.beginPath();
-    cx.moveTo(hx + beinD * 0.26, hy); cx.lineTo(kx + beinD * 0.26, ky); cx.lineTo(fx + beinD * 0.26, fy);
-    cx.stroke();
-    if (mittel) {
-      /* Konvoluten: Balgfalten an Huefte, Knie und Knoechel. Weich
-         gerippt — anders als die harten Lagerringe am Oberkoerper. */
-      cx.strokeStyle = "rgba(120,117,108,.55)"; cx.lineWidth = Math.max(0.35, H * 0.006);
-      for (const [gx, gy, ax, ay] of [[hx, hy, kx, ky], [kx, ky, fx, fy]]) {
-        const dx = ax - gx, dy = ay - gy, l = Math.hypot(dx, dy) || 1;
-        for (let i = 0; i < 3; i++) {
-          const f = 0.06 + i * 0.09;
-          cx.beginPath();
-          cx.moveTo(gx + dx * f - dy / l * beinD * 0.45, gy + dy * f + dx / l * beinD * 0.45);
-          cx.lineTo(gx + dx * f + dy / l * beinD * 0.45, gy + dy * f - dx / l * beinD * 0.45);
-          cx.stroke();
-        }
-      }
-      /* Kennstreifen am rechten Bein */
-      if (sd > 0) {
-        cx.strokeStyle = farbe; cx.lineWidth = beinD;
-        cx.lineCap = "butt";
-        const f0 = 0.5, f1 = f0 + bandB / H * 2.2;
-        cx.beginPath();
-        cx.moveTo(hx + (kx - hx) * f0, hy + (ky - hy) * f0);
-        cx.lineTo(hx + (kx - hx) * f1, hy + (ky - hy) * f1);
-        cx.stroke();
-        cx.lineCap = "round";
-      }
-    }
-    /* Stiefel: unten glatt und gequiltet, kein abstehender Buegel */
-    cx.fillStyle = WEISS;
-    cx.save();
-    cx.translate(fx, fy);
-    cx.rotate(sd * 0.12);
-    rundRect(cx, -H * 0.052, -H * 0.02, H * 0.104, H * 0.055, H * 0.018); cx.fill();
-    cx.fillStyle = "rgba(38,38,34,.6)";
-    rundRect(cx, -H * 0.05, H * 0.026, H * 0.1, H * 0.014, H * 0.005); cx.fill();
-    cx.restore();
-  }
-
   /* ---------- Rumpf: die harte Schale ----------
      Tonnenfoermig, ohne Taille. Der Umriss ist das, was die Figur schon
      bei 25 Pixeln als Raumanzug lesbar macht. */
@@ -2640,9 +2781,9 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor) {
   const tg = cx.createLinearGradient(-schuB, schuY, schuB * 0.7, hueftY);
   tg.addColorStop(0, HELL);
   tg.addColorStop(0.34, WEISS);
-  tg.addColorStop(0.7, "#7b786f");
-  tg.addColorStop(0.9, "#1b1c1f");
-  tg.addColorStop(1, "#3f5772");                /* Erdschein von unten */
+  tg.addColorStop(0.7, tf("#7b786f", "#131a26"));
+  tg.addColorStop(0.9, tf("#1b1c1f", "#0b0f18"));
+  tg.addColorStop(1, tf("#3f5772", "#2b4062"));
   cx.fillStyle = tg;
   cx.fill();
 
@@ -2707,7 +2848,14 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor) {
   for (const [sd, sw, istRechts] of [[-1, armB, false], [1, armA, true]]) {
     const sx = sd * schuB * 0.86, sy = schuY + rh * 0.16;
     let ex, ey, hx, hy;
-    if (zustand === "denkt" && istRechts) {
+    if (griff && !istRechts) {
+      /* Die linke Hand greift nach oben an den Handlauf, die Figur
+         haengt darunter. Das ist Warten im All: nicht schwebend,
+         sondern festgehalten. Die rechte Hand bleibt frei und macht
+         das, was der Zustand verlangt. */
+      ex = sd * H * 0.15; ey = sy - H * 0.06;
+      hx = sd * H * 0.085; hy = schuY - H * 0.17;
+    } else if (zustand === "denkt" && istRechts) {
       /* Haelt eine Pruefliste auf Brusthoehe */
       ex = sd * H * 0.15; ey = sy + H * 0.13;
       hx = sd * H * 0.07; hy = sy + H * 0.21;
@@ -2722,6 +2870,13 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor) {
       /* Fuehrt ein Werkzeug auf Brusthoehe */
       ex = sd * H * 0.18; ey = sy + H * 0.11;
       hx = sd * H * 0.13; hy = sy + H * 0.23 + sw * H * 0.02;
+    } else if (raste) {
+      /* In der Fussraste sind beide Haende frei und arbeiten in einem
+         engen Feld vor der Brust — rund einen halben Meter breit und
+         vierzig Zentimeter hoch. Weiter reicht ein Anzug nicht, ohne
+         dass der ganze Rumpf mitgeht. */
+      ex = sd * H * 0.2; ey = sy + H * 0.1;
+      hx = sd * H * 0.105 + sw * H * 0.015; hy = sy + H * 0.25 + sw * H * 0.02;
     } else {
       /* Neutralhaltung: Ellbogen gebeugt, Haende locker an der Huefte —
          neben der Bedieneinheit, nicht davor. */
@@ -2827,11 +2982,11 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor) {
      Rumpf. */
   const hg = cx.createRadialGradient(-helmR * 0.4, helmY - helmR * 0.45, helmR * 0.08,
                                      0, helmY, helmR);
-  hg.addColorStop(0, "#ffffff");
-  hg.addColorStop(0.5, "#eceade");
-  hg.addColorStop(0.8, "#787569");
-  hg.addColorStop(0.93, "#1a1b1e");
-  hg.addColorStop(1, "#445d79");                /* Erdschein von unten */
+  hg.addColorStop(0, tf("#ffffff", "#41536e"));
+  hg.addColorStop(0.5, tf("#eceade", "#2c3c55"));
+  hg.addColorStop(0.8, tf("#787569", "#151d2b"));
+  hg.addColorStop(0.93, tf("#1a1b1e", "#0a0e16"));
+  hg.addColorStop(1, tf("#445d79", "#2e4467"));
   cx.fillStyle = hg;
   cx.beginPath(); cx.arc(0, helmY, helmR, 0, Math.PI * 2); cx.fill();
 
@@ -2840,10 +2995,10 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor) {
      oben, das untere Drittel bleibt frei. */
   const vg = cx.createLinearGradient(-helmR * 0.7, helmY - helmR * 0.7,
                                       helmR * 0.7, helmY + helmR * 0.7);
-  vg.addColorStop(0, "#e8c06a");
-  vg.addColorStop(0.3, "#c9962e");
-  vg.addColorStop(0.62, "#6b4f18");
-  vg.addColorStop(1, "#2a2008");
+  vg.addColorStop(0, tf("#e8c06a", "#4a3f22"));
+  vg.addColorStop(0.3, tf("#c9962e", "#3a2f13"));
+  vg.addColorStop(0.62, tf("#6b4f18", "#1f1a0c"));
+  vg.addColorStop(1, tf("#2a2008", "#100c04"));
   cx.fillStyle = vg;
   cx.beginPath(); cx.arc(0, helmY + helmR * 0.06, helmR * 0.72, 0, Math.PI * 2); cx.fill();
 
@@ -2873,15 +3028,36 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor) {
     cx.arc(0, helmY, helmR * 0.99, Math.PI * 1.1, Math.PI * 1.9);
     cx.arc(0, helmY, helmR * 0.7, Math.PI * 1.9, Math.PI * 1.1, true);
     cx.closePath(); cx.fill();
-    /* Helmlampen */
+    /* Helmlampen. Im Erdschatten sind sie das einzige Licht, das der
+       Astronaut noch hat — zwei schmale Kegel von rund 28 Grad, die
+       gut zwei Modulradien weit reichen. Bei Tag sieht man nur die
+       Lampen selbst. */
+    if (nachts > 0.05) {
+      for (const sd of [-1, 1]) {
+        cx.save();
+        cx.translate(sd * helmR * 0.6, helmY - helmR * 0.62);
+        cx.rotate(-Math.PI / 2 + sd * 0.1);
+        const reich = H * 1.1;
+        const kg = cx.createLinearGradient(0, 0, reich, 0);
+        kg.addColorStop(0, `rgba(255,248,220,${0.3 * nachts})`);
+        kg.addColorStop(0.5, `rgba(255,248,220,${0.09 * nachts})`);
+        kg.addColorStop(1, "rgba(255,248,220,0)");
+        cx.fillStyle = kg;
+        cx.beginPath();
+        cx.moveTo(0, 0);
+        cx.arc(0, 0, reich, -0.245, 0.245);
+        cx.closePath(); cx.fill();
+        cx.restore();
+      }
+    }
     cx.fillStyle = "rgba(255,250,228,.95)";
     for (const sd of [-1, 1]) {
       cx.beginPath();
       cx.arc(sd * helmR * 0.6, helmY - helmR * 0.62, helmR * 0.14, 0, Math.PI * 2);
       cx.fill();
-      if (zustand !== "ruht") {
-        cx.fillStyle = "rgba(255,250,228,.13)";
-        cx.beginPath(); cx.arc(sd * helmR * 0.6, helmY - helmR * 0.62, helmR * 0.44, 0, Math.PI * 2); cx.fill();
+      if (zustand !== "ruht" || nachts > 0.3) {
+        cx.fillStyle = `rgba(255,250,228,${0.13 + 0.2 * nachts})`;
+        cx.beginPath(); cx.arc(sd * helmR * 0.6, helmY - helmR * 0.62, helmR * (0.44 + nachts * 0.5), 0, Math.PI * 2); cx.fill();
         cx.fillStyle = "rgba(255,250,228,.95)";
       }
     }
@@ -2895,6 +3071,25 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor) {
   /* Farbring am Helm — Zugehoerigkeit auf einen Blick */
   cx.strokeStyle = farbe; cx.lineWidth = Math.max(0.8, helmR * 0.2);
   cx.beginPath(); cx.arc(0, helmY, helmR * 0.88, Math.PI * 0.2, Math.PI * 0.8); cx.stroke();
+
+  cx.restore();   /* Neigung des Oberkoerpers zurueck */
+
+  /* Die Fussraste liegt UEBER dem Stiefel: der Fuss wird unter die
+     Zehenbuegel geschoben und in die Fersenclips gedrueckt. Wer sie
+     darunter zeichnet, dreht den Mechanismus um. */
+  if (raste) {
+    cx.fillStyle = "rgba(146,150,156,.9)";
+    rundRect(cx, -H * 0.13, sohle - H * 0.02, H * 0.26, H * 0.035, H * 0.008);
+    cx.fill();
+    cx.strokeStyle = "rgba(210,216,224,.8)";
+    cx.lineWidth = Math.max(0.4, H * 0.008);
+    cx.beginPath();
+    for (const sd of [-1, 1]) {
+      cx.moveTo(sd * H * 0.085, sohle - H * 0.055);
+      cx.lineTo(sd * H * 0.085, sohle - H * 0.015);
+    }
+    cx.stroke();
+  }
 
   cx.restore();
 }
@@ -3643,6 +3838,11 @@ function rahmen(jetzt) {
   KAM.x = lerp(KAM.x, KAM.zielX, eil);
   KAM.y = lerp(KAM.y, KAM.zielY, eil);
 
+  /* Die Stelle im Umlauf bestimmt das Licht fuer alles Weitere */
+  const umlaufPhase = PHASE_TEST !== null ? PHASE_TEST : (t % UMLAUF) / UMLAUF;
+  TAGLICHT = Z.umlauf === false ? 1 : tageslicht(umlaufPhase);
+  ABENDLICHT = abendlicht(TAGLICHT);
+
   zeichneHimmel(t);
   /* Nahe Sterne driften staerker als der Himmel dahinter — das erzeugt
      die Tiefe, auch wenn sonst nichts passiert */
@@ -3790,7 +3990,11 @@ function rahmen(jetzt) {
     const kipp = q.winkel + pendeln
       + (sparsam ? 0 : Math.sin(t * 0.00007 + v.phase) * frei * 0.22);
     const hervor = Z.gewaehlt === a.id || offeneDetailId === a.id;
-    zeichneAstronaut(x, y, groesse, kipp, a.farbe, l.zustand, t, v.phase, hervor);
+    /* Wer frei treibt, hat keine Haltung — wer an der Struktur haengt,
+       schon, und zwar je nach dem, woran er haengt. */
+    const haltung = frei > 0.25 ? "frei"
+                  : q.art === "fussraste" ? "raste" : "griff";
+    zeichneAstronaut(x, y, groesse, kipp, a.farbe, l.zustand, t, v.phase, hervor, haltung);
 
     /* Namensschild — gegen den Zoom herausgerechnet. Schrift gehoert zur
        Bedienung, nicht in die Szene: sonst wird sie beim Heranfahren
@@ -5031,6 +5235,14 @@ function kino(an) {
   $("#btn-kino").classList.toggle("an", an);
   if (an) blendeZu();
 }
+const umlaufSchalter = $("#umlauf-schalter");
+umlaufSchalter.onclick = () => {
+  Z.umlauf = !Z.umlauf;
+  umlaufSchalter.classList.toggle("an", Z.umlauf);
+  sichern();
+};
+umlaufSchalter.classList.toggle("an", Z.umlauf !== false);
+
 $("#btn-kino").onclick = () => kino(!kinoAn);
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") { if (kinoAn) kino(false); else blendeZu(); }
@@ -5254,6 +5466,8 @@ window.__BLENDE_OFFEN = () => blendeOffen;
 window.__STERNE = (t,a,b) => zeichneSterne(t,a,b);
 window.__STATION = (t,x,y,r) => zeichneStation(t,x,y,r);
 window.__STBILD = () => STBILD;
+window.__PHASE = (ph) => { PHASE_TEST = ph; };
+window.__LICHT = () => ({ tag: TAGLICHT, abend: ABENDLICHT });
 window.__ASTRO = (...a) => zeichneAstronaut(...a);
 window.__STERNZAHL = () => sterne.length;
 window.__THEMA = (id) => { Z.thema = id; themaAnwenden(); himmelBacken(); sichern(); };
