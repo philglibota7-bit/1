@@ -1,0 +1,53 @@
+{
+  "applicationId": "app.orbit.leitstand",
+  "version": "1.0.0",
+  "defaultMode": "window",
+  "port": 0,
+  "documentRoot": "/resources/",
+  "url": "/",
+  "enableServer": true,
+  "enableNativeAPI": true,
+  "tokenSecurity": "one-time",
+  "logging": {
+    "enabled": false,
+    "writeToLogFile": false
+  },
+  "nativeAllowList": [
+    "app.exit",
+    "os.execCommand",
+    "os.getPath",
+    "os.open",
+    "os.showFolderDialog",
+    "filesystem.readDirectory",
+    "filesystem.readFile",
+    "filesystem.getStats",
+    "window.*",
+    "events.*"
+  ],
+  "modes": {
+    "window": {
+      "title": "ORBIT",
+      "width": 1280,
+      "height": 880,
+      "minWidth": 420,
+      "minHeight": 560,
+      "center": true,
+      "fullScreen": false,
+      "alwaysOnTop": false,
+      "enableInspector": false,
+      "borderless": false,
+      "maximize": false,
+      "hidden": false,
+      "resizable": true,
+      "exitProcessOnClose": true
+    }
+  },
+  "cli": {
+    "binaryName": "orbit",
+    "resourcesPath": "/resources/",
+    "extensionsPath": "/extensions/",
+    "clientLibrary": "/resources/js/neutralino.js",
+    "binaryVersion": "nightly",
+    "clientVersion": "nightly"
+  }
+}

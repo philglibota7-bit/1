@@ -119,6 +119,17 @@ header{
 .kopf-knopf:active{transform:scale(.96);}
 .kopf-knopf.an{background:var(--acc-tint); border-color:rgba(123,164,216,.4); color:var(--acc);}
 .kopf-knopf svg{width:15px; height:15px; flex:0 0 auto;}
+/* Auf schmalen Bildschirmen nur die Symbole — mit Beschriftung passen
+   vier Knoepfe plus Wortmarke nicht mehr nebeneinander. */
+@media (max-width:560px){
+  header{gap:7px; padding-left:10px; padding-right:10px;}
+  .kopf-knopf{padding:0 11px;}
+  .kopf-knopf span{display:none;}
+  .marke{gap:8px; padding-left:0;}
+  .marke .sat{width:28px; height:28px;}
+  .marke h1{font-size:13.5px; letter-spacing:.13em;}
+  .marke small{display:none;}
+}
 
 /* ---------- Fussleiste: Missionsfeld ---------- */
 footer{
@@ -273,6 +284,42 @@ body.kino #kino-tipp{opacity:1; animation:tippweg 4s ease forwards;}
   backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px);}
 #schleier.an{opacity:1; pointer-events:auto;}
 
+/* ---------- Detailansicht ---------- */
+.d-zeile{display:flex; gap:12px; padding:9px 0; border-bottom:1px solid var(--edge); font-size:13px;}
+.d-zeile:last-child{border-bottom:none;}
+.d-zeile .k{color:var(--tx3); flex:0 0 96px; font-size:11.5px; letter-spacing:.04em;
+  text-transform:uppercase; font-weight:550; padding-top:2px;}
+.d-zeile .w{color:var(--tx); flex:1 1 auto; word-break:break-word; line-height:1.5;}
+.d-zeile .w.pfad{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; color:var(--tx2);}
+.d-abschnitt{font-size:11.5px; color:var(--tx3); letter-spacing:.06em; text-transform:uppercase;
+  font-weight:550; margin:18px 0 8px;}
+.d-schritt{display:flex; gap:10px; align-items:baseline; padding:6px 0; font-size:12.5px;
+  border-bottom:1px solid rgba(255,255,255,.05);}
+.d-schritt .zt{color:var(--tx3); font-size:10.5px; flex:0 0 42px;}
+.d-schritt .wz{color:var(--acc); flex:0 0 auto; font-size:11px; font-weight:600;}
+.d-schritt .tx{color:var(--tx2); flex:1 1 auto; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px;}
+.d-marke{display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:99px;
+  background:var(--p2); border:1px solid var(--edge); font-size:11px; color:var(--tx2);}
+.d-marke.gut{background:rgba(116,180,141,.14); border-color:rgba(116,180,141,.3); color:var(--good);}
+.d-marke.schlecht{background:rgba(224,122,106,.14); border-color:rgba(224,122,106,.3); color:var(--bad);}
+
+.schalterliste{display:flex; flex-direction:column; gap:2px;}
+.schalter{display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:var(--r1);
+  background:var(--p1); border:1px solid var(--edge); transition:all .2s var(--ease); text-align:left;}
+.schalter:hover{background:var(--p2);}
+.schalter .kasten{width:17px; height:17px; border-radius:5px; flex:0 0 auto;
+  border:1.5px solid var(--edge2); display:flex; align-items:center; justify-content:center;
+  font-size:11px; color:transparent;}
+.schalter.an .kasten{background:var(--acc); border-color:var(--acc); color:#06121f;}
+.schalter .bez{font-size:13px; flex:1 1 auto;}
+.schalter .zahl{font-size:11px; color:var(--tx3);}
+
+.ordner-zeile{display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:var(--r1);
+  background:var(--p1); border:1px solid var(--edge); margin-bottom:6px; font-size:12px;}
+.ordner-zeile .pf{flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--tx2);}
+
 @media (prefers-reduced-motion:reduce){
   #nebel::before{animation:none;}
   .marke .sat{animation:none;}
@@ -302,6 +349,9 @@ body.kino #kino-tipp{opacity:1; animation:tippweg 4s ease forwards;}
     <button class="kopf-knopf" id="btn-crew" title="Crew verwalten">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M17 11.5a3 3 0 1 0-1.8-5.4M18 20c0-2.2-.8-3.9-2-5"/></svg>
       <span>Crew</span>
+    </button>
+    <button class="kopf-knopf" id="btn-bruecke" title="Echte Arbeitsabläufe">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17V9a9 9 0 0 1 18 0v8M3 17h18M8 17V11M16 17V11M12 17V8.5"/></svg>
     </button>
     <button class="kopf-knopf" id="btn-kino" title="Kinomodus — alles ausblenden">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>
@@ -385,6 +435,56 @@ body.kino #kino-tipp{opacity:1; animation:tippweg 4s ease forwards;}
   </div>
 </div>
 
+<!-- ---------- Blende: Astronaut im Detail ---------- -->
+<div class="blende glas" id="blende-detail">
+  <div class="griff"></div>
+  <div class="blende-kopf">
+    <span class="kugel" id="d-kugel"></span>
+    <h2 id="d-titel">Astronaut</h2>
+    <button class="mini" id="d-oeffnen" title="Extern öffnen" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+    </button>
+    <button class="zu" data-zu="blende-detail">✕</button>
+  </div>
+  <div class="blende-inhalt" id="d-inhalt"></div>
+</div>
+
+<!-- ---------- Blende: Brücke ---------- -->
+<div class="blende glas" id="blende-bruecke">
+  <div class="griff"></div>
+  <div class="blende-kopf">
+    <h2>Echte Arbeitsabläufe</h2>
+    <button class="zu" data-zu="blende-bruecke">✕</button>
+  </div>
+  <div class="blende-inhalt">
+    <div id="b-lage"></div>
+
+    <label class="feld"><span>Welche Astronauten?</span>
+      <div id="b-typen" class="schalterliste"></div></label>
+
+    <label class="feld"><span>Beobachtete Projektordner</span>
+      <div id="b-ordner"></div>
+      <div style="display:flex; gap:8px; margin-top:8px">
+        <input class="eingabe" id="b-neu-ordner" placeholder="/Users/du/Projekte/meinprojekt" autocomplete="off" spellcheck="false">
+        <button class="mini" id="b-ordner-waehlen" title="Ordner suchen" style="width:38px;height:38px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        </button>
+        <button class="mini" id="b-ordner-dazu" title="Hinzufügen" style="width:38px;height:38px">+</button>
+      </div>
+    </label>
+
+    <label class="feld"><span>Claude-Code-Sessions der letzten … Minuten</span>
+      <input class="eingabe" id="b-fenster" type="number" min="5" max="1440" step="5" value="120"></label>
+
+    <label class="feld"><span>GitHub-Token (optional, Rechte: repo)</span>
+      <input class="eingabe" id="b-ghtoken" type="password" placeholder="github_pat_… oder ghp_…" autocomplete="off" spellcheck="false"></label>
+    <label class="feld"><span>Wie viele Repos anzeigen</span>
+      <input class="eingabe" id="b-ghanzahl" type="number" min="1" max="10" step="1" value="4"></label>
+
+    <button class="knopf voll" id="b-speichern">Speichern</button>
+  </div>
+</div>
+
 <!-- ---------- Blende: API-Schlüssel ---------- -->
 <div class="blende glas" id="blende-schluessel">
   <div class="griff"></div>
@@ -444,6 +544,13 @@ let Z = {
   key: "",
   maxTok: 8000,
   gewaehlt: null,     // ID des aktiven Agenten, null = ganze Crew
+  bruecke: {
+    typen: { session: true, ordner: true, prozess: true, github: true },
+    ordner: [],                 // beobachtete Projektordner
+    sessionFensterMin: 120,     // Sessions aelter als das bleiben draussen
+    ghToken: "",
+    ghAnzahl: 4,
+  },
 };
 
 function laden() {
@@ -456,6 +563,12 @@ function laden() {
       Z.key     = typeof d.key === "string" ? d.key : "";
       Z.maxTok  = Number(d.maxTok) || 8000;
       Z.gewaehlt = d.gewaehlt ?? null;
+      if (d.bruecke && typeof d.bruecke === "object") {
+        Z.bruecke = Object.assign(Z.bruecke, d.bruecke);
+        Z.bruecke.typen = Object.assign({ session: true, ordner: true, prozess: true, github: true },
+                                        d.bruecke.typen || {});
+        Z.bruecke.ordner = Array.isArray(d.bruecke.ordner) ? d.bruecke.ordner : [];
+      }
     }
   } catch (e) {
     console.warn("Gespeicherter Zustand unlesbar, starte frisch.", e);
@@ -478,6 +591,7 @@ function sichern() {
       agenten: Z.agenten,
       log: Z.log.slice(0, 60),
       key: Z.key, maxTok: Z.maxTok, gewaehlt: Z.gewaehlt,
+      bruecke: Z.bruecke,
     }));
   } catch (e) {
     /* Speicher voll oder privater Modus — die App laeuft trotzdem weiter */
@@ -515,6 +629,410 @@ function setzeZustand(id, zustand) {
   if (l.zustand !== zustand) { l.zustand = zustand; l.seit = performance.now(); }
   zeichneCrewLeiste();
 }
+/* ================================================================
+   2b — Die Bruecke zu echten Arbeitsablaeufen
+   Laeuft nur im Mac-Programm: dort darf die Seite ueber Neutralino
+   das Dateisystem lesen und Befehle ausfuehren. Im normalen Browser
+   ist das gesperrt — dann bleiben nur die selbst angelegten Agenten.
+   ================================================================ */
+
+const BR = {
+  aktiv: false,
+  heim: "",
+  live: [],            // Live-Astronauten aus echten Quellen
+  letzterFehler: "",
+  vscodeLaeuft: false,
+  uhren: { sessions: 0, ordner: 0, prozesse: 0, github: 0 },
+  laeuft: false,
+};
+
+const TAKT = { sessions: 3000, ordner: 6000, prozesse: 6000, github: 90000 };
+
+/* Farbe stabil aus dem Namen ableiten — gleicher Astronaut, gleiche Farbe */
+function farbeAusName(t) {
+  let h = 0;
+  for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0;
+  return FARBEN[h % FARBEN.length];
+}
+
+function nativVorhanden() {
+  return typeof window.NL_OS !== "undefined" && typeof window.Neutralino !== "undefined";
+}
+
+async function befehl(sh) {
+  try {
+    const r = await Neutralino.os.execCommand("/bin/sh -c " + hochkomma(sh));
+    return (r && r.stdOut) || "";
+  } catch (e) {
+    BR.letzterFehler = String(e && e.message || e);
+    return "";
+  }
+}
+/* Einfaches Anfuehren fuer die Shell — Pfade duerfen Leerzeichen haben */
+const hochkomma = (t) => "'" + String(t).replace(/'/g, "'\\''") + "'";
+
+/* ---------- Quelle 1: laufende Claude-Code-Sessions ---------- */
+
+/* Aus einem Werkzeugaufruf eine kurze, lesbare Taetigkeit machen */
+function taetigkeitAus(name, ein) {
+  const e = ein || {};
+  const datei = (p) => String(p || "").split("/").pop();
+  switch (name) {
+    case "Bash":        return String(e.command || "").replace(/\s+/g, " ").slice(0, 70);
+    case "Read":        return "liest " + datei(e.file_path);
+    case "Edit":        return "ändert " + datei(e.file_path);
+    case "Write":       return "schreibt " + datei(e.file_path);
+    case "NotebookEdit":return "ändert " + datei(e.notebook_path);
+    case "Glob":        return "sucht " + (e.pattern || "");
+    case "Grep":        return "durchsucht nach " + String(e.pattern || "").slice(0, 40);
+    case "WebSearch":   return "sucht im Netz: " + String(e.query || "").slice(0, 45);
+    case "WebFetch":    return "liest " + String(e.url || "").replace(/^https?:\/\//, "").slice(0, 45);
+    case "Agent":       return "delegiert: " + String(e.description || "").slice(0, 45);
+    case "Skill":       return "nutzt Fähigkeit " + (e.skill || "");
+    case "TodoWrite":   return "aktualisiert die Aufgabenliste";
+    default:            return name + " " + JSON.stringify(e).slice(0, 45);
+  }
+}
+
+/* Nur das Ende der Datei lesen — Protokolle werden schnell megabytegross */
+async function sessionLesen(pfad, groesse, name) {
+  const fenster = Math.min(groesse, 120 * 1024);
+  const pos = Math.max(0, groesse - fenster);
+  let roh;
+  try { roh = await Neutralino.filesystem.readFile(pfad, { pos, size: fenster }); }
+  catch { return null; }
+
+  const zeilen = roh.split("\n");
+  if (pos > 0) zeilen.shift();          // erste Zeile ist angeschnitten
+
+  let cwd = "", branch = "", modell = "", aufwand = "", sid = "";
+  let letzteZeit = 0, letzteRolle = "";
+  const schritte = [];
+
+  for (let i = zeilen.length - 1; i >= 0; i--) {
+    const z = zeilen[i].trim();
+    if (!z) continue;
+    let d;
+    try { d = JSON.parse(z); } catch { continue; }
+
+    if (!cwd && d.cwd) { cwd = d.cwd; branch = d.gitBranch || ""; }
+    if (!sid && d.sessionId) sid = d.sessionId;
+    if (!letzteZeit && d.timestamp) letzteZeit = Date.parse(d.timestamp) || 0;
+    if (!letzteRolle && (d.type === "user" || d.type === "assistant")) letzteRolle = d.type;
+
+    if (d.type === "assistant") {
+      const m = d.message || {};
+      if (!modell && m.model) modell = m.model;
+      if (!aufwand && d.effort) aufwand = d.effort;
+      const inhalt = Array.isArray(m.content) ? m.content : [];
+      for (let j = inhalt.length - 1; j >= 0; j--) {
+        const b = inhalt[j];
+        if (b && b.type === "tool_use" && schritte.length < 10) {
+          schritte.push({
+            werkzeug: b.name,
+            text: taetigkeitAus(b.name, b.input),
+            zeit: Date.parse(d.timestamp) || 0,
+          });
+        }
+      }
+    }
+    if (cwd && sid && modell && schritte.length >= 10) break;
+  }
+
+  if (!cwd) return null;
+  const alter = Date.now() - letzteZeit;
+  const zustand = alter < 25000 ? "sendet" : alter < 300000 ? "denkt" : "ruht";
+
+  return {
+    id: "s:" + (sid || name),
+    typ: "session",
+    name: (cwd.split("/").pop() || "Session"),
+    farbe: farbeAusName(sid || name),
+    zustand,
+    ort: cwd,
+    branch,
+    taetigkeit: schritte.length ? schritte[0].text : "wartet auf Eingabe",
+    werkzeug: schritte.length ? schritte[0].werkzeug : "",
+    seit: letzteZeit,
+    modell, aufwand,
+    letzteRolle,
+    schritte: schritte.slice(0, 8),
+  };
+}
+
+async function sammleSessions() {
+  const basis = BR.heim + "/.claude/projects";
+  let projekte;
+  try { projekte = await Neutralino.filesystem.readDirectory(basis); }
+  catch { return []; }
+
+  const jetzt = Date.now();
+  const kandidaten = [];
+  for (const pr of projekte) {
+    if (pr.type !== "DIRECTORY") continue;
+    let dateien;
+    try { dateien = await Neutralino.filesystem.readDirectory(basis + "/" + pr.entry); }
+    catch { continue; }
+    for (const d of dateien) {
+      if (!d.entry.endsWith(".jsonl")) continue;
+      const pfad = basis + "/" + pr.entry + "/" + d.entry;
+      let st;
+      try { st = await Neutralino.filesystem.getStats(pfad); } catch { continue; }
+      /* Sessions, die seit Stunden ruhen, gehoeren nicht in die Szene */
+      if (jetzt - st.modifiedAt > Z.bruecke.sessionFensterMin * 60000) continue;
+      kandidaten.push({ pfad, groesse: st.size, mt: st.modifiedAt, name: d.entry });
+    }
+  }
+  kandidaten.sort((a, b) => b.mt - a.mt);
+
+  const raus = [];
+  for (const k of kandidaten.slice(0, 6)) {
+    const info = await sessionLesen(k.pfad, k.groesse, k.name);
+    if (info) raus.push(info);
+  }
+  return raus;
+}
+
+/* ---------- Quelle 2: Projektordner und VS Code ---------- */
+
+async function sammleOrdner() {
+  const raus = [];
+  /* Einmal pro Durchlauf pruefen, ob VS Code ueberhaupt laeuft */
+  const vs = await befehl("ps -Ao comm= 2>/dev/null | grep -ci 'Visual Studio Code\\|Code Helper\\|/Code$' || true");
+  BR.vscodeLaeuft = parseInt(vs.trim(), 10) > 0;
+
+  for (const pfad of Z.bruecke.ordner) {
+    const sh = `
+P=${hochkomma(pfad)}
+cd "$P" 2>/dev/null || { echo "ERR:pfad"; exit 0; }
+echo "BRANCH:$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo -)"
+echo "DIRTY:$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')"
+L=$(git ls-files -mo --exclude-standard 2>/dev/null | head -60 | tr '\\n' '\\0' | xargs -0 ls -t 2>/dev/null | head -4)
+if [ -n "$L" ]; then echo "$L" | sed 's/^/FILE:/'; fi
+F=$(echo "$L" | head -1)
+if [ -n "$F" ]; then echo "MTIME:$( (stat -f %m "$F" 2>/dev/null || stat -c %Y "$F" 2>/dev/null) )"; fi
+echo "HEAD:$(git log -1 --pretty=%s 2>/dev/null | head -c 80)"
+`;
+    const aus = await befehl(sh);
+    if (!aus || /^ERR:/m.test(aus)) continue;
+
+    const hol = (k) => { const m = aus.match(new RegExp("^" + k + ":(.*)$", "m")); return m ? m[1].trim() : ""; };
+    const dateien = (aus.match(/^FILE:.*$/gm) || []).map(z => z.slice(5).replace(/^\.\//, ""));
+    const mtime = parseInt(hol("MTIME"), 10) * 1000 || 0;
+    const dirty = parseInt(hol("DIRTY"), 10) || 0;
+    const alter = mtime ? Date.now() - mtime : Infinity;
+
+    raus.push({
+      id: "o:" + pfad,
+      typ: "ordner",
+      name: pfad.split("/").filter(Boolean).pop() || pfad,
+      farbe: farbeAusName(pfad),
+      zustand: alter < 90000 ? "sendet" : alter < 900000 ? "denkt" : "ruht",
+      ort: pfad,
+      branch: hol("BRANCH"),
+      taetigkeit: dateien.length
+        ? (alter < 90000 ? "speichert " : "zuletzt ") + dateien[0].split("/").pop()
+        : (dirty ? dirty + " Dateien geändert" : "alles eingecheckt"),
+      seit: mtime,
+      dirty, dateien,
+      kopf: hol("HEAD"),
+      vscode: BR.vscodeLaeuft,
+      schritte: dateien.map(f => ({ werkzeug: "Datei", text: f, zeit: mtime })),
+    });
+  }
+  return raus;
+}
+
+/* ---------- Quelle 3: laufende Befehle ---------- */
+
+const PROZESS_MUSTER = "node |npm |pnpm |yarn |bun |vite|next |nodemon|webpack|esbuild|jest|vitest|playwright|python -m|uvicorn|gunicorn|flask|rails |cargo |go run|dotnet |docker |claude";
+
+async function sammleProzesse() {
+  const aus = await befehl(
+    `ps -Ao pid=,etime=,pcpu=,args= 2>/dev/null | grep -Ei ${hochkomma(PROZESS_MUSTER)} ` +
+    `| grep -v grep | grep -v ' ps -Ao' | head -8 || true`
+  );
+  const raus = [];
+  for (const z of aus.split("\n")) {
+    const m = z.trim().match(/^(\d+)\s+(\S+)\s+([\d.]+)\s+(.*)$/);
+    if (!m) continue;
+    const [, pid, etime, cpu, args] = m;
+    /* Pfade wegkuerzen, sonst steht im Namen der halbe Rechner */
+    const kurz = args.replace(/\/\S+\//g, "").slice(0, 90);
+    const name = (kurz.split(/\s+/)[0] || "Prozess").slice(0, 16);
+    raus.push({
+      id: "p:" + pid,
+      typ: "prozess",
+      name,
+      farbe: farbeAusName(name + pid),
+      zustand: parseFloat(cpu) > 12 ? "sendet" : "denkt",
+      ort: "PID " + pid,
+      taetigkeit: kurz,
+      seit: 0,
+      laufzeit: etime,
+      cpu,
+      args,
+      schritte: [],
+    });
+  }
+  return raus;
+}
+
+/* ---------- Quelle 4: GitHub ----------
+   Laeuft ueber fetch, nicht ueber die Shell: so steht der Token
+   nicht in der Prozessliste des Rechners. */
+
+async function gh(pfad) {
+  const r = await fetch("https://api.github.com" + pfad, {
+    headers: {
+      "Accept": "application/vnd.github+json",
+      "Authorization": "Bearer " + Z.bruecke.ghToken,
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  });
+  if (!r.ok) throw new Error("GitHub " + r.status);
+  return r.json();
+}
+
+async function sammleGithub() {
+  if (!Z.bruecke.ghToken) return [];
+  let repos;
+  try {
+    repos = await gh("/user/repos?sort=pushed&per_page=" + Math.max(1, Z.bruecke.ghAnzahl));
+  } catch (e) {
+    BR.letzterFehler = "GitHub: " + e.message;
+    return [];
+  }
+
+  const raus = [];
+  for (const r of repos.slice(0, Z.bruecke.ghAnzahl)) {
+    let laeufe = [], prs = [];
+    try { laeufe = (await gh(`/repos/${r.full_name}/actions/runs?per_page=3`)).workflow_runs || []; } catch {}
+    try { prs = await gh(`/repos/${r.full_name}/pulls?state=open&per_page=5`); } catch {}
+
+    const l0 = laeufe[0];
+    const laufend = laeufe.some(x => x.status === "in_progress" || x.status === "queued");
+    const rot = l0 && l0.status === "completed" && l0.conclusion !== "success";
+
+    raus.push({
+      id: "g:" + r.full_name,
+      typ: "github",
+      name: r.name,
+      farbe: farbeAusName(r.full_name),
+      zustand: laufend ? "sendet" : rot ? "fehler" : "ruht",
+      ort: r.full_name,
+      branch: r.default_branch,
+      taetigkeit: laufend ? (l0 ? l0.name + " läuft" : "Actions laufen")
+                : rot ? (l0.name + " fehlgeschlagen")
+                : prs.length ? prs.length + " offene Pull Requests"
+                : "ruhig",
+      seit: r.pushed_at ? Date.parse(r.pushed_at) : 0,
+      prs: prs.map(p => ({ nr: p.number, titel: p.title, entwurf: p.draft, url: p.html_url })),
+      laeufe: laeufe.map(x => ({
+        name: x.name, status: x.status, ergebnis: x.conclusion,
+        zeit: Date.parse(x.created_at) || 0, url: x.html_url,
+      })),
+      url: r.html_url,
+      schritte: laeufe.slice(0, 5).map(x => ({
+        werkzeug: x.conclusion === "success" ? "✓" : x.status === "completed" ? "✗" : "…",
+        text: x.name, zeit: Date.parse(x.created_at) || 0,
+      })),
+    });
+  }
+  return raus;
+}
+
+/* ---------- Der Sammeldurchlauf ---------- */
+
+let bruecke_sessions = [], bruecke_ordner = [], bruecke_prozesse = [], bruecke_github = [];
+
+async function brueckeDurchlauf() {
+  if (BR.laeuft) return;                 // kein zweiter Durchlauf parallel
+  BR.laeuft = true;
+  const jetzt = Date.now();
+  try {
+    if (BR.aktiv && Z.bruecke.typen.session && jetzt - BR.uhren.sessions > TAKT.sessions) {
+      BR.uhren.sessions = jetzt; bruecke_sessions = await sammleSessions();
+    }
+    if (BR.aktiv && Z.bruecke.typen.ordner && Z.bruecke.ordner.length && jetzt - BR.uhren.ordner > TAKT.ordner) {
+      BR.uhren.ordner = jetzt; bruecke_ordner = await sammleOrdner();
+    }
+    if (BR.aktiv && Z.bruecke.typen.prozess && jetzt - BR.uhren.prozesse > TAKT.prozesse) {
+      BR.uhren.prozesse = jetzt; bruecke_prozesse = await sammleProzesse();
+    }
+    /* GitHub geht auch ohne Mac-Programm — reines fetch */
+    if (Z.bruecke.typen.github && jetzt - BR.uhren.github > TAKT.github) {
+      BR.uhren.github = jetzt; bruecke_github = await sammleGithub();
+    }
+  } catch (e) {
+    BR.letzterFehler = String(e && e.message || e);
+    console.warn("Brücke:", e);
+  } finally {
+    BR.laeuft = false;
+  }
+
+  const vorher = BR.live.map(x => x.id).join("|");
+  BR.live = [].concat(
+    Z.bruecke.typen.session ? bruecke_sessions : [],
+    Z.bruecke.typen.ordner  ? bruecke_ordner   : [],
+    Z.bruecke.typen.prozess ? bruecke_prozesse : [],
+    Z.bruecke.typen.github  ? bruecke_github   : [],
+  );
+  zeichneCrewLeiste();
+  if (BR.live.map(x => x.id).join("|") !== vorher) aufraeumenSicht();
+  if (offeneDetailId) zeichneDetail(offeneDetailId);
+}
+
+async function brueckeStarten() {
+  if (nativVorhanden()) {
+    /* Die Verbindung zum Programm steht nicht sofort — ein paar Anlaeufe
+       geben, statt beim ersten Fehlschlag aufzugeben. */
+    for (let versuch = 1; versuch <= 12 && !BR.aktiv; versuch++) {
+      try {
+        BR.heim = await Neutralino.os.getPath("home");
+        BR.aktiv = true;
+        BR.letzterFehler = "";
+      } catch (e) {
+        BR.letzterFehler = "Warte auf das Programm … (" + versuch + "/12)";
+        zeichneBrueckeLage2();
+        await new Promise(r => setTimeout(r, 400));
+      }
+    }
+    if (!BR.aktiv) {
+      BR.letzterFehler = "Konnte nicht auf das Dateisystem zugreifen. "
+        + "Läuft ORBIT wirklich als Programm und nicht im Browser?";
+    }
+  }
+  brueckeDurchlauf();
+  setInterval(brueckeDurchlauf, 2500);
+}
+
+/* Lage nur neu zeichnen, wenn das Fenster ueberhaupt offen ist */
+function zeichneBrueckeLage2() {
+  if ($("#blende-bruecke").classList.contains("offen")) zeichneBrueckeLage();
+}
+
+/* ---------- Alle Astronauten in einer Liste ---------- */
+
+const TYP_ZEICHEN = { agent: "◆", session: "⌘", ordner: "▣", prozess: "▶", github: "⑂" };
+const TYP_NAME = { agent: "Agent", session: "Claude Code", ordner: "Projekt", prozess: "Prozess", github: "GitHub" };
+
+function alleAstronauten() {
+  const eigene = Z.agenten.map(a => ({
+    id: a.id, typ: "agent", name: a.name, farbe: a.farbe,
+    zustand: lauf(a.id).zustand,
+    ort: a.modell ? a.modell.replace("claude-", "") : "",
+    taetigkeit: a.rolle, seit: 0, agent: a,
+  }));
+  return eigene.concat(BR.live);
+}
+
+/* Sicht- und Laufdaten verschwundener Astronauten wegwerfen */
+function aufraeumenSicht() {
+  const da = new Set(alleAstronauten().map(a => a.id));
+  for (const k of Array.from(SICHT.keys())) if (!da.has(k)) SICHT.delete(k);
+}
+
 /* ================================================================
    3 — Die Szene
    Ein einziges Canvas: Sterne, Station, Astronauten, Leinen.
@@ -569,6 +1087,13 @@ function rundRect(c, x, y, w, h, r) {
   c.closePath();
 }
 const lerp = (a, b, t) => a + (b - a) * t;
+/* Auf dem kuerzesten Weg zum Zielwinkel — sonst dreht die Figur
+   einmal komplett herum, wenn sie ueber 0 laeuft. */
+function winkelZu(ist, soll, f) {
+  const zwei = Math.PI * 2;
+  const d = ((soll - ist + Math.PI) % zwei + zwei) % zwei - Math.PI;
+  return ist + d * f;
+}
 
 /* --- Sterne mit Parallaxe --- */
 function zeichneSterne(t, kamX, kamY) {
@@ -772,7 +1297,7 @@ function zeichneStation(t, cxp, cyp, R) {
 }
 
 /* --- Ein Astronaut --- */
-function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase) {
+function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor) {
   const wippen = sparsam ? 0 : Math.sin(t * 0.0022 + phase) * 0.12;
   const schwingA = sparsam ? 0 : Math.sin(t * 0.0026 + phase) * 0.3;
   const schwingB = sparsam ? 0 : Math.cos(t * 0.0021 + phase) * 0.26;
@@ -780,6 +1305,15 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase) {
   cx.save();
   cx.translate(x, y);
   cx.rotate(kipp + wippen * 0.16);
+
+  /* Auswahlring — zeigt, welcher Astronaut gerade im Detail offen ist */
+  if (hervor) {
+    cx.strokeStyle = "rgba(255,255,255,.55)";
+    cx.lineWidth = 1.2;
+    cx.setLineDash([3, 4]);
+    cx.beginPath(); cx.arc(0, -s * 0.12, s * 1.95, 0, Math.PI * 2); cx.stroke();
+    cx.setLineDash([]);
+  }
 
   /* Statusring hinter der Figur */
   if (zustand !== "ruht") {
@@ -979,9 +1513,9 @@ const ZUSTAND_RADIUS = { ruht: 1.0, denkt: 0.74, sendet: 0.86, fertig: 1.09, feh
 let letzteZeit = performance.now();
 let kinoAn = false;
 
-function sicht(id, i, n) {
+function sicht(id, i, n, startWinkel) {
   if (!SICHT.has(id)) {
-    SICHT.set(id, { r: 1, winkel: (i / Math.max(n, 1)) * Math.PI * 2, sx: 0, sy: 0, phase: i * 1.7 });
+    SICHT.set(id, { r: 1, winkel: startWinkel, sx: 0, sy: 0, phase: i * 1.7 });
   }
   return SICHT.get(id);
 }
@@ -1003,7 +1537,10 @@ function rahmen(jetzt) {
   /* An der Breite ausrichten: im Hochformat wuerde min(W,H) die Szene
      zu einem Punkt in einem schwarzen Feld schrumpfen lassen. */
   let Rbahn = Math.min(W * 0.40, H * 0.34);
-  const groesse = Math.max(13, Math.min(27, Rbahn * 0.125));
+  const anzahl = Math.max(1, Z.agenten.length + BR.live.length);
+  /* So gross, dass die Figuren auf der Bahn nicht aneinanderstossen */
+  const platz = (2 * Math.PI * Rbahn) / anzahl;
+  const groesse = Math.max(11, Math.min(27, Rbahn * 0.125, platz * 0.82 / 3.4));
   /* Der weiteste Zustand (Fehler, Faktor 1.17) plus Statusring darf
      nicht aus dem Bild laufen — sonst haengen Astronauten halb im Rand. */
   const luft = groesse * 2.4;
@@ -1019,17 +1556,27 @@ function rahmen(jetzt) {
 
   zeichneStation(t, ccx, ccy, Rst);
 
-  const n = Z.agenten.length;
+  const liste = alleAstronauten();
+  const n = liste.length;
   const blasen = [];
   const hindernisse = [];
 
-  Z.agenten.forEach((a, i) => {
-    const v = sicht(a.id, i, n);
-    const l = lauf(a.id);
+  /* Alle auf einer Bahn, gleichmaessig verteilt und gleich schnell.
+     Frueher hatte jeder sein eigenes Tempo und seine eigene Richtung —
+     das sieht bei drei Astronauten lebendig aus und bei neun wie ein
+     Auffahrunfall. Die gemeinsame Drehung haelt die Abstaende. */
+  const gemeinsam = t * 0.000022 * Math.PI * 2;
 
-    /* Bahn: jeder Agent etwas anders schnell, sonst wirkt es mechanisch */
-    const tempo = 0.000042 * (1 + (i % 3) * 0.14) * (l.zustand === "denkt" ? 1.9 : 1);
-    v.winkel += dt * tempo * Math.PI * 2 * (i % 2 ? 1 : -1) * 0.5;
+  liste.forEach((a, i) => {
+    const v = sicht(a.id, i, n, gemeinsam + (i / n) * Math.PI * 2);
+    const l = lauf(a.id);
+    /* Live-Astronauten bringen ihren Zustand selbst mit */
+    if (a.typ !== "agent") l.zustand = a.zustand;
+
+    /* Auf den eigenen Platz zugleiten — kommt ein Astronaut dazu oder
+       faellt einer weg, ruecken die anderen sanft nach. */
+    v.winkel = winkelZu(v.winkel, gemeinsam + (i / n) * Math.PI * 2,
+                        1 - Math.pow(0.12, dt / 1000));
 
     const ziel = ZUSTAND_RADIUS[l.zustand] ?? 1;
     v.r = lerp(v.r, ziel, 1 - Math.pow(0.0025, dt / 1000));
@@ -1041,7 +1588,7 @@ function rahmen(jetzt) {
     v.sx = x; v.sy = y;
 
     /* Impulse auf der Leine, solange gesendet wird */
-    if (l.zustand === "sendet" || l.zustand === "denkt") {
+    if (l.zustand === "sendet" || (l.zustand === "denkt" && a.typ === "agent")) {
       l.blitzUhr = (l.blitzUhr || 0) + dt;
       const takt = l.zustand === "sendet" ? 150 : 420;
       if (l.blitzUhr > takt) { l.blitzUhr = 0; l.blitze.push({ p: 0 }); }
@@ -1054,29 +1601,39 @@ function rahmen(jetzt) {
     zeichneLeine(anker, { x, y }, a.farbe, l.zustand, t, l.blitze, v.phase);
 
     /* Der Astronaut kippt in Flugrichtung */
-    const kipp = Math.cos(v.winkel) * 0.22 * (i % 2 ? 1 : -1);
-    zeichneAstronaut(x, y, groesse, kipp, a.farbe, l.zustand, t, v.phase);
+    const kipp = Math.cos(v.winkel) * 0.18;
+    const hervor = Z.gewaehlt === a.id || offeneDetailId === a.id;
+    zeichneAstronaut(x, y, groesse, kipp, a.farbe, l.zustand, t, v.phase, hervor);
 
-    /* Namensschild */
+    /* Namensschild mit Typ-Zeichen davor */
     cx.font = "600 10.5px -apple-system, system-ui, sans-serif";
     cx.textAlign = "center"; cx.textBaseline = "top";
     cx.fillStyle = l.zustand === "ruht" ? "rgba(210,220,238,.42)" : "rgba(226,234,248,.88)";
-    cx.fillText(a.name.toUpperCase(), x, y + groesse * 1.5);
-    if (l.zustand !== "ruht") {
+    cx.fillText((TYP_ZEICHEN[a.typ] || "") + " " + a.name.toUpperCase(), x, y + groesse * 1.5);
+    /* Zweite Zeile: bei eigenen Agenten der Zustand, bei Live-Quellen der Ort */
+    const unter = a.typ === "agent" ? (l.zustand !== "ruht" ? BESCHRIFTUNG[l.zustand] : "")
+                                    : kuerzenVorn(a.branch || a.ort || "", 22);
+    if (unter) {
       cx.font = "9.5px -apple-system, system-ui, sans-serif";
       cx.fillStyle = l.zustand === "fehler" ? "rgba(224,122,106,.9)"
                    : l.zustand === "fertig" ? "rgba(116,180,141,.9)"
+                   : l.zustand === "ruht"   ? "rgba(160,172,192,.5)"
                    : "rgba(123,164,216,.9)";
-      cx.fillText(BESCHRIFTUNG[l.zustand] || "", x, y + groesse * 1.5 + 13);
+      cx.fillText(unter, x, y + groesse * 1.5 + 13);
     }
 
     /* Die Figur selbst ist ein Hindernis fuer Blasen */
     hindernisse.push({ bx: x - groesse * 1.7, by: y - groesse * 2.0,
                        bw: groesse * 3.4, bh: groesse * 4.2 });
 
-    if (l.gedanke && (l.zustand === "denkt" || l.zustand === "sendet")) {
-      blasen.push({ x, y: y - groesse * 1.9, text: l.gedanke,
-                    farbe: a.farbe, seit: l.seit });
+    /* Blase: bei eigenen Agenten das Denkprotokoll, bei Live-Quellen
+       die aktuelle Taetigkeit. */
+    const blasentext = a.typ === "agent"
+      ? (l.zustand === "denkt" || l.zustand === "sendet" ? l.gedanke : "")
+      : (l.zustand === "sendet" || l.zustand === "fehler" ? a.taetigkeit : "");
+    if (blasentext) {
+      blasen.push({ x, y: y - groesse * 1.9, text: blasentext,
+                    farbe: a.farbe, seit: l.seit || a.seit || 0 });
     }
   });
 
@@ -1106,6 +1663,12 @@ function rahmen(jetzt) {
 }
 
 const BESCHRIFTUNG = { denkt: "denkt", sendet: "sendet", fertig: "fertig", fehler: "Fehler" };
+
+/* Lange Pfade vorne kuerzen — hinten steht das Wichtige */
+function kuerzenVorn(t, laenge) {
+  const v = String(t);
+  return v.length <= laenge ? v : "…" + v.slice(-(laenge - 1));
+}
 /* ================================================================
    5 — Echte Claude-Aufrufe
    Direkt aus dem Browser gegen api.anthropic.com. Der Header
@@ -1411,6 +1974,28 @@ function zeichneCrewLeiste() {
   neu.onclick = () => agentBearbeiten(null);
   box.appendChild(neu);
 
+  /* Live-Astronauten: nicht beauftragbar, aber antippbar fuer Details */
+  for (const a of BR.live) {
+    const b = document.createElement("button");
+    b.className = "crew-chip" + (offeneDetailId === a.id ? " gewaehlt" : "");
+    b.style.opacity = a.zustand === "ruht" ? ".62" : "1";
+    const p = document.createElement("span");
+    p.className = "punkt"; p.style.color = a.farbe; p.style.background = a.farbe;
+    if (a.zustand === "ruht") p.style.opacity = ".45";
+    b.appendChild(p);
+    const t = document.createElement("span");
+    t.className = "txt";
+    const nm = document.createElement("span"); nm.className = "nm";
+    nm.textContent = (TYP_ZEICHEN[a.typ] || "") + " " + a.name;
+    const zs = document.createElement("span"); zs.className = "zust";
+    zs.textContent = a.taetigkeit ? kuerzen(a.taetigkeit, 26) : TYP_NAME[a.typ];
+    if (a.zustand === "fehler") zs.style.color = "var(--bad)";
+    t.append(nm, zs);
+    b.appendChild(t);
+    b.onclick = () => detailOeffnen(a.id);
+    box.appendChild(b);
+  }
+
   const laufend = Z.agenten.filter(a => lauf(a.id).abbruch).length;
   $("#log-zahl").textContent = laufend ? laufend + " aktiv" : "Log";
   $("#btn-log").classList.toggle("an", laufend > 0);
@@ -1552,6 +2137,269 @@ function zeichneCrewListe() {
       + 'Oben rechts auf das Schlüsselsymbol tippen.</div>';
 }
 /* ================================================================
+   7b — Ein Astronaut im Detail: wo er ist und was er dort tut
+   ================================================================ */
+
+let offeneDetailId = null;
+
+function vorZeit(ms) {
+  if (!ms) return "—";
+  const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+  if (s < 5) return "gerade eben";
+  if (s < 60) return "vor " + s + " Sek.";
+  if (s < 3600) return "vor " + Math.round(s / 60) + " Min.";
+  if (s < 86400) return "vor " + Math.round(s / 3600) + " Std.";
+  return "vor " + Math.round(s / 86400) + " Tagen";
+}
+
+function uhr(ms) {
+  if (!ms) return "";
+  return new Date(ms).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+}
+
+function zeile(kopf, wert, klasse) {
+  const d = document.createElement("div");
+  d.className = "d-zeile";
+  const k = document.createElement("span"); k.className = "k"; k.textContent = kopf;
+  const w = document.createElement("span"); w.className = "w " + (klasse || "");
+  if (wert instanceof Node) w.appendChild(wert); else w.textContent = wert;
+  d.append(k, w);
+  return d;
+}
+
+function abschnitt(text) {
+  const d = document.createElement("div");
+  d.className = "d-abschnitt"; d.textContent = text;
+  return d;
+}
+
+function schrittZeile(sch) {
+  const d = document.createElement("div");
+  d.className = "d-schritt";
+  const z = document.createElement("span"); z.className = "zt"; z.textContent = uhr(sch.zeit);
+  const w = document.createElement("span"); w.className = "wz"; w.textContent = sch.werkzeug || "";
+  const t = document.createElement("span"); t.className = "tx"; t.textContent = sch.text || "";
+  t.title = sch.text || "";
+  d.append(z, w, t);
+  return d;
+}
+
+function externOeffnen(url) {
+  try {
+    if (nativVorhanden()) Neutralino.os.open(url);
+    else window.open(url, "_blank", "noopener");
+  } catch { window.open(url, "_blank", "noopener"); }
+}
+
+function detailOeffnen(id) {
+  offeneDetailId = id;
+  zeichneDetail(id);
+  blendeAuf("blende-detail");
+}
+
+function zeichneDetail(id) {
+  const a = alleAstronauten().find(x => x.id === id);
+  const box = $("#d-inhalt");
+  if (!a) {
+    box.innerHTML = '<div class="leer-hinweis">Dieser Astronaut ist nicht mehr da.<br>'
+                  + 'Die Session wurde beendet oder der Prozess ist ausgelaufen.</div>';
+    return;
+  }
+
+  $("#d-titel").textContent = (TYP_ZEICHEN[a.typ] || "") + "  " + a.name;
+  const kugel = $("#d-kugel");
+  kugel.style.cssText = "width:11px;height:11px;border-radius:50%;flex:0 0 auto;"
+    + "background:" + a.farbe + ";box-shadow:0 0 10px " + a.farbe;
+
+  const extern = a.url || (a.typ === "github" ? "https://github.com/" + a.ort : "");
+  const btn = $("#d-oeffnen");
+  btn.style.display = extern ? "flex" : "none";
+  btn.onclick = () => externOeffnen(extern);
+
+  box.innerHTML = "";
+
+  /* Kopfzeile: Art und Zustand */
+  const marke = document.createElement("span");
+  marke.className = "d-marke " + (a.zustand === "fehler" ? "schlecht"
+                                : a.zustand === "sendet" ? "gut" : "");
+  marke.textContent = TYP_NAME[a.typ] + " · " + (BESCHRIFTUNG[a.zustand] || a.zustand);
+  box.appendChild(zeile("Art", marke));
+
+  if (a.typ === "agent") {
+    box.appendChild(zeile("Rolle", a.agent.rolle || "—"));
+    box.appendChild(zeile("Modell", (a.agent.modell || "").replace("claude-", "")
+      + "  ·  Aufwand " + (a.agent.aufwand || "high")));
+    box.appendChild(zeile("Bilanz", (a.agent.laeufe || 0) + " Missionen, "
+      + (a.agent.tokens || 0).toLocaleString("de-DE") + " Tokens"));
+    const b = document.createElement("button");
+    b.className = "knopf leer"; b.style.marginTop = "14px";
+    b.textContent = "Agent bearbeiten";
+    b.onclick = () => agentBearbeiten(a.id);
+    box.appendChild(b);
+    return;
+  }
+
+  /* --- Live-Quellen: wo und was --- */
+  if (a.ort)    box.appendChild(zeile("Ort", a.ort, "pfad"));
+  if (a.branch) box.appendChild(zeile("Branch", a.branch));
+  if (a.taetigkeit) box.appendChild(zeile("Tut gerade", a.taetigkeit));
+  if (a.seit)   box.appendChild(zeile("Zuletzt", vorZeit(a.seit) + "  ·  " + uhr(a.seit)));
+
+  if (a.typ === "session") {
+    if (a.modell) box.appendChild(zeile("Modell", a.modell.replace("claude-", "")
+      + (a.aufwand ? "  ·  Aufwand " + a.aufwand : "")));
+    box.appendChild(zeile("Wartet auf", a.letzteRolle === "user" ? "Claude antwortet gleich" : "deine Eingabe"));
+    if (a.schritte && a.schritte.length) {
+      box.appendChild(abschnitt("Letzte Schritte"));
+      a.schritte.forEach(sch => box.appendChild(schrittZeile(sch)));
+    }
+  }
+
+  if (a.typ === "ordner") {
+    box.appendChild(zeile("VS Code", a.vscode ? "läuft" : "läuft nicht"));
+    box.appendChild(zeile("Geändert", a.dirty ? a.dirty + " Dateien" : "nichts offen"));
+    if (a.kopf) box.appendChild(zeile("Letzter Commit", a.kopf));
+    if (a.dateien && a.dateien.length) {
+      box.appendChild(abschnitt("Zuletzt angefasst"));
+      a.dateien.forEach(f => box.appendChild(schrittZeile({ werkzeug: "", text: f, zeit: a.seit })));
+    }
+    const hinweis = document.createElement("div");
+    hinweis.className = "warnung"; hinweis.style.marginTop = "16px";
+    hinweis.textContent = "VS Code meldet nicht selbst, welche Datei offen ist — "
+      + "das hier ist aus Datei-Zeitstempeln abgeleitet. Ungespeicherte Änderungen "
+      + "sind deshalb nicht sichtbar.";
+    box.appendChild(hinweis);
+  }
+
+  if (a.typ === "prozess") {
+    box.appendChild(zeile("Laufzeit", a.laufzeit || "—"));
+    box.appendChild(zeile("Auslastung", a.cpu + " % CPU"));
+    box.appendChild(abschnitt("Vollständiger Befehl"));
+    const pre = document.createElement("div");
+    pre.className = "d-zeile";
+    const w = document.createElement("span");
+    w.className = "w pfad"; w.style.whiteSpace = "pre-wrap"; w.textContent = a.args || "";
+    pre.appendChild(w);
+    box.appendChild(pre);
+  }
+
+  if (a.typ === "github") {
+    if (a.prs && a.prs.length) {
+      box.appendChild(abschnitt("Offene Pull Requests"));
+      a.prs.forEach(pr => {
+        const d = document.createElement("div");
+        d.className = "d-schritt"; d.style.cursor = "pointer";
+        const z = document.createElement("span"); z.className = "zt"; z.textContent = "#" + pr.nr;
+        const w = document.createElement("span"); w.className = "wz";
+        w.textContent = pr.entwurf ? "Entwurf" : "offen";
+        const t = document.createElement("span"); t.className = "tx"; t.textContent = pr.titel;
+        t.style.fontFamily = "inherit"; t.title = pr.titel;
+        d.append(z, w, t);
+        d.onclick = () => externOeffnen(pr.url);
+        box.appendChild(d);
+      });
+    }
+    if (a.laeufe && a.laeufe.length) {
+      box.appendChild(abschnitt("Letzte Actions-Läufe"));
+      a.laeufe.forEach(l => {
+        const d = document.createElement("div");
+        d.className = "d-schritt"; d.style.cursor = "pointer";
+        const z = document.createElement("span"); z.className = "zt"; z.textContent = uhr(l.zeit);
+        const w = document.createElement("span"); w.className = "wz";
+        w.textContent = l.status !== "completed" ? "läuft" : l.ergebnis === "success" ? "✓" : "✗";
+        w.style.color = l.status !== "completed" ? "var(--warn)"
+                      : l.ergebnis === "success" ? "var(--good)" : "var(--bad)";
+        const t = document.createElement("span"); t.className = "tx"; t.textContent = l.name;
+        t.style.fontFamily = "inherit";
+        d.append(z, w, t);
+        d.onclick = () => externOeffnen(l.url);
+        box.appendChild(d);
+      });
+    }
+  }
+}
+
+/* ================================================================
+   7c — Einstellungen der Bruecke
+   ================================================================ */
+
+const TYP_BESCHRIFTUNG = {
+  session: "Claude-Code-Sessions",
+  ordner:  "Projektordner / VS Code",
+  prozess: "Laufende Befehle",
+  github:  "GitHub Actions & Pull Requests",
+};
+
+function zeichneBrueckeLage() {
+  const box = $("#b-lage");
+  const zahl = (t) => BR.live.filter(x => x.typ === t).length;
+  if (BR.aktiv) {
+    box.innerHTML = '<div class="warnung" style="border-color:rgba(116,180,141,.3);'
+      + 'background:rgba(116,180,141,.09); color:#8ec9a5">'
+      + 'Läuft als Mac-Programm — Dateien und Prozesse sind lesbar.</div>';
+  } else {
+    box.innerHTML = '<div class="warnung">Läuft im Browser. Dort darf keine Seite das '
+      + 'Dateisystem oder laufende Programme lesen — Sessions, Ordner und Prozesse '
+      + 'bleiben deshalb leer. Nur GitHub funktioniert hier, weil das übers Netz geht. '
+      + 'Für alles andere ORBIT.app benutzen.</div>';
+  }
+  if (BR.letzterFehler) {
+    const f = document.createElement("div");
+    f.className = "warnung";
+    f.style.cssText = "border-color:rgba(224,122,106,.3);background:rgba(224,122,106,.09);color:#e79a8c";
+    f.textContent = "Letzter Fehler: " + BR.letzterFehler;
+    box.appendChild(f);
+  }
+
+  const tbox = $("#b-typen");
+  tbox.innerHTML = "";
+  for (const t of ["session", "ordner", "prozess", "github"]) {
+    const b = document.createElement("button");
+    b.className = "schalter" + (Z.bruecke.typen[t] ? " an" : "");
+    const k = document.createElement("span"); k.className = "kasten"; k.textContent = "✓";
+    const n = document.createElement("span"); n.className = "bez"; n.textContent = TYP_BESCHRIFTUNG[t];
+    const z = document.createElement("span"); z.className = "zahl"; z.textContent = zahl(t) || "";
+    b.append(k, n, z);
+    b.onclick = () => {
+      Z.bruecke.typen[t] = !Z.bruecke.typen[t];
+      sichern(); zeichneBrueckeLage(); brueckeDurchlauf();
+    };
+    tbox.appendChild(b);
+  }
+
+  const obox = $("#b-ordner");
+  obox.innerHTML = "";
+  if (!Z.bruecke.ordner.length) {
+    const leer = document.createElement("div");
+    leer.style.cssText = "font-size:12px;color:var(--tx3);padding:6px 2px";
+    leer.textContent = "Noch kein Ordner. Füge den Pfad eines Projekts hinzu, an dem du arbeitest.";
+    obox.appendChild(leer);
+  }
+  Z.bruecke.ordner.forEach((pf, i) => {
+    const d = document.createElement("div");
+    d.className = "ordner-zeile";
+    const t = document.createElement("span"); t.className = "pf"; t.textContent = pf; t.title = pf;
+    const w = document.createElement("button");
+    w.className = "mini gefahr"; w.innerHTML = "✕";
+    w.onclick = () => {
+      Z.bruecke.ordner.splice(i, 1);
+      bruecke_ordner = bruecke_ordner.filter(x => x.id !== "o:" + pf);
+      sichern(); zeichneBrueckeLage(); brueckeDurchlauf();
+    };
+    d.append(t, w);
+    obox.appendChild(d);
+  });
+}
+
+function ordnerDazu(pfad) {
+  const pf = String(pfad || "").trim().replace(/\/+$/, "");
+  if (!pf || Z.bruecke.ordner.includes(pf)) return;
+  Z.bruecke.ordner.push(pf);
+  sichern(); zeichneBrueckeLage();
+  BR.uhren.ordner = 0; brueckeDurchlauf();
+}
+
+/* ================================================================
    8 — Blenden und Agenten-Formular
    ================================================================ */
 
@@ -1560,10 +2408,13 @@ function blendeAuf(id) {
   $("#schleier").classList.add("an");
   if (id === "blende-crew") zeichneCrewListe();
   if (id === "blende-log") zeichneLog();
+  if (id === "blende-bruecke") zeichneBrueckeLage();
 }
 function blendeZu() {
   $$(".blende").forEach(b => b.classList.remove("offen"));
   $("#schleier").classList.remove("an");
+  offeneDetailId = null;
+  zeichneCrewLeiste();
 }
 
 let bearbeiteId = null;
@@ -1654,6 +2505,40 @@ $("#s-loeschen").onclick = () => {
    ================================================================ */
 
 $("#btn-crew").onclick = () => blendeAuf("blende-crew");
+$("#btn-bruecke").onclick = () => {
+  $("#b-fenster").value = Z.bruecke.sessionFensterMin;
+  $("#b-ghtoken").value = Z.bruecke.ghToken;
+  $("#b-ghanzahl").value = Z.bruecke.ghAnzahl;
+  blendeAuf("blende-bruecke");
+};
+$("#b-ordner-dazu").onclick = () => {
+  ordnerDazu($("#b-neu-ordner").value);
+  $("#b-neu-ordner").value = "";
+};
+$("#b-neu-ordner").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); $("#b-ordner-dazu").click(); }
+});
+$("#b-ordner-waehlen").onclick = async () => {
+  /* Der Ordnerdialog gehoert zum Mac-Programm; im Browser bleibt das Textfeld */
+  try {
+    const pfad = await Neutralino.os.showFolderDialog("Projektordner wählen");
+    if (pfad) ordnerDazu(pfad);
+  } catch {
+    $("#b-neu-ordner").focus();
+  }
+};
+$("#b-speichern").onclick = () => {
+  const f = parseInt($("#b-fenster").value, 10);
+  Z.bruecke.sessionFensterMin = Number.isFinite(f) ? Math.min(1440, Math.max(5, f)) : 120;
+  Z.bruecke.ghToken = $("#b-ghtoken").value.trim();
+  const g = parseInt($("#b-ghanzahl").value, 10);
+  Z.bruecke.ghAnzahl = Number.isFinite(g) ? Math.min(10, Math.max(1, g)) : 4;
+  sichern();
+  BR.uhren = { sessions: 0, ordner: 0, prozesse: 0, github: 0 };
+  BR.letzterFehler = "";
+  brueckeDurchlauf();
+  blendeZu();
+};
 $("#btn-log").onclick  = () => blendeAuf("blende-log");
 $("#btn-neuer-agent").onclick = () => agentBearbeiten(null);
 $("#schleier").onclick = blendeZu;
@@ -1705,16 +2590,14 @@ cv.addEventListener("pointerdown", (ev) => {
   if (kinoAn) { kino(false); return; }
   const x = ev.clientX, y = ev.clientY;
   let treffer = null, naechste = 1e9;
-  for (const a of Z.agenten) {
+  for (const a of alleAstronauten()) {
     const v = SICHT.get(a.id);
     if (!v) continue;
     const d = Math.hypot(v.sx - x, v.sy - y);
     if (d < 42 && d < naechste) { naechste = d; treffer = a; }
   }
   if (!treffer) return;
-  if (lauf(treffer.id).abbruch) { abbrechen(treffer.id); return; }
-  Z.gewaehlt = Z.gewaehlt === treffer.id ? null : treffer.id;
-  sichern(); zeichneCrewLeiste();
+  detailOeffnen(treffer.id);
 });
 
 window.addEventListener("resize", groesseAnpassen);
@@ -1730,6 +2613,11 @@ zeichneLog();
 hoeheAnpassen();
 pruefeSendeKnopf();
 requestAnimationFrame(rahmen);
+brueckeStarten();
+
+/* Haken fuer automatische Tests — im Betrieb ungenutzt */
+window.__BR_LIVE = () => BR.live;
+window.__DETAIL = (id) => detailOeffnen(id);
 
 /* Beim allerersten Besuch direkt zum Schluessel fuehren — sonst steht
    man vor einer huebschen Szene, in der nichts passiert. */
