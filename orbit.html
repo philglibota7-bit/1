@@ -466,8 +466,15 @@ body.sicht #blende-detail{
    rollt darin. Damit das Rollen geht, muss sie Zeiger annehmen; der
    Platz darunter bleibt frei, damit das Eingabefeld erreichbar
    bleibt. */
+/* Eigener, dunkler Grund statt des durchscheinenden Glases der
+   Blenden. Seit die Fluegel das halbe Bild fuellen, steht die Anzeige
+   fast immer vor etwas Hellem — und eine Zahl, die man nur vor
+   schwarzem Himmel lesen kann, ist keine Anzeige. */
 #telemetrie{position:fixed; left:16px; top:74px; z-index:30; width:230px;
   padding:12px 13px 11px; border-radius:var(--r2); font-size:11.5px;
+  background:rgba(9,12,19,.76);
+  backdrop-filter:blur(16px) saturate(1.15);
+  -webkit-backdrop-filter:blur(16px) saturate(1.15);
   max-height:calc(100dvh - 208px); overflow-y:auto; overscroll-behavior:contain;
   scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.16) transparent;
   animation:tmrein .25s var(--ease);}
@@ -494,6 +501,12 @@ body.sicht #blende-detail{
    bedeutet, liest die Zeilen darunter. */
 #tm-puls{display:block; width:100%; height:30px; margin:2px 0 9px;
   border-radius:5px; background:rgba(255,255,255,.035);}
+/* Die Umlaufuhr: Erde, Bahn, Schattenkegel und die Stelle, an der die
+   Station gerade steht. Sie beantwortet in einem Bild, was drei Zeilen
+   Text nicht schaffen — warum es alle anderthalb Stunden dunkel wird
+   und wie knapp die Bahn ueber der Oberflaeche liegt. */
+#tm-uhr{display:block; width:100%; height:114px; margin:2px 0 6px;
+  border-radius:6px; background:rgba(255,255,255,.028);}
 .tm-wert.schlecht{color:var(--bad);}
 .tm-wert.warm{color:#e0a24e;}
 .tm-alarm{display:flex; align-items:center; gap:6px; margin:0 0 9px; padding:5px 7px;
@@ -606,6 +619,7 @@ body.sicht #blende-detail{
   <!-- ---------- Stationswerte ---------- -->
   <div id="telemetrie" class="glas" hidden>
     <div class="tm-kopf">STATIONSWERTE</div>
+    <canvas id="tm-uhr" width="420" height="228"></canvas>
     <canvas id="tm-puls" width="420" height="60"></canvas>
     <div id="tm-alarm"></div>
     <div id="tm-zeilen"></div>
@@ -2341,6 +2355,12 @@ const TEILE = {
     lang: "Der einzige Ort mit mehr als einem Fenster: sechs Scheiben rundherum und eine große in der Mitte. Sie zeigt nach unten zur Erde. Von hier aus wird auch der Roboterarm gesteuert — man will sehen, was man greift.",
     zahl: "Knapp 3 Meter breit, das Mittelfenster 80 Zentimeter. Größere Fenster gibt es nicht; der Druck von innen erlaubt sie nicht.",
   },
+  antenne: {
+    name: "Antennenschüssel",
+    kurz: "Damit hängt die Station am Boden.",
+    lang: "Der Spiegel zeigt nicht zur Erde, sondern zu einem Relaissatelliten in 36 000 Kilometer Höhe — einem von dreien, die zusammen fast den ganzen Umlauf abdecken. Fast, nicht ganz: es bleiben Lücken, und in denen ist Funkstille. Man sieht der Schüssel an, ob gerade jemand zuhört, denn sie dreht sich mit.",
+    zahl: "Rund 80 Prozent des Umlaufs besteht Kontakt. Der Weg zum Relaissatelliten und zurück dauert eine Viertelsekunde.",
+  },
   hafen: {
     name: "Kopplungsstutzen",
     kurz: "Hier docken Schiffe an.",
@@ -2478,6 +2498,17 @@ function ereignisse(t, dt, ccx, ccy, Rst) {
     cx.restore();
   }
 
+  /* Der CO2-Filter blaest das eingefangene Gas nach draussen ab. Das
+     ist kein zufaelliges Ereignis mehr, sondern die sichtbare Seite
+     des Stoffwechsels: das Ventil geht auf, WEIL der Wert gestiegen
+     ist. Wer die Anzeige offen hat, sieht beides zugleich. */
+  if (LEBEN.scrubber && !LEBEN.gemerkt.co2filter) {
+    LEBEN.gemerkt.co2filter = true;
+    VENTIL.push({
+      x: ccx - Rst * 0.42, y: ccy + Rst * 0.26,
+      rx: -0.5, ry: 0.86, alter: 0, dauer: 5200,
+    });
+  }
   if (VENTIL.length < 1 && Math.random() < dt / 34000) {
     const w = Math.random() * Math.PI * 2;
     VENTIL.push({
@@ -2660,6 +2691,75 @@ function lebenMelden(schluessel, lage, text) {
   if (LEBEN.gemerkt[schluessel] === lage) return;
   LEBEN.gemerkt[schluessel] = lage;
   if (text) bordbuch(text);
+}
+
+/* --- Funkverkehr: Kontakt zum Boden ---------------------------------
+   Eine Raumstation ist nie lange allein, aber auch nie dauerhaft
+   erreichbar. Die ISS haengt an drei Relaissatelliten in 36 000 km
+   Hoehe und hat damit rund achtzig Prozent des Umlaufs Kontakt; den
+   Rest der Zeit ist Funkstille. Die Luecken heissen LOS — loss of
+   signal —, das Wiederkommen AOS.
+
+   Das passt genau auf das, was diese App tut: die Agenten reden mit
+   einem Server. Wenn kein Kontakt besteht, wartet die Arbeit. Deshalb
+   ist der Funk hier nicht Schmuck, sondern derselbe Vorgang, nur
+   sichtbar gemacht. */
+const BODEN = [
+  "Houston", "Moskau", "Kourou", "Tsukuba", "Oberpfaffenhofen",
+  "Canberra", "Madrid", "Goldstone", "Svalbard", "Wallops",
+  "White Sands", "Alice Springs",
+];
+const FUNK = {
+  kontakt: true,
+  stelle: "Houston",
+  seit: 0, bis: 0,
+  staerke: 0.8,     // 0 bis 1, wie gut die Verbindung steht
+  last: 0,          // 0 bis 1, wie viel gerade uebertragen wird
+  ziel: -0.75,      // wohin die Schuessel zeigen soll
+  zeiger: -0.75,    // wohin sie gerade zeigt
+  zaehler: 0,
+};
+
+function funkTakt(t, dt) {
+  if (FUNK.bis === 0) { FUNK.bis = t + 48000; FUNK.seit = t; }
+  if (t > FUNK.bis) {
+    FUNK.kontakt = !FUNK.kontakt;
+    FUNK.seit = t;
+    /* Vier von fuenf Umlaufteilen mit Kontakt: die Luecken sind kurz,
+       aber sie sind da. */
+    FUNK.bis = t + (FUNK.kontakt ? 40000 + Math.random() * 44000
+                                 : 9000 + Math.random() * 13000);
+    if (FUNK.kontakt) {
+      FUNK.stelle = BODEN[(FUNK.zaehler++) % BODEN.length];
+      /* Eine neue Station steht woanders am Himmel */
+      FUNK.ziel = -2.4 + Math.random() * 1.9;
+      bordbuch("Funkkontakt über " + FUNK.stelle);
+    } else {
+      FUNK.ziel = -0.75;
+      bordbuch("Funkstille — kein Kontakt");
+    }
+  }
+
+  /* Die Feldstaerke steigt und faellt ueber den Durchgang: am Anfang
+     steht die Bodenstation flach ueber dem Horizont, in der Mitte
+     hoch. Ein Bogen, kein Rechteck. */
+  const u = klemm((t - FUNK.seit) / Math.max(1, FUNK.bis - FUNK.seit), 0, 1);
+  const ziel = FUNK.kontakt ? 0.32 + 0.68 * Math.sin(Math.PI * u) : 0;
+  FUNK.staerke = lerp(FUNK.staerke, ziel, 1 - Math.pow(0.2, dt / 1000));
+
+  /* Die Schuessel faehrt mit fester Rate nach — kein Anlaufen, kein
+     Auslaufen. Ein Grad in zehn Millisekunden ist ungefaehr das, was
+     ein echtes Nachfuehrwerk schafft. */
+  const weg = FUNK.ziel - FUNK.zeiger;
+  const schritt = Math.min(Math.abs(weg), (dt / 1000) * 0.55);
+  FUNK.zeiger += Math.sign(weg) * schritt;
+  /* Dazu die feine Unruhe des Nachfuehrens */
+  if (FUNK.kontakt) FUNK.zeiger += Math.sin(t * 0.0009) * 0.0006;
+
+  /* Wie viel gerade uebertragen wird: das ist genau das, was die
+     Agenten tun. */
+  const ziellast = FUNK.kontakt ? CREWWACH : 0;
+  FUNK.last = lerp(FUNK.last, ziellast, 1 - Math.pow(0.25, dt / 1000));
 }
 
 function lebenTakt(t, dt, phase) {
@@ -3336,20 +3436,48 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler) {
 
   c.restore();  /* Modulstapel zurueck */
 
-  /* ---------- Antennenschuessel auf dem Traeger, schief angesetzt ---------- */
+  /* Die Antennenschuessel wird nicht mehr mitgebacken — sie folgt der
+     Bodenstation und muss sich dafuer drehen koennen. Nur der Sockel
+     bleibt hier stehen. */
   c.save();
   c.translate(-R * 1.5, -R * 0.24);
-  c.rotate(-0.75 + Math.sin(t * 0.00009) * 0.1);
+  c.fillStyle = sonnenlauf(c, -R * 0.05, -R * 0.05, R * 0.1, R * 0.1,
+    "#e8e6dc", "#8d8c84", "#181a1e");
+  rundRect(c, -R * 0.05, -R * 0.05, R * 0.1, R * 0.1, R * 0.02); c.fill();
+  merkeTeil(c, teile, 0, -R * 0.2, "antenne");
+  c.restore();
+
+}
+
+/* Die Schuessel live: sie zeigt dorthin, wo gerade die Bodenstation
+   steht. Ein Spiegel, der sich waehrend eines Durchgangs mitdreht und
+   danach in die Ruhelage faehrt, ist eines der wenigen Teile einer
+   Station, denen man von aussen ansieht, dass jemand mit ihr
+   spricht. */
+function zeichneAntenne(c, R, t) {
+  c.save();
+  c.translate(-R * 1.5, -R * 0.24);
+  /* Im Kontakt folgt sie der Station am Boden, sonst steht sie in der
+     Ruhelage. Das Nachfuehren laeuft gleichmaessig durch: ein Spiegel
+     an einem Schrittmotor beschleunigt nicht und bremst nicht, er
+     faehrt mit fester Rate. */
+  c.rotate(FUNK.zeiger);
   const sg = c.createLinearGradient(0, -R * 0.13, 0, R * 0.13);
   sg.addColorStop(0, "#f2f0e6"); sg.addColorStop(0.6, "#8b8a80"); sg.addColorStop(1, "#17191d");
   c.fillStyle = sg;
   c.beginPath(); c.ellipse(0, 0, R * 0.055, R * 0.13, 0, 0, Math.PI * 2); c.fill();
-  c.strokeStyle = "rgba(190,204,224,.6)"; c.lineWidth = R * 0.012;
+  c.strokeStyle = "rgba(190,204,224,.6)"; c.lineWidth = Math.max(0.4, R * 0.012);
   c.beginPath(); c.moveTo(0, 0); c.lineTo(R * 0.11, 0); c.stroke();
   c.fillStyle = "#c3cedd";
   c.beginPath(); c.arc(R * 0.11, 0, R * 0.019, 0, Math.PI * 2); c.fill();
+  /* Die Sendeleuchte am Speisehorn: sie blinkt nur, wenn wirklich
+     etwas uebertragen wird. Ein Dauerlicht waere eine Behauptung. */
+  if (FUNK.kontakt && FUNK.last > 0.02) {
+    const blink = 0.35 + 0.65 * Math.pow(0.5 + 0.5 * Math.sin(t * 0.009), 2);
+    c.fillStyle = `rgba(150,230,255,${blink * Math.min(1, FUNK.last * 3)})`;
+    c.beginPath(); c.arc(R * 0.11, 0, R * 0.045, 0, Math.PI * 2); c.fill();
+  }
   c.restore();
-
 }
 
 /* --- Der scharfe Ausschnitt ------------------------------------------
@@ -3790,6 +3918,7 @@ function zeichneStation(t, cxp, cyp, R) {
   const tr = R * 3.3;
   c.save();
   c.translate(cxp, cyp);
+  zeichneAntenne(c, R, t);
   /* ---------- Roboterarm: sitzt auf dem Traeger, greift zum Modul ---------- */
   c.save();
   /* Der Roboterarm ist 17,6 m lang und bewegt seine Spitze mit
@@ -5750,6 +5879,7 @@ function rahmen(jetzt) {
      sonst waere der Ladestand beim Oeffnen der Anzeige jedes Mal
      derselbe, und das faellt sofort auf. */
   lebenTakt(t, dt, umlaufPhase);
+  funkTakt(t, dt);
 
   zeichneHimmel(t);
   zeichneErde(t);
@@ -7554,6 +7684,13 @@ function kinofahrt(t) {
 let telemetrieAn = false;
 let tmUhr = 0;
 
+/* Deutsche Schreibweise: Komma statt Punkt. Eine Anzeige, die
+   "2.6 mmHg" schreibt, liest sich fuer einen deutschen Leser wie
+   zweitausendsechshundert. */
+function kz(wert, stellen) {
+  return wert.toFixed(stellen === undefined ? 1 : stellen).replace(".", ",");
+}
+
 function zeitKurz(ms) {
   const sek = Math.max(0, Math.round(ms / 1000));
   return Math.floor(sek / 60) + ":" + String(sek % 60).padStart(2, "0");
@@ -7603,14 +7740,14 @@ function zeichneTelemetrie(t) {
       LEBEN.akku, LEBEN.akku < 0.22 ? "schlecht" : LEBEN.akku < 0.4 ? "warm" : "gut"],
     ["FLÜGEL", Math.round(LEBEN.erzeugt) + " kW" + (LEBEN.erzeugt < 1 ? " · Schatten" : "")],
     ["BEDARF", Math.round(LEBEN.bedarf) + " kW"],
-    ["CO₂", LEBEN.co2.toFixed(1) + " mmHg" + (LEBEN.scrubber ? " · Filter" : ""),
+    ["CO₂", kz(LEBEN.co2) + " mmHg" + (LEBEN.scrubber ? " · Filter" : ""),
       klemm((LEBEN.co2 - 1.6) / 4, 0, 1),
       LEBEN.co2 > 5.3 ? "schlecht" : LEBEN.co2 > 4 ? "warm" : "gut"],
-    ["KABINE", Math.round(LEBEN.druck) + " hPa · " + LEBEN.o2.toFixed(1) + " % O₂"],
-    ["KÜHLKREIS", LEBEN.vorlauf.toFixed(1) + " °C vor · " + LEBEN.ruecklauf.toFixed(1) + " zurück",
+    ["KABINE", Math.round(LEBEN.druck) + " hPa · " + kz(LEBEN.o2) + " % O₂"],
+    ["KÜHLKREIS", kz(LEBEN.vorlauf) + " °C vor · " + kz(LEBEN.ruecklauf) + " zurück",
       LEBEN.waerme, LEBEN.waerme > 0.88 ? "schlecht" : LEBEN.waerme > 0.7 ? "warm" : "gut"],
-    ["WASSER", Math.round(LEBEN.wasser * 1000) / 10 + " % zurück"],
-    ["BAHN", LEBEN.hoehe.toFixed(1) + " km" + (SCHUB.laeuft ? " · Schub" : "")],
+    ["WASSER", kz(LEBEN.wasser * 100) + " % zurück"],
+    ["BAHN", kz(LEBEN.hoehe, 2) + " km" + (SCHUB.laeuft ? " · Schub" : "")],
 
     ["~", "UMLAUF UND CREW"],
     ["PHASE", Z.umlauf === false ? "aus"
@@ -7622,7 +7759,10 @@ function zeichneTelemetrie(t) {
       : FRACHT.lage === "abflug" ? "legt ab" : "keine"],
 
     ["~", "FUNKVERKEHR"],
-    ["DURCHSATZ", frisch ? (frisch > 999 ? (frisch / 1000).toFixed(1) + "k" : frisch) + " Token/min" : "still"],
+    ["KONTAKT", FUNK.kontakt ? FUNK.stelle + " · " + Math.round(FUNK.staerke * 100) + " %"
+      : "Funkstille · " + zeitKurz(Math.max(0, FUNK.bis - t)),
+      FUNK.staerke, FUNK.kontakt ? (FUNK.staerke > 0.5 ? "gut" : "warm") : "schlecht"],
+    ["DURCHSATZ", frisch ? (frisch > 999 ? kz(frisch / 1000) + "k" : frisch) + " Token/min" : "still"],
     ["HEUTE", heuteMiss ? "$" + heuteKost.toFixed(3) + " · " + heuteMiss + (heuteMiss === 1 ? " Mission" : " Missionen") : "noch nichts"],
   ];
 
@@ -7668,6 +7808,7 @@ function zeichneTelemetrie(t) {
   }
 
   pulsZeichnen();
+  uhrZeichnen(ph, tags);
 
   /* Das Bordbuch darunter — die fuenf juengsten Eintraege */
   const buch = $("#tm-buch");
@@ -7681,6 +7822,117 @@ function zeichneTelemetrie(t) {
     const x = document.createElement("span"); x.textContent = e.text;
     z.append(u, x); buch.append(z);
   }
+}
+
+/* Die Umlaufuhr ------------------------------------------------------
+   Erde, Bahn, Schattenkegel, Sonne, Station. Alle Groessen sind echt:
+   die Erde misst 6371 km im Radius, die Bahn liegt 419 km darueber —
+   die Bahn ist also nur SIEBEN PROZENT groesser als die Kugel selbst.
+   Das ist der Punkt, den fast jede Zeichnung falsch macht: eine
+   Raumstation umkreist die Erde nicht in weitem Abstand, sie streift
+   sie. Wer das einmal massstabsgetreu gesehen hat, versteht auch,
+   warum ein Umlauf nur neunzig Minuten dauert.
+
+   Der Schatten ist ebenso gerechnet und nicht geschaetzt: die Erde
+   wirft einen Zylinder ihres eigenen Durchmessers ins All. Die Station
+   ist genau so lange darin, wie ihre Bahn diesen Zylinder schneidet —
+   das sind 139,6 Grad von 360, also einundvierzig Prozent. Genau die
+   Zahl, mit der auch das Licht in der Szene rechnet. */
+const UHR = { schattenHalb: Math.asin(6371 / 6790) };
+
+function umlaufWinkel(phase) {
+  /* Null Grad zeigt zur Sonne. Der Tagbogen ist symmetrisch darum
+     herum, der Schattenbogen liegt gegenueber. */
+  const halbTag = Math.PI - UHR.schattenHalb;
+  return phase < TAGANTEIL
+    ? -halbTag + (phase / TAGANTEIL) * 2 * halbTag
+    : halbTag + ((phase - TAGANTEIL) / (1 - TAGANTEIL)) * 2 * UHR.schattenHalb;
+}
+
+function uhrZeichnen(phase, tags) {
+  const cv = $("#tm-uhr");
+  if (!cv) return;
+  const c = cv.getContext("2d");
+  const w = cv.width, h = cv.height;
+  c.clearRect(0, 0, w, h);
+
+  const mx = w * 0.56, my = h * 0.5;
+  const re = Math.min(h * 0.33, w * 0.19);   // Erdradius im Bild
+  const rb = re * (6790 / 6371);             // Bahnradius, massstaeblich
+
+  /* Der Schattenzylinder: ein Streifen von Erdradius, der von der
+     Sonne weg zeigt. Hart begrenzt, weil die Sonne aus dieser
+     Entfernung fast ein Punkt ist — ein halbes Grad Durchmesser laesst
+     keinen nennenswerten Halbschatten zu.
+
+     Gezeichnet wird er nicht als dunkle Flaeche — auf schwarzem Grund
+     waere er unsichtbar —, sondern als ein Feld mit zwei hellen
+     Kanten. Man soll sehen, WO er anfaengt. */
+  const sg = c.createLinearGradient(mx, 0, mx + re * 7, 0);
+  sg.addColorStop(0, "rgba(64,86,130,.2)");
+  sg.addColorStop(1, "rgba(64,86,130,0)");
+  c.fillStyle = sg;
+  c.fillRect(mx, my - re, re * 7, re * 2);
+  c.strokeStyle = "rgba(128,158,206,.3)";
+  c.lineWidth = 1;
+  c.beginPath();
+  c.moveTo(mx, my - re); c.lineTo(mx + re * 5, my - re);
+  c.moveTo(mx, my + re); c.lineTo(mx + re * 5, my + re);
+  c.stroke();
+
+  /* Die Bahn */
+  c.strokeStyle = "rgba(160,190,230,.3)";
+  c.lineWidth = 1;
+  c.setLineDash([3, 3]);
+  c.beginPath(); c.arc(mx, my, rb, 0, Math.PI * 2); c.stroke();
+  c.setLineDash([]);
+
+  /* Die Erde: Tagseite links zur Sonne, Nachtseite rechts */
+  const eg = c.createLinearGradient(mx - re, 0, mx + re, 0);
+  eg.addColorStop(0, "#7fb4e8");
+  eg.addColorStop(0.42, "#3f7cb4");
+  eg.addColorStop(0.62, "#173350");
+  eg.addColorStop(1, "#0a1424");
+  c.fillStyle = eg;
+  c.beginPath(); c.arc(mx, my, re, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = "rgba(150,200,255,.35)"; c.lineWidth = 1;
+  c.beginPath(); c.arc(mx, my, re, 0, Math.PI * 2); c.stroke();
+
+  /* Die Sonne am linken Rand, mit ein paar Strahlen */
+  const sx = w * 0.075, sy = my;
+  const sog = c.createRadialGradient(sx, sy, 0, sx, sy, re * 0.9);
+  sog.addColorStop(0, "rgba(255,246,214,.95)");
+  sog.addColorStop(0.32, "rgba(255,214,120,.42)");
+  sog.addColorStop(1, "rgba(255,190,80,0)");
+  c.fillStyle = sog;
+  c.beginPath(); c.arc(sx, sy, re * 0.9, 0, Math.PI * 2); c.fill();
+  c.fillStyle = "#fff3cf";
+  c.beginPath(); c.arc(sx, sy, re * 0.2, 0, Math.PI * 2); c.fill();
+
+  /* Die Station auf ihrer Bahn. Der Winkel wird von der Sonne aus
+     gezaehlt, die Sonne steht links — also ist Null im Bild links und
+     nicht rechts, wie es die Leinwand von sich aus zaehlt. */
+  const wk = Math.PI - umlaufWinkel(phase);
+  const px = mx + Math.cos(wk) * rb, py = my + Math.sin(wk) * rb;
+  /* Die schon durchlaufene Strecke, damit die Richtung erkennbar ist */
+  c.strokeStyle = tags ? "rgba(240,206,120,.5)" : "rgba(120,168,232,.45)";
+  c.lineWidth = 1.8;
+  c.beginPath();
+  c.arc(mx, my, rb, wk, wk + 0.9);
+  c.stroke();
+
+  c.fillStyle = tags ? "rgba(255,226,150,.2)" : "rgba(150,200,255,.2)";
+  c.beginPath(); c.arc(px, py, 7.5, 0, Math.PI * 2); c.fill();
+  c.fillStyle = tags ? "#ffe6a8" : "#a8c8ff";
+  c.beginPath(); c.arc(px, py, 3, 0, Math.PI * 2); c.fill();
+
+  /* Beschriftung: nur zwei Woerter, sonst wird die Uhr zur Tafel */
+  c.font = "500 15px ui-sans-serif, system-ui, sans-serif";
+  c.fillStyle = "rgba(180,196,218,.55)";
+  c.textAlign = "left";
+  c.fillText("Sonne", 8, h - 8);
+  c.textAlign = "right";
+  c.fillText("Erdschatten", w - 8, h - 8);
 }
 
 /* Die Pulskurve: die Strombilanz der letzten anderthalb Minuten.
