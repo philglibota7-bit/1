@@ -575,6 +575,9 @@ body.sicht #blende-detail{
   <div class="blende-kopf">
     <h2>Missions-Log</h2>
     <span class="summe" id="log-summe"></span>
+    <button class="mini" id="log-sichern" title="Als Textdatei sichern">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M8 11l4 4 4-4M5 19h14"/></svg>
+    </button>
     <button class="mini" id="log-leeren" title="Log leeren">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13"/></svg>
     </button>
@@ -2366,6 +2369,8 @@ let LETZTER_TAG = null;
    die Fenster brennen — an einer bewohnten Station sieht man von
    aussen, ob drinnen jemand wach ist. */
 let CREWWACH = 0;
+/* Haengt gerade jemand? Dann brennt an der Station die Warnleuchte. */
+let STATIONSALARM = false;
 /* Nur fuer automatische Tests: eine feste Stelle im Umlauf */
 let PHASE_TEST = null;
 
@@ -3037,9 +3042,24 @@ function zeichneStation(t, cxp, cyp, R) {
     c.restore();
   }
 
-  /* ---------- Positionslichter ---------- */
+  /* ---------- Positionslichter ----------
+     Rot an Backbord, gruen an Steuerbord, weiss oben — dieselbe
+     Regelung wie in der Seefahrt, und aus demselben Grund: damit man
+     im Dunkeln sieht, wie etwas steht.
+
+     Dazu eine bernsteinfarbene Warnleuchte. Sie geht an, sobald ein
+     Agent haengt. Eine Station, der man von aussen ansieht, dass
+     drinnen etwas klemmt, ist der Unterschied zwischen einer Kulisse
+     und einem Betrieb. */
   const blink = Math.sin(t * 0.0031) > 0.72;
   const lichter = [[tr * 0.98, 0, "224,122,106"], [-tr * 0.98, 0, "116,180,141"], [0, -R * 0.5, "255,255,255"]];
+  if (STATIONSALARM) {
+    const w = 0.5 + 0.5 * Math.sin(t * 0.007);
+    c.fillStyle = `rgba(255,176,64,${0.35 + 0.6 * w})`;
+    c.beginPath(); c.arc(0, -R * 0.66, R * 0.04, 0, Math.PI * 2); c.fill();
+    c.fillStyle = `rgba(255,176,64,${0.14 * w})`;
+    c.beginPath(); c.arc(0, -R * 0.66, R * 0.3 * (0.6 + w * 0.7), 0, Math.PI * 2); c.fill();
+  }
   for (const [lx, ly, ton] of lichter) {
     c.fillStyle = `rgba(${ton},${blink ? 0.95 : 0.25})`;
     c.beginPath(); c.arc(lx, ly, R * 0.022, 0, Math.PI * 2); c.fill();
@@ -3094,7 +3114,7 @@ function roehre(c, punkte, d, koerper, glanz, umriss) {
   zieh(d * 0.42, -d * 0.19, -d * 0.2, glanz);
 }
 
-function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltung) {
+function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltung, blick) {
   const ruhig = sparsam;
   const wippen = ruhig ? 0 : Math.sin(t * 0.0022 + phase) * 0.12;
   const armA = ruhig ? 0 : Math.sin(t * 0.0026 + phase) * 0.16;
@@ -3148,6 +3168,12 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
   cx.save();
   cx.translate(x, y);
   cx.rotate(kipp + wippen * 0.16);
+  /* Zueinander schauen. Wer neben einem Kollegen arbeitet, dreht sich
+     zu ihm — im Anzug geht das nur mit dem ganzen Oberkoerper, weil
+     der Helm der Brust folgt und nicht umgekehrt. Gespiegelt wird die
+     ganze Figur; der Ruecksack wandert damit auf die andere Seite,
+     und genau so sieht die andere Dreiviertelansicht aus. */
+  if (blick === -1) cx.scale(-1, 1);
 
   /* ---------- Auswahlring ---------- */
   if (hervor) {
@@ -4736,6 +4762,7 @@ function rahmen(jetzt) {
   cx.clearRect(0, 0, W, H);
 
   /* Kamera nachziehen — gleitet statt zu springen */
+  kinofahrt(t);
   kameraNachfuehren();
   const eil = 1 - Math.pow(0.004, dt / 1000);
   KAM.zoom = lerp(KAM.zoom, KAM.zielZoom, eil);
@@ -4751,6 +4778,10 @@ function rahmen(jetzt) {
       const l = LAUF.get(a.id);
       return l && (l.zustand === "denkt" || l.zustand === "sendet");
     }).length;
+    STATIONSALARM = alle.some(a => {
+      const l = LAUF.get(a.id);
+      return l && l.zustand === "fehler";
+    });
     const ziel = alle.length ? wach / alle.length : 0;
     /* Traege nachziehen: die Beleuchtung einer Station springt nicht */
     CREWWACH = lerp(CREWWACH, ziel, 1 - Math.pow(0.3, dt / 1000));
@@ -5074,7 +5105,21 @@ function rahmen(jetzt) {
        zugelassenen Menschen. Der Rest streut darum — und diese Streuung
        ist selbst ein Realismushinweis, weil eine Mannschaft aus
        Klonen sofort auffaellt. */
-    zeichneAstronaut(x, y, groesse * v.wuchs, kipp, a.farbe, l.zustand, t, v.phase, hervor, haltung);
+    /* Gibt es einen Kollegen in Rufweite? Dann dorthin schauen. Die
+       Reichweite ist knapp gewaehlt: gut fuenf Figurenbreiten, weiter
+       reicht im Anzug weder Blick noch Verstaendigung ueber
+       Handzeichen. */
+    let blick = 1, nd = groesse * 5.5, naechster = null;
+    for (const o of liste) {
+      if (o.id === a.id) continue;
+      const w = SICHT.get(o.id);
+      if (!w) continue;
+      const d = Math.hypot(w.sx - x, w.sy - y);
+      if (d < nd) { nd = d; naechster = w; }
+    }
+    if (naechster) blick = naechster.sx < x ? -1 : 1;
+
+    zeichneAstronaut(x, y, groesse * v.wuchs, kipp, a.farbe, l.zustand, t, v.phase, hervor, haltung, blick);
 
     /* Namensschild — gegen den Zoom herausgerechnet. Schrift gehoert zur
        Bedienung, nicht in die Szene: sonst wird sie beim Heranfahren
@@ -6316,7 +6361,41 @@ function kino(an) {
   kinoAn = an;
   document.body.classList.toggle("kino", an);
   $("#btn-kino").classList.toggle("an", an);
-  if (an) blendeZu();
+  if (an) {
+    blendeZu();
+    KAM.folgt = null;
+    KINOFAHRT.von = performance.now();
+    KINOFAHRT.zx = KAM.zielX; KINOFAHRT.zy = KAM.zielY; KINOFAHRT.zz = KAM.zielZoom;
+  } else {
+    /* Beim Verlassen dort stehenbleiben, wo die Fahrt gerade ist —
+       ein Sprung zurueck waere unangenehm. */
+    KINOFAHRT.von = 0;
+  }
+}
+
+/* --- Die Kamerafahrt --------------------------------------------------
+   Im Kinomodus faehrt die Kamera von selbst — langsam, ohne Schnitt,
+   in einem Bogen ueber die Station und wieder zurueck. Der
+   ununterbrochene Blick ist laut den Leuten, die das fuer Filme
+   machen, der wichtigste Einzelfaktor fuer das Gefuehl, wirklich dort
+   zu sein; jeder Schnitt stellt den Betrachter wieder daneben.
+
+   Zwei Minuten fuer einen Durchlauf. Das ist bewusst an der Grenze zu
+   langsam: alles Schnellere macht aus der Station ein Modell auf einem
+   Drehteller. */
+const KINOFAHRT = { von: 0, zx: 0, zy: 0, zz: 1 };
+
+function kinofahrt(t) {
+  if (!kinoAn || !KINOFAHRT.von || sparsam) return;
+  const u = ((t - KINOFAHRT.von) % 124000) / 124000;
+  const w = u * Math.PI * 2;
+  /* Ein flacher Bogen statt eines Kreises: die Station ist breit und
+     niedrig, also lohnt die Bewegung nach links und rechts mehr als
+     die nach oben und unten. */
+  KAM.zielZoom = 1.28 + Math.sin(w * 0.5) * 0.34;
+  KAM.zielX = -Math.sin(w) * W * 0.3 * KAM.zielZoom;
+  KAM.zielY = -Math.sin(w * 2 + 0.6) * H * 0.1 * KAM.zielZoom;
+  grenzenHalten();
 }
 /* --- Stationswerte ---------------------------------------------------
    Eine Raumstation hat Leistung, Waerme, Funkverkehr und eine Stelle
@@ -6408,6 +6487,46 @@ function zeichneTelemetrie(t) {
     z.append(u, x); buch.append(z);
   }
 }
+
+/* Das Log als Textdatei sichern. Markdown, weil man es dann sowohl
+   lesen als auch weiterverarbeiten kann — und weil die Antworten der
+   Agenten ohnehin schon so formatiert sind. Das Denkprotokoll kommt
+   mit: es ist der interessantere Teil. */
+const logSichern = $("#log-sichern");
+if (logSichern) logSichern.onclick = () => {
+  const teile = ["# ORBIT — Missions-Log", "",
+    "Gesichert am " + new Date().toLocaleString("de-DE"), ""];
+  for (const e of Z.log) {
+    teile.push("## " + (e.name || "Agent") + " · " +
+      new Date(e.zeit || 0).toLocaleString("de-DE"));
+    const zahlen = [];
+    if (e.modell) zahlen.push(e.modell);
+    if (e.ein != null) zahlen.push(e.ein + " ein / " + e.aus + " aus");
+    if (e.kosten != null) zahlen.push("$" + e.kosten.toFixed(4));
+    if (zahlen.length) teile.push("", "*" + zahlen.join(" · ") + "*");
+    teile.push("", "**Auftrag**", "", (e.auftrag || "").trim() || "—");
+    if (e.denken && e.denken.trim()) {
+      teile.push("", "**Denkprotokoll**", "", "> " +
+        e.denken.trim().split("\n").join("\n> "));
+    }
+    teile.push("", "**Antwort**", "", (e.antwort || "").trim() || "—", "", "---", "");
+  }
+  if (Z.log.length === 0) teile.push("_Noch keine Missionen._");
+
+  try {
+    const b = new Blob([teile.join("\n")], { type: "text/markdown;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(b);
+    a.download = "orbit-log-" +
+      new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-") + ".md";
+    a.click();
+    /* Die Objekt-URL wieder freigeben, sonst haelt der Browser den
+       ganzen Text bis zum Neuladen im Speicher. */
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch (e) {
+    console.warn("Konnte das Log nicht sichern.", e);
+  }
+};
 
 /* Die Szene als Bild sichern. Die Leinwand traegt bereits alles, was
    zur Szene gehoert — Bedienung und Blasen liegen als HTML darueber
@@ -6702,6 +6821,7 @@ window.__STERNE = (t,a,b) => zeichneSterne(t,a,b);
 window.__STATION = (t,x,y,r) => zeichneStation(t,x,y,r);
 window.__STBILD = () => STBILD;
 window.__FRACHT = () => FRACHT;
+window.__LOGPUSH = (e) => { Z.log.unshift(e); zeichneLog(); };
 window.__PHASE = (ph) => { PHASE_TEST = ph; };
 window.__LICHT = () => ({ tag: TAGLICHT, abend: ABENDLICHT });
 window.__ASTRO = (...a) => zeichneAstronaut(...a);
