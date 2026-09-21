@@ -3163,6 +3163,20 @@ function zeichneStation(t, cxp, cyp, R) {
               : arm;
   const a1 = -0.62 + weich * 0.52;
   const a2 = 1.15 - weich * 0.72;
+
+  /* Wo endet der Arm gerade? Die Kette ist kurz genug, um sie direkt
+     auszurechnen, und die Szene braucht den Punkt: dort faehrt ein
+     Astronaut mit. An der echten Station ist das der normale Weg zu
+     einer Stelle, die man mit den Haenden nicht erreicht — man stellt
+     sich in die Fussraste an der Armspitze und laesst sich hinfahren. */
+  {
+    const bx = R * 0.55, by = -R * 0.1;
+    const mx = bx + Math.cos(a1) * R * 0.78, my = by + Math.sin(a1) * R * 0.78;
+    ARMSPITZE.x = mx + Math.cos(a1 + a2) * R * 0.55;
+    ARMSPITZE.y = my + Math.sin(a1 + a2) * R * 0.55;
+    ARMSPITZE.winkel = a1 + a2 + Math.PI / 2;
+    ARMSPITZE.R = R;
+  }
   c.translate(R * 0.55, -R * 0.1);
   c.lineCap = "round";
   /* Fuss auf dem Traeger */
@@ -5066,7 +5080,16 @@ function rahmen(jetzt) {
   const alleOrte = (STBILD && STBILD.plaetze && STBILD.plaetze.length)
     ? STBILD.plaetze : [{ x: 0, y: -0.4, art: "handlauf", winkel: 0 }];
   const hafen = alleOrte.find(q => q.art === "hafen") || null;
-  const plaetze = alleOrte.filter(q => q.art !== "hafen");
+  const festePlaetze = alleOrte.filter(q => q.art !== "hafen");
+  /* Die Armspitze ist ein Arbeitsplatz wie jeder andere — nur dass er
+     sich bewegt. Sie haengt hinten an der Liste, damit die
+     Nummerierung der festen Plaetze gleich bleibt. */
+  const plaetze = LETZTE_ORTE = festePlaetze.concat([{
+    x: ARMSPITZE.x / (ARMSPITZE.R || 1),
+    y: ARMSPITZE.y / (ARMSPITZE.R || 1),
+    art: "arm",
+    winkel: ARMSPITZE.winkel,
+  }]);
 
   /* --- Der Frachter -------------------------------------------------
      Er fliegt an, dockt, bleibt eine Weile und faehrt wieder. Der
@@ -5284,7 +5307,7 @@ function rahmen(jetzt) {
        schon, und zwar je nach dem, woran er haengt. */
     const haltung = unterwegs > 0.05 ? "griff"
                   : frei > 0.25 ? "frei"
-                  : q.art === "fussraste" ? "raste" : "griff";
+                  : (q.art === "fussraste" || q.art === "arm") ? "raste" : "griff";
     /* Menschen sind nicht alle gleich gross. Belegt ist nur ein Wert:
        2,04 m ist die Koerperhoehe im Anzug fuer den groessten
        zugelassenen Menschen. Der Rest streut darum — und diese Streuung
@@ -6669,6 +6692,11 @@ function kino(an) {
    Drehteller. */
 const KINOFAHRT = { von: 0, zx: 0, zy: 0, zz: 1 };
 
+/* Die Spitze des Roboterarms in Stationskoordinaten. Sie wird beim
+   Zeichnen der Station fortgeschrieben und in der Szene gebraucht. */
+const ARMSPITZE = { x: 0, y: 0, winkel: 0, R: 1 };
+let LETZTE_ORTE = [];
+
 function kinofahrt(t) {
   if (!kinoAn || !KINOFAHRT.von || sparsam) return;
   const u = ((t - KINOFAHRT.von) % 124000) / 124000;
@@ -7191,6 +7219,7 @@ window.__STATION = (t,x,y,r) => zeichneStation(t,x,y,r);
 window.__STBILD = () => STBILD;
 window.__FRACHT = () => FRACHT;
 window.__SCHILDER = () => TEILSCHILDER;
+window.__ORTE = () => LETZTE_ORTE;
 window.__LOGPUSH = (e) => { Z.log.unshift(e); zeichneLog(); };
 window.__PHASE = (ph) => { PHASE_TEST = ph; };
 window.__LICHT = () => ({ tag: TAGLICHT, abend: ABENDLICHT });
