@@ -5935,6 +5935,17 @@ function zeichneCrewLeiste() {
       Z.gewaehlt = Z.gewaehlt === a.id ? null : a.id;
       sichern(); zeichneCrewLeiste();
     };
+    /* Doppeltippen fliegt hin. Seit die Astronauten sich ueber die
+       Station hangeln, ist "wo steckt der eigentlich" eine echte
+       Frage — und ueber die Leiste ist sie schneller beantwortet als
+       durch Suchen in der Szene. */
+    b.ondblclick = (ev) => {
+      ev.preventDefault();
+      if (!SICHT.has(a.id)) return;
+      detailOeffnen(a.id);
+      fahreZu(a.id, 3);
+    };
+    b.title = "Antippen wählt aus · Doppeltippen fliegt hin";
     box.appendChild(b);
   }
 
@@ -6773,6 +6784,10 @@ $("#a-loeschen").onclick = () => {
   Z.agenten = Z.agenten.filter(x => x.id !== bearbeiteId);
   if (Z.gewaehlt === bearbeiteId) Z.gewaehlt = null;
   LAUF.delete(bearbeiteId); SICHT.delete(bearbeiteId);
+  /* Haengt die Kamera an diesem Agenten, muss sie losgelassen werden —
+     sonst folgt sie einer Figur, die es nicht mehr gibt. */
+  if (KAM.folgt === bearbeiteId) KAM.folgt = null;
+  bordbuch(a.name + " verlässt die Station");
   sichern(); zeichneCrewLeiste(); zeichneCrewListe();
   blendeAuf("blende-crew");
 };
@@ -7424,6 +7439,7 @@ window.__FRACHT = () => FRACHT;
 window.__SCHILDER = () => TEILSCHILDER;
 window.__ORTE = () => LETZTE_ORTE;
 window.__AGENT_DAZU = (a) => { Z.agenten.push(a); zeichneCrewLeiste(); };
+window.__BUCH = () => BORDBUCH;
 window.__LOGPUSH = (e) => { Z.log.unshift(e); zeichneLog(); };
 window.__PHASE = (ph) => { PHASE_TEST = ph; };
 window.__LICHT = () => ({ tag: TAGLICHT, abend: ABENDLICHT });
