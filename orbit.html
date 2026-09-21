@@ -353,6 +353,46 @@ body.kino #install{display:none;}
 #install .weg:hover{background:var(--p3); color:var(--tx);}
 @media (max-width:460px){ #install .wort span{font-size:11px;} }
 
+/* ---------- Zoomleiste ---------- */
+#zoomleiste{
+  position:fixed; z-index:6; right:14px; bottom:calc(150px + env(safe-area-inset-bottom));
+  display:flex; flex-direction:column; gap:6px;
+  opacity:0; pointer-events:none; transform:translateX(10px);
+  transition:all .3s var(--ease);
+}
+#zoomleiste.da{opacity:1; pointer-events:auto; transform:translateX(0);}
+body.kino #zoomleiste{opacity:0 !important; pointer-events:none;}
+#zoomleiste button{
+  width:38px; height:38px; border-radius:11px;
+  display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.04)), rgba(10,12,20,.7);
+  border:1px solid var(--edge); color:var(--tx2);
+  box-shadow:0 8px 24px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.09);
+  font-size:17px; transition:all .18s var(--ease);
+}
+#zoomleiste button:hover{color:var(--tx); border-color:var(--edge2);}
+#zoomleiste button:active{transform:scale(.93);}
+#zoomleiste .stufe{
+  font-size:10.5px; color:var(--tx3); text-align:center; letter-spacing:.03em;
+  font-variant-numeric:tabular-nums; padding:2px 0;
+}
+#szene{cursor:grab;}
+#szene.zieht{cursor:grabbing;}
+
+/* ---------- Klare Sicht beim Astronauten-Detail ----------
+   Beim Nachsehen, was ein Astronaut treibt, will man ihn auch sehen.
+   Also kein Weichzeichner, keine Abdunklung, und die Szene laeuft weiter. */
+body.sicht #schleier{background:transparent; backdrop-filter:none; -webkit-backdrop-filter:none;}
+body.sicht #blende-detail{
+  backdrop-filter:none; -webkit-backdrop-filter:none;
+  /* Vollstaendig undurchsichtig und mit kleinem Schatten. Halbdurch-
+     sichtig ueber einer laufenden Szene muss der Browser die Flaeche
+     dahinter in jedem Bild neu durchmischen — gemessen 22 statt 47
+     Bilder pro Sekunde. Undurchsichtig darf er sie einfach ueberdecken. */
+  background:linear-gradient(180deg, #111420, #0a0c14);
+  box-shadow:0 10px 26px rgba(0,0,0,.55);
+}
+
 /* ---------- Hintergrund-Auswahl ---------- */
 #himmel-gitter{display:grid; grid-template-columns:repeat(auto-fill, minmax(132px, 1fr)); gap:10px;}
 @media (min-width:760px){ #himmel-gitter{grid-template-columns:repeat(auto-fill, minmax(118px, 1fr));} }
@@ -469,6 +509,15 @@ body.kino #install{display:none;}
   </div>
   <button class="tun" id="install-tun">Installieren</button>
   <button class="weg" id="install-weg" title="Nicht mehr anzeigen">✕</button>
+</div>
+
+<div id="zoomleiste">
+  <button id="zoom-rein" title="Heranzoomen">+</button>
+  <div class="stufe" id="zoom-stufe">1,0×</div>
+  <button id="zoom-raus" title="Herauszoomen">−</button>
+  <button id="zoom-weg" title="Ansicht zurücksetzen">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg>
+  </button>
 </div>
 
 <div id="kino-tipp">Tippen zum Beenden</div>
@@ -1379,8 +1428,18 @@ function zeichneHimmel(t) {
   const bild = HIMMEL.bild;
   if (!bild) return;
   const d = sparsam ? 0 : 1;
-  const dx = Math.sin(t * 0.0000085) * 36 * d;
-  const dy = Math.cos(t * 0.0000067) * 28 * d;
+  /* Sterne stehen praktisch unendlich weit weg: sie wandern beim
+     Verschieben nur ein Sechstel mit und wachsen beim Zoomen kaum. */
+  /* Der Himmel wird NIE skaliert, nur verschoben. Das ist zum einen
+     richtig — Sterne stehen so weit weg, dass sie beim Heranfahren nicht
+     mitwachsen, genau das erzeugt den Tiefeneindruck. Zum anderen ist es
+     der einzige schnelle Weg: ein skaliertes Bild dieser Groesse kostete
+     gemessen die Haelfte der Bildrate, sobald man ueber 1,5-fach hinaus
+     zoomte. Verschoben wird auf ganze Geraetepixel, sonst muesste der
+     Browser trotzdem neu abtasten. */
+  const dx = Math.sin(t * 0.0000085) * 36 * d + KAM.x * 0.16;
+  const dy = Math.cos(t * 0.0000067) * 28 * d + KAM.y * 0.16;
+
   cx.save();
   cx.setTransform(1, 0, 0, 1, 0, 0);
   cx.drawImage(bild,
@@ -1410,276 +1469,1196 @@ function zeichneSternschnuppe(t, dt) {
   cx.lineTo(s.x - s.vx * l, s.y - s.vy * l); cx.stroke();
 }
 
-/* --- Raumstation: Modul, Rotationsring, Solarflügel ---
-   Reihenfolge ist entscheidend: hintere Ringhaelfte, dann das Modul,
-   dann die vordere Ringhaelfte. Erst dadurch liest sich das Ganze
-   raeumlich und nicht als flacher Kreis um eine Kugel. */
-function zeichneStation(t, cxp, cyp, R) {
-  const dreh = t * 0.00005;
-  const neig = 0.30;
+/* --- Bauteil-Helfer -------------------------------------------------
+   Die Station wird aus wiederkehrenden Stuecken zusammengesetzt. Jedes
+   traegt Massstabshinweise — Nahtlinien, Handlaeufe, Nieten. Ohne die
+   koennte ein Modul zwei Meter oder zwanzig lang sein, und genau das
+   laesst gezeichnete Technik nach Spielzeug aussehen.
 
-  cx.save();
-  cx.translate(cxp, cyp);
+   Licht: EINE harte Sonne von links oben. Die abgewandte Seite faellt
+   fast auf Schwarz — nur der Erdschein von unten hellt sie wieder auf,
+   kuehl und schwach. Das ist der groesste Unterschied zwischen einer
+   gezeichneten und einer fotografierten Station: nicht mehr Bauteile,
+   sondern ein harter Hell-Dunkel-Sprung. */
 
-  /* Schein */
-  const schein = cx.createRadialGradient(0, 0, R * 0.2, 0, 0, R * 3.4);
-  schein.addColorStop(0, "rgba(130,172,224,.22)");
-  schein.addColorStop(0.45, "rgba(123,164,216,.07)");
-  schein.addColorStop(1, "rgba(123,164,216,0)");
-  cx.fillStyle = schein;
-  cx.beginPath(); cx.arc(0, 0, R * 3.4, 0, Math.PI * 2); cx.fill();
+const SONNE = { x: -0.72, y: -0.69 };         // Einfallsrichtung
+const ERDSCHEIN = "58,110,168";               // kuehles Blau von unten
 
-  /* Ausleger und Solarflügel */
-  const fluegelNeig = Math.sin(t * 0.00007) * 0.09;
-  cx.save();
-  cx.rotate(fluegelNeig);
-  for (const s of [-1, 1]) {
-    cx.strokeStyle = "rgba(168,196,232,.42)"; cx.lineWidth = R * 0.07; cx.lineCap = "round";
-    cx.beginPath(); cx.moveTo(s * R * 0.4, 0); cx.lineTo(s * R * 1.42, 0); cx.stroke();
-    cx.save();
-    cx.translate(s * R * 2.0, 0);
-    const pg = cx.createLinearGradient(0, -R * 0.42, 0, R * 0.42);
-    pg.addColorStop(0, "rgba(86,114,162,.72)");
-    pg.addColorStop(1, "rgba(44,60,90,.72)");
-    cx.fillStyle = pg;
-    cx.strokeStyle = "rgba(166,196,236,.34)"; cx.lineWidth = 1;
-    rundRect(cx, -R * 0.6, -R * 0.42, R * 1.2, R * 0.84, 3);
-    cx.fill(); cx.stroke();
-    cx.strokeStyle = "rgba(180,208,244,.2)";
-    for (let i = 1; i < 5; i++) {
-      const gx = -R * 0.6 + (R * 1.2 * i) / 5;
-      cx.beginPath(); cx.moveTo(gx, -R * 0.42); cx.lineTo(gx, R * 0.42); cx.stroke();
-    }
-    cx.beginPath(); cx.moveTo(-R * 0.6, 0); cx.lineTo(R * 0.6, 0); cx.stroke();
-    cx.restore();
-  }
-  cx.restore();
-
-  /* --- Rotationsring, hintere Haelfte --- */
-  const Rr = R * 1.34, dicke = R * 0.2;
-  cx.save();
-  cx.scale(1, neig);
-  cx.lineWidth = dicke; cx.lineCap = "butt";
-  cx.strokeStyle = "rgba(78,102,140,.85)";
-  cx.beginPath(); cx.arc(0, 0, Rr, Math.PI, Math.PI * 2); cx.stroke();
-  cx.restore();
-
-  /* Speichen hinten */
-  cx.save();
-  cx.scale(1, neig); cx.rotate(0);
-  cx.strokeStyle = "rgba(120,150,192,.42)"; cx.lineWidth = R * 0.045;
-  for (let i = 0; i < 6; i++) {
-    const w = (i / 6) * Math.PI * 2 + dreh * 4;
-    if (Math.sin(w) > 0) continue;
-    /* Erst ausserhalb des Moduls beginnen, sonst kreuzen sich die
-       Speichen quer ueber den Rumpf und es sieht nach Drahtgitter aus. */
-    cx.beginPath();
-    cx.moveTo(Math.cos(w) * Rr * 0.62, Math.sin(w) * Rr * 0.62);
-    cx.lineTo(Math.cos(w) * Rr, Math.sin(w) * Rr); cx.stroke();
-  }
-  cx.restore();
-
-  /* --- Zentralmodul: liegender Zylinder --- */
-  const mw = R * 1.3, mh = R * 0.56;
-  const mg = cx.createLinearGradient(0, -mh / 2, 0, mh / 2);
-  mg.addColorStop(0, "#e2ebf8");
-  mg.addColorStop(0.42, "#a8b9d2");
-  mg.addColorStop(1, "#2b3849");
-  cx.fillStyle = mg;
-  rundRect(cx, -mw / 2, -mh / 2, mw, mh, mh / 2);
-  cx.fill();
-  cx.strokeStyle = "rgba(210,230,255,.4)"; cx.lineWidth = 1; cx.stroke();
-
-  /* Segmentfugen */
-  cx.strokeStyle = "rgba(40,54,76,.45)"; cx.lineWidth = 1.2;
-  for (const f of [-0.26, 0.06, 0.32]) {
-    cx.beginPath();
-    cx.ellipse(mw * f, 0, mh * 0.16, mh / 2 - 1, 0, 0, Math.PI * 2);
-    cx.stroke();
-  }
-  /* Bullaugen — warm beleuchtet */
-  const warm = 0.68 + 0.32 * Math.sin(t * 0.0011);
-  for (let i = 0; i < 5; i++) {
-    const fx = -mw * 0.3 + (mw * 0.6 * i) / 4;
-    cx.fillStyle = `rgba(255,224,170,${0.5 + 0.45 * warm})`;
-    cx.beginPath(); cx.arc(fx, -mh * 0.06, R * 0.045, 0, Math.PI * 2); cx.fill();
-  }
-  /* Andockstutzen links und rechts */
-  for (const s of [-1, 1]) {
-    const bx = s < 0 ? -mw / 2 - R * 0.16 : mw / 2;
-    cx.fillStyle = "#8fa3c0";
-    rundRect(cx, bx, -mh * 0.2, R * 0.16, mh * 0.4, 2);
-    cx.fill();
-    cx.fillStyle = "rgba(190,214,248,.9)";
-    cx.beginPath();
-    cx.ellipse(s * (mw / 2 + R * 0.15), 0, R * 0.05, mh * 0.22, 0, 0, Math.PI * 2);
-    cx.fill();
-  }
-
-  /* Leuchtkern im Modul — das Herz, das atmet */
-  const puls = 0.7 + 0.3 * Math.sin(t * 0.0013);
-  const kern = cx.createRadialGradient(0, 0, 0, 0, 0, R * 0.8);
-  kern.addColorStop(0, `rgba(205,230,255,${0.5 * puls})`);
-  kern.addColorStop(0.5, `rgba(123,164,216,${0.22 * puls})`);
-  kern.addColorStop(1, "rgba(123,164,216,0)");
-  cx.fillStyle = kern;
-  cx.beginPath(); cx.arc(0, 0, R * 0.8, 0, Math.PI * 2); cx.fill();
-
-  /* Antennenmast */
-  cx.strokeStyle = "rgba(186,210,246,.55)"; cx.lineWidth = 1.6; cx.lineCap = "round";
-  cx.beginPath(); cx.moveTo(0, -mh / 2); cx.lineTo(0, -R * 1.0); cx.stroke();
-  cx.beginPath(); cx.moveTo(-R * 0.14, -R * 0.94); cx.lineTo(R * 0.14, -R * 0.94); cx.stroke();
-  cx.fillStyle = `rgba(224,122,106,${0.45 + 0.55 * Math.abs(Math.sin(t * 0.0032))})`;
-  cx.beginPath(); cx.arc(0, -R * 1.03, 2.6, 0, Math.PI * 2); cx.fill();
-
-  /* --- Rotationsring, vordere Haelfte: liegt ueber dem Modul --- */
-  cx.save();
-  cx.scale(1, neig);
-  cx.lineWidth = dicke; cx.lineCap = "butt";
-  const rg = cx.createLinearGradient(-Rr, 0, Rr, 0);
-  rg.addColorStop(0, "rgba(140,170,214,.9)");
-  rg.addColorStop(0.5, "rgba(206,226,252,.95)");
-  rg.addColorStop(1, "rgba(140,170,214,.9)");
-  cx.strokeStyle = rg;
-  cx.beginPath(); cx.arc(0, 0, Rr, 0, Math.PI); cx.stroke();
-  cx.restore();
-
-  /* Speichen vorne */
-  cx.save();
-  cx.scale(1, neig);
-  cx.strokeStyle = "rgba(196,218,250,.5)"; cx.lineWidth = R * 0.045;
-  for (let i = 0; i < 6; i++) {
-    const w = (i / 6) * Math.PI * 2 + dreh * 4;
-    if (Math.sin(w) <= 0) continue;
-    cx.beginPath();
-    cx.moveTo(Math.cos(w) * Rr * 0.62, Math.sin(w) * Rr * 0.62);
-    cx.lineTo(Math.cos(w) * Rr, Math.sin(w) * Rr); cx.stroke();
-  }
-  cx.restore();
-
-  /* Fenster im Ring — wandern mit der Drehung, das verkauft die Rotation */
-  cx.save();
-  cx.scale(1, neig);
-  for (let i = 0; i < 22; i++) {
-    const w = (i / 22) * Math.PI * 2 + dreh * 4;
-    const vorne = Math.sin(w) > 0;
-    cx.fillStyle = vorne
-      ? `rgba(255,232,186,${0.6 + 0.4 * Math.sin(t * 0.002 + i)})`
-      : "rgba(120,150,192,.4)";
-    cx.beginPath();
-    cx.arc(Math.cos(w) * Rr, Math.sin(w) * Rr, R * 0.042, 0, Math.PI * 2);
-    cx.fill();
-  }
-  cx.restore();
-
-  cx.restore();
+/* Hell-Dunkel-Verlauf laengs der Sonnenachse, fuer flache Platten */
+function sonnenlauf(c, x, y, w, h, hell, mitte, dunkel) {
+  const g = c.createLinearGradient(
+    x + w / 2 - SONNE.x * w * 0.6, y + h / 2 - SONNE.y * h * 0.6,
+    x + w / 2 + SONNE.x * w * 0.6, y + h / 2 + SONNE.y * h * 0.6);
+  g.addColorStop(0, hell); g.addColorStop(0.52, mitte); g.addColorStop(1, dunkel);
+  return g;
 }
 
-/* --- Ein Astronaut --- */
+/* Mehrlagige Isolationsfolie: golden, zerknittert, matt */
+function folie(c, x, y, w, h, r, saat) {
+  const g = c.createLinearGradient(x, y, x, y + h);
+  g.addColorStop(0, "#f2cf85");
+  g.addColorStop(0.3, "#c1913d");
+  g.addColorStop(0.66, "#6d4f20");
+  g.addColorStop(1, "#231a0c");
+  c.fillStyle = g;
+  rundRect(c, x, y, w, h, r);
+  c.fill();
+  /* Knitterfalten — unregelmaessig, sonst sieht es nach Blech aus */
+  c.save();
+  rundRect(c, x, y, w, h, r); c.clip();
+  c.lineWidth = Math.max(0.5, h * 0.018);
+  for (let i = 0; i < 14; i++) {
+    const t = streu(i, saat | 0, 7);
+    const xx = x + t * w;
+    c.strokeStyle = i % 2 ? "rgba(255,235,180,.30)" : "rgba(40,26,6,.45)";
+    c.beginPath();
+    c.moveTo(xx, y);
+    c.lineTo(xx + (streu(i, saat | 0, 11) - 0.5) * w * 0.12, y + h);
+    c.stroke();
+  }
+  c.restore();
+}
+
+/* Handlaeufe: gelb eloxierte Buegel. Sie sind das billigste und
+   staerkste Groessenzeichen ueberhaupt — ein Handlauf ist immer so
+   lang wie ein Unterarm, also weiss das Auge sofort, wie gross der
+   Rest ist. Deshalb sitzen sie ueberall. */
+function handlauf(c, x1, y1, x2, y2, d) {
+  c.lineCap = "round";
+  c.strokeStyle = "rgba(60,46,10,.75)";
+  c.lineWidth = d * 1.7;
+  c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+  c.strokeStyle = "rgba(186,152,62,.8)";
+  c.lineWidth = d;
+  c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+}
+
+/* Weisses Druckmodul, laengs gesehen: ein Zylinder. Die Schattierung
+   laeuft quer zur Achse — oben die Sonne, unten der Erdschein, dazwischen
+   ein tiefer, fast schwarzer Gurt. */
+function modul(c, x, y, w, h, saat, opt) {
+  const o = opt || {};
+  const g = c.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0, "#fdfdfa");
+  g.addColorStop(0.18, "#eceade");
+  g.addColorStop(0.46, "#b9b6a8");
+  g.addColorStop(0.74, "#4a4b46");
+  g.addColorStop(0.92, "#16181c");
+  g.addColorStop(1, "#2c3d54");                 /* Erdschein-Saum */
+  c.fillStyle = g;
+  rundRect(c, x, y, w, h, h * 0.4);
+  c.fill();
+
+  c.save();
+  rundRect(c, x, y, w, h, h * 0.4); c.clip();
+
+  /* Nahtringe zwischen den Schuessen */
+  c.strokeStyle = "rgba(52,50,42,.42)";
+  c.lineWidth = Math.max(0.5, h * 0.03);
+  const schuesse = Math.max(2, Math.round(w / (h * 0.8)));
+  for (let i = 1; i < schuesse; i++) {
+    const xx = x + (w * i) / schuesse;
+    c.beginPath(); c.ellipse(xx, y + h / 2, h * 0.09, h / 2, 0, 0, Math.PI * 2); c.stroke();
+  }
+
+  /* Mikrometeoritenpanele: feines Rechteckraster auf der Lichtseite */
+  if (h > 9) {
+    c.strokeStyle = "rgba(120,116,104,.22)";
+    c.lineWidth = 0.4;
+    c.beginPath();
+    for (let i = 1; i < schuesse * 3; i++) {
+      const xx = x + (w * i) / (schuesse * 3);
+      c.moveTo(xx, y + h * 0.06); c.lineTo(xx, y + h * 0.5);
+    }
+    c.moveTo(x, y + h * 0.28); c.lineTo(x + w, y + h * 0.28);
+    c.stroke();
+  }
+
+  /* Handlaeufe: der EVA-Laufweg ueber das Modul */
+  if (h > 6) {
+    const d = Math.max(0.6, h * 0.035);
+    const n = Math.max(3, Math.round(w / (h * 0.55)));
+    for (const ry of [0.22, 0.8]) {
+      const yy = y + h * ry;
+      for (let i = 0; i < n; i++) {
+        const xa = x + w * (0.06 + 0.88 * i / n);
+        handlauf(c, xa, yy, xa + w * 0.88 / n * 0.62, yy, d);
+      }
+    }
+  }
+
+  /* Ein Streifen Folie als Materialwechsel */
+  if (!o.rein) {
+    folie(c, x + w * 0.68, y + h * 0.16, w * 0.13, h * 0.66, h * 0.1, saat + 3);
+  }
+  c.restore();
+
+  /* Harte Lichtkante oben */
+  c.strokeStyle = "rgba(255,255,248,.75)";
+  c.lineWidth = Math.max(0.5, h * 0.02);
+  c.beginPath();
+  c.moveTo(x + h * 0.3, y + h * 0.035); c.lineTo(x + w - h * 0.3, y + h * 0.035);
+  c.stroke();
+}
+
+/* Endkappe eines Moduls, das in die Tiefe laeuft. Bei 30 Grad Drehung
+   wird aus dem Kreis immer dieselbe Ellipse mit halber Breite — deshalb
+   braucht es hier keine Perspektivrechnung, nur eine Konstante. */
+function endkappe(c, x, y, r) {
+  const g = c.createLinearGradient(x, y - r, x, y + r);
+  g.addColorStop(0, "#e8e6da"); g.addColorStop(0.55, "#7b7a70"); g.addColorStop(1, "#1a1c20");
+  c.fillStyle = g;
+  c.beginPath(); c.ellipse(x, y, r * 0.5, r, 0, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = "rgba(40,40,36,.6)"; c.lineWidth = Math.max(0.4, r * 0.06);
+  c.stroke();
+}
+
+/* Gittertraeger: das Rueckgrat. Entscheidend ist, dass man HINDURCH
+   sieht — der hintere Rahmen wird schwaecher und versetzt gezeichnet,
+   dazwischen bleibt die Schwaerze des Alls stehen. Ein massiver Balken
+   sieht sofort nach Spielzeug aus. */
+function gittertraeger(c, x1, x2, y, hoehe, saat) {
+  const laenge = x2 - x1;
+  const felder = Math.max(8, Math.round(laenge / (hoehe * 0.85)));
+  const versatz = hoehe * 0.28;
+
+  /* Hinterer Rahmen: gleiche Form, schwaecher, nach unten versetzt */
+  c.save();
+  c.globalAlpha = 0.5;
+  c.translate(versatz * 0.5, versatz);
+  c.strokeStyle = "#5e646c"; c.lineWidth = Math.max(0.5, hoehe * 0.06);
+  c.beginPath();
+  c.moveTo(x1, y - hoehe / 2); c.lineTo(x2, y - hoehe / 2);
+  c.moveTo(x1, y + hoehe / 2); c.lineTo(x2, y + hoehe / 2);
+  for (let i = 0; i < felder; i++) {
+    const xa = x1 + (laenge * i) / felder, xb = x1 + (laenge * (i + 1)) / felder;
+    if (i % 2) { c.moveTo(xa, y - hoehe / 2); c.lineTo(xb, y + hoehe / 2); }
+    else       { c.moveTo(xa, y + hoehe / 2); c.lineTo(xb, y - hoehe / 2); }
+  }
+  c.stroke();
+  c.restore();
+
+  /* Vorderer Rahmen: Gurte mit hellem Grat oben, fast schwarzer Kante unten */
+  c.lineCap = "butt";
+  for (const s of [-1, 1]) {
+    const yy = y + s * hoehe / 2;
+    c.strokeStyle = "#a9afb5"; c.lineWidth = Math.max(0.7, hoehe * 0.085);
+    c.beginPath(); c.moveTo(x1, yy); c.lineTo(x2, yy); c.stroke();
+    c.strokeStyle = s < 0 ? "rgba(237,239,241,.95)" : "rgba(160,168,176,.6)";
+    c.lineWidth = Math.max(0.35, hoehe * 0.03);
+    c.beginPath(); c.moveTo(x1, yy - hoehe * 0.03); c.lineTo(x2, yy - hoehe * 0.03); c.stroke();
+    c.strokeStyle = "rgba(20,24,28,.85)";
+    c.beginPath(); c.moveTo(x1, yy + hoehe * 0.035); c.lineTo(x2, yy + hoehe * 0.035); c.stroke();
+  }
+  /* Diagonalen */
+  c.strokeStyle = "rgba(176,183,190,.9)";
+  c.lineWidth = Math.max(0.45, hoehe * 0.05);
+  c.beginPath();
+  for (let i = 0; i < felder; i++) {
+    const xa = x1 + (laenge * i) / felder, xb = x1 + (laenge * (i + 1)) / felder;
+    if (i % 2) { c.moveTo(xa, y - hoehe / 2); c.lineTo(xb, y + hoehe / 2); }
+    else       { c.moveTo(xa, y + hoehe / 2); c.lineTo(xb, y - hoehe / 2); }
+  }
+  c.stroke();
+
+  /* Segmentfugen sitzen unregelmaessig — echte Traeger sind aus
+     verschieden langen Stuecken gebaut, kein gleichmaessiges Raster. */
+  c.strokeStyle = "rgba(226,232,240,.8)";
+  c.lineWidth = Math.max(0.5, hoehe * 0.06);
+  c.beginPath();
+  for (const f of [0.14, 0.3, 0.43, 0.57, 0.7, 0.86]) {
+    const xx = x1 + laenge * f;
+    c.moveTo(xx, y - hoehe / 2); c.lineTo(xx, y + hoehe / 2);
+  }
+  c.stroke();
+
+  /* Aufgeschnallte Kisten: Akkus, Pumpen, Tanks. Unregelmaessig verteilt
+     — die Asymmetrie ist das, was eine gebaute von einer gezeichneten
+     Station unterscheidet. */
+  const plaetze = [0.08, 0.2, 0.36, 0.52, 0.63, 0.78, 0.9];
+  for (let i = 0; i < plaetze.length; i++) {
+    const xx = x1 + laenge * plaetze[i];
+    const bw = hoehe * (0.5 + streu(i, saat, 3) * 0.55);
+    const bh = hoehe * (0.3 + streu(i, saat, 5) * 0.3);
+    const oben = streu(i, saat, 9) > 0.5;
+    const yy = oben ? y - hoehe / 2 - bh : y + hoehe / 2;
+    if (streu(i, saat, 13) > 0.66) {
+      folie(c, xx, yy, bw, bh, bh * 0.15, saat + i);
+    } else {
+      c.fillStyle = sonnenlauf(c, xx, yy, bw, bh, "#f4f2ea", "#9b9a90", "#1d1f22");
+      rundRect(c, xx, yy, bw, bh, bh * 0.16); c.fill();
+      c.strokeStyle = "rgba(24,28,32,.55)"; c.lineWidth = 0.4;
+      rundRect(c, xx, yy, bw, bh, bh * 0.16); c.stroke();
+    }
+  }
+
+  /* Die Schienen der Transportwagen: zwei feine Linien auf der
+     Vorderseite, auf halber Hoehe — nicht an der Oberkante. */
+  c.strokeStyle = "rgba(210,218,226,.55)";
+  c.lineWidth = Math.max(0.3, hoehe * 0.022);
+  c.beginPath();
+  c.moveTo(x1 + laenge * 0.1, y - hoehe * 0.06); c.lineTo(x2 - laenge * 0.1, y - hoehe * 0.06);
+  c.moveTo(x1 + laenge * 0.1, y + hoehe * 0.06); c.lineTo(x2 - laenge * 0.1, y + hoehe * 0.06);
+  c.stroke();
+}
+
+/* Solarfluegel: ZWEI schmale Zellteppiche links und rechts von einem
+   duennen Ausfahrmast — kein einzelnes Rechteck. Die Rueckseite ist
+   bernsteinfarben und laesst etwas Licht durch, die Sonnenseite ist
+   fast schwarz. Verhaeltnis rund 3:1, nie quadratisch. */
+function solarfluegel(c, x, y, w, h, saat, dunkel) {
+  const halb = h * 0.46;
+  const mast = h * 0.08;
+  for (const s of [-1, 1]) {
+    const yy = y + h / 2 + s * (mast / 2 + halb / 2) - halb / 2;
+    const g = c.createLinearGradient(x, yy, x + w, yy + halb);
+    if (dunkel) {
+      g.addColorStop(0, "#161a26"); g.addColorStop(0.5, "#252a3e");
+      g.addColorStop(0.72, "#3a3550"); g.addColorStop(1, "#0d0f16");
+    } else {
+      g.addColorStop(0, "#5a3d15"); g.addColorStop(0.38, "#a97c2b");
+      g.addColorStop(0.58, "#d9a544"); g.addColorStop(1, "#4a3311");
+    }
+    c.fillStyle = g;
+    c.fillRect(x, yy, w, halb);
+
+    /* Zellraster: viele feine Querstreifen laengs der langen Achse */
+    c.strokeStyle = dunkel ? "rgba(6,8,14,.75)" : "rgba(34,22,6,.5)";
+    c.lineWidth = 0.4;
+    c.beginPath();
+    const spalten = Math.max(14, Math.round(w / (halb * 0.28)));
+    for (let i = 1; i < spalten; i++) {
+      const xx = x + (w * i) / spalten;
+      c.moveTo(xx, yy); c.lineTo(xx, yy + halb);
+    }
+    c.stroke();
+    /* Trennnaehte quer: deutlich seltener als die Zellstreifen */
+    c.strokeStyle = dunkel ? "rgba(140,150,190,.3)" : "rgba(246,226,170,.35)";
+    c.lineWidth = Math.max(0.4, halb * 0.05);
+    c.beginPath();
+    for (let i = 1; i < 6; i++) {
+      const xx = x + (w * i) / 6;
+      c.moveTo(xx, yy); c.lineTo(xx, yy + halb);
+    }
+    c.stroke();
+    /* Wellige Kante: die Teppiche haengen unter Spannung, nicht gerade */
+    c.strokeStyle = "rgba(255,238,190,.28)";
+    c.lineWidth = 0.5;
+    c.beginPath();
+    for (let i = 0; i <= 10; i++) {
+      const xx = x + (w * i) / 10;
+      const wy = yy + (s < 0 ? 0 : halb) + Math.sin(i * 1.7 + saat) * halb * 0.035;
+      i ? c.lineTo(xx, wy) : c.moveTo(xx, wy);
+    }
+    c.stroke();
+  }
+  /* Ausfahrmast in der Mitte */
+  c.strokeStyle = "rgba(206,214,224,.85)";
+  c.lineWidth = Math.max(0.5, mast * 0.5);
+  c.beginPath();
+  c.moveTo(x, y + h / 2); c.lineTo(x + w, y + h / 2); c.stroke();
+  c.strokeStyle = "rgba(30,34,40,.7)";
+  c.lineWidth = Math.max(0.3, mast * 0.2);
+  c.beginPath();
+  c.moveTo(x, y + h / 2 + mast * 0.3); c.lineTo(x + w, y + h / 2 + mast * 0.3); c.stroke();
+}
+
+/* Radiator: WEISS und quer zu den Solarfluegeln — genau daran erkennt
+   man ihn, er soll Waerme los werden, nicht Licht einfangen. Er ist
+   das hellste Ding im ganzen Bild. Acht Paneele wie eine Ziehharmonika. */
+function radiator(c, x, y, w, h, quer) {
+  const g = quer
+    ? c.createLinearGradient(x, 0, x + w, 0)
+    : c.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0, "#ffffff");
+  g.addColorStop(0.42, "#f2f5f7");
+  g.addColorStop(0.78, "#9aa4ad");
+  g.addColorStop(1, "#2b333c");
+  c.fillStyle = g;
+  c.fillRect(x, y, w, h);
+  /* Naehte im Ziehharmonika-Takt: acht Paneele */
+  c.strokeStyle = "rgba(120,132,142,.75)";
+  c.lineWidth = 0.5;
+  c.beginPath();
+  for (let i = 1; i < 8; i++) {
+    if (quer) { const xx = x + (w * i) / 8; c.moveTo(xx, y); c.lineTo(xx, y + h); }
+    else      { const yy = y + (h * i) / 8; c.moveTo(x, yy); c.lineTo(x + w, yy); }
+  }
+  c.stroke();
+  c.strokeStyle = "rgba(255,255,255,.7)";
+  c.lineWidth = 0.6;
+  c.strokeRect(x, y, w, h);
+}
+
+/* --- Die Raumstation ------------------------------------------------
+   Gebaut wie eine echte: ein langer, offener Gittertraeger ist das
+   Rueckgrat und laeuft quer durchs ganze Bild. An seinen Enden sitzen
+   die Solarfluegel, naeher zur Mitte die weissen Radiatoren — quer
+   dazu, weil sie ins kalte All schauen muessen, waehrend die Fluegel
+   in die Sonne schauen. Die Druckmodule sind nur ein kleiner Klumpen
+   in der Mitte und kreuzen den Traeger schraeg, sodass sie in die
+   Tiefe laufen statt als Kreise auf den Betrachter zu zeigen.
+
+   Kein Rotationsring: echte Stationen haben keinen, und nichts sonst
+   laesst eine gezeichnete Station so schnell nach Zeichentrick
+   aussehen. */
+
+/* --- Die Station als gebackenes Bild ---------------------------------
+   Die Form der Station aendert sich nie. Nur der Roboterarm, die
+   Positionslichter und die beleuchteten Fenster leben. Also wird alles
+   Uebrige einmal in ein eigenes Bild gezeichnet und danach nur noch
+   kopiert — beim Hineinzoomen spart das den groessten Teil der Arbeit.
+
+   Gebacken wird in der Aufloesung, in der die Station gerade auf dem
+   Schirm landet, gestuft nach einer festen Leiter. Ohne die Stufen
+   muesste bei jedem Zoomschritt neu gebacken werden, und das waere als
+   Ruckler zu sehen. */
+const STLEITER = [48, 72, 108, 160, 232];
+let STBILD = null;
+
+/* Merkt sich, wo ein Fenster im fertigen Bild liegt, statt es zu
+   zeichnen. Die Verkettung aus Drehungen und Verschiebungen steckt im
+   Zustand des Zeichners — die fragen wir hier einfach ab. */
+function merkeFenster(c, liste, x, y, r, ton, ph, takt, grund, hub) {
+  if (!liste) return;
+  const m = c.getTransform();
+  const p = new DOMPoint(x, y).matrixTransform(m);
+  liste.push({ x: p.x, y: p.y, r: r * Math.hypot(m.a, m.b), ton, ph, takt, grund, hub });
+}
+
+function stationBacken(Rpx) {
+  /* Die Station ist breit und flach — das Bild wird genauso
+     zugeschnitten. Quadratisch waere die Haelfte davon leer. */
+  const rx = Math.ceil(Rpx * 4), ry = Math.ceil(Rpx * 1.6);
+  const cv = document.createElement("canvas");
+  cv.width = rx * 2; cv.height = ry * 2;
+  const c = cv.getContext("2d");
+  c.translate(rx, ry);
+  const fenster = [];
+  stationStatisch(c, Rpx, fenster);
+  /* Die gemerkten Punkte liegen in Bildkoordinaten — auf die Mitte
+     umrechnen, damit sie beim Kopieren mitwandern. */
+  for (const f of fenster) { f.x -= rx; f.y -= ry; }
+  return { R: Rpx, rx, ry, bild: cv, fenster };
+}
+
+function stationStatisch(c, R, fenster) {
+  const saat = 17;
+  const t = 0;
+
+  /* Schein: flach gedrueckt, weil die Station breit und niedrig ist.
+     Ein runder Schein wuerde das gebackene Bild quadratisch machen und
+     damit doppelt so viel Flaeche kosten wie noetig. */
+  c.save();
+  c.scale(1, 0.42);
+  const schein = c.createRadialGradient(0, 0, R * 0.4, 0, 0, R * 3.8);
+  schein.addColorStop(0, "rgba(150,186,234,.16)");
+  schein.addColorStop(0.45, "rgba(123,164,216,.05)");
+  schein.addColorStop(1, "rgba(123,164,216,0)");
+  c.fillStyle = schein;
+  c.beginPath(); c.arc(0, 0, R * 3.8, 0, Math.PI * 2); c.fill();
+  c.restore();
+
+  /* ---------- Gittertraeger: das Rueckgrat ---------- */
+  const tr = R * 3.3;                        // halbe Traegerlaenge
+  const trh = R * 0.24;                      // Traegerhoehe
+  c.save();
+  c.rotate(-0.045);                          // leicht schraeg, nie exakt waagerecht
+  gittertraeger(c, -tr, tr, 0, trh, saat);
+
+  /* ---------- Solarfluegel: vier Paare, aussen am Traeger ---------- */
+  const flW = R * 1.1, flH = R * 0.37;        // rund 3:1
+  const sonnendreh = Math.sin(t * 0.00004) * 0.04;
+  for (const seite of [-1, 1]) {
+    /* Alpha-Drehgelenk: sitzt IM Querschnitt, ragt nicht darueber hinaus */
+    const gx = seite * tr * 0.8;
+    c.save();
+    c.translate(gx, 0);
+    c.fillStyle = sonnenlauf(c, -trh * 0.5, -trh * 0.52, trh, trh * 1.04,
+      "#e4e8ec", "#8d959c", "#191d21");
+    rundRect(c, -trh * 0.5, -trh * 0.52, trh, trh * 1.04, trh * 0.2); c.fill();
+    c.strokeStyle = "rgba(24,28,32,.6)"; c.lineWidth = 0.4;
+    for (let i = 1; i < 5; i++) {
+      c.beginPath();
+      c.moveTo(-trh * 0.5 + trh * i / 5, -trh * 0.52);
+      c.lineTo(-trh * 0.5 + trh * i / 5, trh * 0.52); c.stroke();
+    }
+    c.restore();
+
+    /* Je zwei Fluegelpaare pro Seite. Das eine sitzt einwaerts vom
+       Gelenk, das andere auswaerts — so haengt kein Fluegel frei in der
+       Luft, sondern jeder haengt am Traeger. */
+    for (const paar of [0, 1]) {
+      const richt = paar === 0 ? -seite : seite;
+      const wurzel = gx + richt * trh * 0.5;
+      for (const oben of [-1, 1]) {
+        c.save();
+        c.translate(wurzel, oben * trh * 0.42);
+        c.rotate(oben * 0.035 + sonnendreh);
+        const x0 = richt < 0 ? -flW : 0;
+        const y0 = oben < 0 ? -flH : 0;
+        /* Alle Fluegel zeigen dieselbe Seite: sie drehen sich gemeinsam
+           der Sonne nach. Wir sehen die bernsteinfarbene Rueckseite,
+           die als einziges Bauteil der Station Licht durchlaesst. */
+        solarfluegel(c, x0, y0, flW, flH, saat + oben * 3 + paar, false);
+
+        /* iROSA: die neuen Rollfluegel liegen als kleinere, fast
+           schwarze Teppiche schraeg ueber der inneren Haelfte. Sie
+           liegen nicht auf allen — genau das gibt die Asymmetrie. */
+        if (!(seite > 0 && paar === 1 && oben < 0)) {
+          c.save();
+          /* Sie liegen ueber der INNEREN Haelfte, also der zur Station
+             zeigenden — deshalb haengt die Seite von der Fluegelseite ab. */
+          c.translate(x0 + flW * (seite < 0 ? 0.75 : 0.25), y0 + flH / 2);
+          c.rotate(0.17 * seite);
+          const iw = flW * 0.5, ih = flH * 0.66;
+          const ig = c.createLinearGradient(-iw / 2, -ih / 2, iw / 2, ih / 2);
+          ig.addColorStop(0, "#0c0e14"); ig.addColorStop(0.55, "#1d2130");
+          ig.addColorStop(1, "#080a0f");
+          c.fillStyle = ig;
+          c.fillRect(-iw / 2, -ih / 2, iw, ih);
+          c.strokeStyle = "rgba(150,162,196,.28)"; c.lineWidth = 0.4;
+          c.beginPath();
+          for (let i = 1; i < 12; i++) {
+            const xx = -iw / 2 + (iw * i) / 12;
+            c.moveTo(xx, -ih / 2); c.lineTo(xx, ih / 2);
+          }
+          c.stroke();
+          c.strokeStyle = "rgba(208,218,232,.5)"; c.lineWidth = 0.5;
+          c.strokeRect(-iw / 2, -ih / 2, iw, ih);
+          c.restore();
+        }
+        c.restore();
+      }
+    }
+  }
+
+  /* ---------- Radiatoren: weiss, senkrecht zum Traeger ----------
+     Sie stehen bewusst in einer anderen Ebene als die Fluegel — das ist
+     das sicherste Erkennungszeichen einer echten Station. Schmal und
+     hochkant, weil man auf die Kante schaut, und das hellste Weiss im
+     ganzen Bild. */
+  for (const seite of [-1, 1]) {
+    for (let i = 0; i < 3; i++) {
+      const rx = seite * (R * 1.06 + i * R * 0.26);
+      const oben = i === 1 ? 1 : -1;
+      c.save();
+      c.translate(rx, 0);
+      c.rotate(seite * 0.04 * oben);
+      radiator(c, -R * 0.085, oben < 0 ? -R * 0.92 : trh * 0.5,
+        R * 0.17, R * 0.92 - trh * 0.5, false);
+      c.restore();
+    }
+  }
+  c.restore();  /* Traegerdrehung zurueck */
+
+  /* ---------- Druckmodule: der bewohnte Teil ----------
+     Ein Stapel verschieden langer Zylinder, getrennt durch kurze dicke
+     Kopplungsknoten. Er kreuzt den Traeger schraeg und laeuft in die
+     Tiefe: bei 30 Grad Drehung wird jeder Zylinder auf genau die halbe
+     Laenge gestaucht. Daraus entsteht Raum statt Scherenschnitt. */
+  c.save();
+  c.rotate(0.72);                            // schraeg zum Traeger
+  const md = R * 0.5;                         // Moduldurchmesser
+  const stauch = 0.5;                         // 30 Grad Drehung
+  const stapel = [
+    { l: R * 1.15, rein: false },
+    { l: R * 0.78, rein: true  },
+    { l: R * 1.05, rein: false },
+    { l: R * 0.62, rein: true  },
+  ];
+  let pos = -R * 1.05;
+  const knoten = [];
+  for (let i = 0; i < stapel.length; i++) {
+    const s = stapel[i];
+    const l = s.l * stauch;
+    modul(c, pos, -md / 2, l, md, saat + i * 4, { rein: s.rein });
+    pos += l;
+    if (i < stapel.length - 1) {
+      /* Kopplungsknoten: kurz, dicker als das Modul, mit Bolzenkranz */
+      c.fillStyle = sonnenlauf(c, pos, -md * 0.62, md * 0.3, md * 1.24,
+        "#f8f6ee", "#918f86", "#111316");
+      rundRect(c, pos, -md * 0.62, md * 0.3, md * 1.24, md * 0.12); c.fill();
+      c.strokeStyle = "rgba(20,22,26,.6)"; c.lineWidth = 0.4;
+      rundRect(c, pos, -md * 0.62, md * 0.3, md * 1.24, md * 0.12); c.stroke();
+      c.fillStyle = "rgba(60,58,50,.55)";
+      for (let k = 0; k < 5; k++) {
+        c.beginPath();
+        c.arc(pos + md * 0.15, -md * 0.5 + k * md * 0.25, md * 0.035, 0, Math.PI * 2);
+        c.fill();
+      }
+      knoten.push(pos + md * 0.15);
+      pos += md * 0.3;
+    }
+  }
+  /* Endkappe vorn: die feste Ellipse mit halber Breite */
+  endkappe(c, pos, 0, md / 2);
+
+  /* Russisches Endstueck: olivgruene Steppdecke, viele Fenster.
+     Der Kontrast zum fensterarmen westlichen Teil ist echt. */
+  c.save();
+  c.translate(-R * 1.05, 0);
+  const rg2 = c.createLinearGradient(0, -md / 2, 0, md / 2);
+  rg2.addColorStop(0, "#a9a37c"); rg2.addColorStop(0.42, "#6e6a4c");
+  rg2.addColorStop(0.8, "#272719"); rg2.addColorStop(1, "#22303f");
+  c.fillStyle = rg2;
+  rundRect(c, -R * 0.4, -md * 0.44, R * 0.4, md * 0.88, md * 0.3); c.fill();
+  c.strokeStyle = "rgba(38,38,26,.4)"; c.lineWidth = 0.4;
+  c.beginPath();
+  for (let i = 1; i < 6; i++) {
+    const xx = -R * 0.4 + (R * 0.4 * i) / 6;
+    c.moveTo(xx, -md * 0.4); c.lineTo(xx, md * 0.4);
+  }
+  c.stroke();
+  /* Die beleuchteten Fenster werden nicht mitgebacken: sie pulsieren
+     und werden spaeter live darueber gezeichnet. Hier merken wir uns
+     nur, wo sie im fertigen Bild liegen. */
+  for (let i = 0; i < 5; i++) {
+    merkeFenster(c, fenster, -R * 0.35 + i * R * 0.066, -md * 0.12, md * 0.055,
+      "255,228,170", i * 0.5, 0.0013, 0.6, 0.3);
+  }
+  /* Antennenausleger am russischen Ende — schief, wie gebaut */
+  c.strokeStyle = "rgba(196,204,216,.6)"; c.lineWidth = Math.max(0.5, R * 0.012);
+  c.lineCap = "round";
+  c.beginPath();
+  c.moveTo(-R * 0.36, -md * 0.42); c.lineTo(-R * 0.5, -md * 0.95); c.stroke();
+  c.beginPath();
+  c.moveTo(-R * 0.22, md * 0.42); c.lineTo(-R * 0.1, md * 0.92); c.stroke();
+  c.restore();
+
+  /* Angedockte Kapsel am vorderen Knoten, quer abstehend */
+  c.save();
+  c.translate(knoten[knoten.length - 1] || pos, 0);
+  c.rotate(-1.5);
+  c.fillStyle = "#b6bcc6";
+  rundRect(c, -md * 0.09, -md * 0.16, md * 0.18, md * 0.32, md * 0.05); c.fill();
+  folie(c, md * 0.09, -md * 0.3, R * 0.42, md * 0.6, md * 0.18, saat + 21);
+  c.fillStyle = "rgba(18,22,30,.85)";
+  c.beginPath(); c.ellipse(md * 0.12, 0, md * 0.05, md * 0.17, 0, 0, Math.PI * 2); c.fill();
+  /* Zwei kleine Sonnensegel an der Kapsel */
+  for (const s of [-1, 1]) {
+    c.fillStyle = "#171b28";
+    c.fillRect(R * 0.2, s * md * 0.3, R * 0.2, s * md * 0.22);
+    c.strokeStyle = "rgba(150,162,196,.3)"; c.lineWidth = 0.4;
+    c.strokeRect(R * 0.2, s * md * 0.3, R * 0.2, s * md * 0.22);
+  }
+  c.restore();
+
+  /* ---------- Kuppel: sitzt am Knoten, zur Erde gerichtet ----------
+     Der einzige Fenstercluster der Station — sieben Scheiben um ein
+     grosses Mittelfenster. */
+  c.save();
+  c.translate(knoten[0] !== undefined ? knoten[0] : 0, md * 0.42);
+  c.rotate(0.25);
+  const kr = md * 0.42;
+  c.fillStyle = sonnenlauf(c, -kr, 0, kr * 2, kr, "#f4f2e8", "#9e9d93", "#141619");
+  c.beginPath(); c.arc(0, 0, kr, 0, Math.PI); c.fill();
+  for (let i = 0; i < 6; i++) {
+    const w = Math.PI * (0.11 + 0.78 * i / 5);
+    merkeFenster(c, fenster, Math.cos(w) * kr * 0.62, Math.sin(w) * kr * 0.62, kr * 0.16,
+      "148,200,255", i, 0.0012, 0.42, 0.34);
+  }
+  /* Das grosse Mittelfenster */
+  merkeFenster(c, fenster, 0, kr * 0.28, kr * 0.26, "174,218,255", 0, 0.0009, 0.5, 0.28);
+  c.strokeStyle = "rgba(226,232,240,.45)"; c.lineWidth = 0.7;
+  c.beginPath(); c.arc(0, 0, kr, 0, Math.PI); c.stroke();
+  c.restore();
+
+  c.restore();  /* Modulstapel zurueck */
+
+  /* ---------- Antennenschuessel auf dem Traeger, schief angesetzt ---------- */
+  c.save();
+  c.translate(-R * 1.5, -R * 0.24);
+  c.rotate(-0.75 + Math.sin(t * 0.00009) * 0.1);
+  const sg = c.createLinearGradient(0, -R * 0.13, 0, R * 0.13);
+  sg.addColorStop(0, "#f2f0e6"); sg.addColorStop(0.6, "#8b8a80"); sg.addColorStop(1, "#17191d");
+  c.fillStyle = sg;
+  c.beginPath(); c.ellipse(0, 0, R * 0.055, R * 0.13, 0, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = "rgba(190,204,224,.6)"; c.lineWidth = R * 0.012;
+  c.beginPath(); c.moveTo(0, 0); c.lineTo(R * 0.11, 0); c.stroke();
+  c.fillStyle = "#c3cedd";
+  c.beginPath(); c.arc(R * 0.11, 0, R * 0.019, 0, Math.PI * 2); c.fill();
+  c.restore();
+
+}
+
+function zeichneStation(t, cxp, cyp, R) {
+  /* Wie gross landet die Station gerade auf dem Schirm? Darin stecken
+     Bildpunktdichte, Kamerazoom und das Atmen des Kinomodus. */
+  const m = cx.getTransform();
+  const massstab = Math.hypot(m.a, m.b);
+  const noetig = R * massstab;
+  let Rpx = STLEITER[STLEITER.length - 1];
+  for (const stufe of STLEITER) if (stufe >= noetig) { Rpx = stufe; break; }
+  /* Hysterese: ein schon gebackenes Bild bleibt, solange es fein genug
+     und nicht unnoetig gross ist. Ohne das wackelt das Atmen des
+     Kinomodus an einer Stufengrenze hin und her und backt jeden Frame
+     neu — das waere schlimmer als gar nicht zu backen. */
+  if (STBILD && STBILD.R >= noetig && STBILD.R <= Rpx * 1.6) Rpx = STBILD.R;
+  if (!STBILD || STBILD.R !== Rpx) STBILD = stationBacken(Rpx);
+
+  const b = STBILD;
+  const f = noetig / b.R;
+  const mitte = new DOMPoint(cxp, cyp).matrixTransform(m);
+
+  /* Das Bild wird in Geraetekoordinaten kopiert. Waere es in die
+     Kamera hineingezeichnet, muesste es jeden Frame neu skaliert
+     werden — genau das kostet. */
+  cx.save();
+  cx.setTransform(1, 0, 0, 1, 0, 0);
+  const zx = mitte.x - b.rx * f, zy = mitte.y - b.ry * f;
+  const zw = b.rx * 2 * f, zh = b.ry * 2 * f;
+  /* Nur den Teil kopieren, der wirklich auf dem Schirm landet. Beim
+     Hineinzoomen haengt sonst der groesste Teil des Bildes ausserhalb
+     und kostet trotzdem. */
+  const ax = Math.max(0, zx), ay = Math.max(0, zy);
+  const bx = Math.min(cv.width, zx + zw), by = Math.min(cv.height, zy + zh);
+  if (bx > ax && by > ay) {
+    cx.drawImage(b.bild,
+      (ax - zx) / f, (ay - zy) / f, (bx - ax) / f, (by - ay) / f,
+      ax, ay, bx - ax, by - ay);
+  }
+
+  /* Die beleuchteten Fenster pulsieren — sie kommen live darueber */
+  for (const fe of b.fenster) {
+    cx.fillStyle = `rgba(${fe.ton},${fe.grund + fe.hub * Math.sin(t * fe.takt + fe.ph)})`;
+    cx.beginPath();
+    cx.arc(mitte.x + fe.x * f, mitte.y + fe.y * f, Math.max(0.6, fe.r * f), 0, Math.PI * 2);
+    cx.fill();
+  }
+  cx.restore();
+
+  /* Roboterarm und Positionslichter in Stationskoordinaten */
+  const c = cx;
+  const tr = R * 3.3;
+  c.save();
+  c.translate(cxp, cyp);
+  /* ---------- Roboterarm: sitzt auf dem Traeger, greift zum Modul ---------- */
+  c.save();
+  const a1 = -0.62 + Math.sin(t * 0.00017) * 0.28;
+  const a2 = 1.15 + Math.cos(t * 0.00021) * 0.4;
+  c.translate(R * 0.55, -R * 0.1);
+  c.lineCap = "round";
+  /* Fuss auf dem Traeger */
+  c.fillStyle = "#c2c9d2";
+  rundRect(c, -R * 0.06, -R * 0.05, R * 0.12, R * 0.1, R * 0.02); c.fill();
+  c.rotate(a1);
+  /* Zweifarbig: helle Sonnenseite, fast schwarze Unterseite */
+  c.strokeStyle = "rgba(246,248,252,.95)"; c.lineWidth = R * 0.045;
+  c.beginPath(); c.moveTo(0, 0); c.lineTo(R * 0.78, 0); c.stroke();
+  c.strokeStyle = "rgba(16,20,26,.75)"; c.lineWidth = R * 0.016;
+  c.beginPath(); c.moveTo(0, R * 0.016); c.lineTo(R * 0.78, R * 0.016); c.stroke();
+  c.fillStyle = "#8ea0b8";
+  c.beginPath(); c.arc(0, 0, R * 0.04, 0, Math.PI * 2); c.fill();
+  c.translate(R * 0.78, 0);
+  c.rotate(a2);
+  c.strokeStyle = "rgba(242,246,252,.92)"; c.lineWidth = R * 0.038;
+  c.beginPath(); c.moveTo(0, 0); c.lineTo(R * 0.55, 0); c.stroke();
+  c.strokeStyle = "rgba(16,20,26,.75)"; c.lineWidth = R * 0.013;
+  c.beginPath(); c.moveTo(0, R * 0.013); c.lineTo(R * 0.55, R * 0.013); c.stroke();
+  c.fillStyle = "#8ea0b8";
+  c.beginPath(); c.arc(0, 0, R * 0.036, 0, Math.PI * 2); c.fill();
+  /* Greifer */
+  c.translate(R * 0.55, 0);
+  c.lineWidth = R * 0.018;
+  c.strokeStyle = "rgba(206,218,234,.9)";
+  c.beginPath();
+  c.moveTo(0, -R * 0.045); c.lineTo(R * 0.06, -R * 0.018);
+  c.moveTo(0, R * 0.045); c.lineTo(R * 0.06, R * 0.018);
+  c.stroke();
+  c.restore();
+
+  /* ---------- Positionslichter ---------- */
+  const blink = Math.sin(t * 0.0031) > 0.72;
+  const lichter = [[tr * 0.98, 0, "224,122,106"], [-tr * 0.98, 0, "116,180,141"], [0, -R * 0.5, "255,255,255"]];
+  for (const [lx, ly, ton] of lichter) {
+    c.fillStyle = `rgba(${ton},${blink ? 0.95 : 0.25})`;
+    c.beginPath(); c.arc(lx, ly, R * 0.022, 0, Math.PI * 2); c.fill();
+    if (blink) {
+      c.fillStyle = `rgba(${ton},.18)`;
+      c.beginPath(); c.arc(lx, ly, R * 0.09, 0, Math.PI * 2); c.fill();
+    }
+  }
+  c.restore();
+}
+
+/* --- Ein Astronaut ---------------------------------------------------
+   Nachempfunden dem EMU-Anzug. Entscheidend ist nicht die Menge an
+   Details, sondern der Umriss: ein Raumanzug ist kein Mensch in weisser
+   Kleidung, sondern ein tonnenfoermiger Kleinstraumer. Kugelkopf ohne
+   Hals, ein Ruecksack, der fast so hoch ist wie der Rumpf, Gliedmassen
+   als gleichmaessig dicke Roehren ohne Muskelkontur.
+
+   Alle Masse haengen an H, der Figurenhoehe von der Helmoberkante bis
+   zur Stiefelsohle. Ein Mensch im Anzug misst 1,9 m, ein Druckmodul
+   4,3 m im Durchmesser — die Figur ist also nur knapp halb so hoch wie
+   ein Modul dick ist. Genau daran liest man ab, wie gross die Station
+   ist.
+
+   Der Anzug steht unter Druck und federt immer in eine gebeugte
+   Ruhelage zurueck: kein Gelenk ist je ganz gestreckt. Nichts an der
+   Figur ist gerade — das ist der zweitwichtigste Realismushebel nach
+   dem Umriss.
+
+   Feine Teile werden erst ab einer gewissen Groesse gezeichnet. Bei
+   zwoelf Pixeln waere ein Schalterfeld nur noch Rauschen, und es kostet
+   trotzdem Rechenzeit. */
 function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor) {
-  const wippen = sparsam ? 0 : Math.sin(t * 0.0022 + phase) * 0.12;
-  const schwingA = sparsam ? 0 : Math.sin(t * 0.0026 + phase) * 0.3;
-  const schwingB = sparsam ? 0 : Math.cos(t * 0.0021 + phase) * 0.26;
+  const ruhig = sparsam;
+  const wippen = ruhig ? 0 : Math.sin(t * 0.0022 + phase) * 0.12;
+  const armA = ruhig ? 0 : Math.sin(t * 0.0026 + phase) * 0.16;
+  const armB = ruhig ? 0 : Math.cos(t * 0.0021 + phase) * 0.14;
+  const beinA = ruhig ? 0 : Math.sin(t * 0.0019 + phase + 1.1) * 0.12;
+  const beinB = ruhig ? 0 : Math.cos(t * 0.0017 + phase + 0.4) * 0.11;
+
+  /* Detailstufen */
+  const mittel = s >= 13;
+  const fein = s >= 20;
+
+  /* --- Masse. H ist die Figurenhoehe, alles andere haengt daran. --- */
+  const H = s * 2.1;
+  const helmR  = H * 0.095;          // Helm 0,19 H im Durchmesser
+  const helmY  = -H * 0.5 + helmR;   // Oberkante genau bei -H/2
+  /* Kein Hals: der Kugelkopf sitzt tief zwischen den Schultern, die
+     Schulterlinie liegt noch innerhalb des Helmkreises. */
+  const schuY  = helmY + helmR * 0.72;
+  const schuB  = H * 0.175;          // halbe Schulterbreite (0,35 H)
+  /* Der Oberkoerper ist ueberproportional lang, die Beine machen nur
+     gut 0,45 H aus — daran erkennt man den Anzug gegenueber einem
+     bekleideten Menschen. */
+  const hueftY = schuY + H * 0.37;
+  const sohle  = H * 0.5;
+  const armD   = H * 0.09;           // Roehrendicke Arm
+  const beinD  = H * 0.105;          // Roehrendicke Bein — kaum dicker
+  const bandB  = H * 0.033;          // Kennstreifen 0,03–0,04 H
+
+  /* Mattes, leicht vergilbtes Elfenbein — kein Blaugrau. */
+  const WEISS = "#efebe1";
+  const HELL  = "#fdfcf7";
+  const SCHATTEN = "#6f6c64";
 
   cx.save();
   cx.translate(x, y);
   cx.rotate(kipp + wippen * 0.16);
 
-  /* Auswahlring — zeigt, welcher Astronaut gerade im Detail offen ist */
+  /* ---------- Auswahlring ---------- */
   if (hervor) {
     cx.strokeStyle = "rgba(255,255,255,.55)";
     cx.lineWidth = 1.2;
     cx.setLineDash([3, 4]);
-    cx.beginPath(); cx.arc(0, -s * 0.12, s * 1.95, 0, Math.PI * 2); cx.stroke();
+    cx.beginPath(); cx.arc(0, 0, H * 0.95, 0, Math.PI * 2); cx.stroke();
     cx.setLineDash([]);
   }
 
-  /* Statusring hinter der Figur */
+  /* ---------- Statusring und Schein ---------- */
   if (zustand !== "ruht") {
     const ton = zustand === "fehler" ? "224,122,106"
-              : zustand === "fertig" ? "116,180,141"
-              : "123,164,216";
+              : zustand === "fertig" ? "116,180,141" : "123,164,216";
     const p = 0.45 + 0.55 * Math.sin(t * (zustand === "fehler" ? 0.012 : 0.004));
-    cx.strokeStyle = `rgba(${ton},${0.28 + 0.4 * p})`;
-    cx.lineWidth = 1.6;
-    cx.beginPath(); cx.arc(0, -s * 0.12, s * 1.5 + p * s * 0.2, 0, Math.PI * 2); cx.stroke();
-    const sch = cx.createRadialGradient(0, -s * 0.12, 0, 0, -s * 0.12, s * 2.6);
-    sch.addColorStop(0, `rgba(${ton},${0.2 * p})`);
+    cx.strokeStyle = `rgba(${ton},${0.26 + 0.38 * p})`;
+    cx.lineWidth = 1.5;
+    cx.beginPath(); cx.arc(0, 0, H * 0.74 + p * H * 0.08, 0, Math.PI * 2); cx.stroke();
+    const sch = cx.createRadialGradient(0, 0, 0, 0, 0, H * 1.3);
+    sch.addColorStop(0, `rgba(${ton},${0.17 * p})`);
     sch.addColorStop(1, `rgba(${ton},0)`);
     cx.fillStyle = sch;
-    cx.beginPath(); cx.arc(0, -s * 0.12, s * 2.6, 0, Math.PI * 2); cx.fill();
+    cx.beginPath(); cx.arc(0, 0, H * 1.3, 0, Math.PI * 2); cx.fill();
   }
 
-  /* Rucksack */
-  cx.fillStyle = "#3a4557";
-  rundRect(cx, -s * 0.46, -s * 0.2, s * 0.92, s * 0.66, s * 0.2);
+  /* ---------- SAFER: die Rettungsduesen ----------
+     Breiter als der Ruecksack (68 gegen 52 cm) und deckt dessen untere
+     zwei Drittel — deshalb schaut er links und rechts hinter der Huefte
+     hervor. Genau dieser Ueberstand macht den Umriss unverwechselbar. */
+  if (mittel) {
+    const sb = H * 0.179;            // halbe Breite (0,358 H)
+    const sm = -H * 0.03;
+    const so = schuY + H * 0.16, su = hueftY;
+    cx.fillStyle = "#8d8a80";
+    rundRect(cx, sm - sb, so, sb * 2, su - so, H * 0.02); cx.fill();
+    cx.strokeStyle = "rgba(40,40,36,.6)"; cx.lineWidth = Math.max(0.35, H * 0.008);
+    rundRect(cx, sm - sb, so, sb * 2, su - so, H * 0.02); cx.stroke();
+    /* Duesenmuendungen an den vier Ecken */
+    cx.fillStyle = "#2f2e2a";
+    for (const sd of [-1, 1]) for (const oy of [so + H * 0.012, su - H * 0.032]) {
+      rundRect(cx, sm + sd * sb - (sd < 0 ? 0 : H * 0.03), oy, H * 0.03, H * 0.02, H * 0.006);
+      cx.fill();
+    }
+    /* Duesenstoss beim Arbeiten */
+    if (zustand === "sendet" && !ruhig) {
+      const st = 0.35 + 0.65 * Math.abs(Math.sin(t * 0.009 + phase));
+      for (const sd of [-1, 1]) {
+        const g = cx.createRadialGradient(sm + sd * sb, so + H * 0.02, 0, sm + sd * sb, so + H * 0.02, H * 0.16);
+        g.addColorStop(0, `rgba(210,232,255,${0.5 * st})`);
+        g.addColorStop(1, "rgba(210,232,255,0)");
+        cx.fillStyle = g;
+        cx.beginPath(); cx.arc(sm + sd * sb, so + H * 0.02, H * 0.16, 0, Math.PI * 2); cx.fill();
+      }
+    }
+  }
+
+  /* ---------- Lebenserhaltungsruecksack ----------
+     Rechteckig mit gerundeten Kanten, mattweiss wie der Anzug — nicht
+     metallisch, sonst wird eine Tauchflasche daraus. Seine Oberkante
+     liegt etwa auf Hoehe des Helmaequators, nicht darueber. Weil wir
+     die Figur leicht von der Seite sehen, schaut er links hervor. */
+  const pb = H * 0.135;              // halbe Breite (0,27 H)
+  const pm = -H * 0.062;             // nach hinten versetzt: Dreiviertelblick
+  const po = helmY, pu = hueftY - H * 0.02;
+  const rg = cx.createLinearGradient(pm - pb, po, pm + pb, pu);
+  rg.addColorStop(0, "#fbf9f2");
+  rg.addColorStop(0.42, "#d9d5c9");
+  rg.addColorStop(0.78, "#5f5d56");
+  rg.addColorStop(1, "#18191c");
+  cx.fillStyle = rg;
+  rundRect(cx, pm - pb, po, pb * 2, pu - po, H * 0.03);
   cx.fill();
-  cx.fillStyle = "rgba(200,222,255,.3)";
-  rundRect(cx, -s * 0.3, -s * 0.08, s * 0.6, s * 0.12, s * 0.05);
+  /* Die Hinterkante ist gerade und scharf, waehrend alles andere an
+     der Figur rund ist — das ist sein Erkennungsmerkmal. */
+  cx.strokeStyle = "rgba(30,30,28,.6)"; cx.lineWidth = Math.max(0.35, H * 0.006);
+  cx.beginPath(); cx.moveTo(pm - pb, po + H * 0.02); cx.lineTo(pm - pb, pu - H * 0.02); cx.stroke();
+  if (mittel) {
+    /* Waagerechte Fuge auf zwei Dritteln Hoehe */
+    cx.strokeStyle = "rgba(48,48,44,.45)"; cx.lineWidth = Math.max(0.35, H * 0.007);
+    cx.beginPath();
+    cx.moveTo(pm - pb, po + (pu - po) * 0.66);
+    cx.lineTo(pm + pb, po + (pu - po) * 0.66);
+    cx.stroke();
+    /* Ventilklappe unten */
+    cx.fillStyle = "rgba(52,52,48,.75)";
+    rundRect(cx, pm - pb + H * 0.02, pu - H * 0.05, H * 0.07, H * 0.035, H * 0.008); cx.fill();
+  }
+  if (fein) {
+    /* Funkantenne */
+    cx.strokeStyle = "rgba(226,222,208,.7)"; cx.lineWidth = Math.max(0.5, H * 0.009);
+    cx.lineCap = "round";
+    cx.beginPath(); cx.moveTo(pm - pb * 0.6, po + H * 0.01); cx.lineTo(pm - pb - H * 0.015, po - H * 0.055); cx.stroke();
+  }
+
+  /* ---------- Beine ----------
+     Sie tragen nichts und arbeiten nicht: gefahren wird mit den Armen.
+     Knie 20–35 Grad gebeugt, die Beine haengen passiv nach. */
+  for (const [sd, sw] of [[-1, beinA], [1, beinB]]) {
+    /* Knie 20–35 Grad gebeugt, die Beine stehen leicht vom Koerper ab
+       und haengen passiv nach — nichts ist gestreckt. */
+    const hx = sd * H * 0.06, hy = hueftY;
+    const kx = hx + sd * H * 0.075 + sw * H * 0.06, ky = hueftY + H * 0.2;
+    const fx = kx - sd * H * 0.015 + sw * H * 0.1, fy = sohle - H * 0.035;
+    cx.lineCap = "round"; cx.lineJoin = "round";
+    cx.strokeStyle = "rgba(26,27,30,.7)"; cx.lineWidth = beinD * 1.18;
+    cx.beginPath(); cx.moveTo(hx, hy); cx.lineTo(kx, ky); cx.lineTo(fx, fy); cx.stroke();
+    cx.strokeStyle = WEISS; cx.lineWidth = beinD;
+    cx.beginPath(); cx.moveTo(hx, hy); cx.lineTo(kx, ky); cx.lineTo(fx, fy); cx.stroke();
+    /* Unterseite im Schatten — eine Roehre, keine flache Linie */
+    cx.strokeStyle = "rgba(24,24,22,.34)"; cx.lineWidth = beinD * 0.3;
+    cx.beginPath();
+    cx.moveTo(hx + beinD * 0.26, hy); cx.lineTo(kx + beinD * 0.26, ky); cx.lineTo(fx + beinD * 0.26, fy);
+    cx.stroke();
+    if (mittel) {
+      /* Konvoluten: Balgfalten an Huefte, Knie und Knoechel. Weich
+         gerippt — anders als die harten Lagerringe am Oberkoerper. */
+      cx.strokeStyle = "rgba(120,117,108,.55)"; cx.lineWidth = Math.max(0.35, H * 0.006);
+      for (const [gx, gy, ax, ay] of [[hx, hy, kx, ky], [kx, ky, fx, fy]]) {
+        const dx = ax - gx, dy = ay - gy, l = Math.hypot(dx, dy) || 1;
+        for (let i = 0; i < 3; i++) {
+          const f = 0.06 + i * 0.09;
+          cx.beginPath();
+          cx.moveTo(gx + dx * f - dy / l * beinD * 0.45, gy + dy * f + dx / l * beinD * 0.45);
+          cx.lineTo(gx + dx * f + dy / l * beinD * 0.45, gy + dy * f - dx / l * beinD * 0.45);
+          cx.stroke();
+        }
+      }
+      /* Kennstreifen am rechten Bein */
+      if (sd > 0) {
+        cx.strokeStyle = farbe; cx.lineWidth = beinD;
+        cx.lineCap = "butt";
+        const f0 = 0.5, f1 = f0 + bandB / H * 2.2;
+        cx.beginPath();
+        cx.moveTo(hx + (kx - hx) * f0, hy + (ky - hy) * f0);
+        cx.lineTo(hx + (kx - hx) * f1, hy + (ky - hy) * f1);
+        cx.stroke();
+        cx.lineCap = "round";
+      }
+    }
+    /* Stiefel: unten glatt und gequiltet, kein abstehender Buegel */
+    cx.fillStyle = WEISS;
+    cx.save();
+    cx.translate(fx, fy);
+    cx.rotate(sd * 0.12);
+    rundRect(cx, -H * 0.052, -H * 0.02, H * 0.104, H * 0.055, H * 0.018); cx.fill();
+    cx.fillStyle = "rgba(38,38,34,.6)";
+    rundRect(cx, -H * 0.05, H * 0.026, H * 0.1, H * 0.014, H * 0.005); cx.fill();
+    cx.restore();
+  }
+
+  /* ---------- Rumpf: die harte Schale ----------
+     Tonnenfoermig, ohne Taille. Der Umriss ist das, was die Figur schon
+     bei 25 Pixeln als Raumanzug lesbar macht. */
+  const rh = hueftY - schuY;
+  cx.beginPath();
+  cx.moveTo(-schuB * 0.92, schuY + rh * 0.12);
+  cx.quadraticCurveTo(-schuB, schuY, -schuB * 0.58, schuY - rh * 0.05);
+  cx.lineTo(schuB * 0.58, schuY - rh * 0.05);
+  cx.quadraticCurveTo(schuB, schuY, schuB * 0.92, schuY + rh * 0.12);
+  cx.quadraticCurveTo(schuB * 1.0, schuY + rh * 0.62, schuB * 0.7, hueftY);
+  cx.lineTo(-schuB * 0.7, hueftY);
+  cx.quadraticCurveTo(-schuB * 1.0, schuY + rh * 0.62, -schuB * 0.92, schuY + rh * 0.12);
+  cx.closePath();
+  const tg = cx.createLinearGradient(-schuB, schuY, schuB * 0.7, hueftY);
+  tg.addColorStop(0, HELL);
+  tg.addColorStop(0.34, WEISS);
+  tg.addColorStop(0.74, "#7b786f");
+  tg.addColorStop(1, "#1b1c1f");
+  cx.fillStyle = tg;
   cx.fill();
 
-  /* Beine */
-  cx.strokeStyle = farbe; cx.lineCap = "round"; cx.lineWidth = s * 0.27;
-  for (const [sd, sw] of [[-1, schwingA], [1, schwingB]]) {
+  if (mittel) {
+    /* Lagerringe an Schulter und Taille: hart und glaenzend, im
+       Gegensatz zu den weichen Balgfalten an Ellbogen und Knie. */
+    cx.strokeStyle = "rgba(196,192,180,.85)"; cx.lineWidth = Math.max(0.5, H * 0.012);
+    for (const sd of [-1, 1]) {
+      cx.beginPath();
+      cx.ellipse(sd * schuB * 0.82, schuY + rh * 0.14, H * 0.028, H * 0.038, sd * 0.3, 0, Math.PI * 2);
+      cx.stroke();
+    }
     cx.beginPath();
-    cx.moveTo(sd * s * 0.17, s * 0.42);
-    cx.lineTo(sd * s * 0.2 + sw * s * 0.3, s * 0.92 + Math.abs(sw) * s * 0.1);
+    cx.moveTo(-schuB * 0.72, hueftY - H * 0.012);
+    cx.lineTo(schuB * 0.72, hueftY - H * 0.012);
     cx.stroke();
   }
-  /* Stiefel */
-  cx.fillStyle = "#e8eef8";
-  for (const [sd, sw] of [[-1, schwingA], [1, schwingB]]) {
-    cx.beginPath();
-    cx.arc(sd * s * 0.2 + sw * s * 0.3, s * 0.94 + Math.abs(sw) * s * 0.1, s * 0.16, 0, Math.PI * 2);
-    cx.fill();
+
+  /* Huftstueck: der Lagerring an der Taille, an dem die Beine haengen.
+     Ohne ihn stossen die Beinroehren stumpf an den Rumpf. */
+  cx.fillStyle = sonnenlauf(cx, -schuB * 0.78, hueftY - H * 0.03, schuB * 1.56, H * 0.06,
+    "#f6f3ea", "#a29e93", "#1c1d20");
+  rundRect(cx, -schuB * 0.78, hueftY - H * 0.035, schuB * 1.56, H * 0.06, H * 0.02);
+  cx.fill();
+
+  /* Kennfarbe: ein schmales Band ueber der Brust — die Zugehoerigkeit */
+  cx.fillStyle = farbe;
+  rundRect(cx, -schuB * 0.76, schuY + rh * 0.16, schuB * 1.52, bandB * 0.8, bandB * 0.3);
+  cx.fill();
+
+  if (mittel) {
+    /* DCM: die Bedieneinheit auf der Brust. Ihre Beschriftung ist
+       spiegelverkehrt, weil sie nur ueber den Handgelenkspiegel
+       gelesen wird — bei dieser Groesse bleibt davon ein Raster. */
+    cx.fillStyle = "#d6d2c6";
+    rundRect(cx, -schuB * 0.6, schuY + rh * 0.4, schuB * 1.2, rh * 0.42, H * 0.012); cx.fill();
+    cx.strokeStyle = "rgba(58,58,52,.5)"; cx.lineWidth = Math.max(0.35, H * 0.007);
+    rundRect(cx, -schuB * 0.6, schuY + rh * 0.4, schuB * 1.2, rh * 0.42, H * 0.012); cx.stroke();
+  }
+  if (fein) {
+    /* Anzeigefeld und Stellraeder */
+    cx.fillStyle = "#33322d";
+    rundRect(cx, -schuB * 0.48, schuY + rh * 0.46, schuB * 0.72, rh * 0.15, H * 0.005); cx.fill();
+    cx.fillStyle = `rgba(150,225,185,${zustand === "ruht" ? 0.4 : 0.95})`;
+    cx.fillRect(-schuB * 0.42, schuY + rh * 0.49, schuB * 0.2, rh * 0.08);
+    cx.fillStyle = "#8e8b81";
+    for (let i = 0; i < 3; i++) {
+      cx.beginPath();
+      cx.arc(-schuB * 0.36 + i * schuB * 0.28, schuY + rh * 0.7, H * 0.011, 0, Math.PI * 2);
+      cx.fill();
+    }
+    /* Haken fuer die Sicherungsleine */
+    cx.fillStyle = "#79766d";
+    rundRect(cx, schuB * 0.3, schuY + rh * 0.46, H * 0.028, H * 0.04, H * 0.008); cx.fill();
   }
 
-  /* Arme */
-  cx.strokeStyle = farbe; cx.lineWidth = s * 0.25;
-  for (const [sd, sw] of [[-1, schwingB], [1, schwingA]]) {
+  /* ---------- Arme ----------
+     Schulter bis Handgelenk hoechstens 0,29 H gestreckt, in der
+     gebeugten Ruhelage nur rund 0,25 H Luftlinie. Laenger und die
+     Figur bekommt Affenarme. */
+  const haende = [];
+  for (const [sd, sw, istRechts] of [[-1, armB, false], [1, armA, true]]) {
+    const sx = sd * schuB * 0.86, sy = schuY + rh * 0.16;
+    let ex, ey, hx, hy;
+    if (zustand === "denkt" && istRechts) {
+      /* Haelt eine Pruefliste auf Brusthoehe */
+      ex = sd * H * 0.15; ey = sy + H * 0.13;
+      hx = sd * H * 0.07; hy = sy + H * 0.21;
+    } else if (zustand === "fertig" && istRechts) {
+      /* Daumen hoch */
+      ex = sd * H * 0.21; ey = sy + H * 0.06;
+      hx = sd * H * 0.2;  hy = sy - H * 0.12;
+    } else if (zustand === "fehler") {
+      ex = sd * H * 0.2;  ey = sy + H * 0.09 + sw * H * 0.04;
+      hx = sd * H * 0.27; hy = sy + H * 0.02 + sw * H * 0.06;
+    } else if (zustand === "sendet" && istRechts) {
+      /* Fuehrt ein Werkzeug auf Brusthoehe */
+      ex = sd * H * 0.18; ey = sy + H * 0.11;
+      hx = sd * H * 0.13; hy = sy + H * 0.23 + sw * H * 0.02;
+    } else {
+      /* Neutralhaltung: Ellbogen gebeugt, Haende locker an der Huefte —
+         neben der Bedieneinheit, nicht davor. */
+      ex = sd * H * 0.2; ey = sy + H * 0.13 + sw * H * 0.03;
+      hx = sd * H * 0.15 - sw * H * 0.04; hy = sy + H * 0.28 + sw * H * 0.05;
+    }
+    /* Erst eine dunkle Kontur, dann die helle Roehre darauf: sonst
+       verschwindet der weisse Arm im weissen Rumpf. */
+    cx.lineCap = "round"; cx.lineJoin = "round";
+    cx.strokeStyle = "rgba(26,27,30,.6)"; cx.lineWidth = armD * 1.2;
+    cx.beginPath(); cx.moveTo(sx, sy); cx.lineTo(ex, ey); cx.lineTo(hx, hy); cx.stroke();
+    cx.strokeStyle = WEISS; cx.lineWidth = armD;
+    cx.beginPath(); cx.moveTo(sx, sy); cx.lineTo(ex, ey); cx.lineTo(hx, hy); cx.stroke();
+    cx.strokeStyle = "rgba(24,24,22,.28)"; cx.lineWidth = armD * 0.3;
     cx.beginPath();
-    cx.moveTo(sd * s * 0.3, s * 0.08);
-    cx.lineTo(sd * s * 0.62 - sw * s * 0.22, s * 0.42 + sw * s * 0.26);
+    cx.moveTo(sx + armD * 0.26, sy); cx.lineTo(ex + armD * 0.26, ey); cx.lineTo(hx + armD * 0.26, hy);
     cx.stroke();
+    if (mittel) {
+      /* Balgfalten am Ellbogen */
+      cx.strokeStyle = "rgba(120,117,108,.55)"; cx.lineWidth = Math.max(0.3, H * 0.005);
+      const dx = ex - sx, dy = ey - sy, l = Math.hypot(dx, dy) || 1;
+      for (let i = 0; i < 3; i++) {
+        const f = 0.72 + i * 0.09;
+        cx.beginPath();
+        cx.moveTo(sx + dx * f - dy / l * armD * 0.45, sy + dy * f + dx / l * armD * 0.45);
+        cx.lineTo(sx + dx * f + dy / l * armD * 0.45, sy + dy * f - dx / l * armD * 0.45);
+        cx.stroke();
+      }
+      /* Kennstreifen am linken Arm */
+      if (!istRechts) {
+        cx.strokeStyle = farbe; cx.lineWidth = armD; cx.lineCap = "butt";
+        const f0 = 0.42, f1 = f0 + bandB / H * 2.6;
+        cx.beginPath();
+        cx.moveTo(sx + (ex - sx) * f0, sy + (ey - sy) * f0);
+        cx.lineTo(sx + (ex - sx) * f1, sy + (ey - sy) * f1);
+        cx.stroke();
+        cx.lineCap = "round";
+      }
+    }
+    /* Handschuh: klein gegen den dicken Arm, und hell wie der Anzug —
+       die Hand bildet ein lockeres C, wie um eine unsichtbare Dose. */
+    const gr = armD * 0.46;
+    const gg = cx.createLinearGradient(hx - gr, hy - gr, hx + gr, hy + gr);
+    gg.addColorStop(0, "#f6f3ea"); gg.addColorStop(0.6, "#c4c0b4"); gg.addColorStop(1, "#4a4843");
+    cx.fillStyle = gg;
+    cx.beginPath(); cx.arc(hx, hy, gr, 0, Math.PI * 2); cx.fill();
+    if (mittel) {
+      /* Der farbige Ring am Handgelenk statt eines farbigen Handschuhs */
+      cx.strokeStyle = farbe; cx.lineWidth = Math.max(0.5, H * 0.009);
+      cx.beginPath(); cx.arc(hx, hy, gr * 1.15, 0, Math.PI * 2); cx.stroke();
+    }
+    haende.push({ x: hx, y: hy, rechts: istRechts });
   }
-  cx.fillStyle = "#e8eef8";
-  for (const [sd, sw] of [[-1, schwingB], [1, schwingA]]) {
+
+  /* ---------- Werkzeug je nach Taetigkeit ---------- */
+  if (mittel) {
+    const rechts = haende.find(h => h.rechts);
+    if (zustand === "denkt" && rechts) {
+      /* Pruefliste am Handgelenk */
+      cx.save();
+      cx.translate(rechts.x, rechts.y);
+      cx.rotate(-0.3);
+      cx.fillStyle = "#ecebe2";
+      rundRect(cx, -H * 0.07, -H * 0.09, H * 0.14, H * 0.11, H * 0.012); cx.fill();
+      cx.strokeStyle = "rgba(96,94,86,.6)"; cx.lineWidth = Math.max(0.3, H * 0.005);
+      for (let i = 0; i < 3; i++) {
+        cx.beginPath();
+        cx.moveTo(-H * 0.05, -H * 0.068 + i * H * 0.03);
+        cx.lineTo(H * 0.05, -H * 0.068 + i * H * 0.03);
+        cx.stroke();
+      }
+      cx.restore();
+    }
+    if (zustand === "sendet" && rechts) {
+      /* Pistol Grip Tool: klobiger als ein irdischer Akkuschrauber */
+      cx.save();
+      cx.translate(rechts.x, rechts.y);
+      cx.rotate(0.5 + (ruhig ? 0 : Math.sin(t * 0.02 + phase) * 0.07));
+      cx.fillStyle = "#4e4c45";
+      rundRect(cx, -H * 0.03, -H * 0.028, H * 0.13, H * 0.058, H * 0.016); cx.fill();
+      rundRect(cx, -H * 0.022, H * 0.025, H * 0.048, H * 0.08, H * 0.014); cx.fill();
+      cx.fillStyle = "#b8b4a8";
+      rundRect(cx, H * 0.098, -H * 0.012, H * 0.055, H * 0.024, H * 0.008); cx.fill();
+      /* Funken */
+      if (!ruhig) {
+        for (let i = 0; i < 4; i++) {
+          const f = (t * 0.02 + i * 1.7 + phase) % 1;
+          cx.fillStyle = `rgba(255,${200 - i * 20},120,${(1 - f) * 0.85})`;
+          cx.beginPath();
+          cx.arc(H * (0.155 + f * 0.14), (streu(i, 3, 9) - 0.5) * H * 0.12 * f,
+                 H * 0.01 * (1 - f) + 0.3, 0, Math.PI * 2);
+          cx.fill();
+        }
+      }
+      cx.restore();
+    }
+  }
+
+  /* ---------- Helm ----------
+     Ein exakter Kreis, kein Kopf-Oval, und er sitzt ohne Hals direkt
+     zwischen den Schultern. Der Helm zeigt immer dorthin, wohin die
+     Brust zeigt: der Kopf dreht sich im Helm, der Helm aber nicht am
+     Rumpf. */
+  const hg = cx.createRadialGradient(-helmR * 0.4, helmY - helmR * 0.45, helmR * 0.08,
+                                     0, helmY, helmR);
+  hg.addColorStop(0, "#ffffff");
+  hg.addColorStop(0.5, "#eceade");
+  hg.addColorStop(0.84, "#787569");
+  hg.addColorStop(1, "#1a1b1e");
+  cx.fillStyle = hg;
+  cx.beginPath(); cx.arc(0, helmY, helmR, 0, Math.PI * 2); cx.fill();
+
+  /* Goldvisier: der einzige warme Farbfleck der ganzen Figur.
+     Halb heruntergeklappt — die Blende deckt die Frontoeffnung von
+     oben, das untere Drittel bleibt frei. */
+  const vg = cx.createLinearGradient(-helmR * 0.7, helmY - helmR * 0.7,
+                                      helmR * 0.7, helmY + helmR * 0.7);
+  vg.addColorStop(0, "#e8c06a");
+  vg.addColorStop(0.3, "#c9962e");
+  vg.addColorStop(0.62, "#6b4f18");
+  vg.addColorStop(1, "#2a2008");
+  cx.fillStyle = vg;
+  cx.beginPath(); cx.arc(0, helmY + helmR * 0.06, helmR * 0.72, 0, Math.PI * 2); cx.fill();
+
+  /* Im Visier spiegelt sich die Erde — eine blau-weisse Sichel. Das
+     ist das bekannteste Motiv der ganzen Raumfahrtfotografie und das
+     Einzige, was die Goldkugel endgueltig zum Helm macht. */
+  cx.save();
+  cx.beginPath(); cx.arc(0, helmY + helmR * 0.06, helmR * 0.72, 0, Math.PI * 2); cx.clip();
+  const eg = cx.createLinearGradient(-helmR * 0.6, helmY + helmR * 0.7, helmR * 0.2, helmY - helmR * 0.2);
+  eg.addColorStop(0, "rgba(120,190,255,.62)");
+  eg.addColorStop(0.45, "rgba(80,140,210,.4)");
+  eg.addColorStop(1, "rgba(80,140,210,0)");
+  cx.fillStyle = eg;
+  cx.beginPath();
+  cx.arc(-helmR * 0.3, helmY + helmR * 0.62, helmR * 0.8, Math.PI * 1.15, Math.PI * 1.95);
+  cx.closePath(); cx.fill();
+  /* Der Sonnenfleck daneben */
+  cx.fillStyle = "rgba(255,248,224,.55)";
+  cx.beginPath(); cx.arc(helmR * 0.32, helmY - helmR * 0.26, helmR * 0.13, 0, Math.PI * 2); cx.fill();
+  cx.restore();
+
+  if (mittel) {
+    /* Die weisse Schutzschale liegt wie ein Helmdach ueber Scheitel
+       und Seiten */
+    cx.fillStyle = "#e9e6da";
     cx.beginPath();
-    cx.arc(sd * s * 0.62 - sw * s * 0.22, s * 0.44 + sw * s * 0.26, s * 0.15, 0, Math.PI * 2);
-    cx.fill();
+    cx.arc(0, helmY, helmR * 0.99, Math.PI * 1.1, Math.PI * 1.9);
+    cx.arc(0, helmY, helmR * 0.7, Math.PI * 1.9, Math.PI * 1.1, true);
+    cx.closePath(); cx.fill();
+    /* Helmlampen */
+    cx.fillStyle = "rgba(255,250,228,.95)";
+    for (const sd of [-1, 1]) {
+      cx.beginPath();
+      cx.arc(sd * helmR * 0.6, helmY - helmR * 0.62, helmR * 0.14, 0, Math.PI * 2);
+      cx.fill();
+      if (zustand !== "ruht") {
+        cx.fillStyle = "rgba(255,250,228,.13)";
+        cx.beginPath(); cx.arc(sd * helmR * 0.6, helmY - helmR * 0.62, helmR * 0.44, 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = "rgba(255,250,228,.95)";
+      }
+    }
   }
 
-  /* Rumpf */
-  const rumpf = cx.createLinearGradient(-s * 0.4, 0, s * 0.4, s * 0.6);
-  rumpf.addColorStop(0, farbe);
-  rumpf.addColorStop(1, mischen(farbe, "#151c28", 0.42));
-  cx.fillStyle = rumpf;
-  rundRect(cx, -s * 0.4, -s * 0.14, s * 0.8, s * 0.74, s * 0.26);
-  cx.fill();
-  /* Brusttafel */
-  cx.fillStyle = "rgba(255,255,255,.22)";
-  rundRect(cx, -s * 0.2, s * 0.06, s * 0.4, s * 0.26, s * 0.08);
-  cx.fill();
+  /* Harte Lichtkante oben links auf der Helmschale */
+  cx.strokeStyle = "rgba(255,255,255,.55)";
+  cx.lineWidth = Math.max(0.6, helmR * 0.14); cx.lineCap = "round";
+  cx.beginPath(); cx.arc(0, helmY, helmR * 0.9, Math.PI * 1.12, Math.PI * 1.46); cx.stroke();
 
-  /* Helm */
-  const hy = -s * 0.62, hr = s * 0.5;
-  cx.fillStyle = "#eef3fb";
-  cx.beginPath(); cx.arc(0, hy, hr, 0, Math.PI * 2); cx.fill();
-  /* Visier */
-  const vis = cx.createLinearGradient(-hr, hy - hr, hr, hy + hr);
-  vis.addColorStop(0, "#2a3c57");
-  vis.addColorStop(0.55, "#0e1521");
-  vis.addColorStop(1, "#1b2637");
-  cx.fillStyle = vis;
-  cx.beginPath(); cx.arc(0, hy + hr * 0.04, hr * 0.78, 0, Math.PI * 2); cx.fill();
-  /* Lichtreflex — das, was die Figur sofort als Astronaut lesbar macht */
-  cx.strokeStyle = "rgba(255,255,255,.55)"; cx.lineWidth = s * 0.1; cx.lineCap = "round";
-  cx.beginPath(); cx.arc(0, hy, hr * 0.52, Math.PI * 1.08, Math.PI * 1.46); cx.stroke();
-  cx.fillStyle = "rgba(255,255,255,.28)";
-  cx.beginPath(); cx.arc(-hr * 0.26, hy - hr * 0.3, hr * 0.13, 0, Math.PI * 2); cx.fill();
-  /* Farbstreifen am Helm — Zugehoerigkeit */
-  cx.strokeStyle = farbe; cx.lineWidth = s * 0.11;
-  cx.beginPath(); cx.arc(0, hy, hr * 0.88, Math.PI * 1.15, Math.PI * 1.85); cx.stroke();
+  /* Farbring am Helm — Zugehoerigkeit auf einen Blick */
+  cx.strokeStyle = farbe; cx.lineWidth = Math.max(0.8, helmR * 0.2);
+  cx.beginPath(); cx.arc(0, helmY, helmR * 0.88, Math.PI * 0.2, Math.PI * 0.8); cx.stroke();
 
   cx.restore();
 }
@@ -1709,8 +2688,10 @@ function zeichneLeine(von, bis, farbe, zustand, t, blitze, phase) {
   const stp = { x: mx + (-dy / laenge) * (laenge * schlaff + wehen),
                 y: my + ( dx / laenge) * (laenge * schlaff + wehen) };
 
-  cx.strokeStyle = zustand === "fehler" ? "rgba(224,122,106,.42)" : "rgba(180,205,240,.28)";
-  cx.lineWidth = 1.1;
+  cx.strokeStyle = zustand === "fehler" ? "rgba(224,122,106,.45)" : "rgba(184,208,242,.34)";
+  /* Gegen den Zoom herausgerechnet: eine Leine, die beim Heranfahren zum
+     Balken wird, sieht falsch aus — beim Herauszoomen verschwaende sie. */
+  cx.lineWidth = 1.15 / Math.max(0.6, KAM.zoom);
   cx.beginPath();
   cx.moveTo(von.x, von.y);
   cx.quadraticCurveTo(stp.x, stp.y, bis.x, bis.y);
@@ -2335,6 +3316,65 @@ function himmelBacken() {
    4 — Der Bildlauf
    ================================================================ */
 
+/* ---------- Kamera: Zoom und Verschieben ----------
+   Die Szene wird um die Bildmitte skaliert. Der Himmel bekommt nur
+   einen Bruchteil davon mit — Sterne stehen praktisch unendlich weit
+   weg und wachsen beim Heranzoomen nicht mit. */
+const KAM = {
+  zoom: 1, x: 0, y: 0,
+  zielZoom: 1, zielX: 0, zielY: 0,
+  ziehtGerade: false,
+};
+const ZOOM_MIN = 0.55, ZOOM_MAX = 7;
+
+const klemm = (v, a, b) => v < a ? a : v > b ? b : v;
+
+/* Bildschirmpunkt in Szenenkoordinaten umrechnen — Umkehrung der
+   Kameraabbildung. Ohne das trifft ein Fingertipp beim Zoomen daneben. */
+function zeigerZuSzene(px, py) {
+  const z = KAM.zoom;
+  return { x: (px - (W / 2 + KAM.x)) / z + W / 2,
+           y: (py - (H / 2 + KAM.y)) / z + H / 2 };
+}
+
+function zoomeAuf(px, py, faktor) {
+  const vor = zeigerZuSzene(px, py);
+  KAM.zielZoom = klemm(KAM.zielZoom * faktor, ZOOM_MIN, ZOOM_MAX);
+  /* Sofort anwenden, damit der Punkt unter dem Zeiger stehen bleibt */
+  const zAlt = KAM.zoom; KAM.zoom = KAM.zielZoom;
+  const nach = zeigerZuSzene(px, py);
+  KAM.zoom = zAlt;
+  KAM.zielX += (nach.x - vor.x) * KAM.zielZoom;
+  KAM.zielY += (nach.y - vor.y) * KAM.zielZoom;
+  grenzenHalten();
+  zeigeZoomLeiste();
+}
+
+/* Nicht ins Leere verschieben duerfen */
+function grenzenHalten() {
+  const spiel = Math.max(W, H) * 0.75 * KAM.zielZoom;
+  KAM.zielX = klemm(KAM.zielX, -spiel, spiel);
+  KAM.zielY = klemm(KAM.zielY, -spiel, spiel);
+}
+
+function kameraZurueck() {
+  KAM.zielZoom = 1; KAM.zielX = 0; KAM.zielY = 0;
+  zeigeZoomLeiste();
+}
+
+/* Sanft auf einen Astronauten zufahren */
+function fahreZu(id, zoom) {
+  const v = SICHT.get(id);
+  if (!v) return;
+  KAM.zielZoom = klemm(zoom || 2.6, ZOOM_MIN, ZOOM_MAX);
+  /* Die Figur etwas ueber die Mitte setzen, damit das Detailfenster
+     unten links sie nicht verdeckt */
+  KAM.zielX = (W / 2 - v.sx) * KAM.zielZoom + W * 0.12;
+  KAM.zielY = (H / 2 - v.sy) * KAM.zielZoom - H * 0.06;
+  grenzenHalten();
+  zeigeZoomLeiste();
+}
+
 const SICHT = new Map();     // agentId -> { r, winkel, sx, sy }
 const ZUSTAND_RADIUS = { ruht: 1.0, denkt: 0.74, sendet: 0.86, fertig: 1.09, fehler: 1.17 };
 let letzteZeit = performance.now();
@@ -2361,6 +3401,12 @@ function rahmen(jetzt) {
 
   cx.clearRect(0, 0, W, H);
 
+  /* Kamera nachziehen — gleitet statt zu springen */
+  const eil = 1 - Math.pow(0.004, dt / 1000);
+  KAM.zoom = lerp(KAM.zoom, KAM.zielZoom, eil);
+  KAM.x = lerp(KAM.x, KAM.zielX, eil);
+  KAM.y = lerp(KAM.y, KAM.zielY, eil);
+
   zeichneHimmel(t);
   /* Nahe Sterne driften staerker als der Himmel dahinter — das erzeugt
      die Tiefe, auch wenn sonst nichts passiert */
@@ -2380,14 +3426,20 @@ function rahmen(jetzt) {
      nicht aus dem Bild laufen — sonst haengen Astronauten halb im Rand. */
   const luft = groesse * 2.4;
   Rbahn = Math.min(Rbahn, (W / 2 - luft) / 1.2, (H * 0.42 - luft) / (1.2 * 0.82));
-  const Rst = Math.max(24, Rbahn * 0.34);
+  /* Die Station misst mit Traeger und Fluegeln rund das Vierfache von R.
+     Bei 0,34 ragte sie ueber die Bahn der Astronauten hinaus. */
+  const Rst = Math.max(16, Rbahn * 0.2);
 
   /* Im Kinomodus atmet die Kamera leicht — reicht fuer einen Loop */
   const hoch = H / W > 1.3;
   const zoomBasis = kinoAn ? (hoch ? 1.16 : 1.06) : 1;
-  const zoom = kinoAn && !sparsam ? zoomBasis + 0.05 * Math.sin(t * 0.00017) : zoomBasis;
+  const kinoZoom = kinoAn && !sparsam ? zoomBasis + 0.05 * Math.sin(t * 0.00017) : zoomBasis;
   cx.save();
-  cx.translate(ccx, ccy); cx.scale(zoom, zoom); cx.translate(-ccx, -ccy);
+  /* Erst die Kamera des Nutzers, dann das Atmen des Kinomodus */
+  cx.translate(W / 2 + KAM.x, H / 2 + KAM.y);
+  cx.scale(KAM.zoom, KAM.zoom);
+  cx.translate(-W / 2, -H / 2);
+  cx.translate(ccx, ccy); cx.scale(kinoZoom, kinoZoom); cx.translate(-ccx, -ccy);
 
   zeichneStation(t, ccx, ccy, Rst);
 
@@ -2440,11 +3492,17 @@ function rahmen(jetzt) {
     const hervor = Z.gewaehlt === a.id || offeneDetailId === a.id;
     zeichneAstronaut(x, y, groesse, kipp, a.farbe, l.zustand, t, v.phase, hervor);
 
-    /* Namensschild mit Typ-Zeichen davor */
+    /* Namensschild — gegen den Zoom herausgerechnet. Schrift gehoert zur
+       Bedienung, nicht in die Szene: sonst wird sie beim Heranfahren
+       riesig und beim Herauszoomen unlesbar. */
+    const sz = 1 / (KAM.zoom * kinoZoom);
+    cx.save();
+    cx.translate(x, y + groesse * 1.5);
+    cx.scale(sz, sz);
     cx.font = "600 10.5px -apple-system, system-ui, sans-serif";
     cx.textAlign = "center"; cx.textBaseline = "top";
     cx.fillStyle = l.zustand === "ruht" ? "rgba(210,220,238,.42)" : "rgba(226,234,248,.88)";
-    cx.fillText((TYP_ZEICHEN[a.typ] || "") + " " + a.name.toUpperCase(), x, y + groesse * 1.5);
+    cx.fillText((TYP_ZEICHEN[a.typ] || "") + " " + a.name.toUpperCase(), 0, 0);
     /* Zweite Zeile: bei eigenen Agenten der Zustand, bei Live-Quellen der Ort */
     const unter = a.typ === "agent" ? (l.zustand !== "ruht" ? BESCHRIFTUNG[l.zustand] : "")
                                     : kuerzenVorn(a.branch || a.ort || "", 22);
@@ -2454,8 +3512,9 @@ function rahmen(jetzt) {
                    : l.zustand === "fertig" ? "rgba(116,180,141,.9)"
                    : l.zustand === "ruht"   ? "rgba(160,172,192,.5)"
                    : "rgba(123,164,216,.9)";
-      cx.fillText(unter, x, y + groesse * 1.5 + 13);
+      cx.fillText(unter, 0, 13);
     }
+    cx.restore();
 
     /* Die Figur selbst ist ein Hindernis fuer Blasen */
     hindernisse.push({ bx: x - groesse * 1.7, by: y - groesse * 2.0,
@@ -2471,6 +3530,20 @@ function rahmen(jetzt) {
                     farbe: a.farbe, seit: l.seit || a.seit || 0 });
     }
   });
+
+  /* Blasen ab hier ohne Kameraabbildung: sie gehoeren zur Bedienung und
+     sollen in jeder Zoomstufe gleich gross und gleich scharf sein. */
+  cx.restore();
+  const inSicht = (px, py) => ({
+    x: (px - W / 2) * KAM.zoom * kinoZoom + W / 2 + KAM.x,
+    y: (py - H / 2) * KAM.zoom * kinoZoom + H / 2 + KAM.y,
+  });
+  for (const b of blasen) { const s2 = inSicht(b.x, b.y); b.x = s2.x; b.y = s2.y; }
+  for (const h of hindernisse) {
+    const s2 = inSicht(h.bx + h.bw / 2, h.by + h.bh / 2);
+    h.bw *= KAM.zoom * kinoZoom; h.bh *= KAM.zoom * kinoZoom;
+    h.bx = s2.x - h.bw / 2; h.by = s2.y - h.bh / 2;
+  }
 
   /* Blasen zuletzt — sie weichen einander UND den Astronauten aus.
      Auf schmalen Bildschirmen nur die zwei juengsten, sonst steht
@@ -2493,7 +3566,6 @@ function rahmen(jetzt) {
     blaseZeichnen(box, bl.farbe);
   }
 
-  cx.restore();
   requestAnimationFrame(rahmen);
 }
 
@@ -3458,7 +4530,11 @@ function themaWaehlen(id) {
    ================================================================ */
 
 function blendeAuf(id) {
-  blendeOffen = true;
+  /* Beim Astronauten-Detail bleibt die Szene sichtbar UND in Bewegung.
+     Bei den anderen Blenden waere das nur verschenkte Rechenzeit. */
+  const klareSicht = id === "blende-detail";
+  document.body.classList.toggle("sicht", klareSicht);
+  blendeOffen = !klareSicht;
   /* Wechselt man vom Detail zu einer anderen Blende, gehoert der
      Auswahlring am Astronauten weg */
   if (id !== "blende-detail" && offeneDetailId) { offeneDetailId = null; zeichneCrewLeiste(); }
@@ -3471,6 +4547,7 @@ function blendeAuf(id) {
 }
 function blendeZu() {
   blendeOffen = false;
+  document.body.classList.remove("sicht");
   $$(".blende").forEach(b => b.classList.remove("offen"));
   $("#schleier").classList.remove("an");
   offeneDetailId = null;
@@ -3682,20 +4759,112 @@ function absenden() {
   feld.value = ""; hoeheAnpassen(); pruefeSendeKnopf();
 }
 
-/* --- Tippen auf einen Astronauten --- */
-cv.addEventListener("pointerdown", (ev) => {
-  if (kinoAn) { kino(false); return; }
-  const x = ev.clientX, y = ev.clientY;
+/* --- Zeiger: tippen, ziehen, zoomen --- */
+const ZEIGER = new Map();
+let zieh = null;
+let kneifAbstand = 0;
+
+function zoomLeisteAktualisieren() {
+  $("#zoom-stufe").textContent = KAM.zielZoom.toFixed(1).replace(".", ",") + "×";
+}
+function zeigeZoomLeiste() {
+  zoomLeisteAktualisieren();
+  const noetig = Math.abs(KAM.zielZoom - 1) > 0.02 || Math.abs(KAM.zielX) > 4 || Math.abs(KAM.zielY) > 4;
+  $("#zoomleiste").classList.toggle("da", noetig);
+}
+
+function astronautBei(px, py) {
+  /* In Szenenkoordinaten suchen, sonst trifft man beim Zoomen daneben */
+  const p = zeigerZuSzene(px, py);
   let treffer = null, naechste = 1e9;
+  const reichweite = 42 / Math.max(0.6, KAM.zoom) + 16;
   for (const a of alleAstronauten()) {
     const v = SICHT.get(a.id);
     if (!v) continue;
-    const d = Math.hypot(v.sx - x, v.sy - y);
-    if (d < 42 && d < naechste) { naechste = d; treffer = a; }
+    const d = Math.hypot(v.sx - p.x, v.sy - p.y);
+    if (d < reichweite && d < naechste) { naechste = d; treffer = a; }
   }
-  if (!treffer) return;
-  detailOeffnen(treffer.id);
+  return treffer;
+}
+
+cv.addEventListener("pointerdown", (ev) => {
+  if (kinoAn) { kino(false); return; }
+  cv.setPointerCapture(ev.pointerId);
+  ZEIGER.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (ZEIGER.size === 1) {
+    zieh = { x0: ev.clientX, y0: ev.clientY, kx: KAM.zielX, ky: KAM.zielY, bewegt: false };
+  } else if (ZEIGER.size === 2) {
+    const [a, b] = [...ZEIGER.values()];
+    kneifAbstand = Math.hypot(a.x - b.x, a.y - b.y);
+    zieh = null;
+  }
 });
+
+cv.addEventListener("pointermove", (ev) => {
+  if (!ZEIGER.has(ev.pointerId)) return;
+  ZEIGER.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+
+  if (ZEIGER.size === 2 && kneifAbstand) {
+    /* Zwei Finger: zwischen ihnen zoomen */
+    const [a, b] = [...ZEIGER.values()];
+    const jetzt = Math.hypot(a.x - b.x, a.y - b.y);
+    if (jetzt > 4) {
+      zoomeAuf((a.x + b.x) / 2, (a.y + b.y) / 2, jetzt / kneifAbstand);
+      kneifAbstand = jetzt;
+    }
+    return;
+  }
+
+  if (!zieh) return;
+  const dx = ev.clientX - zieh.x0, dy = ev.clientY - zieh.y0;
+  if (!zieh.bewegt && Math.hypot(dx, dy) > 5) {
+    zieh.bewegt = true;
+    cv.classList.add("zieht");
+  }
+  if (zieh.bewegt) {
+    KAM.zielX = zieh.kx + dx; KAM.zielY = zieh.ky + dy;
+    /* Beim Ziehen sofort folgen statt nachzugleiten */
+    KAM.x = KAM.zielX; KAM.y = KAM.zielY;
+    grenzenHalten();
+    zeigeZoomLeiste();
+  }
+});
+
+function zeigerLoslassen(ev) {
+  const war = zieh;
+  ZEIGER.delete(ev.pointerId);
+  if (ZEIGER.size < 2) kneifAbstand = 0;
+  cv.classList.remove("zieht");
+  if (ZEIGER.size === 0) zieh = null;
+  /* Nur wenn nicht gezogen wurde, gilt es als Tippen */
+  if (war && !war.bewegt && ZEIGER.size === 0) {
+    const treffer = astronautBei(ev.clientX, ev.clientY);
+    if (treffer) {
+      detailOeffnen(treffer.id);
+      if (KAM.zielZoom < 1.6) fahreZu(treffer.id, 2.4);
+    }
+  }
+}
+cv.addEventListener("pointerup", zeigerLoslassen);
+cv.addEventListener("pointercancel", zeigerLoslassen);
+
+cv.addEventListener("wheel", (ev) => {
+  if (kinoAn) return;
+  ev.preventDefault();
+  /* Trackpads liefern kleine Schritte, Maeuse grosse — beides daempfen */
+  const schritt = Math.exp(-ev.deltaY * 0.0018);
+  zoomeAuf(ev.clientX, ev.clientY, klemm(schritt, 0.7, 1.4));
+}, { passive: false });
+
+cv.addEventListener("dblclick", (ev) => {
+  const treffer = astronautBei(ev.clientX, ev.clientY);
+  if (treffer) fahreZu(treffer.id, 3.4);
+  else kameraZurueck();
+});
+
+$("#zoom-rein").onclick = () => zoomeAuf(W / 2, H / 2, 1.45);
+$("#zoom-raus").onclick = () => zoomeAuf(W / 2, H / 2, 1 / 1.45);
+$("#zoom-weg").onclick = kameraZurueck;
 
 window.addEventListener("resize", groesseAnpassen);
 window.addEventListener("orientationchange", () => setTimeout(groesseAnpassen, 120));
@@ -3711,6 +4880,7 @@ zeichneCrewLeiste();
 zeichneLog();
 hoeheAnpassen();
 pruefeSendeKnopf();
+zoomLeisteAktualisieren();
 requestAnimationFrame(rahmen);
 brueckeStarten();
 
@@ -3776,6 +4946,10 @@ if (!imProgramm() && !schonInstalliert()
 window.__BR_LIVE = () => BR.live;
 window.__DETAIL = (id) => detailOeffnen(id);
 window.__HIMMEL = () => HIMMEL;
+window.__KAM = () => KAM;
+window.__SICHT = () => SICHT;
+window.__ALLE = () => alleAstronauten();
+window.__BLENDE_OFFEN = () => blendeOffen;
 window.__STERNE = (t,a,b) => zeichneSterne(t,a,b);
 window.__STATION = (t,x,y,r) => zeichneStation(t,x,y,r);
 window.__ASTRO = (...a) => zeichneAstronaut(...a);
