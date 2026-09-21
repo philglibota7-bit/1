@@ -4005,6 +4005,245 @@ function backeFerneSterne(breite, hoehe, thema) {
 }
 
 /* Rand, damit der Himmel driften kann, ohne dass eine Kante ins Bild kommt */
+/* --- Die Erde --------------------------------------------------------
+   Sie fehlte bisher ganz, und damit fehlte das Wichtigste an der
+   Szene. Aus 400 Kilometern Hoehe fuellt die Erde rund 140 Grad des
+   Himmels: sie ist die zweite Lichtquelle, sie liefert den Massstab,
+   und der Tagesrand, der zweimal je Umlauf darueber wandert, ist das
+   Einzige, woran man sieht, dass die Station wirklich faehrt.
+
+   Gebacken wird nur der sichtbare Ausschnitt — ein Band am unteren
+   Bildrand. Die ganze Kugel waere ein Vielfaches des Schirms gross und
+   zu neun Zehnteln ausserhalb; sie ganz zu backen waere Speicher fuer
+   nichts. */
+const ERDE = { bild: null, lichter: null, breite: 0, hoehe: 0, oben: 0, rand: 0 };
+
+function erdeMasse() {
+  const r = W * 1.5;                   // Kugelradius in Bildpunkten
+  const cy = H + r * 0.88;             // Mittelpunkt weit unter dem Bild
+  return { r, cx: W / 2, cy, oben: cy - r };
+}
+
+function erdeBacken() {
+  const m = erdeMasse();
+  const rand = 60;
+  const oben = Math.max(0, Math.floor(m.oben - rand));
+  const hoehe = Math.ceil(H - oben + rand);
+  const fein = 0.85;                   // fein genug, dass der Dunst nicht streift
+  const bw = Math.max(2, Math.round(W * fein));
+  const bh = Math.max(2, Math.round(hoehe * fein));
+
+  const bild = document.createElement("canvas");
+  bild.width = bw; bild.height = bh;
+  const c = bild.getContext("2d");
+  const bd = c.createImageData(bw, bh);
+  const d = bd.data;
+
+  const lichter = document.createElement("canvas");
+  lichter.width = bw; lichter.height = bh;
+  const lc = lichter.getContext("2d");
+
+  const rr = m.r * fein, mx = m.cx * fein, my = (m.cy - oben) * fein;
+
+  for (let y = 0; y < bh; y++) {
+    for (let x = 0; x < bw; x++) {
+      const dx = x - mx, dy = y - my;
+      const ab = Math.hypot(dx, dy);
+      const i = (y * bw + x) * 4;
+      if (ab > rr) { d[i + 3] = 0; continue; }
+
+      /* Wie steil steht die Flaeche zum Betrachter? Am Rand der Scheibe
+         blickt man streifend darauf, und dort wird die Luft dick —
+         daher der helle Saum, den jedes Foto aus dem Orbit zeigt. */
+      const kante = ab / rr;
+      const steil = Math.sqrt(Math.max(0, 1 - kante * kante));
+
+      /* Land und Meer aus demselben Rauschen: ueber einer Schwelle
+         Land, darunter Wasser. Eine echte Karte waere hier weder
+         moeglich noch noetig — was man aus dem Orbit erkennt, sind
+         Formen und Farben, keine Laender. */
+      const sx = dx / rr * 2.6, sy = dy / rr * 2.6;
+      const h = fbm(sx * 1.7 + 12, sy * 1.7 + 30, 71, 5);
+      const land = h > 0.52;
+      const trocken = fbm(sx * 3.1 - 8, sy * 3.1 + 5, 113, 3);
+
+      let r, g, b;
+      if (land) {
+        const k = (h - 0.52) / 0.48;
+        if (trocken > 0.56) { r = 168 + k * 40; g = 138 + k * 32; b = 92 + k * 26; }
+        else                { r = 62 + k * 46;  g = 92 + k * 52;  b = 52 + k * 30; }
+      } else {
+        /* Tiefes Wasser ist fast schwarzblau, flaches leuchtet tuerkis */
+        const tief = 0.52 - h;
+        r = 12 + (1 - tief * 2.2) * 26;
+        g = 44 + (1 - tief * 2.2) * 78;
+        b = 104 + (1 - tief * 2.2) * 86;
+      }
+
+      /* Wolken: ein eigenes, weicheres Rauschen darueber. Sie liegen in
+         Baendern, weil die Atmosphaere in Baendern stroemt. */
+      const band = 0.5 + 0.5 * Math.sin(sy * 5.2 + fbm(sx * 0.9, sy * 0.9, 211, 3) * 4);
+      const w = fbm(sx * 2.3 + 40, sy * 2.3 - 15, 157, 5) * (0.45 + 0.55 * band);
+      const wolke = Math.max(0, (w - 0.42) / 0.58);
+      if (wolke > 0) {
+        const a = Math.min(1, wolke * 1.6);
+        r = r * (1 - a) + 246 * a;
+        g = g * (1 - a) + 250 * a;
+        b = b * (1 - a) + 255 * a;
+      }
+
+      /* Streifender Blick am Rand: die Atmosphaere legt sich als
+         blauer Schleier darueber und wird zur Kante hin dichter. */
+      const dunst = Math.pow(1 - steil, 2.2);
+      r = r * (1 - dunst) + 118 * dunst;
+      g = g * (1 - dunst) + 168 * dunst;
+      b = b * (1 - dunst) + 232 * dunst;
+
+      /* Ein Hauch Rauschen gegen Streifenbildung. Weiche Verlaeufe
+         ueber viele hundert Bildpunkte treffen sonst dieselbe
+         gerundete Farbe in ganzen Baendern, und die sieht man. */
+      const koern = (streu(x, y, 909) - 0.5) * 3.5;
+      d[i] = r + koern; d[i + 1] = g + koern; d[i + 2] = b + koern; d[i + 3] = 255;
+
+      /* Stadtlichter: nur an Land, nur nahe der Kueste, und nie
+         gleichmaessig. Sie werden getrennt gemerkt und spaeter nur auf
+         der Nachtseite aufgeblendet. */
+      if (land && h < 0.62 && streu(x, y, 401) > 0.986 && wolke < 0.35) {
+        lc.fillStyle = `rgba(255,214,150,${0.5 + streu(x, y, 77) * 0.5})`;
+        lc.fillRect(x, y, 1, 1);
+      }
+    }
+  }
+  c.putImageData(bd, 0, 0);
+
+  /* Der Lufthauch ueber der Kante wird mitgebacken. Live gezeichnet
+     waere er ein Farbverlauf ueber einen Kreis von ueber zweitausend
+     Bildpunkten Radius — gemessen hat das allein die Bildrate von
+     sechzig auf vierzehn gedrueckt. Er bewegt sich nie, also gehoert
+     er ins Bild. */
+  c.save();
+  c.globalCompositeOperation = "lighter";
+  const rg = c.createRadialGradient(mx, my, rr * 0.982, mx, my, rr * 1.03);
+  rg.addColorStop(0, "rgba(120,180,255,0)");
+  rg.addColorStop(0.42, "rgba(150,205,255,.55)");
+  rg.addColorStop(1, "rgba(120,180,255,0)");
+  c.fillStyle = rg;
+  /* Nur der Streifen um die Kante, nicht die ganze Scheibe */
+  c.beginPath();
+  c.rect(0, 0, bw, Math.max(2, my - rr * 0.94));
+  c.clip();
+  c.fillRect(0, 0, bw, bh);
+  c.restore();
+
+  /* Feines Korn ueber alles. Ein Farbverlauf ueber hunderte
+     Bildpunkte trifft sonst dieselbe gerundete Farbe in ganzen
+     Baendern — und diese Ringe sieht man sofort, gerade im Dunst
+     ueber der Kante. */
+  c.save();
+  c.globalCompositeOperation = "source-atop";
+  const korn = c.createImageData(64, 64);
+  for (let i = 0; i < korn.data.length; i += 4) {
+    const v = 128 + (streu(i, 3, 55) - 0.5) * 26;
+    korn.data[i] = korn.data[i + 1] = korn.data[i + 2] = v;
+    korn.data[i + 3] = 26;
+  }
+  const kb = document.createElement("canvas");
+  kb.width = kb.height = 64;
+  kb.getContext("2d").putImageData(korn, 0, 0);
+  c.fillStyle = c.createPattern(kb, "repeat");
+  c.fillRect(0, 0, bw, bh);
+  c.restore();
+
+  /* Die fertige Scheibe in Bildschirmaufloesung. Hier landet spaeter
+     auch der Tagesrand hinein — dann bleibt im laufenden Betrieb eine
+     einzige Kopie eins zu eins uebrig, und die kostet fast nichts. */
+  const fertig = document.createElement("canvas");
+  fertig.width = Math.round(W * DPR); fertig.height = Math.round(hoehe * DPR);
+
+  ERDE.roh = bild; ERDE.lichter = lichter; ERDE.bild = fertig;
+  ERDE.breite = W; ERDE.hoehe = H; ERDE.oben = oben; ERDE.rand = rand;
+  ERDE.termX = null;
+}
+
+/* Tagesrand und Stadtlichter in die Scheibe einrechnen. Das passiert
+   nicht in jedem Bild: der Rand wandert mit gut zwoelf Bildpunkten je
+   Sekunde ueber den Schirm, also reicht es, ihn alle zwei Sekunden
+   nachzuziehen — zwanzig Bildpunkte auf einem tausend Bildpunkte
+   breiten Verlauf sieht niemand. */
+function erdeSchatten(termX, tags, lauf) {
+  const c = ERDE.bild.getContext("2d");
+  const bw = ERDE.bild.width, bh = ERDE.bild.height;
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.clearRect(0, 0, bw, bh);
+  c.imageSmoothingQuality = "high";
+  c.drawImage(ERDE.roh, 0, 0, bw, bh);
+
+  if (!tags || lauf > 0.55) {
+    c.save();
+    c.globalCompositeOperation = "lighter";
+    c.globalAlpha = tags ? 0.3 : 1;
+    c.drawImage(ERDE.lichter, 0, 0, bw, bh);
+    c.restore();
+  }
+
+  const m = erdeMasse();
+  const breite = W * 0.34 * DPR;
+  const tx = termX * DPR;
+  const sg = c.createLinearGradient(tx - breite, 0, tx + breite, 0);
+  if (tags) {
+    sg.addColorStop(0, "rgba(6,8,16,0)");
+    sg.addColorStop(0.34, "rgba(255,228,170,.16)");
+    sg.addColorStop(0.48, "rgba(232,140,64,.34)");
+    sg.addColorStop(0.6, "rgba(122,40,42,.6)");
+    sg.addColorStop(0.78, "rgba(10,12,24,.88)");
+    sg.addColorStop(1, "rgba(4,6,14,.94)");
+  } else {
+    sg.addColorStop(0, "rgba(4,6,14,.94)");
+    sg.addColorStop(0.22, "rgba(10,12,24,.88)");
+    sg.addColorStop(0.4, "rgba(122,40,42,.6)");
+    sg.addColorStop(0.52, "rgba(232,140,64,.34)");
+    sg.addColorStop(0.66, "rgba(255,228,170,.16)");
+    sg.addColorStop(1, "rgba(6,8,16,0)");
+  }
+  c.save();
+  c.globalCompositeOperation = "source-atop";
+  c.fillStyle = sg;
+  c.fillRect(0, 0, bw, bh);
+  c.restore();
+  ERDE.termX = termX;
+}
+
+function zeichneErde(t) {
+  if (sparsam) return;
+  if (!ERDE.bild || ERDE.breite !== W || ERDE.hoehe !== H) erdeBacken();
+  if (!ERDE.bild) return;
+  const hoehe = H - ERDE.oben + ERDE.rand;
+
+  /* Die Erde steht naeher als die Sterne, aber viel weiter als die
+     Station: sie wandert beim Verschieben ein Drittel mit und waechst
+     beim Zoomen nicht. Genau diese Staffelung erzeugt die Tiefe. */
+  const dx = KAM.x * 0.3, dy = KAM.y * 0.3;
+
+  /* Der Tagesrand wandert einmal je Umlauf ueber die Scheibe. Bei Tag
+     laeuft er von rechts heran, bei Nacht laeuft die Helligkeit von
+     links wieder auf. */
+  const ph = window.__PHASE_WERT !== undefined ? window.__PHASE_WERT : 0;
+  const tags = Z.umlauf === false ? true : ph < TAGANTEIL;
+  const lauf = Z.umlauf === false ? 0.1
+             : tags ? ph / TAGANTEIL : (ph - TAGANTEIL) / (1 - TAGANTEIL);
+  const termX = W * (1.7 - 2.4 * lauf);
+  if (ERDE.termX === null || Math.abs(termX - ERDE.termX) > 20 || ERDE.tags !== tags) {
+    ERDE.tags = tags;
+    erdeSchatten(termX, tags, lauf);
+  }
+
+  cx.save();
+  cx.setTransform(1, 0, 0, 1, 0, 0);
+  cx.drawImage(ERDE.bild,
+    Math.round(dx * DPR), Math.round((ERDE.oben + dy) * DPR));
+  cx.restore();
+}
+
 const HIMMEL_RAND = 90;
 
 /* --- Alles neu backen und zu EINEM Bild zusammenfuegen ---
@@ -4151,10 +4390,12 @@ function rahmen(jetzt) {
 
   /* Die Stelle im Umlauf bestimmt das Licht fuer alles Weitere */
   const umlaufPhase = PHASE_TEST !== null ? PHASE_TEST : (t % UMLAUF) / UMLAUF;
+  window.__PHASE_WERT = umlaufPhase;
   TAGLICHT = Z.umlauf === false ? 1 : tageslicht(umlaufPhase);
   ABENDLICHT = abendlicht(TAGLICHT);
 
   zeichneHimmel(t);
+  zeichneErde(t);
   /* Nahe Sterne driften staerker als der Himmel dahinter — das erzeugt
      die Tiefe, auch wenn sonst nichts passiert */
   zeichneSterne(t, t * 0.0035, t * 0.0012);
@@ -4186,10 +4427,13 @@ function rahmen(jetzt) {
     ? Math.max(20, W * 0.125)
     : Math.max(20, Math.min(W * 0.082, H * 0.132));
   const modulR = Rst * 0.25;               // Radius eines Druckmoduls
-  /* Auf schmalen Bildschirmen waere die richtige Figur neun Bildpunkte
-     hoch und damit nicht mehr zu erkennen. Dort gewinnt die Lesbarkeit
-     gegen das Verhaeltnis — aber erst dort. */
-  const groesse = Math.max(9, (modulR * 0.88) / 2.1);
+  /* Das ehrliche Verhaeltnis waere 0,88 Modulradien Figurenhoehe. Dabei
+     bleibt die Figur auf grossen Schirmen winzig und auf dem Handy
+     unsichtbar. Hier gewinnt die Lesbarkeit: ein Drittel groesser als
+     wahr, und darunter eine feste Untergrenze. Das ist bewusst
+     geschummelt — der Rest der Station stimmt auf den Zentimeter. */
+  const LESBAR = 1.34;
+  const groesse = Math.max(12, (modulR * 0.88 * LESBAR) / 2.1);
 
   /* Im Kinomodus atmet die Kamera leicht — reicht fuer einen Loop */
   const hoch = H / W > 1.3;
