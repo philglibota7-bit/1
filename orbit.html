@@ -2413,8 +2413,41 @@ const NACHBARN = [];
    die sieht man nur, wenn die Sonne sie trifft. */
 const VENTIL = [];
 
+/* Bahnanhebung. Die Station verliert in jedem Monat mehrere hundert
+   Meter Hoehe, weil in vierhundert Kilometern noch genug Luft ist, um
+   zu bremsen. Also wird regelmaessig nachgeschoben — minutenlang, mit
+   winzigem Schub. Sichtbar ist davon fast nichts: ein Hauch gefrorener
+   Abgase am Heck, mehr nicht. */
+const SCHUB = { bis: 0, von: 0, laeuft: false };
+
 function ereignisse(t, dt, ccx, ccy, Rst) {
   if (sparsam) return;
+
+  /* Bahnanhebung */
+  if (SCHUB.bis === 0) SCHUB.bis = t + 150000;
+  if (t > SCHUB.bis) {
+    SCHUB.laeuft = !SCHUB.laeuft;
+    SCHUB.von = t;
+    SCHUB.bis = t + (SCHUB.laeuft ? 26000 : 210000);
+    if (SCHUB.laeuft) bordbuch("Bahnanhebung läuft");
+  }
+  if (SCHUB.laeuft) {
+    const u = (t - SCHUB.von) / 26000;
+    const an = Math.min(1, u * 8) * Math.min(1, (1 - u) * 8);
+    cx.save();
+    cx.translate(ccx, ccy);
+    cx.rotate(0.72);
+    for (let k = 0; k < 14; k++) {
+      const f = ((k / 14) + t * 0.0005) % 1;
+      const weit = Rst * (0.9 + f * 2.6);
+      const auf = (streu(k, 9, 21) - 0.5) * weit * 0.22;
+      cx.fillStyle = `rgba(214,232,255,${an * (1 - f) * 0.22 * TAGLICHT})`;
+      cx.beginPath();
+      cx.arc(-weit, auf, Rst * (0.04 + f * 0.14), 0, Math.PI * 2);
+      cx.fill();
+    }
+    cx.restore();
+  }
 
   if (VENTIL.length < 1 && Math.random() < dt / 34000) {
     const w = Math.random() * Math.PI * 2;
@@ -5161,6 +5194,9 @@ function rahmen(jetzt) {
   const blasen = [];
   const hindernisse = [];
   const schilder = [];
+  /* Kleinkram wie Werkzeugtaschen lohnt erst ab einer gewissen
+     Figurgroesse — darunter ist es ein Fleck und kostet trotzdem. */
+  const mittelgross = groesse >= 15 && !sparsam;
 
   /* --- Wer steht wo? -------------------------------------------------
      Ein Aussenbordeinsatz findet nicht im freien Raum statt, sondern an
@@ -5421,6 +5457,31 @@ function rahmen(jetzt) {
       if (d < nd) { nd = d; naechster = w; }
     }
     if (naechster) blick = naechster.sx < x ? -1 : 1;
+
+    /* Die Werkzeugtasche. Draussen wird nichts in die Hand genommen,
+       was nicht angebunden ist — ein losgelassener Schraubenschluessel
+       ist im Orbit ein Geschoss und kommt nie wieder. Also haengt die
+       Tasche an einer kurzen Leine am Arbeitsplatz und treibt daneben. */
+    if (mittelgross && frei < 0.3 && (l.zustand === "sendet" || l.zustand === "denkt")) {
+      const tp = t * 0.00016 + v.phase * 2;
+      const tx = anker.x + Math.cos(auf + 1.15) * groesse * (2.3 + Math.sin(tp) * 0.35);
+      const ty = anker.y + Math.sin(auf + 1.15) * groesse * (2.3 + Math.sin(tp) * 0.35);
+      cx.strokeStyle = "rgba(184,208,242,.28)";
+      cx.lineWidth = 1 / Math.max(0.6, KAM.zoom);
+      cx.beginPath(); cx.moveTo(anker.x, anker.y); cx.lineTo(tx, ty); cx.stroke();
+      cx.save();
+      cx.translate(tx, ty);
+      cx.rotate(q.winkel + Math.sin(tp * 1.7) * 0.25);
+      const tw = groesse * 0.52, th = groesse * 0.38;
+      cx.fillStyle = sonnenlauf(cx, -tw / 2, -th / 2, tw, th,
+        "#e9e5d8", "#8c8880", "#191b1f");
+      rundRect(cx, -tw / 2, -th / 2, tw, th, th * 0.22); cx.fill();
+      cx.strokeStyle = "rgba(24,26,30,.6)"; cx.lineWidth = Math.max(0.3, groesse * 0.03);
+      rundRect(cx, -tw / 2, -th / 2, tw, th, th * 0.22); cx.stroke();
+      cx.strokeStyle = "rgba(198,162,66,.8)"; cx.lineWidth = Math.max(0.3, groesse * 0.05);
+      cx.beginPath(); cx.moveTo(-tw * 0.3, -th * 0.5); cx.lineTo(tw * 0.3, -th * 0.5); cx.stroke();
+      cx.restore();
+    }
 
     zeichneAstronaut(x, y, groesse * v.wuchs, kipp, a.farbe, l.zustand, t, v.phase, hervor, haltung, blick);
 
