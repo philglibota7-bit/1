@@ -353,6 +353,26 @@ body.kino #install{display:none;}
 #install .weg:hover{background:var(--p3); color:var(--tx);}
 @media (max-width:460px){ #install .wort span{font-size:11px;} }
 
+/* ---------- Hintergrund-Auswahl ---------- */
+#himmel-gitter{display:grid; grid-template-columns:repeat(auto-fill, minmax(132px, 1fr)); gap:10px;}
+@media (min-width:760px){ #himmel-gitter{grid-template-columns:repeat(auto-fill, minmax(118px, 1fr));} }
+.himmel-karte{
+  border:1px solid var(--edge); border-radius:var(--r1); overflow:hidden;
+  background:var(--p1); text-align:left; transition:all .2s var(--ease);
+  display:flex; flex-direction:column;
+}
+.himmel-karte:hover{border-color:var(--edge2); transform:translateY(-2px);}
+.himmel-karte.an{border-color:var(--acc); box-shadow:0 0 0 1px var(--acc);}
+.himmel-vorschau{height:64px; position:relative; overflow:hidden;}
+/* Ein Hauch Abdunklung unten, damit der Text darunter ruhig anschliesst */
+.himmel-vorschau::after{content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg, transparent 55%, rgba(0,0,0,.35) 100%);}
+.himmel-text{padding:8px 9px 9px;}
+.himmel-text b{display:block; font-size:12px; font-weight:600; line-height:1.3;}
+.himmel-text small{display:block; font-size:10px; color:var(--tx3); line-height:1.4; margin-top:2px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.himmel-leer{grid-column:1/-1; text-align:center; color:var(--tx3); font-size:13px; padding:24px;}
+
 /* ---------- Detailansicht ---------- */
 .d-zeile{display:flex; gap:12px; padding:9px 0; border-bottom:1px solid var(--edge); font-size:13px;}
 .d-zeile:last-child{border-bottom:none;}
@@ -418,6 +438,9 @@ body.kino #install{display:none;}
     <button class="kopf-knopf" id="btn-crew" title="Crew verwalten">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M17 11.5a3 3 0 1 0-1.8-5.4M18 20c0-2.2-.8-3.9-2-5"/></svg>
       <span>Crew</span>
+    </button>
+    <button class="kopf-knopf" id="btn-himmel" title="Hintergrund wählen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><ellipse cx="12" cy="12" rx="10" ry="4.2" transform="rotate(-22 12 12)"/></svg>
     </button>
     <button class="kopf-knopf" id="btn-bruecke" title="Echte Arbeitsabläufe">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17V9a9 9 0 0 1 18 0v8M3 17h18M8 17V11M16 17V11M12 17V8.5"/></svg>
@@ -522,6 +545,20 @@ body.kino #install{display:none;}
       <div class="farbwahl" id="a-farbe"></div></label>
     <button class="knopf voll" id="a-speichern">Speichern</button>
     <button class="knopf leer" id="a-loeschen" style="margin-top:9px; display:none">Agent löschen</button>
+  </div>
+</div>
+
+<!-- ---------- Blende: Hintergrund ---------- -->
+<div class="blende glas" id="blende-himmel">
+  <div class="griff"></div>
+  <div class="blende-kopf">
+    <h2>Hintergrund</h2>
+    <span class="summe" id="himmel-zahl"></span>
+    <button class="zu" data-zu="blende-himmel">✕</button>
+  </div>
+  <div class="blende-inhalt">
+    <input class="eingabe" id="himmel-suche" placeholder="Suchen — Name oder Objekt" autocomplete="off" style="margin-bottom:12px">
+    <div id="himmel-gitter"></div>
   </div>
 </div>
 
@@ -842,6 +879,7 @@ async function sessionLesen(pfad, groesse, name) {
 
   return {
     id: "s:" + (sid || name),
+    sid,
     typ: "session",
     name: (cwd.split("/").pop() || "Session"),
     farbe: farbeAusName(sid || name),
@@ -856,6 +894,47 @@ async function sessionLesen(pfad, groesse, name) {
     schritte: schritte.slice(0, 8),
   };
 }
+
+/* Claude Code fuehrt je laufendem Prozess eine winzige Datei mit dem
+   echten Zustand. Das ist viel verlaesslicher als aus Zeitstempeln zu
+   raten, ob gerade gearbeitet wird oder auf eine Eingabe gewartet.
+   Eine Aufgabenliste gibt es in dieser Fassung nicht — der Ordner
+   ~/.claude/todos existiert schlicht nicht, nachgesehen und bestaetigt. */
+async function sammleSitzungsregister() {
+  const basis = BR.heim + "/.claude/sessions";
+  let dateien;
+  try { dateien = await Neutralino.filesystem.readDirectory(basis); }
+  catch { return {}; }
+
+  /* Tote Eintraege aussortieren: die Datei bleibt liegen, wenn ein
+     Prozess abstuerzt. */
+  const lebende = new Set(
+    (await befehl("ps -Ao pid= 2>/dev/null")).split(/\s+/).filter(Boolean)
+  );
+
+  const raus = {};
+  for (const d of dateien) {
+    if (!d.entry.endsWith(".json")) continue;      // .key-Dateien nicht anfassen
+    let roh;
+    try { roh = await Neutralino.filesystem.readFile(basis + "/" + d.entry); }
+    catch { continue; }
+    let j;
+    try { j = JSON.parse(roh); } catch { continue; }
+    if (!j.sessionId) continue;
+    if (j.pid && lebende.size && !lebende.has(String(j.pid))) continue;
+    raus[j.sessionId] = j;
+  }
+  return raus;
+}
+
+const REGISTER_ZUSTAND = { busy: "sendet", waiting: "denkt", idle: "ruht" };
+const WARTET_TEXT = {
+  "permission prompt": "wartet auf deine Freigabe",
+  "input needed": "wartet auf deine Eingabe",
+  "dialog open": "ein Dialog ist offen",
+  "sandbox request": "wartet auf eine Sandbox-Freigabe",
+  "goal proposal": "wartet auf deine Zustimmung zum Ziel",
+};
 
 async function sammleSessions() {
   const basis = BR.heim + "/.claude/projects";
@@ -886,6 +965,21 @@ async function sammleSessions() {
   for (const k of kandidaten.slice(0, 6)) {
     const info = await sessionLesen(k.pfad, k.groesse, k.name);
     if (info) raus.push(info);
+  }
+
+  /* Den geratenen Zustand durch den echten ersetzen, wo es ihn gibt */
+  const register = await sammleSitzungsregister();
+  for (const s of raus) {
+    const r = s.sid && register[s.sid];
+    if (!r) continue;
+    s.register = r;
+    if (r.name) s.name = r.name;                 // der Name, den Claude Code selbst fuehrt
+    if (REGISTER_ZUSTAND[r.status]) s.zustand = REGISTER_ZUSTAND[r.status];
+    s.status = r.status;
+    s.wartetAuf = r.waitingFor || "";
+    s.version = r.version;
+    s.art = r.kind;
+    s.seitStart = r.startedAt || 0;
   }
   return raus;
 }
@@ -1696,28 +1790,223 @@ function blaseZeichnen(b, farbe) {
    ob Staub das Licht roetet, ob es ein Reflexionsnebel ist.
    ================================================================ */
 
-/* THEMEN-ANFANG — dieser Block wird als Ganzes ersetzt */
+/* THEMEN-ANFANG — dieser Block wird als Ganzes ersetzt.
+   Jedes Thema beruht auf einem echten Objekt; die Farben stammen aus
+   den dominierenden Emissionslinien beziehungsweise der Streuung an
+   Staub. Jede Familie wurde anschliessend auf Lesbarkeit geprueft:
+   dunkler Grund, heller Akzent, kein Nebelton, in dem ein Astronaut
+   verschwindet. */
 const THEMEN = [
-  { id: "orion", name: "Orion", objekt: "M42, Orionnebel",
+  { id: "orion", name: "Orionnebel", objekt: "M42, Orionnebel",
     stimmung: "gluehender Wasserstoff, warm und koernig",
-    raum: "#05060c", nebel: ["#8f3b4e", "#c25f52", "#4a6f9c", "#d69a72"],
-    staub: "#1a0f14", sterne: "#ffe9d6", galaxie: "keine", galaxiearm: "keine",
-    akzent: "#e08a72", helligkeit: 0.62 },
-  { id: "plejaden", name: "Plejaden", objekt: "M45, Siebengestirn",
-    stimmung: "Staub, der blaues Sternlicht streut",
-    raum: "#04060e", nebel: ["#3f6bb0", "#5b8ed6", "#26406e", "#8fb4e8"],
-    staub: "#0b1424", sterne: "#e8f0ff", galaxie: "keine", galaxiearm: "keine",
-    akzent: "#7ba4d8", helligkeit: 0.5 },
-  { id: "helix", name: "Helixnebel", objekt: "NGC 7293",
-    stimmung: "abgestossene Huelle eines sterbenden Sterns",
-    raum: "#03080a", nebel: ["#2f8f8a", "#48b3a2", "#1d5f70", "#9c5f8e"],
-    staub: "#08191c", sterne: "#dff5f2", galaxie: "keine", galaxiearm: "keine",
-    akzent: "#5fb2b8", helligkeit: 0.54 },
-  { id: "andromeda", name: "Andromeda", objekt: "M31",
-    stimmung: "alter goldener Kern, junge blaue Arme",
-    raum: "#04050b", nebel: ["#3a4a78", "#5a5f8f", "#22304f", "#7a6f9c"],
-    staub: "#0a0c16", sterne: "#f2efe6", galaxie: "#f0d9a8", galaxiearm: "#9fc0e8",
-    akzent: "#cfa456", helligkeit: 0.4 },
+    raum: "#05070d", nebel: ["#d8402c", "#ffb59c", "#1ed4bc", "#4a6ee8"],
+    staub: "#1b1108", sterne: "#ffeede", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#ff9e7a", helligkeit: 0.7 },
+  { id: "trifid", name: "Trifid", objekt: "M20, Trifidnebel",
+    stimmung: "Karminrot und Kobaltblau, von Staub zerschnitten",
+    raum: "#04060e", nebel: ["#5470d8", "#d24a60", "#c3dcff", "#9c2f4a"],
+    staub: "#130f16", sterne: "#eef3ff", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#9bb8ff", helligkeit: 0.6 },
+  { id: "sichel", name: "Sichelnebel", objekt: "NGC 6888, Sichelnebel",
+    stimmung: "tuerkiser Sauerstoff, kalt und scharf",
+    raum: "#030a0c", nebel: ["#1fd0c0", "#79e6d6", "#c1495a", "#2a7fa0"],
+    staub: "#071518", sterne: "#e8fbff", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#6ff0dc", helligkeit: 0.66 },
+  { id: "carina", name: "Carinanebel", objekt: "NGC 3372, Carinanebel",
+    stimmung: "Rost und Ocker, schwerer Staub",
+    raum: "#0a0603", nebel: ["#c8582c", "#ffce7d", "#94331f", "#4f8f86"],
+    staub: "#170d06", sterne: "#ffe7c4", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#ffb46a", helligkeit: 0.68 },
+  { id: "hummer", name: "Hummernebel", objekt: "NGC 6357, Hummernebel",
+    stimmung: "magenta Balmer-Glut, samtig",
+    raum: "#070410", nebel: ["#c9509c", "#e04ec0", "#8a5ad6", "#f3b9d5"],
+    staub: "#150a18", sterne: "#f7e9ff", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#f58ecd", helligkeit: 0.58 },
+  { id: "plejaden", name: "Plejaden", objekt: "M45 / NGC 1435, Merope-Nebel",
+    stimmung: "eiskaltes Sternenlicht, an feinem Staub gestreut",
+    raum: "#030610", nebel: ["#2a55b4", "#4d86e0", "#93c0f5", "#e9f2ff"],
+    staub: "#080e1e", sterne: "#f0f6ff", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#9dc6ff", helligkeit: 0.62 },
+  { id: "iris", name: "Iris-Nebel", objekt: "NGC 7023, Iris-Nebel in Cepheus",
+    stimmung: "blaue Blueten in rostbraunem Staub",
+    raum: "#060509", nebel: ["#4258d6", "#9a8cf5", "#9a6a4e", "#dbb083"],
+    staub: "#1a1109", sterne: "#f2eee6", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#b4a6ff", helligkeit: 0.55 },
+  { id: "antares", name: "Antares-Wolke", objekt: "IC 4606 bei Antares, Rho-Ophiuchi-Komplex",
+    stimmung: "goldener Staub vor dem Herz der Milchstrasse",
+    raum: "#0a0603", nebel: ["#c8802b", "#f5d18e", "#9c4a28", "#46639f"],
+    staub: "#2a1406", sterne: "#fff3dd", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#f2c274", helligkeit: 0.6 },
+  { id: "hexenkopf", name: "Hexenkopf", objekt: "IC 2118, Hexenkopfnebel bei Rigel",
+    stimmung: "blasse Schleier, kalt und fast durchsichtig",
+    raum: "#03060a", nebel: ["#21414f", "#3f6d80", "#a9ccd4", "#d8ecef"],
+    staub: "#08131a", sterne: "#dbe9f0", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#8ed8e4", helligkeit: 0.34 },
+  { id: "perseus", name: "Perseus-Wiege", objekt: "NGC 1333 in der Perseus-Molekuelwolke",
+    stimmung: "blauer Dunst mit gluehenden Sternstrahlen",
+    raum: "#05070a", nebel: ["#2f5f8e", "#9cc4e8", "#b22f22", "#c4703a"],
+    staub: "#150f0c", sterne: "#e8eef2", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#ff9e79", helligkeit: 0.5 },
+  { id: "ringnebel", name: "Ringnebel", objekt: "M57, Ringnebel in der Leier",
+    stimmung: "tuerkiser Kern, glimmender roter Rand",
+    raum: "#04070a", nebel: ["#17d6bd", "#1a6f92", "#c4445b", "#a83424"],
+    staub: "#0d1c24", sterne: "#e8f2ff", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#5fe0d0", helligkeit: 0.62 },
+  { id: "schneeball", name: "Blauer Schneeball", objekt: "NGC 7662, Blauer Schneeball in der Andromeda",
+    stimmung: "kaltes Blau, hart ionisiert, kein Rot",
+    raum: "#03050e", nebel: ["#2f7ce0", "#1fd0f0", "#c2e6ff", "#6d5fd0"],
+    staub: "#0a1226", sterne: "#f0f6ff", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#7fc4ff", helligkeit: 0.5 },
+  { id: "schmetterling", name: "Schmetterling", objekt: "NGC 6302, Schmetterlingsnebel im Skorpion",
+    stimmung: "violette Fluegel, schwarzer Staubguertel",
+    raum: "#08040b", nebel: ["#b0489f", "#6a3fc0", "#d4556a", "#40dcf5"],
+    staub: "#1a0c14", sterne: "#ffe9d6", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#e08ad8", helligkeit: 0.6 },
+  { id: "rote-schleife", name: "Rote Schleife", objekt: "NGC 40, Bow-Tie-Nebel im Kepheus",
+    stimmung: "warmes Rostrot, fast ohne O III",
+    raum: "#0a0505", nebel: ["#d2452f", "#e09428", "#8f2f3c", "#ead3b0"],
+    staub: "#1d0d0a", sterne: "#ffe8d4", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#f0a86a", helligkeit: 0.5 },
+  { id: "hantelnebel", name: "Hantelnebel", objekt: "M27, Hantelnebel im Fuechschen",
+    stimmung: "apfelgruener Kern, rostige Lappen",
+    raum: "#040806", nebel: ["#278e4e", "#127a70", "#a34032", "#d8d06a"],
+    staub: "#0c1a14", sterne: "#e6f5ea", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#7fe6a0", helligkeit: 0.5 },
+  { id: "pferdekopf", name: "Pferdekopf", objekt: "Barnard 33 vor IC 434, Orion",
+    stimmung: "gluehender Wasserstoff hinter einer schwarzen Staubfigur",
+    raum: "#08040a", nebel: ["#a4243f", "#c93a63", "#6b2340", "#f7ded2"],
+    staub: "#1a0e10", sterne: "#ffeadd", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#ff8fa3", helligkeit: 0.58 },
+  { id: "pfeifennebel", name: "Pfeifennebel", objekt: "Barnard 59 / LDN 1773, Ophiuchus",
+    stimmung: "goldene Sternwolken, von schwarzem Rauch durchzogen",
+    raum: "#0a0705", nebel: ["#8a6420", "#e6d49a", "#4a2f14", "#f5e8c4"],
+    staub: "#241209", sterne: "#ffe6b8", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#e8c46a", helligkeit: 0.52 },
+  { id: "kohlensack", name: "Kohlensack", objekt: "Caldwell 99, Kohlensack im Kreuz des Sueden",
+    stimmung: "kaltes Loch im hellen Band der Milchstrasse",
+    raum: "#04060b", nebel: ["#26344e", "#4a628a", "#121a29", "#cfe0f7"],
+    staub: "#171310", sterne: "#dce7ff", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#8fc4ff", helligkeit: 0.46 },
+  { id: "bok-globule", name: "Dunkle Globule", objekt: "Barnard 68, Bok-Globule in Ophiuchus",
+    stimmung: "fast vollstaendige Finsternis mit gluehendem Saum",
+    raum: "#050303", nebel: ["#140b07", "#4f2410", "#93431a", "#cc6a1c"],
+    staub: "#0d0705", sterne: "#ffcf9a", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#ff9d5c", helligkeit: 0.38 },
+  { id: "rho-ophiuchi", name: "Rho Ophiuchi", objekt: "Rho-Ophiuchi-Wolkenkomplex",
+    stimmung: "rostbrauner Staub zwischen goldenem und blauem Licht",
+    raum: "#06060c", nebel: ["#a8631f", "#3f63b8", "#a8324a", "#f2dcb4"],
+    staub: "#2a170e", sterne: "#ffeccf", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#9db8ff", helligkeit: 0.55 },
+  { id: "andromeda", name: "Andromeda", objekt: "M31, Andromedagalaxie",
+    stimmung: "goldener Kern, kuehl blaue Aussenarme, breite Staubbahnen",
+    raum: "#050710", nebel: ["#a87a2c", "#4a6fb8", "#7a5540", "#b0384f"],
+    staub: "#2a1c18", sterne: "#ffe9c8", galaxie: "#f2cf8f", galaxiearm: "#9ec8ff",
+    akzent: "#e7b96a", helligkeit: 0.52 },
+  { id: "wirbel", name: "Wirbel", objekt: "M51, Whirlpool-Galaxie",
+    stimmung: "magenta Sternentstehung auf kobaltblauen Armen",
+    raum: "#0a0610", nebel: ["#c44a8e", "#3f6fd8", "#8b4aa8", "#c96a1e"],
+    staub: "#2b1826", sterne: "#f6e4f0", galaxie: "#f0d089", galaxiearm: "#9cc6ff",
+    akzent: "#f28ab0", helligkeit: 0.58 },
+  { id: "sombrero", name: "Sombrero", objekt: "M104, Sombrerogalaxie",
+    stimmung: "warmer Sepia-Bulge hinter einer scharfen Staubkante",
+    raum: "#0b0806", nebel: ["#9a6644", "#6e4630", "#452e20", "#dcc49c"],
+    staub: "#1c120c", sterne: "#fff3d8", galaxie: "#f5e3b4", galaxiearm: "#9e7a52",
+    akzent: "#f0ddb0", helligkeit: 0.44 },
+  { id: "rubine", name: "Tausend Rubine", objekt: "M83, Suedliches Feuerrad",
+    stimmung: "tausend rote Rubine zwischen tuerkisem O-III-Licht",
+    raum: "#04090c", nebel: ["#c8312c", "#2f93a0", "#8f6a1c", "#35dc9a"],
+    staub: "#241410", sterne: "#fff0e0", galaxie: "#f4d58a", galaxiearm: "#8fe2f8",
+    akzent: "#5fd6c8", helligkeit: 0.62 },
+  { id: "phantom", name: "Phantom", objekt: "M74, Phantomgalaxie",
+    stimmung: "blass und geisterhaft, kaum mehr als ein eisiger Hauch",
+    raum: "#06080e", nebel: ["#3a4a9e", "#79dcf0", "#b9c9f2", "#9c4a8c"],
+    staub: "#211a22", sterne: "#eef2ff", galaxie: "#e6d6b0", galaxiearm: "#b4d4ff",
+    akzent: "#a9b8f0", helligkeit: 0.34 },
+  { id: "schleiernebel", name: "Schleiernebel", objekt: "NGC 6960/6992, Cirrusnebel im Cygnus-Loop",
+    stimmung: "türkise und rote Fäden dicht nebeneinander",
+    raum: "#04070c", nebel: ["#2fd2be", "#d4374f", "#3a6fc4", "#b8306a"],
+    staub: "#0a1622", sterne: "#e8f2ff", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#5ee0cf", helligkeit: 0.62 },
+  { id: "krebsnebel", name: "Krebsnebel", objekt: "M1, Supernovaüberrest von 1054 im Stier",
+    stimmung: "bernsteinfarbenes Fasernetz um kaltes Pulsarleuchten",
+    raum: "#060509", nebel: ["#f5bd78", "#a9c4e2", "#c0332b", "#f6ddb2"],
+    staub: "#1a1010", sterne: "#fff0dc", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#f0a860", helligkeit: 0.5 },
+  { id: "cassiopeia-a", name: "Cassiopeia A", objekt: "Cas A, junger Supernovaüberrest in der Cassiopeia",
+    stimmung: "grüne Sauerstoffknoten in staubgerötetem Gold",
+    raum: "#070608", nebel: ["#4ce3a8", "#c33a2e", "#c9538f", "#e9c46a"],
+    staub: "#1b1208", sterne: "#ffe8cf", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#f2c66a", helligkeit: 0.58 },
+  { id: "spaghettinebel", name: "Spaghettinebel", objekt: "Simeis 147 (Sh2-240), alter Überrest zwischen Stier und Fuhr",
+    stimmung: "gespenstisch feines Rosé-Geflecht",
+    raum: "#08050a", nebel: ["#d04060", "#a02a58", "#f7c9d4", "#2a7e86"],
+    staub: "#150b12", sterne: "#f2e4ee", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#f5a3b4", helligkeit: 0.45 },
+  { id: "lupusring", name: "Supernova 1006", objekt: "SN 1006, Supernovaüberrest im Sternbild Wolf",
+    stimmung: "kühles Indigo, ein einzelner roter Schockfaden",
+    raum: "#05060f", nebel: ["#6a5fd0", "#8c6ae0", "#dc3a52", "#7fd8e8"],
+    staub: "#0b0c1c", sterne: "#f0f4ff", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#b3a4ff", helligkeit: 0.4 },
+  { id: "omega-centauri", name: "Omega Centauri", objekt: "NGC 5139, Omega Centauri",
+    stimmung: "alte Sonnen, goldener Schwarm ohne Gas",
+    raum: "#060508", nebel: ["#9c6a33", "#5e3a20", "#e9d0a0", "#fbf0d8"],
+    staub: "#150f0a", sterne: "#ffe9c4", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#f0c374", helligkeit: 0.34 },
+  { id: "rosette", name: "Rosette", objekt: "NGC 2237/2244, Rosettennebel",
+    stimmung: "gluehender Wasserstoff, warm und koernig",
+    raum: "#0a0406", nebel: ["#c02a44", "#7d1528", "#e0566a", "#0f6a86"],
+    staub: "#1a0c0c", sterne: "#e8f0ff", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#ff8fa0", helligkeit: 0.66 },
+  { id: "tarantel", name: "Tarantel", objekt: "NGC 2070, Tarantelnebel in der Grossen Magellanschen Wolke",
+    stimmung: "tuerkise Sauerstoffglut vor fremder Galaxie",
+    raum: "#04070a", nebel: ["#12a08e", "#0b6570", "#c73f6a", "#8ff0d2"],
+    staub: "#0a1614", sterne: "#e9f2ff", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#5fe0cf", helligkeit: 0.6 },
+  { id: "antennen", name: "Antennen", objekt: "NGC 4038/4039, Antennengalaxien",
+    stimmung: "kollidierende Scheiben, rosa Wasserstoff ueber blauem Starburst",
+    raum: "#05030a", nebel: ["#c1487c", "#4a6fe0", "#b3752b", "#f4cfdc"],
+    staub: "#2a1520", sterne: "#eef2fb", galaxie: "#f2d6a2", galaxiearm: "#4f79e8",
+    akzent: "#ff90b8", helligkeit: 0.55 },
+  { id: "kleine-wolke", name: "Kleine Wolke", objekt: "Kleine Magellansche Wolke (SMC)",
+    stimmung: "metallarm und kuehl, blassblaues Sternenlicht",
+    raum: "#03060d", nebel: ["#b6d6f5", "#4a6fa8", "#cadef2", "#d4548f"],
+    staub: "#101a29", sterne: "#f3f8ff", galaxie: "#dfe9f8", galaxiearm: "#bcd8f4",
+    akzent: "#9fd6ff", helligkeit: 0.44 },
+  { id: "galaktisches-herz", name: "Galaktisches Herz", objekt: "Sagittarius-Sternwolke vor dem Zentrum der Milchstrasse",
+    stimmung: "goldene Sternwolken hinter schwarzen Staubrissen",
+    raum: "#070302", nebel: ["#a9762f", "#8d5227", "#eec192", "#a8422e"],
+    staub: "#150a05", sterne: "#ffe7c0", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#ffc266", helligkeit: 0.55 },
+  { id: "galaktischer-zirrus", name: "Galaktischer Zirrus", objekt: "Integrated Flux Nebula bei M81/M82, hochgalaktischer Zirrus",
+    stimmung: "mattes Staubgespinst im integrierten Licht der Galaxis",
+    raum: "#04060a", nebel: ["#7b7259", "#4a5666", "#9c8f70", "#d5cfb4"],
+    staub: "#161a1f", sterne: "#e7edf3", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#d8c79f", helligkeit: 0.36 },
+  { id: "tiefes-feld", name: "Tiefes Feld", objekt: "Hubble Ultra Deep Field",
+    stimmung: "fast leeres Schwarz, rotverschobene Lichtpunkte",
+    raum: "#02030a", nebel: ["#b4502a", "#ead9a8", "#3f6fd0", "#7d5ce0"],
+    staub: "#0a0813", sterne: "#f5f3ff", galaxie: "#e8d1a0", galaxiearm: "#3d7ad2",
+    akzent: "#c4a6ff", helligkeit: 0.31 },
+  { id: "katzenauge", name: "Katzenauge", objekt: "NGC 6543, Katzenaugennebel im Drachen",
+    stimmung: "tuerkises Sauerstoffleuchten in konzentrischen Schalen",
+    raum: "#04080a", nebel: ["#2ad3b4", "#7ae8d2", "#1d6f8a", "#c8527a"],
+    staub: "#071417", sterne: "#dffaf4", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#5fd8c0", helligkeit: 0.58 },
+  { id: "flamme", name: "Flammennebel", objekt: "NGC 2024, Flammennebel im Orion",
+    stimmung: "gluehendes Orange, von schwarzen Staubadern zerteilt",
+    raum: "#07050a", nebel: ["#e06a2c", "#f5a15e", "#8c3a24", "#3a2038"],
+    staub: "#140c0a", sterne: "#ffe6cc", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#e8924f", helligkeit: 0.6 },
+  { id: "bumerang", name: "Bumerang", objekt: "Bumerangnebel im Zentaur",
+    stimmung: "der kaelteste bekannte Ort, blassblau und still",
+    raum: "#04060c", nebel: ["#9fc4e8", "#d8e8f8", "#4a6a96", "#26364f"],
+    staub: "#0a0e18", sterne: "#f0f6ff", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#a8c8ec", helligkeit: 0.42 },
+  { id: "nordamerika", name: "Nordamerika", objekt: "NGC 7000, Nordamerikanebel im Schwan",
+    stimmung: "weites H-alpha-Rot mit einer dunklen Bucht",
+    raum: "#08050a", nebel: ["#d13a44", "#f07a72", "#7a2030", "#2a4a6e"],
+    staub: "#120a0e", sterne: "#ffe8e0", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#e0786e", helligkeit: 0.62 },
 ];
 /* THEMEN-ENDE */
 
@@ -1789,11 +2078,12 @@ const hexZuRgb = (h) => {
 };
 
 /* --- Nebel backen --- */
-function backeNebel(breite, hoehe, thema) {
+function backeNebel(breite, hoehe, thema, mindest) {
   /* Zwei Drittel der Aufloesung: genug fuer feine Fasern, aber nur gut
      ein Drittel der Rechenarbeit einer vollen Berechnung. */
-  const w = Math.max(260, Math.round(breite * 0.66));
-  const h = Math.max(260, Math.round(hoehe * 0.66));
+  const min = mindest ?? 260;
+  const w = Math.max(min, Math.round(breite * 0.66));
+  const h = Math.max(min, Math.round(hoehe * 0.66));
   const lw = document.createElement("canvas");
   lw.width = w; lw.height = h;
   const c = lw.getContext("2d");
@@ -1836,11 +2126,14 @@ function backeNebel(breite, hoehe, thema) {
       let dichte = Math.pow(huelle, 1.45) * Math.pow(fein, 1.25) * (0.5 + faser * 0.7) * 2.2;
 
       /* Die Mitte bleibt absichtlich frei: dort steht die Station, und sie
-         braucht dunklen Hintergrund, um lesbar zu bleiben. */
-      const dx = (x - w / 2) / (w / 2), dy = (y - h / 2) / (h / 2);
-      const rad = Math.sqrt(dx * dx + dy * dy);
-      const frei = Math.max(0, Math.min(1, (rad - 0.20) / 0.42));
-      dichte *= 0.14 + 0.86 * frei;
+         braucht dunklen Hintergrund, um lesbar zu bleiben. In den kleinen
+         Vorschaubildern steht dort nichts, also dort auch nicht freiraeumen. */
+      if (!mindest) {
+        const dx = (x - w / 2) / (w / 2), dy = (y - h / 2) / (h / 2);
+        const rad = Math.sqrt(dx * dx + dy * dy);
+        const frei = Math.max(0, Math.min(1, (rad - 0.20) / 0.42));
+        dichte *= 0.14 + 0.86 * frei;
+      }
 
       if (dichte <= 0.006) continue;
 
@@ -2867,7 +3160,17 @@ function zeichneDetail(id) {
   if (a.typ === "session") {
     if (a.modell) box.appendChild(zeile("Modell", a.modell.replace("claude-", "")
       + (a.aufwand ? "  ·  Aufwand " + a.aufwand : "")));
-    box.appendChild(zeile("Wartet auf", a.letzteRolle === "user" ? "Claude antwortet gleich" : "deine Eingabe"));
+    if (a.status) {
+      const txt = a.status === "busy" ? "arbeitet gerade"
+        : a.status === "waiting" ? (WARTET_TEXT[a.wartetAuf] || "wartet auf dich")
+        : "untätig";
+      box.appendChild(zeile("Zustand", txt + "   (aus dem Sitzungsregister)"));
+    } else {
+      box.appendChild(zeile("Zustand", a.letzteRolle === "user"
+        ? "Claude antwortet gleich" : "wartet vermutlich auf dich"));
+    }
+    if (a.seitStart) box.appendChild(zeile("Läuft seit", vorZeit(a.seitStart)));
+    if (a.version) box.appendChild(zeile("Version", a.version + (a.art ? "  ·  " + a.art : "")));
     if (a.schritte && a.schritte.length) {
       box.appendChild(abschnitt("Letzte Schritte"));
       a.schritte.forEach(sch => box.appendChild(schrittZeile(sch)));
@@ -3019,6 +3322,138 @@ function ordnerDazu(pfad) {
 }
 
 /* ================================================================
+   7d — Hintergrund waehlen
+   ================================================================ */
+
+/* Einmal gerechnete Miniaturen, danach aus dem Speicher */
+const VORSCHAU = new Map();
+
+/* Eine echte kleine Fassung desselben Himmels — derselbe Rauschgenerator
+   wie beim grossen Bild, nur in klein. Vierzig Stueck kosten zusammen
+   weniger als ein einziger grosser Himmel. */
+function himmelVorschau(t) {
+  if (VORSCHAU.has(t.id)) return VORSCHAU.get(t.id);
+
+  const bw = 150, bh = 86;
+  const lw = document.createElement("canvas");
+  lw.width = bw; lw.height = bh;
+  const c = lw.getContext("2d");
+
+  c.fillStyle = t.raum;
+  c.fillRect(0, 0, bw, bh);
+
+  /* Ein paar Sterne */
+  let z = ((t.saat || 1) + 4242) >>> 0;
+  const rnd = () => { z = (Math.imul(z, 1664525) + 1013904223) >>> 0; return z / 4294967296; };
+  const ton = hexZuRgb(t.sterne || "#ffffff");
+  for (let i = 0; i < 90; i++) {
+    const hell = Math.pow(rnd(), 2.2);
+    c.fillStyle = `rgba(${ton[0]},${ton[1]},${ton[2]},${0.12 + hell * 0.75})`;
+    c.fillRect(rnd() * bw, rnd() * bh, hell > 0.7 ? 1.4 : 1, hell > 0.7 ? 1.4 : 1);
+  }
+
+  if (t.galaxie && t.galaxie !== "keine") {
+    const g = backeGalaxie(bw * 2.2, bh * 2.2, t);
+    if (g) {
+      c.save();
+      c.globalCompositeOperation = "lighter";
+      c.globalAlpha = 0.85;
+      c.translate(bw * 0.72, bh * 0.3);
+      c.rotate(-0.42);
+      c.drawImage(g, -g.width / 2, -g.height / 2);
+      c.restore();
+    }
+  }
+
+  const nebel = backeNebel(bw, bh, t, 1);
+  c.save();
+  c.globalCompositeOperation = "lighter";
+  c.drawImage(nebel, 0, 0, bw, bh);
+  c.restore();
+
+  const url = lw.toDataURL("image/png");
+  VORSCHAU.set(t.id, url);
+  return url;
+}
+
+function zeichneHimmelWahl(filter) {
+  const box = $("#himmel-gitter");
+  const such = String(filter || "").trim().toLowerCase();
+  const liste = such
+    ? THEMEN.filter(t => (t.name + " " + t.objekt + " " + (t.stimmung || "")).toLowerCase().includes(such))
+    : THEMEN;
+
+  $("#himmel-zahl").textContent = such
+    ? liste.length + " von " + THEMEN.length
+    : THEMEN.length + " Hintergründe";
+
+  box.innerHTML = "";
+  if (!liste.length) {
+    box.innerHTML = '<div class="himmel-leer">Nichts gefunden.</div>';
+    return;
+  }
+  const offen = [];
+  for (const t of liste) {
+    const k = document.createElement("button");
+    k.className = "himmel-karte" + (t.id === Z.thema ? " an" : "");
+    const v = document.createElement("div");
+    v.className = "himmel-vorschau";
+    v.style.backgroundSize = "cover";
+    v.style.backgroundPosition = "center";
+    if (VORSCHAU.has(t.id)) {
+      v.style.backgroundImage = "url(" + VORSCHAU.get(t.id) + ")";
+    } else {
+      /* Erst die Grundfarbe zeigen, das Bild kommt gleich nach */
+      v.style.background = t.raum;
+      offen.push({ thema: t, feld: v });
+    }
+    const tx = document.createElement("div");
+    tx.className = "himmel-text";
+    const b = document.createElement("b"); b.textContent = t.name;
+    const s1 = document.createElement("small"); s1.textContent = t.objekt; s1.title = t.objekt;
+    const s2 = document.createElement("small");
+    s2.textContent = t.stimmung || ""; s2.title = t.stimmung || "";
+    s2.style.color = "var(--tx3)";
+    tx.append(b, s1, s2);
+    k.append(v, tx);
+    k.onclick = () => themaWaehlen(t.id);
+    box.appendChild(k);
+  }
+  vorschauenNachliefern(offen);
+}
+
+/* Vierzig Miniaturen auf einmal zu rechnen blockiert die Blende beim
+   Oeffnen fuer rund drei Sekunden. Also haeppchenweise zwischen zwei
+   Bildern — die Karten stehen sofort da und fuellen sich sichtbar. */
+let nachliefernLaeuft = false;
+function vorschauenNachliefern(offen) {
+  if (!offen.length || nachliefernLaeuft) return;
+  nachliefernLaeuft = true;
+  let i = 0;
+  const schritt = () => {
+    const bis = performance.now() + 12;      // hoechstens 12 ms je Bild
+    while (i < offen.length && performance.now() < bis) {
+      const { thema, feld } = offen[i++];
+      try {
+        feld.style.backgroundImage = "url(" + himmelVorschau(thema) + ")";
+      } catch (e) { /* eine kaputte Vorschau darf den Rest nicht aufhalten */ }
+    }
+    if (i < offen.length) requestAnimationFrame(schritt);
+    else nachliefernLaeuft = false;
+  };
+  requestAnimationFrame(schritt);
+}
+
+function themaWaehlen(id) {
+  if (Z.thema === id) return;
+  Z.thema = id;
+  sichern();
+  themaAnwenden();
+  himmelBacken();
+  zeichneHimmelWahl($("#himmel-suche").value);
+}
+
+/* ================================================================
    8 — Blenden und Agenten-Formular
    ================================================================ */
 
@@ -3032,6 +3467,7 @@ function blendeAuf(id) {
   if (id === "blende-crew") zeichneCrewListe();
   if (id === "blende-log") zeichneLog();
   if (id === "blende-bruecke") zeichneBrueckeLage();
+  if (id === "blende-himmel") zeichneHimmelWahl($("#himmel-suche").value);
 }
 function blendeZu() {
   blendeOffen = false;
@@ -3160,6 +3596,12 @@ $("#s-loeschen").onclick = () => {
    ================================================================ */
 
 $("#btn-crew").onclick = () => blendeAuf("blende-crew");
+$("#btn-himmel").onclick = () => {
+  $("#himmel-suche").value = "";
+  blendeAuf("blende-himmel");
+};
+$("#himmel-suche").addEventListener("input", (e) => zeichneHimmelWahl(e.target.value));
+
 $("#btn-bruecke").onclick = () => {
   $("#b-fenster").value = Z.bruecke.sessionFensterMin;
   $("#b-ghtoken").value = Z.bruecke.ghToken;
