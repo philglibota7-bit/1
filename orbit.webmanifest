@@ -1,0 +1,19 @@
+{
+  "name": "ORBIT – Agenten-Leitstand",
+  "short_name": "ORBIT",
+  "description": "Deine Agenten und Arbeitsabläufe als Astronauten um eine Raumstation.",
+  "start_url": "./orbit.html",
+  "scope": "./",
+  "id": "/orbit",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#05060c",
+  "theme_color": "#05060c",
+  "lang": "de",
+  "categories": ["productivity", "developer"],
+  "icons": [
+    { "src": "orbit-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "orbit-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "orbit-icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

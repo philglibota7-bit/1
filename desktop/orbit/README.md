@@ -3,6 +3,19 @@
 `ORBIT.app` zeigt deine echten Arbeitsabläufe als Astronauten um eine Raumstation.
 Doppelklicken, fertig. Kein Terminal, kein Node, keine Installation.
 
+## Drei Wege, ORBIT zu benutzen
+
+| Weg | Was funktioniert | Wofür |
+|---|---|---|
+| **ORBIT.app** (diese Seite) | alles — Sessions, Ordner, Prozesse, GitHub, eigene Agenten | am Schreibtisch |
+| **Auf dem Handy installieren** | eigene Claude-Agenten und GitHub | unterwegs nachsehen und beauftragen |
+| **Im Browser öffnen** | dasselbe wie auf dem Handy | schnell mal reinschauen |
+
+Fürs Handy: [orbit.html](../../orbit.html) auf dem iPhone in Safari öffnen →
+Teilen-Symbol → „Zum Home-Bildschirm". Auf Android und im Desktop-Chrome bietet
+ORBIT die Installation von selbst an. Danach ist es eine eigene App mit eigenem
+Icon, ohne Browserleiste, und startet auch ohne Internet.
+
 ## Warum überhaupt ein Programm?
 
 Im Browser geht das nicht. Eine Webseite darf grundsätzlich nicht sehen, welche

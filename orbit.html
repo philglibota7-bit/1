@@ -9,6 +9,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ORBIT">
 <title>ORBIT • Agenten-Leitstand</title>
+<link rel="manifest" href="orbit.webmanifest">
+<link rel="apple-touch-icon" href="orbit-apple-touch-icon.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🛰%3C/text%3E%3C/svg%3E">
 <style>
 /* ================================================================
@@ -284,6 +286,37 @@ body.kino #kino-tipp{opacity:1; animation:tippweg 4s ease forwards;}
   backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px);}
 #schleier.an{opacity:1; pointer-events:auto;}
 
+/* ---------- Einladung zum Installieren ---------- */
+#install{
+  position:fixed; z-index:8; left:12px; right:12px;
+  top:calc(env(safe-area-inset-top) + 62px);
+  display:none; align-items:center; gap:11px;
+  padding:11px 12px 11px 14px; border-radius:var(--r2);
+  background:var(--p2); border:1px solid var(--edge2);
+  backdrop-filter:blur(24px) saturate(1.3); -webkit-backdrop-filter:blur(24px) saturate(1.3);
+  box-shadow:0 14px 44px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.08);
+  transform:translateY(-14px); opacity:0; transition:all .45s var(--ease);
+}
+#install.da{display:flex; transform:translateY(0); opacity:1;}
+body.kino #install{display:none;}
+#install img{width:34px; height:34px; border-radius:9px; flex:0 0 auto;}
+#install .wort{flex:1 1 auto; min-width:0;}
+#install .wort b{display:block; font-size:13px; font-weight:600;}
+#install .wort span{display:block; font-size:11.5px; color:var(--tx2); line-height:1.45;}
+#install .tun{
+  flex:0 0 auto; height:34px; padding:0 15px; border-radius:99px;
+  background:var(--acc); color:#06121f; font-size:12.5px; font-weight:600;
+  transition:all .2s var(--ease);
+}
+#install .tun:hover{background:#95b8e6;}
+#install .weg{
+  flex:0 0 auto; width:28px; height:28px; border-radius:50%;
+  background:var(--p2); color:var(--tx3); font-size:14px;
+  display:flex; align-items:center; justify-content:center;
+}
+#install .weg:hover{background:var(--p3); color:var(--tx);}
+@media (max-width:460px){ #install .wort span{font-size:11px;} }
+
 /* ---------- Detailansicht ---------- */
 .d-zeile{display:flex; gap:12px; padding:9px 0; border-bottom:1px solid var(--edge); font-size:13px;}
 .d-zeile:last-child{border-bottom:none;}
@@ -367,6 +400,16 @@ body.kino #kino-tipp{opacity:1; animation:tippweg 4s ease forwards;}
       </button>
     </div>
   </footer>
+</div>
+
+<div id="install">
+  <img src="orbit-icon-192.png" alt="">
+  <div class="wort">
+    <b>ORBIT als App</b>
+    <span id="install-text">Auf dem Home-Bildschirm, ohne Browserleiste.</span>
+  </div>
+  <button class="tun" id="install-tun">Installieren</button>
+  <button class="weg" id="install-weg" title="Nicht mehr anzeigen">✕</button>
 </div>
 
 <div id="kino-tipp">Tippen zum Beenden</div>
@@ -554,8 +597,9 @@ let Z = {
 };
 
 function laden() {
+  let roh = null;
   try {
-    const roh = localStorage.getItem(SPEICHER);
+    roh = localStorage.getItem(SPEICHER);
     if (roh) {
       const d = JSON.parse(roh);
       Z.agenten = Array.isArray(d.agenten) ? d.agenten : [];
@@ -583,6 +627,9 @@ function laden() {
   }
   /* Ein Agent, den es nicht mehr gibt, darf nicht ausgewaehlt bleiben */
   if (Z.gewaehlt && !Z.agenten.some(a => a.id === Z.gewaehlt)) Z.gewaehlt = null;
+  /* Die Start-Crew gleich festschreiben, sonst bekommen die drei Agenten
+     bei jedem Laden neue IDs und das Log zeigt ins Leere. */
+  if (!roh) sichern();
 }
 
 function sichern() {
@@ -2614,6 +2661,63 @@ hoeheAnpassen();
 pruefeSendeKnopf();
 requestAnimationFrame(rahmen);
 brueckeStarten();
+
+/* ================================================================
+   11 — ORBIT als eigene App
+   Im Mac-Programm ueberspringen: dort ist die App schon eine App.
+   ================================================================ */
+
+const imProgramm = () => typeof window.NL_OS !== "undefined";
+const schonInstalliert = () =>
+  (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+  window.navigator.standalone === true;
+
+if (!imProgramm() && "serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  addEventListener("load", () => navigator.serviceWorker.register("./orbit-sw.js").catch(() => {}));
+}
+
+let installAngebot = null;
+
+function installZeigen(text, knopf) {
+  if (localStorage.getItem("orbit.install.weg") === "1") return;
+  $("#install-text").textContent = text;
+  $("#install-tun").style.display = knopf ? "block" : "none";
+  $("#install").classList.add("da");
+}
+
+$("#install-weg").onclick = () => {
+  $("#install").classList.remove("da");
+  try { localStorage.setItem("orbit.install.weg", "1"); } catch {}
+};
+
+$("#install-tun").onclick = async () => {
+  if (!installAngebot) return;
+  $("#install").classList.remove("da");
+  installAngebot.prompt();
+  try { await installAngebot.userChoice; } catch {}
+  installAngebot = null;
+};
+
+/* Android und Desktop-Chrome melden sich von selbst */
+addEventListener("beforeinstallprompt", (e) => {
+  if (imProgramm() || schonInstalliert()) return;
+  e.preventDefault();
+  installAngebot = e;
+  installZeigen("Auf dem Home-Bildschirm, ohne Browserleiste.", true);
+});
+
+addEventListener("appinstalled", () => {
+  $("#install").classList.remove("da");
+  try { localStorage.setItem("orbit.install.weg", "1"); } catch {}
+});
+
+/* iPhone und iPad kennen kein Installationsangebot — dort muss man den
+   Weg zeigen, sonst findet ihn niemand. */
+if (!imProgramm() && !schonInstalliert()
+    && /iPhone|iPad|iPod/i.test(navigator.userAgent)
+    && location.protocol.startsWith("http")) {
+  setTimeout(() => installZeigen("Teilen-Symbol antippen → „Zum Home-Bildschirm“.", false), 2600);
+}
 
 /* Haken fuer automatische Tests — im Betrieb ungenutzt */
 window.__BR_LIVE = () => BR.live;
