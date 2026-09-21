@@ -528,6 +528,21 @@ body.sicht #blende-detail{
     </button>
   </header>
 
+  <!-- ---------- Blende: Bauteil erklärt ---------- -->
+  <div class="blende glas" id="blende-teil">
+    <div class="griff"></div>
+    <div class="blende-kopf">
+      <h2 id="teil-name"></h2>
+      <button class="zu" data-zu="blende-teil">✕</button>
+    </div>
+    <div class="blende-inhalt">
+      <p id="teil-kurz" style="font-size:15px; line-height:1.5; color:var(--tx1); margin:0 0 14px"></p>
+      <p id="teil-lang" style="font-size:13px; line-height:1.65; color:var(--tx2); margin:0 0 14px"></p>
+      <p id="teil-zahl" style="font-size:12px; line-height:1.6; color:var(--tx3); margin:0;
+        padding-top:12px; border-top:1px solid var(--edge)"></p>
+    </div>
+  </div>
+
   <!-- ---------- Stationswerte ---------- -->
   <div id="telemetrie" class="glas" hidden>
     <div class="tm-kopf">STATIONSWERTE</div>
@@ -2209,6 +2224,116 @@ function zeichneFrachter(c, R, richtung, schub) {
   c.restore();
 }
 
+/* --- Die Station erklaert sich selbst --------------------------------
+   Beim Hineinzoomen bekommen die grossen Bauteile ein Schild. Wer
+   darauf tippt, liest, wofuer das Ding da ist — erst in einem Satz,
+   dann genauer, dann mit den Zahlen.
+
+   Die Reihenfolge ist Absicht: zuerst der Zweck in Alltagsworten,
+   danach das Wie, und erst zum Schluss die Masse. Wer nur wissen
+   will, was das ist, hoert nach dem ersten Satz auf; wer es genau
+   wissen will, liest weiter. */
+const TEILE = {
+  traeger: {
+    name: "Gitterträger",
+    kurz: "Das Rückgrat. Alles andere hängt daran.",
+    lang: "Ein langer Balken aus dünnen Aluminiumrohren, zusammengesetzt aus elf Stücken. Er trägt die Solarflügel, die Radiatoren, die Batterien und die Schienen, auf denen der Roboterarm fährt. Weil er offen gebaut ist, sieht man mitten hindurch ins Schwarze — genau daran erkennt man ihn.",
+    zahl: "108,5 Meter lang. Ein Mensch im Anzug ist ein Achtundfünfzigstel davon.",
+  },
+  fluegel: {
+    name: "Solarflügel",
+    kurz: "Hier kommt der Strom her.",
+    lang: "Zwei dünne Teppiche aus Solarzellen, ausgerollt links und rechts von einem Mast. Sie stehen quer zum Träger, nicht längs — nur so kann das Drehgelenk sie der Sonne nachdrehen, denn es dreht um die Trägerachse. Die kupferrote Farbe kommt von der Folie, auf der die Zellen sitzen.",
+    zahl: "34 auf 11,6 Meter, acht Stück. Sie drehen sich mit vier Grad je Minute — einmal herum je Umlauf.",
+  },
+  radiator: {
+    name: "Radiator",
+    kurz: "Er wirft die Abwärme weg.",
+    lang: "Im Vakuum kann Wärme nicht wegströmen, sie kann nur abgestrahlt werden. Deshalb die großen weißen Flächen: Weiß strahlt gut ab und nimmt wenig Sonnenlicht auf. Sie stehen absichtlich anders herum als die Solarflügel — die sollen die Sonne fangen, die Radiatoren sollen ins kalte All schauen.",
+    zahl: "23 auf 3,4 Meter, acht Paneele je Stück. Das hellste Weiß der ganzen Station.",
+  },
+  modul: {
+    name: "Druckmodul",
+    kurz: "Hier lebt und arbeitet die Besatzung.",
+    lang: "Eine Röhre mit Luft darin. Außen liegen Schutzdecken gegen Mikrometeoriten, in Feldern von rund einem Meter gesteppt — dieses Raster ist der genaueste Größenhinweis am ganzen Bauwerk. Die Ringe zwischen den Stücken sind die Nähte, an denen die Module gekoppelt sind.",
+    zahl: "Rund 4,3 Meter dick. Ein Mensch im Anzug ist knapp halb so hoch.",
+  },
+  handlauf: {
+    name: "Handlauf",
+    kurz: "Daran zieht man sich weiter.",
+    lang: "Außen gibt es kein Gehen, nur Ziehen. Die gelben Bügel liegen über die ganze Station verteilt, und zwar nie weiter auseinander als eine Hand im Handschuh reicht. Sie sind farblich abgesetzt, damit man sie im Anzug findet — das ist Vorschrift, keine Geschmacksfrage.",
+    zahl: "Höchstens 61 Zentimeter von Mitte zu Mitte. Der Spalt zur Wand ist so breit, dass eine Faust im Handschuh dazwischenpasst.",
+  },
+  kuppel: {
+    name: "Kuppel",
+    kurz: "Das Fenster zur Erde.",
+    lang: "Der einzige Ort mit mehr als einem Fenster: sechs Scheiben rundherum und eine große in der Mitte. Sie zeigt nach unten zur Erde. Von hier aus wird auch der Roboterarm gesteuert — man will sehen, was man greift.",
+    zahl: "Knapp 3 Meter breit, das Mittelfenster 80 Zentimeter. Größere Fenster gibt es nicht; der Druck von innen erlaubt sie nicht.",
+  },
+  hafen: {
+    name: "Kopplungsstutzen",
+    kurz: "Hier docken Schiffe an.",
+    lang: "Ein Ring mit Haken, der ein ankommendes Schiff festhält und dichtet. Dahinter liegt eine Luke, durch die Fracht und Besatzung umsteigen. Angedockt wird immer genau von vorn — seitlich geht es nicht, weil die Ringe ineinandergreifen müssen.",
+    zahl: "Der Ring misst 1,8 Meter, die Luke dahinter ist quadratisch mit 1,27 Meter Kante.",
+  },
+};
+
+let teilOffen = null;
+let TEILSCHILDER = [];
+
+/* Die Schilder erscheinen erst beim Hineinzoomen. Herausgezoomt waere
+   die Station von Text zugestellt, und man sieht die Teile ohnehin
+   nicht mehr. */
+function zeichneTeileSchilder(t, ccx, ccy, Rst, inSicht, kinoZoom) {
+  if (kinoAn || sparsam) return null;
+  const b = STBILD;
+  if (!b || !b.teile || !b.teile.length) return null;
+  const staerke = klemm((KAM.zoom - 1.5) / 0.7, 0, 1);
+  if (staerke <= 0.01) return null;
+
+  const treffer = [];
+  cx.save();
+  cx.setTransform(1, 0, 0, 1, 0, 0);
+  cx.scale(DPR, DPR);
+  for (const q of b.teile) {
+    const d = TEILE[q.schluessel];
+    if (!d) continue;
+    const p = inSicht(ccx + q.x * Rst, ccy + q.y * Rst);
+    if (p.x < -60 || p.x > W + 60 || p.y < -30 || p.y > H + 30) continue;
+    const auf = teilOffen === q.schluessel;
+
+    cx.font = "600 10.5px -apple-system, system-ui, sans-serif";
+    const bw = cx.measureText(d.name).width + 20;
+    const bh = 20;
+    const bx = p.x - bw / 2, by = p.y - bh - 9;
+
+    /* Ein feiner Strich vom Schild zum Bauteil, damit klar ist,
+       worauf es sich bezieht */
+    cx.strokeStyle = `rgba(190,210,240,${0.4 * staerke})`;
+    cx.lineWidth = 1;
+    cx.beginPath();
+    cx.moveTo(p.x, by + bh); cx.lineTo(p.x, p.y - 2);
+    cx.stroke();
+    cx.fillStyle = `rgba(190,210,240,${0.55 * staerke})`;
+    cx.beginPath(); cx.arc(p.x, p.y, 2, 0, Math.PI * 2); cx.fill();
+
+    cx.fillStyle = auf ? `rgba(58,74,104,${0.95 * staerke})`
+                       : `rgba(16,20,30,${0.78 * staerke})`;
+    rundRect(cx, bx, by, bw, bh, 7); cx.fill();
+    cx.strokeStyle = `rgba(150,176,214,${(auf ? 0.6 : 0.26) * staerke})`;
+    cx.lineWidth = 1;
+    rundRect(cx, bx, by, bw, bh, 7); cx.stroke();
+
+    cx.fillStyle = `rgba(226,236,250,${0.95 * staerke})`;
+    cx.textAlign = "center"; cx.textBaseline = "middle";
+    cx.fillText(d.name, p.x, by + bh / 2 + 0.5);
+
+    treffer.push({ schluessel: q.schluessel, bx, by, bw, bh });
+  }
+  cx.restore();
+  return treffer;
+}
+
 /* --- Das Bordbuch ----------------------------------------------------
    Getrennt vom Missions-Log, und mit Absicht: das Log sagt, was ein
    Agent geantwortet hat, das Bordbuch sagt, was an der Station
@@ -2411,6 +2536,17 @@ function merkeFenster(c, liste, x, y, r, ton, ph, takt, grund, hub) {
    Die Stellen werden beim Backen mitgeschrieben, weil nur dort die
    Kette aus Drehungen und Verschiebungen bekannt ist. Gespeichert wird
    in Vielfachen von R, damit sie in jeder Groesse stimmen. */
+/* Ein benanntes Bauteil. Beim Hineinzoomen bekommt es ein Schild, und
+   wer darauf tippt, bekommt erklaert, wofuer es da ist. Die Stellen
+   werden wie die Arbeitsplaetze beim Backen mitgeschrieben — nur dort
+   ist bekannt, wo sie am Ende liegen. */
+function merkeTeil(c, liste, x, y, schluessel) {
+  if (!liste) return;
+  const m = c.getTransform();
+  const p = new DOMPoint(x, y).matrixTransform(m);
+  liste.push({ x: p.x, y: p.y, schluessel });
+}
+
 function merkePlatz(c, liste, x, y, art, dreh) {
   if (!liste) return;
   const m = c.getTransform();
@@ -2520,14 +2656,15 @@ function stationBacken(Rpx) {
   cv.width = rx * 2; cv.height = ry * 2;
   const c = cv.getContext("2d");
   c.translate(rx, ry);
-  const fenster = [], plaetze = [];
-  stationStatisch(c, Rpx, fenster, plaetze);
+  const fenster = [], plaetze = [], teile = [];
+  stationStatisch(c, Rpx, fenster, plaetze, teile);
   /* Die gemerkten Punkte liegen in Bildkoordinaten — auf die Mitte
      umrechnen, damit sie beim Kopieren mitwandern. */
   for (const f of fenster) { f.x -= rx; f.y -= ry; }
   /* Die Arbeitsplaetze dagegen stehen in Vielfachen von R: sie werden
      nicht ins Bild kopiert, sondern in der Szene gebraucht. */
   for (const q of plaetze) { q.x = (q.x - rx) / Rpx; q.y = (q.y - ry) / Rpx; }
+  for (const q of teile) { q.x = (q.x - rx) / Rpx; q.y = (q.y - ry) / Rpx; }
   /* Nachts faellt kein Sonnenlicht mehr auf die Station, nur noch der
      Erdschein von unten. Sie wird also nicht einfach dunkler, sondern
      blauer — und von unten heller als von oben, genau umgekehrt zum
@@ -2536,7 +2673,7 @@ function stationBacken(Rpx) {
 
      Das Abendbild darf halb so fein sein. Es ist nur dreieinhalb
      Sekunden im Umlauf zu sehen, und weich ist es dann ohnehin. */
-  return { R: Rpx, rx, ry, bild: cv, fenster, plaetze: weitOrdnen(plaetze),
+  return { R: Rpx, rx, ry, bild: cv, fenster, teile, plaetze: weitOrdnen(plaetze),
            streifen: streifenMessen(cv, 16),
            nacht: umfaerben(cv, [
              [0, "rgba(5,8,16,.95)"],
@@ -2552,7 +2689,7 @@ function stationBacken(Rpx) {
            ], 2) };
 }
 
-function stationStatisch(c, R, fenster, plaetze) {
+function stationStatisch(c, R, fenster, plaetze, teile) {
   const saat = 17;
   const t = 0;
   /* 30 Grad aus der reinen Seitenansicht gedreht: alles, was in
@@ -2587,6 +2724,7 @@ function stationStatisch(c, R, fenster, plaetze) {
   c.save();
   c.rotate(-0.045);                          // leicht schraeg, nie exakt waagerecht
   gittertraeger(c, -tr, tr, 0, trh, saat, plaetze);
+  merkeTeil(c, teile, -tr * 0.28, -trh * 0.6, "traeger");
 
   /* ---------- Solarfluegel: vier Paare, QUER zum Traeger ----------
      Ein Fluegel misst 34 auf 11,6 Meter, also 15,8 auf 5,4 Modulradien.
@@ -2641,6 +2779,7 @@ function stationStatisch(c, R, fenster, plaetze) {
            nicht an ihm entlang. */
         c.rotate(oben * Math.PI / 2 + sonnendreh * seite);
         solarfluegel(c, 0, -flB / 2, flL, flB, saat + oben * 3 + paar, false);
+        if (seite < 0 && paar === 0 && oben < 0) merkeTeil(c, teile, flL * 0.5, 0, "fluegel");
 
         /* iROSA: die neuen Rollfluegel liegen als kleinere, fast
            schwarze Teppiche schraeg ueber der inneren Haelfte, also
@@ -2714,6 +2853,7 @@ function stationStatisch(c, R, fenster, plaetze) {
       c.rotate(seite * 0.05 * oben);
       radiator(c, -raB / 2, oben < 0 ? -raL : trh * 0.5,
         raB, raL - trh * 0.5, false);
+      if (seite > 0 && i === 0) merkeTeil(c, teile, 0, -raL * 0.6, "radiator");
       c.restore();
     }
   }
@@ -2756,6 +2896,8 @@ function stationStatisch(c, R, fenster, plaetze) {
     /* Auf jedem Modul liegt oben und unten ein Handlauf — dort haengt
        sich ein Astronaut ein. */
     merkePlatz(c, plaetze, pos + l * 0.4, -md / 2, "handlauf", 0);
+    if (i === 1) merkeTeil(c, teile, pos + l * 0.5, 0, "modul");
+    if (i === 2) merkeTeil(c, teile, pos + l * 0.4, -md * 0.42, "handlauf");
     merkePlatz(c, plaetze, pos + l * 0.65, md / 2, "handlauf", Math.PI);
     pos += l;
     if (i < stapel.length - 1) {
@@ -2782,6 +2924,7 @@ function stationStatisch(c, R, fenster, plaetze) {
 
   /* Der freie Kopplungsstutzen, an dem Frachter andocken */
   merkePlatz(c, plaetze, pos + md * 0.55, 0, "hafen", 0);
+  merkeTeil(c, teile, pos + md * 0.3, md * 0.2, "hafen");
 
   /* Endkappe vorn: die feste Ellipse mit halber Breite */
   endkappe(c, pos, 0, md / 2);
@@ -2854,6 +2997,7 @@ function stationStatisch(c, R, fenster, plaetze) {
   merkeFenster(c, fenster, 0, kr * 0.28, kr * 0.26, "174,218,255", 0, 0.0009, 0.5, 0.28);
   c.strokeStyle = "rgba(226,232,240,.45)"; c.lineWidth = 0.7;
   c.beginPath(); c.arc(0, 0, kr, 0, Math.PI); c.stroke();
+  merkeTeil(c, teile, 0, kr * 0.6, "kuppel");
   c.restore();
 
   c.restore();  /* Modulstapel zurueck */
@@ -5180,6 +5324,9 @@ function rahmen(jetzt) {
   /* Blasen zuletzt — sie weichen einander UND den Astronauten aus.
      Auf schmalen Bildschirmen nur die zwei juengsten, sonst steht
      die halbe Szene voller Text. */
+  /* Die Schilder der Bauteile, sobald man nah genug dran ist */
+  TEILSCHILDER = zeichneTeileSchilder(t, ccx, ccy, Rst, inSicht, kinoZoom) || [];
+
   const maxBlasen = W < 520 ? 2 : 4;
   blasen.sort((a, b) => (b.seit || 0) - (a.seit || 0));
   const zeigen = blasen.slice(0, maxBlasen).sort((a, b) => a.y - b.y);
@@ -6164,13 +6311,17 @@ function themaWaehlen(id) {
 function blendeAuf(id) {
   /* Beim Astronauten-Detail bleibt die Szene sichtbar UND in Bewegung.
      Bei den anderen Blenden waere das nur verschenkte Rechenzeit. */
-  const klareSicht = id === "blende-detail";
+  /* Klare Sicht auch beim erklaerten Bauteil: wer liest, was ein
+     Radiator tut, will ihn dabei sehen. Bei den uebrigen Blenden waere
+     das nur verschenkte Rechenzeit. */
+  const klareSicht = id === "blende-detail" || id === "blende-teil";
   document.body.classList.toggle("sicht", klareSicht);
   blendeOffen = !klareSicht;
   /* Wechselt man vom Detail zu einer anderen Blende, gehoert der
      Auswahlring am Astronauten weg */
   if (id !== "blende-detail" && offeneDetailId) { offeneDetailId = null; zeichneCrewLeiste(); }
   if (id === "blende-detail") KAM.folgt = null;
+  if (id !== "blende-teil") teilOffen = null;
   $$(".blende").forEach(b => b.classList.toggle("offen", b.id === id));
   $("#schleier").classList.add("an");
   if (id === "blende-crew") zeichneCrewListe();
@@ -6488,6 +6639,19 @@ function zeichneTelemetrie(t) {
   }
 }
 
+/* Ein Bauteil erklaeren. Der Text steht in TEILE und ist bewusst in
+   drei Stufen gebaut: ein Satz, ein Absatz, die Zahlen. */
+function teilZeigen(schluessel) {
+  const d = TEILE[schluessel];
+  if (!d) return;
+  teilOffen = schluessel;
+  $("#teil-name").textContent = d.name;
+  $("#teil-kurz").textContent = d.kurz;
+  $("#teil-lang").textContent = d.lang;
+  $("#teil-zahl").textContent = d.zahl;
+  blendeAuf("blende-teil");
+}
+
 /* Das Log als Textdatei sichern. Markdown, weil man es dann sowohl
    lesen als auch weiterverarbeiten kann — und weil die Antworten der
    Agenten ohnehin schon so formatiert sind. Das Denkprotokoll kommt
@@ -6701,11 +6865,19 @@ function zeigerLoslassen(ev) {
   if (ZEIGER.size === 0) zieh = null;
   /* Nur wenn nicht gezogen wurde, gilt es als Tippen */
   if (war && !war.bewegt && ZEIGER.size === 0) {
+    /* Zuerst die Schilder: sie liegen ueber allem anderen */
+    for (const sch of TEILSCHILDER) {
+      if (ev.clientX >= sch.bx && ev.clientX <= sch.bx + sch.bw &&
+          ev.clientY >= sch.by && ev.clientY <= sch.by + sch.bh) {
+        teilZeigen(sch.schluessel);
+        return;
+      }
+    }
     const treffer = astronautBei(ev.clientX, ev.clientY);
     if (treffer) {
       detailOeffnen(treffer.id);
       if (KAM.zielZoom < 1.6) fahreZu(treffer.id, 2.4);
-    } else if (offeneDetailId) {
+    } else if (offeneDetailId || teilOffen) {
       /* Ins Leere getippt: das Detailfenster zu. Frueher uebernahm das
          der Schleier, aber der laesst jetzt Zeiger durch. */
       blendeZu();
@@ -6821,6 +6993,7 @@ window.__STERNE = (t,a,b) => zeichneSterne(t,a,b);
 window.__STATION = (t,x,y,r) => zeichneStation(t,x,y,r);
 window.__STBILD = () => STBILD;
 window.__FRACHT = () => FRACHT;
+window.__SCHILDER = () => TEILSCHILDER;
 window.__LOGPUSH = (e) => { Z.log.unshift(e); zeichneLog(); };
 window.__PHASE = (ph) => { PHASE_TEST = ph; };
 window.__LICHT = () => ({ tag: TAGLICHT, abend: ABENDLICHT });
