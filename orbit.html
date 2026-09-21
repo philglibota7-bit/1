@@ -1,0 +1,1741 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05060c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ORBIT">
+<title>ORBIT • Agenten-Leitstand</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🛰%3C/text%3E%3C/svg%3E">
+<style>
+/* ================================================================
+   ORBIT — Agenten als Astronauten an einer Raumstation.
+   Optik nach dem Hausprinzip: Glas ueber Farbnebel, entsaettigt,
+   kein Neon. Die Szene selbst laeuft auf einem Canvas darueber.
+   ================================================================ */
+:root{
+  --p0:#05060c;
+  --p1:rgba(255,255,255,.055);
+  --p2:rgba(255,255,255,.085);
+  --p3:rgba(255,255,255,.125);
+  --edge:rgba(255,255,255,.10);
+  --edge2:rgba(255,255,255,.18);
+  --tx:#e9ecf2; --tx2:#98a1b4; --tx3:#626c80;
+  --acc:#7ba4d8; --acc-deep:#557ba8; --acc-tint:rgba(123,164,216,.16);
+  --good:#74b48d; --warn:#cfa456; --bad:#e07a6a;
+  /* Nebelfarben — tiefer Raum, aber sichtbar */
+  --f1:#3c5fa0; --f2:#5d4a92; --f3:#2f7684; --f4:#7d4a7e;
+  --r1:12px; --r2:18px; --r3:26px;
+  --ease:cubic-bezier(.32,.72,0,1);
+}
+*{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%; overflow:hidden;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,'Segoe UI',sans-serif;
+  background:var(--p0); color:var(--tx);
+  font-size:14.5px; line-height:1.5; letter-spacing:-.011em;
+  -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums;
+  overscroll-behavior:none;
+}
+button,input,textarea,select{font-family:inherit; font-size:inherit; color:inherit;}
+button{background:none; border:none; cursor:pointer;}
+::selection{background:var(--acc); color:#06121f;}
+::-webkit-scrollbar{width:9px; height:9px;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.13); border-radius:99px; border:2px solid transparent; background-clip:content-box;}
+::-webkit-scrollbar-track{background:transparent;}
+
+/* ---------- Schicht 1: Farbnebel ---------- */
+#nebel{position:fixed; inset:0; z-index:0; overflow:hidden; background:var(--p0);}
+#nebel::before{content:''; position:absolute; inset:-20%;
+  background:
+    radial-gradient(46% 42% at 24% 26%, var(--f1) 0%, transparent 68%),
+    radial-gradient(42% 38% at 78% 16%, var(--f2) 0%, transparent 70%),
+    radial-gradient(48% 44% at 74% 80%, var(--f3) 0%, transparent 70%),
+    radial-gradient(40% 38% at 20% 82%, var(--f4) 0%, transparent 70%);
+  filter:blur(38px) saturate(1.05); opacity:.44;
+  animation:nebel 64s ease-in-out infinite alternate;}
+@keyframes nebel{
+  0%  {transform:scale(1) translate(0,0);}
+  50% {transform:scale(1.12) translate(-2.5%,1.8%);}
+  100%{transform:scale(1.05) translate(2%,-2%);}
+}
+/* Filmkorn — bricht die Farbverlaeufe, sonst bandet es auf dem Handy */
+#korn{position:fixed; inset:0; z-index:3; pointer-events:none; opacity:.15;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");}
+/* Vignette — zieht den Blick zur Station */
+#vignette{position:fixed; inset:0; z-index:2; pointer-events:none;
+  background:radial-gradient(ellipse 80% 70% at 50% 46%, transparent 46%, rgba(0,0,0,.40) 100%);}
+
+/* ---------- Schicht 2: die Szene ---------- */
+#szene{position:fixed; inset:0; z-index:1; display:block; touch-action:none;}
+
+/* ---------- Bedienoberflaeche ---------- */
+#ui{position:fixed; inset:0; z-index:5; pointer-events:none;
+  display:flex; flex-direction:column;
+  transition:opacity .7s var(--ease);}
+#ui > *{pointer-events:auto;}
+body.kino #ui{opacity:0; pointer-events:none;}
+body.kino #vignette{background:radial-gradient(ellipse 74% 64% at 50% 46%, transparent 40%, rgba(0,0,0,.55) 100%);}
+
+.glas{
+  background:var(--p1);
+  border:1px solid var(--edge);
+  border-radius:var(--r2);
+  backdrop-filter:blur(22px) saturate(1.3);
+  -webkit-backdrop-filter:blur(22px) saturate(1.3);
+  box-shadow:0 14px 44px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.07);
+}
+
+/* ---------- Kopfzeile ---------- */
+header{
+  display:flex; align-items:center; gap:12px;
+  padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+  margin:0; flex:0 0 auto;
+}
+.marke{display:flex; align-items:center; gap:10px; margin-right:auto; padding-left:4px;}
+.marke .sat{
+  width:32px; height:32px; border-radius:50%; flex:0 0 auto; position:relative;
+  background:radial-gradient(circle at 38% 34%, #cfe2ff 0%, var(--acc) 34%, #16243a 70%, transparent 74%);
+  box-shadow:0 0 16px rgba(123,164,216,.5), inset 0 0 6px rgba(255,255,255,.4);
+  animation:puls 4.5s ease-in-out infinite;}
+@keyframes puls{0%,100%{transform:scale(1); opacity:.9;} 50%{transform:scale(1.07); opacity:1;}}
+.marke h1{font-size:15px; font-weight:600; letter-spacing:.16em;}
+.marke small{display:block; font-size:10.5px; color:var(--tx3); letter-spacing:.1em;
+  font-weight:450; white-space:nowrap;}
+@media (max-width:460px){ .marke small{letter-spacing:.04em; font-size:9.5px;} }
+
+.kopf-knopf{
+  display:flex; align-items:center; justify-content:center; gap:7px;
+  height:38px; padding:0 14px; border-radius:99px;
+  background:var(--p1); border:1px solid var(--edge);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  color:var(--tx2); font-size:12.5px; font-weight:500; letter-spacing:.02em;
+  transition:all .22s var(--ease); white-space:nowrap;
+}
+.kopf-knopf:hover{background:var(--p2); color:var(--tx); border-color:var(--edge2);}
+.kopf-knopf:active{transform:scale(.96);}
+.kopf-knopf.an{background:var(--acc-tint); border-color:rgba(123,164,216,.4); color:var(--acc);}
+.kopf-knopf svg{width:15px; height:15px; flex:0 0 auto;}
+
+/* ---------- Fussleiste: Missionsfeld ---------- */
+footer{
+  margin-top:auto; padding:0 12px calc(12px + env(safe-area-inset-bottom));
+  display:flex; flex-direction:column; gap:10px; flex:0 0 auto;
+}
+#crew-leiste{
+  display:flex; gap:8px; overflow-x:auto; padding:2px 2px 4px;
+  scrollbar-width:none; -ms-overflow-style:none;}
+#crew-leiste::-webkit-scrollbar{display:none;}
+
+.crew-chip{
+  display:flex; align-items:center; gap:8px; flex:0 0 auto;
+  height:40px; padding:0 13px 0 9px; border-radius:99px;
+  background:var(--p1); border:1px solid var(--edge);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  transition:all .22s var(--ease); max-width:210px;
+}
+.crew-chip:hover{background:var(--p2); border-color:var(--edge2);}
+.crew-chip.gewaehlt{background:var(--p3); border-color:var(--edge2); box-shadow:0 0 0 1px var(--edge2);}
+.crew-chip .punkt{width:9px; height:9px; border-radius:50%; flex:0 0 auto; box-shadow:0 0 9px currentColor;}
+.crew-chip .nm{font-size:12.5px; font-weight:550; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.crew-chip .zust{font-size:10px; color:var(--tx3); letter-spacing:.04em;}
+.crew-chip .txt{display:flex; flex-direction:column; align-items:flex-start; line-height:1.25; overflow:hidden;}
+.crew-chip.neu{color:var(--tx3); padding:0 15px;}
+.crew-chip.neu:hover{color:var(--acc);}
+
+#missionsfeld{padding:11px 11px 11px 15px; display:flex; align-items:flex-end; gap:10px;}
+#auftrag{
+  flex:1; background:none; border:none; outline:none; resize:none;
+  color:var(--tx); font-size:15px; line-height:1.45; max-height:132px; min-height:24px;
+  padding:7px 0; overflow-y:auto;
+}
+#auftrag::placeholder{color:var(--tx3);}
+#senden{
+  width:40px; height:40px; border-radius:50%; flex:0 0 auto;
+  background:var(--acc); color:#06121f;
+  display:flex; align-items:center; justify-content:center;
+  transition:all .22s var(--ease);
+  box-shadow:0 4px 18px rgba(123,164,216,.35);
+}
+#senden:hover:not(:disabled){background:#95b8e6; transform:scale(1.06);}
+#senden:active:not(:disabled){transform:scale(.93);}
+#senden:disabled{opacity:.3; cursor:default; box-shadow:none;}
+#senden svg{width:19px; height:19px;}
+
+/* ---------- Blenden (Crew, Log, Einstellungen) ---------- */
+.blende{
+  position:fixed; z-index:10; inset:auto 0 0 0;
+  max-height:86dvh; display:flex; flex-direction:column;
+  border-radius:var(--r3) var(--r3) 0 0;
+  transform:translateY(102%); transition:transform .42s var(--ease);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.blende.offen{transform:translateY(0);}
+@media (min-width:760px){
+  .blende{inset:auto auto 16px 16px; width:430px; max-height:calc(100dvh - 120px);
+    border-radius:var(--r3); transform:translateY(calc(100% + 30px));}
+  .blende.offen{transform:translateY(0);}
+}
+.blende-kopf{
+  display:flex; align-items:center; gap:10px; padding:16px 18px 12px;
+  border-bottom:1px solid var(--edge); flex:0 0 auto;}
+.blende-kopf h2{font-size:14.5px; font-weight:600; letter-spacing:.01em; margin-right:auto;}
+.blende-kopf .zu{width:30px; height:30px; border-radius:50%; background:var(--p2);
+  display:flex; align-items:center; justify-content:center; color:var(--tx2); font-size:15px;}
+.blende-kopf .zu:hover{background:var(--p3); color:var(--tx);}
+.blende-inhalt{overflow-y:auto; padding:14px 16px 18px; flex:1 1 auto; -webkit-overflow-scrolling:touch;}
+
+/* Griff oben zum Wischen */
+.griff{width:36px; height:4px; border-radius:99px; background:rgba(255,255,255,.2);
+  margin:8px auto -4px; flex:0 0 auto;}
+@media (min-width:760px){.griff{display:none;}}
+
+/* ---------- Crew-Verwaltung ---------- */
+.agent-karte{
+  border:1px solid var(--edge); border-radius:var(--r1); background:var(--p1);
+  padding:13px 14px; margin-bottom:10px;}
+.agent-karte .zeile1{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
+.agent-karte .kugel{width:11px; height:11px; border-radius:50%; flex:0 0 auto; box-shadow:0 0 10px currentColor;}
+.agent-karte .name{font-weight:600; font-size:14px; margin-right:auto;}
+.agent-karte .rolle{font-size:12.5px; color:var(--tx2); line-height:1.45;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+.agent-karte .meta{font-size:11px; color:var(--tx3); margin-top:7px; letter-spacing:.02em;}
+.mini{width:28px; height:28px; border-radius:7px; background:var(--p2); color:var(--tx3);
+  display:flex; align-items:center; justify-content:center; flex:0 0 auto; transition:all .2s var(--ease);}
+.mini:hover{background:var(--p3); color:var(--tx);}
+.mini.gefahr:hover{background:rgba(224,122,106,.18); color:var(--bad);}
+.mini svg{width:14px; height:14px;}
+
+label.feld{display:block; margin-bottom:13px;}
+label.feld > span{display:block; font-size:11.5px; color:var(--tx3); margin-bottom:6px;
+  letter-spacing:.06em; text-transform:uppercase; font-weight:550;}
+.eingabe{
+  width:100%; background:rgba(0,0,0,.28); border:1px solid var(--edge);
+  border-radius:var(--r1); padding:10px 12px; outline:none; color:var(--tx);
+  transition:border-color .2s var(--ease); font-size:14px;}
+.eingabe:focus{border-color:var(--acc-deep);}
+textarea.eingabe{resize:vertical; min-height:88px; line-height:1.5;}
+select.eingabe{appearance:none; cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%2398a1b4' stroke-width='1.6'%3E%3Cpath d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 12px center; padding-right:32px;}
+.farbwahl{display:flex; gap:8px; flex-wrap:wrap;}
+.farbwahl button{width:30px; height:30px; border-radius:50%; border:2px solid transparent; transition:all .2s var(--ease);}
+.farbwahl button:hover{transform:scale(1.12);}
+.farbwahl button.an{border-color:var(--tx); transform:scale(1.14);}
+
+.knopf{
+  width:100%; height:44px; border-radius:var(--r1); font-weight:600; font-size:14px;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  transition:all .22s var(--ease);}
+.knopf.voll{background:var(--acc); color:#06121f;}
+.knopf.voll:hover{background:#95b8e6;}
+.knopf.voll:disabled{opacity:.35; cursor:default;}
+.knopf.leer{background:var(--p2); border:1px solid var(--edge); color:var(--tx2);}
+.knopf.leer:hover{background:var(--p3); color:var(--tx);}
+
+/* ---------- Missions-Log ---------- */
+.log-eintrag{border:1px solid var(--edge); border-radius:var(--r1); background:var(--p1);
+  margin-bottom:10px; overflow:hidden;}
+.log-kopf{display:flex; align-items:center; gap:9px; padding:11px 13px; cursor:pointer;}
+.log-kopf .kugel{width:9px; height:9px; border-radius:50%; flex:0 0 auto; box-shadow:0 0 9px currentColor;}
+.log-kopf .wer{font-size:12.5px; font-weight:600; flex:0 0 auto;}
+.log-kopf .was{font-size:12.5px; color:var(--tx2); overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; flex:1 1 auto;}
+.log-kopf .marke{font-size:10px; color:var(--tx3); flex:0 0 auto; letter-spacing:.04em; margin:0; padding:0;}
+.log-koerper{padding:0 13px 13px; font-size:13.5px; line-height:1.62; color:var(--tx);
+  white-space:pre-wrap; word-break:break-word; border-top:1px solid var(--edge); padding-top:11px;}
+.log-koerper.denkt{color:var(--tx3); font-style:italic; font-size:12.5px; border-top:none; padding-top:0;}
+.log-eintrag.zu .log-koerper{display:none;}
+.log-fuss{display:flex; gap:10px; align-items:center; padding:0 13px 11px; font-size:10.5px; color:var(--tx3);}
+.log-fuss button{font-size:10.5px; color:var(--tx3); letter-spacing:.04em;}
+.log-fuss button:hover{color:var(--acc);}
+
+.leer-hinweis{text-align:center; padding:34px 18px; color:var(--tx3); font-size:13px; line-height:1.6;}
+.leer-hinweis .gross{font-size:30px; display:block; margin-bottom:10px; opacity:.55;}
+
+.warnung{border:1px solid rgba(207,164,86,.3); background:rgba(207,164,86,.09);
+  border-radius:var(--r1); padding:11px 13px; font-size:12px; color:#dbb878;
+  line-height:1.55; margin-bottom:14px;}
+
+/* ---------- Kino-Hinweis ---------- */
+#kino-tipp{position:fixed; z-index:6; left:50%; bottom:calc(26px + env(safe-area-inset-bottom));
+  transform:translateX(-50%); font-size:11px; color:rgba(255,255,255,.3);
+  letter-spacing:.18em; text-transform:uppercase; pointer-events:none;
+  opacity:0; transition:opacity .8s var(--ease);}
+body.kino #kino-tipp{opacity:1; animation:tippweg 4s ease forwards;}
+@keyframes tippweg{0%,55%{opacity:1;} 100%{opacity:0;}}
+
+#schleier{position:fixed; inset:0; z-index:9; background:rgba(0,0,0,.5);
+  opacity:0; pointer-events:none; transition:opacity .4s var(--ease);
+  backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px);}
+#schleier.an{opacity:1; pointer-events:auto;}
+
+@media (prefers-reduced-motion:reduce){
+  #nebel::before{animation:none;}
+  .marke .sat{animation:none;}
+}
+</style>
+</head>
+<body>
+
+<div id="nebel"></div>
+<canvas id="szene"></canvas>
+<div id="vignette"></div>
+<div id="korn"></div>
+
+<div id="ui">
+  <header>
+    <div class="marke">
+      <div class="sat"></div>
+      <div>
+        <h1>ORBIT</h1>
+        <small>AGENTEN-LEITSTAND</small>
+      </div>
+    </div>
+    <button class="kopf-knopf" id="btn-log" title="Missions-Log">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      <span id="log-zahl">Log</span>
+    </button>
+    <button class="kopf-knopf" id="btn-crew" title="Crew verwalten">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M17 11.5a3 3 0 1 0-1.8-5.4M18 20c0-2.2-.8-3.9-2-5"/></svg>
+      <span>Crew</span>
+    </button>
+    <button class="kopf-knopf" id="btn-kino" title="Kinomodus — alles ausblenden">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>
+    </button>
+  </header>
+
+  <footer>
+    <div id="crew-leiste"></div>
+    <div class="glas" id="missionsfeld">
+      <textarea id="auftrag" rows="1" placeholder="Auftrag an die Crew…"></textarea>
+      <button id="senden" disabled title="Absenden (⌘/Strg + Enter)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+      </button>
+    </div>
+  </footer>
+</div>
+
+<div id="kino-tipp">Tippen zum Beenden</div>
+<div id="schleier"></div>
+
+<!-- ---------- Blende: Missions-Log ---------- -->
+<div class="blende glas" id="blende-log">
+  <div class="griff"></div>
+  <div class="blende-kopf">
+    <h2>Missions-Log</h2>
+    <button class="mini" id="log-leeren" title="Log leeren">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13"/></svg>
+    </button>
+    <button class="zu" data-zu="blende-log">✕</button>
+  </div>
+  <div class="blende-inhalt" id="log-liste"></div>
+</div>
+
+<!-- ---------- Blende: Crew ---------- -->
+<div class="blende glas" id="blende-crew">
+  <div class="griff"></div>
+  <div class="blende-kopf">
+    <h2>Crew</h2>
+    <button class="mini" id="btn-schluessel" title="API-Schlüssel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3M17 6l2.5 2.5M14.5 8.5 17 11"/></svg>
+    </button>
+    <button class="zu" data-zu="blende-crew">✕</button>
+  </div>
+  <div class="blende-inhalt">
+    <div id="schluessel-warnung"></div>
+    <div id="crew-liste"></div>
+    <button class="knopf leer" id="btn-neuer-agent" style="margin-top:4px">+ Neuer Agent</button>
+  </div>
+</div>
+
+<!-- ---------- Blende: Agent bearbeiten ---------- -->
+<div class="blende glas" id="blende-agent">
+  <div class="griff"></div>
+  <div class="blende-kopf">
+    <h2 id="agent-titel">Neuer Agent</h2>
+    <button class="zu" data-zu="blende-agent">✕</button>
+  </div>
+  <div class="blende-inhalt">
+    <label class="feld"><span>Name</span>
+      <input class="eingabe" id="a-name" maxlength="28" placeholder="z. B. Kepler" autocomplete="off"></label>
+    <label class="feld"><span>Auftrag / Rolle (System-Prompt)</span>
+      <textarea class="eingabe" id="a-rolle" placeholder="Wofür ist dieser Agent zuständig? Je genauer, desto besser."></textarea></label>
+    <label class="feld"><span>Modell</span>
+      <select class="eingabe" id="a-modell">
+        <option value="claude-opus-5">Claude Opus 5 — am stärksten</option>
+        <option value="claude-sonnet-5">Claude Sonnet 5 — günstiger</option>
+        <option value="claude-haiku-4-5">Claude Haiku 4.5 — am schnellsten</option>
+      </select></label>
+    <label class="feld"><span>Aufwand (Denktiefe &amp; Kosten)</span>
+      <select class="eingabe" id="a-aufwand">
+        <option value="low">niedrig — schnell und billig</option>
+        <option value="medium">mittel</option>
+        <option value="high" selected>hoch — Standard</option>
+        <option value="xhigh">sehr hoch</option>
+        <option value="max">maximal — teuer</option>
+      </select></label>
+    <label class="feld"><span>Anzugfarbe</span>
+      <div class="farbwahl" id="a-farbe"></div></label>
+    <button class="knopf voll" id="a-speichern">Speichern</button>
+    <button class="knopf leer" id="a-loeschen" style="margin-top:9px; display:none">Agent löschen</button>
+  </div>
+</div>
+
+<!-- ---------- Blende: API-Schlüssel ---------- -->
+<div class="blende glas" id="blende-schluessel">
+  <div class="griff"></div>
+  <div class="blende-kopf">
+    <h2>API-Schlüssel</h2>
+    <button class="zu" data-zu="blende-schluessel">✕</button>
+  </div>
+  <div class="blende-inhalt">
+    <div class="warnung">
+      Der Schlüssel wird nur in <b>diesem Browser</b> gespeichert (localStorage) und
+      ausschließlich an <b>api.anthropic.com</b> geschickt — nie an diese Seite oder
+      irgendeinen anderen Server. Trotzdem gilt: nutze einen eigenen Schlüssel mit
+      Ausgabenlimit und teile dieses Gerät nicht mit Fremden.
+    </div>
+    <label class="feld"><span>Anthropic API-Schlüssel</span>
+      <input class="eingabe" id="s-key" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"></label>
+    <label class="feld"><span>Maximale Antwortlänge (Tokens)</span>
+      <input class="eingabe" id="s-maxtok" type="number" min="512" max="64000" step="512" value="8000"></label>
+    <button class="knopf voll" id="s-speichern">Speichern</button>
+    <button class="knopf leer" id="s-loeschen" style="margin-top:9px">Schlüssel entfernen</button>
+    <p style="font-size:11.5px; color:var(--tx3); line-height:1.6; margin-top:14px">
+      Schlüssel erstellen: console.anthropic.com → Settings → API keys
+    </p>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ================================================================
+   1 — Zustand und Speicher
+   Alles liegt im localStorage dieses Browsers. Kein Server, keine
+   Anmeldung, keine Telemetrie.
+   ================================================================ */
+
+const SPEICHER = "orbit.v1";
+const $  = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+/* Anzugfarben — entsaettigt, aber untereinander klar unterscheidbar */
+const FARBEN = [
+  "#7ba4d8", "#e0765a", "#74b48d", "#cfa456",
+  "#b98ad0", "#5fb2b8", "#e08aa8", "#9aa8c4",
+];
+
+const VORLAGE_CREW = [
+  { name: "Kepler", farbe: "#7ba4d8",
+    rolle: "Du bist Kepler, ein Rechercheur. Du beantwortest Fragen knapp, gegliedert und mit klarer Trennung zwischen gesicherten Fakten und Vermutungen. Wenn du etwas nicht weißt, sagst du das direkt, statt zu raten." },
+  { name: "Vega", farbe: "#e0765a",
+    rolle: "Du bist Vega, eine Kritikerin. Du prüfst Ideen und Texte auf Schwachstellen. Du bist direkt, nicht höflich-ausweichend, und begründest jede Kritik. Am Ende gibst du immer eine Bewertung von 1 bis 10 mit kurzer Begründung." },
+  { name: "Atlas", farbe: "#74b48d",
+    rolle: "Du bist Atlas, ein Planer. Du zerlegst Aufgaben in konkrete, nummerierte Schritte mit realistischem Aufwand. Keine Floskeln, keine Motivationssprüche — nur der Plan." },
+];
+
+let Z = {
+  agenten: [],
+  log: [],
+  key: "",
+  maxTok: 8000,
+  gewaehlt: null,     // ID des aktiven Agenten, null = ganze Crew
+};
+
+function laden() {
+  try {
+    const roh = localStorage.getItem(SPEICHER);
+    if (roh) {
+      const d = JSON.parse(roh);
+      Z.agenten = Array.isArray(d.agenten) ? d.agenten : [];
+      Z.log     = Array.isArray(d.log) ? d.log.slice(0, 60) : [];
+      Z.key     = typeof d.key === "string" ? d.key : "";
+      Z.maxTok  = Number(d.maxTok) || 8000;
+      Z.gewaehlt = d.gewaehlt ?? null;
+    }
+  } catch (e) {
+    console.warn("Gespeicherter Zustand unlesbar, starte frisch.", e);
+  }
+  if (!Z.agenten.length) {
+    Z.agenten = VORLAGE_CREW.map((v, i) => ({
+      id: "a" + Date.now() + i,
+      name: v.name, rolle: v.rolle, farbe: v.farbe,
+      modell: "claude-opus-5", aufwand: "high",
+      laeufe: 0, tokens: 0,
+    }));
+  }
+  /* Ein Agent, den es nicht mehr gibt, darf nicht ausgewaehlt bleiben */
+  if (Z.gewaehlt && !Z.agenten.some(a => a.id === Z.gewaehlt)) Z.gewaehlt = null;
+}
+
+function sichern() {
+  try {
+    localStorage.setItem(SPEICHER, JSON.stringify({
+      agenten: Z.agenten,
+      log: Z.log.slice(0, 60),
+      key: Z.key, maxTok: Z.maxTok, gewaehlt: Z.gewaehlt,
+    }));
+  } catch (e) {
+    /* Speicher voll oder privater Modus — die App laeuft trotzdem weiter */
+    console.warn("Konnte nicht speichern.", e);
+  }
+}
+
+const agentNach = (id) => Z.agenten.find(a => a.id === id) || null;
+
+/* ================================================================
+   2 — Laufzeitzustand der Astronauten
+   Getrennt vom gespeicherten Zustand: was gerade passiert, muss
+   keinen Neustart ueberleben.
+   ================================================================ */
+
+const LAUF = new Map();   // agentId -> { zustand, gedanke, blitze, abbruch }
+window.__LAUF = LAUF;     // nur zum Testen von aussen
+
+function lauf(id) {
+  if (!LAUF.has(id)) {
+    LAUF.set(id, {
+      zustand: "ruht",    // ruht | denkt | sendet | fertig | fehler
+      gedanke: "",
+      seit: performance.now(),
+      blitze: [],         // Lichtimpulse auf der Leine
+      gluehen: 0,
+      abbruch: null,
+    });
+  }
+  return LAUF.get(id);
+}
+
+function setzeZustand(id, zustand) {
+  const l = lauf(id);
+  if (l.zustand !== zustand) { l.zustand = zustand; l.seit = performance.now(); }
+  zeichneCrewLeiste();
+}
+/* ================================================================
+   3 — Die Szene
+   Ein einziges Canvas: Sterne, Station, Astronauten, Leinen.
+   Alles wird prozedural gezeichnet — keine Bilder, keine Schriften
+   von aussen, nichts was nachgeladen werden muss.
+   ================================================================ */
+
+const cv = $("#szene");
+const cx = cv.getContext("2d", { alpha: true });
+let W = 0, H = 0, DPR = 1;
+let T0 = performance.now();
+const sparsam = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+let sterne = [];
+let sternschnuppe = null;
+
+function groesseAnpassen() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * DPR);
+  cv.height = Math.round(H * DPR);
+  cv.style.width = W + "px";
+  cv.style.height = H + "px";
+  cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  sterneStreuen();
+}
+
+function sterneStreuen() {
+  const anzahl = Math.round(Math.min(340, (W * H) / 3400));
+  sterne = new Array(anzahl).fill(0).map(() => {
+    const tiefe = Math.random();
+    return {
+      x: Math.random() * W, y: Math.random() * H,
+      r: 0.35 + tiefe * 1.25,
+      tiefe: 0.22 + tiefe * 0.78,
+      hell: 0.2 + Math.random() * 0.6,
+      takt: Math.random() * Math.PI * 2,
+      tempo: 0.4 + Math.random() * 1.4,
+    };
+  });
+}
+
+/* --- kleine Zeichenhelfer --- */
+function rundRect(c, x, y, w, h, r) {
+  const rr = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
+  c.beginPath();
+  c.moveTo(x + rr, y);
+  c.arcTo(x + w, y,     x + w, y + h, rr);
+  c.arcTo(x + w, y + h, x,     y + h, rr);
+  c.arcTo(x,     y + h, x,     y,     rr);
+  c.arcTo(x,     y,     x + w, y,     rr);
+  c.closePath();
+}
+const lerp = (a, b, t) => a + (b - a) * t;
+
+/* --- Sterne mit Parallaxe --- */
+function zeichneSterne(t, kamX, kamY) {
+  for (const s of sterne) {
+    const x = ((s.x - kamX * s.tiefe) % W + W) % W;
+    const y = ((s.y - kamY * s.tiefe) % H + H) % H;
+    const flimmern = sparsam ? 1 : 0.62 + 0.38 * Math.sin(t * 0.0013 * s.tempo + s.takt);
+    cx.globalAlpha = s.hell * flimmern;
+    cx.fillStyle = "#cfe0ff";
+    cx.beginPath();
+    cx.arc(x, y, s.r, 0, Math.PI * 2);
+    cx.fill();
+  }
+  cx.globalAlpha = 1;
+}
+
+function zeichneSternschnuppe(t, dt) {
+  if (sparsam) return;
+  if (!sternschnuppe && Math.random() < dt * 0.00009) {
+    sternschnuppe = {
+      x: Math.random() * W, y: Math.random() * H * 0.45,
+      vx: -0.26 - Math.random() * 0.2, vy: 0.12 + Math.random() * 0.1, leben: 1,
+    };
+  }
+  if (!sternschnuppe) return;
+  const s = sternschnuppe;
+  s.x += s.vx * dt; s.y += s.vy * dt; s.leben -= dt * 0.0007;
+  if (s.leben <= 0) { sternschnuppe = null; return; }
+  const l = 90;
+  const g = cx.createLinearGradient(s.x, s.y, s.x - s.vx * l, s.y - s.vy * l);
+  g.addColorStop(0, `rgba(220,235,255,${0.75 * s.leben})`);
+  g.addColorStop(1, "rgba(220,235,255,0)");
+  cx.strokeStyle = g; cx.lineWidth = 1.5; cx.lineCap = "round";
+  cx.beginPath(); cx.moveTo(s.x, s.y);
+  cx.lineTo(s.x - s.vx * l, s.y - s.vy * l); cx.stroke();
+}
+
+/* --- Raumstation: Modul, Rotationsring, Solarflügel ---
+   Reihenfolge ist entscheidend: hintere Ringhaelfte, dann das Modul,
+   dann die vordere Ringhaelfte. Erst dadurch liest sich das Ganze
+   raeumlich und nicht als flacher Kreis um eine Kugel. */
+function zeichneStation(t, cxp, cyp, R) {
+  const dreh = t * 0.00005;
+  const neig = 0.30;
+
+  cx.save();
+  cx.translate(cxp, cyp);
+
+  /* Schein */
+  const schein = cx.createRadialGradient(0, 0, R * 0.2, 0, 0, R * 3.4);
+  schein.addColorStop(0, "rgba(130,172,224,.22)");
+  schein.addColorStop(0.45, "rgba(123,164,216,.07)");
+  schein.addColorStop(1, "rgba(123,164,216,0)");
+  cx.fillStyle = schein;
+  cx.beginPath(); cx.arc(0, 0, R * 3.4, 0, Math.PI * 2); cx.fill();
+
+  /* Ausleger und Solarflügel */
+  const fluegelNeig = Math.sin(t * 0.00007) * 0.09;
+  cx.save();
+  cx.rotate(fluegelNeig);
+  for (const s of [-1, 1]) {
+    cx.strokeStyle = "rgba(168,196,232,.42)"; cx.lineWidth = R * 0.07; cx.lineCap = "round";
+    cx.beginPath(); cx.moveTo(s * R * 0.4, 0); cx.lineTo(s * R * 1.42, 0); cx.stroke();
+    cx.save();
+    cx.translate(s * R * 2.0, 0);
+    const pg = cx.createLinearGradient(0, -R * 0.42, 0, R * 0.42);
+    pg.addColorStop(0, "rgba(86,114,162,.72)");
+    pg.addColorStop(1, "rgba(44,60,90,.72)");
+    cx.fillStyle = pg;
+    cx.strokeStyle = "rgba(166,196,236,.34)"; cx.lineWidth = 1;
+    rundRect(cx, -R * 0.6, -R * 0.42, R * 1.2, R * 0.84, 3);
+    cx.fill(); cx.stroke();
+    cx.strokeStyle = "rgba(180,208,244,.2)";
+    for (let i = 1; i < 5; i++) {
+      const gx = -R * 0.6 + (R * 1.2 * i) / 5;
+      cx.beginPath(); cx.moveTo(gx, -R * 0.42); cx.lineTo(gx, R * 0.42); cx.stroke();
+    }
+    cx.beginPath(); cx.moveTo(-R * 0.6, 0); cx.lineTo(R * 0.6, 0); cx.stroke();
+    cx.restore();
+  }
+  cx.restore();
+
+  /* --- Rotationsring, hintere Haelfte --- */
+  const Rr = R * 1.34, dicke = R * 0.2;
+  cx.save();
+  cx.scale(1, neig);
+  cx.lineWidth = dicke; cx.lineCap = "butt";
+  cx.strokeStyle = "rgba(78,102,140,.85)";
+  cx.beginPath(); cx.arc(0, 0, Rr, Math.PI, Math.PI * 2); cx.stroke();
+  cx.restore();
+
+  /* Speichen hinten */
+  cx.save();
+  cx.scale(1, neig); cx.rotate(0);
+  cx.strokeStyle = "rgba(120,150,192,.42)"; cx.lineWidth = R * 0.045;
+  for (let i = 0; i < 6; i++) {
+    const w = (i / 6) * Math.PI * 2 + dreh * 4;
+    if (Math.sin(w) > 0) continue;
+    /* Erst ausserhalb des Moduls beginnen, sonst kreuzen sich die
+       Speichen quer ueber den Rumpf und es sieht nach Drahtgitter aus. */
+    cx.beginPath();
+    cx.moveTo(Math.cos(w) * Rr * 0.62, Math.sin(w) * Rr * 0.62);
+    cx.lineTo(Math.cos(w) * Rr, Math.sin(w) * Rr); cx.stroke();
+  }
+  cx.restore();
+
+  /* --- Zentralmodul: liegender Zylinder --- */
+  const mw = R * 1.3, mh = R * 0.56;
+  const mg = cx.createLinearGradient(0, -mh / 2, 0, mh / 2);
+  mg.addColorStop(0, "#e2ebf8");
+  mg.addColorStop(0.42, "#a8b9d2");
+  mg.addColorStop(1, "#2b3849");
+  cx.fillStyle = mg;
+  rundRect(cx, -mw / 2, -mh / 2, mw, mh, mh / 2);
+  cx.fill();
+  cx.strokeStyle = "rgba(210,230,255,.4)"; cx.lineWidth = 1; cx.stroke();
+
+  /* Segmentfugen */
+  cx.strokeStyle = "rgba(40,54,76,.45)"; cx.lineWidth = 1.2;
+  for (const f of [-0.26, 0.06, 0.32]) {
+    cx.beginPath();
+    cx.ellipse(mw * f, 0, mh * 0.16, mh / 2 - 1, 0, 0, Math.PI * 2);
+    cx.stroke();
+  }
+  /* Bullaugen — warm beleuchtet */
+  const warm = 0.68 + 0.32 * Math.sin(t * 0.0011);
+  for (let i = 0; i < 5; i++) {
+    const fx = -mw * 0.3 + (mw * 0.6 * i) / 4;
+    cx.fillStyle = `rgba(255,224,170,${0.5 + 0.45 * warm})`;
+    cx.beginPath(); cx.arc(fx, -mh * 0.06, R * 0.045, 0, Math.PI * 2); cx.fill();
+  }
+  /* Andockstutzen links und rechts */
+  for (const s of [-1, 1]) {
+    const bx = s < 0 ? -mw / 2 - R * 0.16 : mw / 2;
+    cx.fillStyle = "#8fa3c0";
+    rundRect(cx, bx, -mh * 0.2, R * 0.16, mh * 0.4, 2);
+    cx.fill();
+    cx.fillStyle = "rgba(190,214,248,.9)";
+    cx.beginPath();
+    cx.ellipse(s * (mw / 2 + R * 0.15), 0, R * 0.05, mh * 0.22, 0, 0, Math.PI * 2);
+    cx.fill();
+  }
+
+  /* Leuchtkern im Modul — das Herz, das atmet */
+  const puls = 0.7 + 0.3 * Math.sin(t * 0.0013);
+  const kern = cx.createRadialGradient(0, 0, 0, 0, 0, R * 0.8);
+  kern.addColorStop(0, `rgba(205,230,255,${0.5 * puls})`);
+  kern.addColorStop(0.5, `rgba(123,164,216,${0.22 * puls})`);
+  kern.addColorStop(1, "rgba(123,164,216,0)");
+  cx.fillStyle = kern;
+  cx.beginPath(); cx.arc(0, 0, R * 0.8, 0, Math.PI * 2); cx.fill();
+
+  /* Antennenmast */
+  cx.strokeStyle = "rgba(186,210,246,.55)"; cx.lineWidth = 1.6; cx.lineCap = "round";
+  cx.beginPath(); cx.moveTo(0, -mh / 2); cx.lineTo(0, -R * 1.0); cx.stroke();
+  cx.beginPath(); cx.moveTo(-R * 0.14, -R * 0.94); cx.lineTo(R * 0.14, -R * 0.94); cx.stroke();
+  cx.fillStyle = `rgba(224,122,106,${0.45 + 0.55 * Math.abs(Math.sin(t * 0.0032))})`;
+  cx.beginPath(); cx.arc(0, -R * 1.03, 2.6, 0, Math.PI * 2); cx.fill();
+
+  /* --- Rotationsring, vordere Haelfte: liegt ueber dem Modul --- */
+  cx.save();
+  cx.scale(1, neig);
+  cx.lineWidth = dicke; cx.lineCap = "butt";
+  const rg = cx.createLinearGradient(-Rr, 0, Rr, 0);
+  rg.addColorStop(0, "rgba(140,170,214,.9)");
+  rg.addColorStop(0.5, "rgba(206,226,252,.95)");
+  rg.addColorStop(1, "rgba(140,170,214,.9)");
+  cx.strokeStyle = rg;
+  cx.beginPath(); cx.arc(0, 0, Rr, 0, Math.PI); cx.stroke();
+  cx.restore();
+
+  /* Speichen vorne */
+  cx.save();
+  cx.scale(1, neig);
+  cx.strokeStyle = "rgba(196,218,250,.5)"; cx.lineWidth = R * 0.045;
+  for (let i = 0; i < 6; i++) {
+    const w = (i / 6) * Math.PI * 2 + dreh * 4;
+    if (Math.sin(w) <= 0) continue;
+    cx.beginPath();
+    cx.moveTo(Math.cos(w) * Rr * 0.62, Math.sin(w) * Rr * 0.62);
+    cx.lineTo(Math.cos(w) * Rr, Math.sin(w) * Rr); cx.stroke();
+  }
+  cx.restore();
+
+  /* Fenster im Ring — wandern mit der Drehung, das verkauft die Rotation */
+  cx.save();
+  cx.scale(1, neig);
+  for (let i = 0; i < 22; i++) {
+    const w = (i / 22) * Math.PI * 2 + dreh * 4;
+    const vorne = Math.sin(w) > 0;
+    cx.fillStyle = vorne
+      ? `rgba(255,232,186,${0.6 + 0.4 * Math.sin(t * 0.002 + i)})`
+      : "rgba(120,150,192,.4)";
+    cx.beginPath();
+    cx.arc(Math.cos(w) * Rr, Math.sin(w) * Rr, R * 0.042, 0, Math.PI * 2);
+    cx.fill();
+  }
+  cx.restore();
+
+  cx.restore();
+}
+
+/* --- Ein Astronaut --- */
+function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase) {
+  const wippen = sparsam ? 0 : Math.sin(t * 0.0022 + phase) * 0.12;
+  const schwingA = sparsam ? 0 : Math.sin(t * 0.0026 + phase) * 0.3;
+  const schwingB = sparsam ? 0 : Math.cos(t * 0.0021 + phase) * 0.26;
+
+  cx.save();
+  cx.translate(x, y);
+  cx.rotate(kipp + wippen * 0.16);
+
+  /* Statusring hinter der Figur */
+  if (zustand !== "ruht") {
+    const ton = zustand === "fehler" ? "224,122,106"
+              : zustand === "fertig" ? "116,180,141"
+              : "123,164,216";
+    const p = 0.45 + 0.55 * Math.sin(t * (zustand === "fehler" ? 0.012 : 0.004));
+    cx.strokeStyle = `rgba(${ton},${0.28 + 0.4 * p})`;
+    cx.lineWidth = 1.6;
+    cx.beginPath(); cx.arc(0, -s * 0.12, s * 1.5 + p * s * 0.2, 0, Math.PI * 2); cx.stroke();
+    const sch = cx.createRadialGradient(0, -s * 0.12, 0, 0, -s * 0.12, s * 2.6);
+    sch.addColorStop(0, `rgba(${ton},${0.2 * p})`);
+    sch.addColorStop(1, `rgba(${ton},0)`);
+    cx.fillStyle = sch;
+    cx.beginPath(); cx.arc(0, -s * 0.12, s * 2.6, 0, Math.PI * 2); cx.fill();
+  }
+
+  /* Rucksack */
+  cx.fillStyle = "#3a4557";
+  rundRect(cx, -s * 0.46, -s * 0.2, s * 0.92, s * 0.66, s * 0.2);
+  cx.fill();
+  cx.fillStyle = "rgba(200,222,255,.3)";
+  rundRect(cx, -s * 0.3, -s * 0.08, s * 0.6, s * 0.12, s * 0.05);
+  cx.fill();
+
+  /* Beine */
+  cx.strokeStyle = farbe; cx.lineCap = "round"; cx.lineWidth = s * 0.27;
+  for (const [sd, sw] of [[-1, schwingA], [1, schwingB]]) {
+    cx.beginPath();
+    cx.moveTo(sd * s * 0.17, s * 0.42);
+    cx.lineTo(sd * s * 0.2 + sw * s * 0.3, s * 0.92 + Math.abs(sw) * s * 0.1);
+    cx.stroke();
+  }
+  /* Stiefel */
+  cx.fillStyle = "#e8eef8";
+  for (const [sd, sw] of [[-1, schwingA], [1, schwingB]]) {
+    cx.beginPath();
+    cx.arc(sd * s * 0.2 + sw * s * 0.3, s * 0.94 + Math.abs(sw) * s * 0.1, s * 0.16, 0, Math.PI * 2);
+    cx.fill();
+  }
+
+  /* Arme */
+  cx.strokeStyle = farbe; cx.lineWidth = s * 0.25;
+  for (const [sd, sw] of [[-1, schwingB], [1, schwingA]]) {
+    cx.beginPath();
+    cx.moveTo(sd * s * 0.3, s * 0.08);
+    cx.lineTo(sd * s * 0.62 - sw * s * 0.22, s * 0.42 + sw * s * 0.26);
+    cx.stroke();
+  }
+  cx.fillStyle = "#e8eef8";
+  for (const [sd, sw] of [[-1, schwingB], [1, schwingA]]) {
+    cx.beginPath();
+    cx.arc(sd * s * 0.62 - sw * s * 0.22, s * 0.44 + sw * s * 0.26, s * 0.15, 0, Math.PI * 2);
+    cx.fill();
+  }
+
+  /* Rumpf */
+  const rumpf = cx.createLinearGradient(-s * 0.4, 0, s * 0.4, s * 0.6);
+  rumpf.addColorStop(0, farbe);
+  rumpf.addColorStop(1, mischen(farbe, "#151c28", 0.42));
+  cx.fillStyle = rumpf;
+  rundRect(cx, -s * 0.4, -s * 0.14, s * 0.8, s * 0.74, s * 0.26);
+  cx.fill();
+  /* Brusttafel */
+  cx.fillStyle = "rgba(255,255,255,.22)";
+  rundRect(cx, -s * 0.2, s * 0.06, s * 0.4, s * 0.26, s * 0.08);
+  cx.fill();
+
+  /* Helm */
+  const hy = -s * 0.62, hr = s * 0.5;
+  cx.fillStyle = "#eef3fb";
+  cx.beginPath(); cx.arc(0, hy, hr, 0, Math.PI * 2); cx.fill();
+  /* Visier */
+  const vis = cx.createLinearGradient(-hr, hy - hr, hr, hy + hr);
+  vis.addColorStop(0, "#2a3c57");
+  vis.addColorStop(0.55, "#0e1521");
+  vis.addColorStop(1, "#1b2637");
+  cx.fillStyle = vis;
+  cx.beginPath(); cx.arc(0, hy + hr * 0.04, hr * 0.78, 0, Math.PI * 2); cx.fill();
+  /* Lichtreflex — das, was die Figur sofort als Astronaut lesbar macht */
+  cx.strokeStyle = "rgba(255,255,255,.55)"; cx.lineWidth = s * 0.1; cx.lineCap = "round";
+  cx.beginPath(); cx.arc(0, hy, hr * 0.52, Math.PI * 1.08, Math.PI * 1.46); cx.stroke();
+  cx.fillStyle = "rgba(255,255,255,.28)";
+  cx.beginPath(); cx.arc(-hr * 0.26, hy - hr * 0.3, hr * 0.13, 0, Math.PI * 2); cx.fill();
+  /* Farbstreifen am Helm — Zugehoerigkeit */
+  cx.strokeStyle = farbe; cx.lineWidth = s * 0.11;
+  cx.beginPath(); cx.arc(0, hy, hr * 0.88, Math.PI * 1.15, Math.PI * 1.85); cx.stroke();
+
+  cx.restore();
+}
+
+/* Zwei Farben mischen — fuer Verlaeufe am Anzug */
+function mischen(a, b, t) {
+  const p = (h) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const [r1, g1, b1] = p(a), [r2, g2, b2] = p(b);
+  const z = (v) => Math.round(v).toString(16).padStart(2, "0");
+  return "#" + z(lerp(r1, r2, t)) + z(lerp(g1, g2, t)) + z(lerp(b1, b2, t));
+}
+
+/* --- Halteleine mit Durchhang und Lichtimpulsen --- */
+function bezier(p0, p1, p2, t) {
+  const u = 1 - t;
+  return { x: u * u * p0.x + 2 * u * t * p1.x + t * t * p2.x,
+           y: u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y };
+}
+
+function zeichneLeine(von, bis, farbe, zustand, t, blitze, phase) {
+  const mx = (von.x + bis.x) / 2, my = (von.y + bis.y) / 2;
+  const dx = bis.x - von.x, dy = bis.y - von.y;
+  const laenge = Math.hypot(dx, dy) || 1;
+  /* Durchhang senkrecht zur Verbindung, atmet leicht */
+  const schlaff = zustand === "fehler" ? 0.3 : zustand === "denkt" ? 0.08 : 0.15;
+  const wehen = sparsam ? 0 : Math.sin(t * 0.0011 + phase) * laenge * 0.05;
+  const stp = { x: mx + (-dy / laenge) * (laenge * schlaff + wehen),
+                y: my + ( dx / laenge) * (laenge * schlaff + wehen) };
+
+  cx.strokeStyle = zustand === "fehler" ? "rgba(224,122,106,.42)" : "rgba(180,205,240,.28)";
+  cx.lineWidth = 1.1;
+  cx.beginPath();
+  cx.moveTo(von.x, von.y);
+  cx.quadraticCurveTo(stp.x, stp.y, bis.x, bis.y);
+  cx.stroke();
+
+  /* Impulse laufen zur Station — sichtbare Datenuebertragung */
+  for (const b of blitze) {
+    const p = bezier(bis, stp, von, b.p);
+    cx.fillStyle = farbe; cx.globalAlpha = 0.9 * (1 - Math.abs(b.p - 0.5) * 0.8);
+    cx.beginPath(); cx.arc(p.x, p.y, 2.2, 0, Math.PI * 2); cx.fill();
+    cx.globalAlpha = 0.22;
+    cx.beginPath(); cx.arc(p.x, p.y, 6.5, 0, Math.PI * 2); cx.fill();
+    cx.globalAlpha = 1;
+  }
+}
+
+/* --- Gedankenblase mit dem echten Denkprotokoll ---
+   Layout und Zeichnen sind getrennt: nur so koennen sich mehrere
+   Blasen gegenseitig ausweichen, statt uebereinander zu liegen. */
+function blaseLayout(x, y, text) {
+  const maxB = Math.min(240, W * 0.6);
+  cx.font = "11.5px -apple-system, system-ui, sans-serif";
+  const worte = String(text).split(/\s+/);
+  const zeilen = [];
+  let z = "";
+  for (const w of worte) {
+    const probe = z ? z + " " + w : w;
+    if (cx.measureText(probe).width > maxB - 22 && z) { zeilen.push(z); z = w; }
+    else z = probe;
+  }
+  if (z) zeilen.push(z);
+  const sicht = zeilen.slice(-3);
+  const zh = 15.5;
+  const bh = sicht.length * zh + 15;
+  let breite = 0;
+  for (const l of sicht) breite = Math.max(breite, cx.measureText(l).width);
+  const bw = Math.min(maxB, breite + 22);
+  return {
+    zeilen: sicht, zh, bw, bh,
+    bx: Math.max(8, Math.min(W - bw - 8, x - bw / 2)),
+    by: y - bh - 12,
+    spitzeX: x, spitzeY: y,
+  };
+}
+
+function blaseZeichnen(b, farbe) {
+  cx.fillStyle = "rgba(12,17,27,.82)";
+  cx.strokeStyle = "rgba(255,255,255,.14)";
+  cx.lineWidth = 1;
+  rundRect(cx, b.bx, b.by, b.bw, b.bh, 11);
+  cx.fill(); cx.stroke();
+
+  /* Farbkante links — ordnet die Blase ihrem Astronauten zu */
+  cx.save();
+  rundRect(cx, b.bx, b.by, b.bw, b.bh, 11); cx.clip();
+  cx.fillStyle = farbe;
+  cx.fillRect(b.bx, b.by, 2.5, b.bh);
+  cx.restore();
+
+  /* Zwei Punkte statt Zipfel — bleibt sauber, auch wenn die Blase
+     nach oben ausgewichen ist. */
+  cx.fillStyle = "rgba(12,17,27,.82)";
+  const dy = b.spitzeY - (b.by + b.bh);
+  cx.beginPath(); cx.arc(b.spitzeX, b.by + b.bh + dy * 0.35, 3, 0, Math.PI * 2); cx.fill();
+  cx.beginPath(); cx.arc(b.spitzeX + 3, b.by + b.bh + dy * 0.72, 1.8, 0, Math.PI * 2); cx.fill();
+
+  cx.font = "11.5px -apple-system, system-ui, sans-serif";
+  cx.fillStyle = "rgba(222,230,244,.88)";
+  cx.textAlign = "left"; cx.textBaseline = "top";
+  b.zeilen.forEach((l, i) => cx.fillText(l, b.bx + 11, b.by + 8 + i * b.zh));
+}
+
+/* ================================================================
+   4 — Der Bildlauf
+   ================================================================ */
+
+const SICHT = new Map();     // agentId -> { r, winkel, sx, sy }
+const ZUSTAND_RADIUS = { ruht: 1.0, denkt: 0.74, sendet: 0.86, fertig: 1.09, fehler: 1.17 };
+let letzteZeit = performance.now();
+let kinoAn = false;
+
+function sicht(id, i, n) {
+  if (!SICHT.has(id)) {
+    SICHT.set(id, { r: 1, winkel: (i / Math.max(n, 1)) * Math.PI * 2, sx: 0, sy: 0, phase: i * 1.7 });
+  }
+  return SICHT.get(id);
+}
+
+function rahmen(jetzt) {
+  const dt = Math.min(64, jetzt - letzteZeit);
+  letzteZeit = jetzt;
+  const t = jetzt - T0;
+
+  cx.clearRect(0, 0, W, H);
+
+  /* Sterne driften langsam — gibt Tiefe, auch wenn nichts passiert */
+  const driftX = t * 0.0035, driftY = t * 0.0012;
+  zeichneSterne(t, driftX, driftY);
+  zeichneSternschnuppe(t, dt);
+
+  const ccx = W / 2;
+  const ccy = H * (kinoAn ? 0.47 : 0.43);
+  /* An der Breite ausrichten: im Hochformat wuerde min(W,H) die Szene
+     zu einem Punkt in einem schwarzen Feld schrumpfen lassen. */
+  let Rbahn = Math.min(W * 0.40, H * 0.34);
+  const groesse = Math.max(13, Math.min(27, Rbahn * 0.125));
+  /* Der weiteste Zustand (Fehler, Faktor 1.17) plus Statusring darf
+     nicht aus dem Bild laufen — sonst haengen Astronauten halb im Rand. */
+  const luft = groesse * 2.4;
+  Rbahn = Math.min(Rbahn, (W / 2 - luft) / 1.2, (H * 0.42 - luft) / (1.2 * 0.82));
+  const Rst = Math.max(24, Rbahn * 0.34);
+
+  /* Im Kinomodus atmet die Kamera leicht — reicht fuer einen Loop */
+  const hoch = H / W > 1.3;
+  const zoomBasis = kinoAn ? (hoch ? 1.16 : 1.06) : 1;
+  const zoom = kinoAn && !sparsam ? zoomBasis + 0.05 * Math.sin(t * 0.00017) : zoomBasis;
+  cx.save();
+  cx.translate(ccx, ccy); cx.scale(zoom, zoom); cx.translate(-ccx, -ccy);
+
+  zeichneStation(t, ccx, ccy, Rst);
+
+  const n = Z.agenten.length;
+  const blasen = [];
+  const hindernisse = [];
+
+  Z.agenten.forEach((a, i) => {
+    const v = sicht(a.id, i, n);
+    const l = lauf(a.id);
+
+    /* Bahn: jeder Agent etwas anders schnell, sonst wirkt es mechanisch */
+    const tempo = 0.000042 * (1 + (i % 3) * 0.14) * (l.zustand === "denkt" ? 1.9 : 1);
+    v.winkel += dt * tempo * Math.PI * 2 * (i % 2 ? 1 : -1) * 0.5;
+
+    const ziel = ZUSTAND_RADIUS[l.zustand] ?? 1;
+    v.r = lerp(v.r, ziel, 1 - Math.pow(0.0025, dt / 1000));
+
+    const atem = sparsam ? 0 : Math.sin(t * 0.0009 + v.phase) * 0.035;
+    const rr = Rbahn * (v.r + atem);
+    const x = ccx + Math.cos(v.winkel) * rr;
+    const y = ccy + Math.sin(v.winkel) * rr * 0.82;
+    v.sx = x; v.sy = y;
+
+    /* Impulse auf der Leine, solange gesendet wird */
+    if (l.zustand === "sendet" || l.zustand === "denkt") {
+      l.blitzUhr = (l.blitzUhr || 0) + dt;
+      const takt = l.zustand === "sendet" ? 150 : 420;
+      if (l.blitzUhr > takt) { l.blitzUhr = 0; l.blitze.push({ p: 0 }); }
+    }
+    for (const b of l.blitze) b.p += dt * 0.0013;
+    l.blitze = l.blitze.filter(b => b.p < 1);
+
+    const anker = { x: ccx + Math.cos(v.winkel) * Rst * 0.72,
+                    y: ccy + Math.sin(v.winkel) * Rst * 0.72 };
+    zeichneLeine(anker, { x, y }, a.farbe, l.zustand, t, l.blitze, v.phase);
+
+    /* Der Astronaut kippt in Flugrichtung */
+    const kipp = Math.cos(v.winkel) * 0.22 * (i % 2 ? 1 : -1);
+    zeichneAstronaut(x, y, groesse, kipp, a.farbe, l.zustand, t, v.phase);
+
+    /* Namensschild */
+    cx.font = "600 10.5px -apple-system, system-ui, sans-serif";
+    cx.textAlign = "center"; cx.textBaseline = "top";
+    cx.fillStyle = l.zustand === "ruht" ? "rgba(210,220,238,.42)" : "rgba(226,234,248,.88)";
+    cx.fillText(a.name.toUpperCase(), x, y + groesse * 1.5);
+    if (l.zustand !== "ruht") {
+      cx.font = "9.5px -apple-system, system-ui, sans-serif";
+      cx.fillStyle = l.zustand === "fehler" ? "rgba(224,122,106,.9)"
+                   : l.zustand === "fertig" ? "rgba(116,180,141,.9)"
+                   : "rgba(123,164,216,.9)";
+      cx.fillText(BESCHRIFTUNG[l.zustand] || "", x, y + groesse * 1.5 + 13);
+    }
+
+    /* Die Figur selbst ist ein Hindernis fuer Blasen */
+    hindernisse.push({ bx: x - groesse * 1.7, by: y - groesse * 2.0,
+                       bw: groesse * 3.4, bh: groesse * 4.2 });
+
+    if (l.gedanke && (l.zustand === "denkt" || l.zustand === "sendet")) {
+      blasen.push({ x, y: y - groesse * 1.9, text: l.gedanke,
+                    farbe: a.farbe, seit: l.seit });
+    }
+  });
+
+  /* Blasen zuletzt — sie weichen einander UND den Astronauten aus.
+     Auf schmalen Bildschirmen nur die zwei juengsten, sonst steht
+     die halbe Szene voller Text. */
+  const maxBlasen = W < 520 ? 2 : 4;
+  blasen.sort((a, b) => (b.seit || 0) - (a.seit || 0));
+  const zeigen = blasen.slice(0, maxBlasen).sort((a, b) => a.y - b.y);
+  const belegt = hindernisse.slice();
+  for (const bl of zeigen) {
+    const box = blaseLayout(bl.x, bl.y, bl.text);
+    for (let versuch = 0; versuch < 8; versuch++) {
+      const stoert = belegt.find(o =>
+        box.bx < o.bx + o.bw + 6 && box.bx + box.bw + 6 > o.bx &&
+        box.by < o.by + o.bh + 6 && box.by + box.bh + 6 > o.by);
+      if (!stoert) break;
+      box.by = stoert.by - box.bh - 8;
+    }
+    if (box.by < 8) box.by = 8;
+    belegt.push(box);
+    blaseZeichnen(box, bl.farbe);
+  }
+
+  cx.restore();
+  requestAnimationFrame(rahmen);
+}
+
+const BESCHRIFTUNG = { denkt: "denkt", sendet: "sendet", fertig: "fertig", fehler: "Fehler" };
+/* ================================================================
+   5 — Echte Claude-Aufrufe
+   Direkt aus dem Browser gegen api.anthropic.com. Der Header
+   "anthropic-dangerous-direct-browser-access" schaltet CORS frei —
+   dafuer ist er gedacht: eigener Schluessel, eigenes Geraet.
+   ================================================================ */
+
+const ENDPUNKT = "https://api.anthropic.com/v1/messages";
+const API_VERSION = "2023-06-01";
+const FALLBACK_BETA = "server-side-fallback-2026-07-01";
+
+/* Preise in Dollar je 1 Mio. Tokens — nur zur groben Anzeige */
+const PREISE = {
+  "claude-opus-5":    { ein: 5,  aus: 25 },
+  "claude-sonnet-5":  { ein: 2,  aus: 10 },
+  "claude-haiku-4-5": { ein: 1,  aus: 5  },
+};
+/* Haiku kennt weder adaptives Denken noch Aufwandsstufen */
+const KANN_DENKEN = (m) => m !== "claude-haiku-4-5";
+
+function baueKoerper(agent, auftrag, mitFallback) {
+  const k = {
+    model: agent.modell || "claude-opus-5",
+    max_tokens: Z.maxTok,
+    stream: true,
+    system: agent.rolle || "Du bist ein hilfreicher Agent.",
+    messages: [{ role: "user", content: auftrag }],
+  };
+  if (KANN_DENKEN(k.model)) {
+    k.thinking = { type: "adaptive", display: "summarized" };
+    k.output_config = { effort: agent.aufwand || "high" };
+  }
+  if (mitFallback && k.model === "claude-opus-5") {
+    /* Wird eine Anfrage von den Sicherheitsfiltern abgelehnt, uebernimmt
+       serverseitig ein anderes Modell, statt dass die Mission leer endet. */
+    k.fallbacks = "default";
+  }
+  return k;
+}
+
+function baueKopf(mitFallback) {
+  const h = {
+    "content-type": "application/json",
+    "x-api-key": Z.key,
+    "anthropic-version": API_VERSION,
+    "anthropic-dangerous-direct-browser-access": "true",
+  };
+  if (mitFallback) h["anthropic-beta"] = FALLBACK_BETA;
+  return h;
+}
+
+/**
+ * Schickt einen Auftrag an einen Agenten und meldet jeden Teilschritt
+ * ueber die Rueckrufe zurueck. Wirft bei Fehlern.
+ */
+async function frageClaude(agent, auftrag, signal, bei) {
+  let mitFallback = agent.modell === "claude-opus-5";
+
+  let antwort = await fetch(ENDPUNKT, {
+    method: "POST", signal,
+    headers: baueKopf(mitFallback),
+    body: JSON.stringify(baueKoerper(agent, auftrag, mitFallback)),
+  });
+
+  /* Kennt das Konto die Fallback-Beta nicht, laeuft es ohne sie weiter. */
+  if (!antwort.ok && antwort.status === 400 && mitFallback) {
+    const txt = await antwort.text();
+    if (/fallback|beta/i.test(txt)) {
+      mitFallback = false;
+      antwort = await fetch(ENDPUNKT, {
+        method: "POST", signal,
+        headers: baueKopf(false),
+        body: JSON.stringify(baueKoerper(agent, auftrag, false)),
+      });
+    } else {
+      throw new FehlerVomDienst(400, txt);
+    }
+  }
+
+  if (!antwort.ok) {
+    throw new FehlerVomDienst(antwort.status, await antwort.text());
+  }
+
+  /* --- SSE-Strom auslesen --- */
+  const leser = antwort.body.getReader();
+  const dekoder = new TextDecoder();
+  let puffer = "";
+  const nutzung = { ein: 0, aus: 0 };
+  let stoppGrund = null;
+
+  while (true) {
+    const { done, value } = await leser.read();
+    if (done) break;
+    puffer += dekoder.decode(value, { stream: true });
+
+    let schnitt;
+    while ((schnitt = puffer.indexOf("\n\n")) !== -1) {
+      const block = puffer.slice(0, schnitt);
+      puffer = puffer.slice(schnitt + 2);
+
+      for (const zeile of block.split("\n")) {
+        if (!zeile.startsWith("data:")) continue;
+        const roh = zeile.slice(5).trim();
+        if (!roh || roh === "[DONE]") continue;
+
+        let e;
+        try { e = JSON.parse(roh); }
+        catch { continue; }   /* halbe Zeile — kommt im naechsten Block nach */
+
+        if (e.type === "message_start") {
+          nutzung.ein = e.message?.usage?.input_tokens || 0;
+        } else if (e.type === "content_block_delta") {
+          if (e.delta?.type === "thinking_delta") bei.denken(e.delta.thinking || "");
+          else if (e.delta?.type === "text_delta")  bei.text(e.delta.text || "");
+        } else if (e.type === "message_delta") {
+          nutzung.aus = e.usage?.output_tokens || nutzung.aus;
+          stoppGrund = e.delta?.stop_reason || stoppGrund;
+        } else if (e.type === "error") {
+          throw new FehlerVomDienst(0, e.error?.message || "Unbekannter Fehler im Strom");
+        }
+      }
+    }
+  }
+
+  return { nutzung, stoppGrund };
+}
+
+class FehlerVomDienst extends Error {
+  constructor(status, roh) {
+    super(deuteFehler(status, roh));
+    this.status = status;
+    this.roh = roh;
+  }
+}
+
+function deuteFehler(status, roh) {
+  let detail = "";
+  try { detail = JSON.parse(roh)?.error?.message || ""; } catch { detail = String(roh || "").slice(0, 200); }
+  switch (status) {
+    case 401: return "API-Schlüssel wird nicht akzeptiert. Stimmt er noch?";
+    case 403: return "Zugriff verweigert — hat der Schlüssel Rechte für dieses Modell?";
+    case 404: return "Modell nicht gefunden. Vielleicht hat dein Konto keinen Zugriff darauf.";
+    case 429: return "Zu viele Anfragen. Kurz warten und nochmal senden.";
+    case 413: return "Der Auftrag ist zu lang für eine Anfrage.";
+    case 529: return "Anthropic ist gerade überlastet. Gleich nochmal versuchen.";
+    default:
+      if (status >= 500) return "Serverfehler bei Anthropic (" + status + "). Gleich nochmal versuchen.";
+      return detail || ("Fehler " + status);
+  }
+}
+
+function kostenSchaetzen(modell, ein, aus) {
+  const p = PREISE[modell];
+  if (!p) return null;
+  return (ein / 1e6) * p.ein + (aus / 1e6) * p.aus;
+}
+/* ================================================================
+   6 — Missionen
+   ================================================================ */
+
+function kuerzen(s, n) {
+  const t = String(s).replace(/\s+/g, " ").trim();
+  return t.length <= n ? t : "…" + t.slice(-n);
+}
+
+function starteMission(text) {
+  const ziele = Z.gewaehlt ? [agentNach(Z.gewaehlt)].filter(Boolean) : Z.agenten.slice();
+  if (!ziele.length) return;
+  /* Bewusst nicht await — alle Agenten fliegen gleichzeitig los */
+  ziele.forEach(a => fuehreAus(a, text));
+}
+
+async function fuehreAus(agent, auftrag) {
+  const l = lauf(agent.id);
+  if (l.abbruch) return;                       // laeuft schon
+
+  const ac = new AbortController();
+  l.abbruch = ac;
+  l.gedanke = "";
+  l.blitze = [];
+  setzeZustand(agent.id, "denkt");
+
+  const eintrag = {
+    id: "m" + Date.now() + Math.random().toString(36).slice(2, 6),
+    agentId: agent.id, name: agent.name, farbe: agent.farbe, modell: agent.modell,
+    auftrag, antwort: "", denken: "", zeit: Date.now(), zu: false,
+  };
+  Z.log.unshift(eintrag);
+  if (Z.log.length > 60) Z.log.length = 60;
+  zeichneLog();
+
+  try {
+    const { nutzung, stoppGrund } = await frageClaude(agent, auftrag, ac.signal, {
+      denken(s) {
+        eintrag.denken += s;
+        l.gedanke = kuerzen(eintrag.denken, 150);
+        logAktualisieren(eintrag);
+      },
+      text(s) {
+        if (l.zustand !== "sendet") setzeZustand(agent.id, "sendet");
+        eintrag.antwort += s;
+        l.gedanke = kuerzen(eintrag.antwort, 150);
+        logAktualisieren(eintrag);
+      },
+    });
+
+    eintrag.ein = nutzung.ein;
+    eintrag.aus = nutzung.aus;
+    eintrag.kosten = kostenSchaetzen(agent.modell, nutzung.ein, nutzung.aus);
+
+    if (stoppGrund === "refusal") {
+      eintrag.fehler = "Die Anfrage wurde abgelehnt (Sicherheitsfilter).";
+    } else if (stoppGrund === "max_tokens") {
+      eintrag.hinweis = "Bei der Längengrenze abgeschnitten — Limit in den Einstellungen erhöhen.";
+    } else if (!eintrag.antwort.trim()) {
+      eintrag.hinweis = "Leere Antwort zurückgekommen.";
+    }
+
+    agent.laeufe = (agent.laeufe || 0) + 1;
+    agent.tokens = (agent.tokens || 0) + nutzung.ein + nutzung.aus;
+    setzeZustand(agent.id, eintrag.fehler ? "fehler" : "fertig");
+
+  } catch (e) {
+    if (e.name === "AbortError") {
+      eintrag.fehler = "Abgebrochen.";
+      setzeZustand(agent.id, "ruht");
+    } else {
+      eintrag.fehler = e.message || String(e);
+      setzeZustand(agent.id, "fehler");
+      console.error(e);
+    }
+  } finally {
+    l.abbruch = null;
+    l.gedanke = "";
+    sichern();
+    zeichneLog();
+    zeichneCrewLeiste();
+    /* Nach kurzer Schauzeit zurueck in die Ruhebahn */
+    setTimeout(() => {
+      const x = lauf(agent.id);
+      if (!x.abbruch && (x.zustand === "fertig" || x.zustand === "fehler")) {
+        setzeZustand(agent.id, "ruht");
+      }
+    }, 6000);
+  }
+}
+
+function abbrechen(agentId) {
+  const l = lauf(agentId);
+  if (l.abbruch) l.abbruch.abort();
+}
+
+/* ================================================================
+   7 — Oberflaeche zeichnen
+   ================================================================ */
+
+const ZUSTAND_TEXT = { ruht: "bereit", denkt: "denkt nach", sendet: "antwortet", fertig: "fertig", fehler: "Fehler" };
+
+function zeichneCrewLeiste() {
+  const box = $("#crew-leiste");
+  box.innerHTML = "";
+
+  const alle = document.createElement("button");
+  alle.className = "crew-chip" + (Z.gewaehlt === null ? " gewaehlt" : "");
+  alle.innerHTML = '<span class="punkt" style="color:#98a1b4;background:#98a1b4"></span>';
+  const at = document.createElement("span");
+  at.className = "txt";
+  at.innerHTML = '<span class="nm">Ganze Crew</span><span class="zust"></span>';
+  at.querySelector(".zust").textContent = Z.agenten.length + " Agenten · parallel";
+  alle.appendChild(at);
+  alle.onclick = () => { Z.gewaehlt = null; sichern(); zeichneCrewLeiste(); };
+  box.appendChild(alle);
+
+  for (const a of Z.agenten) {
+    const l = lauf(a.id);
+    const b = document.createElement("button");
+    b.className = "crew-chip" + (Z.gewaehlt === a.id ? " gewaehlt" : "");
+    const p = document.createElement("span");
+    p.className = "punkt";
+    p.style.color = a.farbe; p.style.background = a.farbe;
+    if (l.zustand === "ruht") p.style.opacity = ".45";
+    b.appendChild(p);
+    const t = document.createElement("span");
+    t.className = "txt";
+    const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = a.name;
+    const zs = document.createElement("span"); zs.className = "zust";
+    zs.textContent = ZUSTAND_TEXT[l.zustand] || "";
+    if (l.zustand === "fehler") zs.style.color = "var(--bad)";
+    if (l.zustand === "fertig") zs.style.color = "var(--good)";
+    t.appendChild(nm); t.appendChild(zs);
+    b.appendChild(t);
+    b.onclick = () => {
+      if (l.abbruch) { abbrechen(a.id); return; }     // laufenden Agenten antippen = stoppen
+      Z.gewaehlt = Z.gewaehlt === a.id ? null : a.id;
+      sichern(); zeichneCrewLeiste();
+    };
+    box.appendChild(b);
+  }
+
+  const neu = document.createElement("button");
+  neu.className = "crew-chip neu";
+  neu.textContent = "+";
+  neu.onclick = () => agentBearbeiten(null);
+  box.appendChild(neu);
+
+  const laufend = Z.agenten.filter(a => lauf(a.id).abbruch).length;
+  $("#log-zahl").textContent = laufend ? laufend + " aktiv" : "Log";
+  $("#btn-log").classList.toggle("an", laufend > 0);
+}
+
+function zeitText(ms) {
+  const d = new Date(ms);
+  return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+}
+
+/* Waehrend des Stroms nur den Text tauschen — kein Neuaufbau der Liste.
+   Gedrosselt auf ein Bild: bei drei parallelen Agenten kaemen sonst
+   tausende DOM-Zugriffe pro Sekunde zusammen. */
+const schmutzig = new Set();
+let flushGeplant = false;
+
+function logAktualisieren(e) {
+  schmutzig.add(e);
+  if (flushGeplant) return;
+  flushGeplant = true;
+  requestAnimationFrame(() => {
+    flushGeplant = false;
+    for (const x of schmutzig) {
+      const el = document.querySelector('[data-log="' + x.id + '"] .log-koerper');
+      if (!el) continue;
+      const denktNoch = !x.antwort && x.denken;
+      el.textContent = denktNoch ? kuerzen(x.denken, 400) : x.antwort;
+      el.classList.toggle("denkt", !!denktNoch);
+    }
+    schmutzig.clear();
+  });
+}
+
+function zeichneLog() {
+  const box = $("#log-liste");
+  box.innerHTML = "";
+  if (!Z.log.length) {
+    box.innerHTML = '<div class="leer-hinweis"><span class="gross">🛰</span>Noch keine Mission geflogen.<br>Schreib unten einen Auftrag.</div>';
+    return;
+  }
+  for (const e of Z.log) {
+    const k = document.createElement("div");
+    k.className = "log-eintrag" + (e.zu ? " zu" : "");
+    k.dataset.log = e.id;
+
+    const kopf = document.createElement("div");
+    kopf.className = "log-kopf";
+    const kug = document.createElement("span");
+    kug.className = "kugel"; kug.style.color = e.farbe; kug.style.background = e.farbe;
+    const wer = document.createElement("span"); wer.className = "wer"; wer.textContent = e.name;
+    const was = document.createElement("span"); was.className = "was"; was.textContent = e.auftrag;
+    const mk = document.createElement("span"); mk.className = "marke"; mk.textContent = zeitText(e.zeit);
+    kopf.append(kug, wer, was, mk);
+    kopf.onclick = () => { e.zu = !e.zu; k.classList.toggle("zu", e.zu); sichern(); };
+
+    const koerper = document.createElement("div");
+    koerper.className = "log-koerper";
+    if (e.fehler) {
+      koerper.textContent = "⚠ " + e.fehler;
+      koerper.style.color = "var(--bad)";
+    } else if (e.antwort) {
+      koerper.textContent = e.antwort;
+    } else if (e.denken) {
+      koerper.textContent = kuerzen(e.denken, 400);
+      koerper.classList.add("denkt");
+    } else {
+      koerper.textContent = "…";
+      koerper.classList.add("denkt");
+    }
+
+    k.append(kopf, koerper);
+
+    if (e.hinweis || e.aus != null) {
+      const fuss = document.createElement("div");
+      fuss.className = "log-fuss";
+      const teile = [];
+      if (e.aus != null) teile.push((e.ein || 0) + " ein / " + e.aus + " aus");
+      if (e.kosten != null) teile.push("≈ $" + e.kosten.toFixed(4));
+      if (e.modell) teile.push(e.modell.replace("claude-", ""));
+      const info = document.createElement("span");
+      info.textContent = teile.join("  ·  ");
+      fuss.appendChild(info);
+      if (e.antwort) {
+        const kop = document.createElement("button");
+        kop.textContent = "kopieren";
+        kop.onclick = async () => {
+          try { await navigator.clipboard.writeText(e.antwort); kop.textContent = "kopiert ✓"; }
+          catch { kop.textContent = "ging nicht"; }
+          setTimeout(() => (kop.textContent = "kopieren"), 1800);
+        };
+        fuss.appendChild(kop);
+      }
+      if (e.hinweis) {
+        const hw = document.createElement("span");
+        hw.textContent = "⚠ " + e.hinweis;
+        hw.style.color = "var(--warn)";
+        fuss.appendChild(hw);
+      }
+      k.appendChild(fuss);
+    }
+    box.appendChild(k);
+  }
+}
+
+function zeichneCrewListe() {
+  const box = $("#crew-liste");
+  box.innerHTML = "";
+  for (const a of Z.agenten) {
+    const k = document.createElement("div");
+    k.className = "agent-karte";
+    const z1 = document.createElement("div");
+    z1.className = "zeile1";
+    const kug = document.createElement("span");
+    kug.className = "kugel"; kug.style.color = a.farbe; kug.style.background = a.farbe;
+    const nm = document.createElement("span"); nm.className = "name"; nm.textContent = a.name;
+    const bearb = document.createElement("button");
+    bearb.className = "mini"; bearb.title = "Bearbeiten";
+    bearb.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/></svg>';
+    bearb.onclick = () => agentBearbeiten(a.id);
+    z1.append(kug, nm, bearb);
+
+    const ro = document.createElement("div");
+    ro.className = "rolle"; ro.textContent = a.rolle || "(keine Rolle hinterlegt)";
+
+    const me = document.createElement("div");
+    me.className = "meta";
+    me.textContent = (a.modell || "claude-opus-5").replace("claude-", "")
+      + "  ·  Aufwand " + (a.aufwand || "high")
+      + "  ·  " + (a.laeufe || 0) + " Missionen"
+      + (a.tokens ? "  ·  " + a.tokens.toLocaleString("de-DE") + " Tokens" : "");
+
+    k.append(z1, ro, me);
+    box.appendChild(k);
+  }
+  /* Hinweis, solange kein Schluessel hinterlegt ist */
+  $("#schluessel-warnung").innerHTML = Z.key
+    ? ""
+    : '<div class="warnung">Noch kein API-Schlüssel hinterlegt — die Agenten können nichts tun. '
+      + 'Oben rechts auf das Schlüsselsymbol tippen.</div>';
+}
+/* ================================================================
+   8 — Blenden und Agenten-Formular
+   ================================================================ */
+
+function blendeAuf(id) {
+  $$(".blende").forEach(b => b.classList.toggle("offen", b.id === id));
+  $("#schleier").classList.add("an");
+  if (id === "blende-crew") zeichneCrewListe();
+  if (id === "blende-log") zeichneLog();
+}
+function blendeZu() {
+  $$(".blende").forEach(b => b.classList.remove("offen"));
+  $("#schleier").classList.remove("an");
+}
+
+let bearbeiteId = null;
+let bearbeiteFarbe = FARBEN[0];
+
+function farbwahlAufbauen() {
+  const box = $("#a-farbe");
+  box.innerHTML = "";
+  for (const f of FARBEN) {
+    const b = document.createElement("button");
+    b.style.background = f;
+    b.className = f === bearbeiteFarbe ? "an" : "";
+    b.onclick = () => { bearbeiteFarbe = f; farbwahlAufbauen(); };
+    box.appendChild(b);
+  }
+}
+
+function agentBearbeiten(id) {
+  bearbeiteId = id;
+  const a = id ? agentNach(id) : null;
+  $("#agent-titel").textContent = a ? a.name : "Neuer Agent";
+  $("#a-name").value = a ? a.name : "";
+  $("#a-rolle").value = a ? a.rolle : "";
+  $("#a-modell").value = a ? (a.modell || "claude-opus-5") : "claude-opus-5";
+  $("#a-aufwand").value = a ? (a.aufwand || "high") : "high";
+  bearbeiteFarbe = a ? a.farbe : FARBEN[Z.agenten.length % FARBEN.length];
+  farbwahlAufbauen();
+  $("#a-loeschen").style.display = a ? "flex" : "none";
+  blendeAuf("blende-agent");
+  setTimeout(() => $("#a-name").focus(), 380);
+}
+
+$("#a-speichern").onclick = () => {
+  const name = $("#a-name").value.trim();
+  const rolle = $("#a-rolle").value.trim();
+  if (!name) { $("#a-name").focus(); return; }
+  if (bearbeiteId) {
+    const a = agentNach(bearbeiteId);
+    if (a) Object.assign(a, { name, rolle, farbe: bearbeiteFarbe,
+      modell: $("#a-modell").value, aufwand: $("#a-aufwand").value });
+  } else {
+    Z.agenten.push({
+      id: "a" + Date.now() + Math.random().toString(36).slice(2, 5),
+      name, rolle, farbe: bearbeiteFarbe,
+      modell: $("#a-modell").value, aufwand: $("#a-aufwand").value,
+      laeufe: 0, tokens: 0,
+    });
+  }
+  sichern(); zeichneCrewLeiste(); zeichneCrewListe();
+  blendeAuf("blende-crew");
+};
+
+$("#a-loeschen").onclick = () => {
+  if (!bearbeiteId) return;
+  const a = agentNach(bearbeiteId);
+  if (!a) return;
+  if (!confirm("Agent „" + a.name + "“ wirklich löschen?")) return;
+  abbrechen(a.id);
+  Z.agenten = Z.agenten.filter(x => x.id !== bearbeiteId);
+  if (Z.gewaehlt === bearbeiteId) Z.gewaehlt = null;
+  LAUF.delete(bearbeiteId); SICHT.delete(bearbeiteId);
+  sichern(); zeichneCrewLeiste(); zeichneCrewListe();
+  blendeAuf("blende-crew");
+};
+
+/* --- Schluessel --- */
+$("#btn-schluessel").onclick = () => {
+  $("#s-key").value = Z.key;
+  $("#s-maxtok").value = Z.maxTok;
+  blendeAuf("blende-schluessel");
+};
+$("#s-speichern").onclick = () => {
+  Z.key = $("#s-key").value.trim();
+  const mt = parseInt($("#s-maxtok").value, 10);
+  Z.maxTok = Number.isFinite(mt) ? Math.min(64000, Math.max(512, mt)) : 8000;
+  sichern(); zeichneCrewListe(); pruefeSendeKnopf();
+  /* Zurueck in die Szene, nicht in die naechste Blende — nach dem
+     Schluessel will man losschicken, nicht weiterklicken. */
+  blendeZu();
+};
+$("#s-loeschen").onclick = () => {
+  Z.key = ""; $("#s-key").value = "";
+  sichern(); zeichneCrewListe(); pruefeSendeKnopf();
+};
+
+/* ================================================================
+   9 — Verdrahtung
+   ================================================================ */
+
+$("#btn-crew").onclick = () => blendeAuf("blende-crew");
+$("#btn-log").onclick  = () => blendeAuf("blende-log");
+$("#btn-neuer-agent").onclick = () => agentBearbeiten(null);
+$("#schleier").onclick = blendeZu;
+$$("[data-zu]").forEach(b => (b.onclick = blendeZu));
+$("#log-leeren").onclick = () => {
+  if (!Z.log.length) return;
+  if (!confirm("Das ganze Missions-Log löschen?")) return;
+  Z.log = []; sichern(); zeichneLog();
+};
+
+/* Kinomodus: alles weg, nur die Szene. Ein Tipp holt die Bedienung zurueck. */
+function kino(an) {
+  kinoAn = an;
+  document.body.classList.toggle("kino", an);
+  $("#btn-kino").classList.toggle("an", an);
+  if (an) blendeZu();
+}
+$("#btn-kino").onclick = () => kino(!kinoAn);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { if (kinoAn) kino(false); else blendeZu(); }
+});
+
+/* --- Auftragsfeld --- */
+const feld = $("#auftrag");
+function hoeheAnpassen() {
+  feld.style.height = "auto";
+  feld.style.height = Math.min(132, feld.scrollHeight) + "px";
+}
+function pruefeSendeKnopf() {
+  $("#senden").disabled = !feld.value.trim() || !Z.key;
+  $("#senden").title = !Z.key ? "Erst einen API-Schlüssel hinterlegen" : "Absenden (⌘/Strg + Enter)";
+}
+feld.addEventListener("input", () => { hoeheAnpassen(); pruefeSendeKnopf(); });
+feld.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); absenden(); }
+});
+$("#senden").onclick = absenden;
+
+function absenden() {
+  const text = feld.value.trim();
+  if (!text) return;
+  if (!Z.key) { blendeAuf("blende-schluessel"); return; }
+  starteMission(text);
+  feld.value = ""; hoeheAnpassen(); pruefeSendeKnopf();
+}
+
+/* --- Tippen auf einen Astronauten --- */
+cv.addEventListener("pointerdown", (ev) => {
+  if (kinoAn) { kino(false); return; }
+  const x = ev.clientX, y = ev.clientY;
+  let treffer = null, naechste = 1e9;
+  for (const a of Z.agenten) {
+    const v = SICHT.get(a.id);
+    if (!v) continue;
+    const d = Math.hypot(v.sx - x, v.sy - y);
+    if (d < 42 && d < naechste) { naechste = d; treffer = a; }
+  }
+  if (!treffer) return;
+  if (lauf(treffer.id).abbruch) { abbrechen(treffer.id); return; }
+  Z.gewaehlt = Z.gewaehlt === treffer.id ? null : treffer.id;
+  sichern(); zeichneCrewLeiste();
+});
+
+window.addEventListener("resize", groesseAnpassen);
+window.addEventListener("orientationchange", () => setTimeout(groesseAnpassen, 120));
+
+/* ================================================================
+   10 — Start
+   ================================================================ */
+laden();
+groesseAnpassen();
+zeichneCrewLeiste();
+zeichneLog();
+hoeheAnpassen();
+pruefeSendeKnopf();
+requestAnimationFrame(rahmen);
+
+/* Beim allerersten Besuch direkt zum Schluessel fuehren — sonst steht
+   man vor einer huebschen Szene, in der nichts passiert. */
+if (!Z.key) {
+  setTimeout(() => { $("#s-maxtok").value = Z.maxTok; blendeAuf("blende-schluessel"); }, 900);
+}
+</script>
+</body>
+</html>
