@@ -382,7 +382,13 @@ body.kino #zoomleiste{opacity:0 !important; pointer-events:none;}
 /* ---------- Klare Sicht beim Astronauten-Detail ----------
    Beim Nachsehen, was ein Astronaut treibt, will man ihn auch sehen.
    Also kein Weichzeichner, keine Abdunklung, und die Szene laeuft weiter. */
-body.sicht #schleier{background:transparent; backdrop-filter:none; -webkit-backdrop-filter:none;}
+/* Und der Schleier laesst Zeiger durch. Sonst laege bei offenem
+   Detailfenster eine unsichtbare Scheibe ueber der Szene, und man
+   koennte weder schieben noch zoomen — genau das, wofuer die klare
+   Sicht ueberhaupt da ist. Geschlossen wird ueber das Kreuz, die
+   Escape-Taste oder einen Tipp ins Leere. */
+body.sicht #schleier{background:transparent; backdrop-filter:none;
+  -webkit-backdrop-filter:none; pointer-events:none;}
 body.sicht #blende-detail{
   backdrop-filter:none; -webkit-backdrop-filter:none;
   /* Vollstaendig undurchsichtig und mit kleinem Schatten. Halbdurch-
@@ -2231,8 +2237,44 @@ function bordbuch(text) {
 const EINSCHLAG = [];
 const NACHBARN = [];
 
+/* Ablassventile. Eine bewohnte Station gibt staendig etwas ab —
+   Wasserdampf aus der Kuehlung, Gas beim Angleichen des Drucks. Im
+   Vakuum gefriert das sofort zu einer Wolke feiner Eiskristalle, und
+   die sieht man nur, wenn die Sonne sie trifft. */
+const VENTIL = [];
+
 function ereignisse(t, dt, ccx, ccy, Rst) {
   if (sparsam) return;
+
+  if (VENTIL.length < 1 && Math.random() < dt / 34000) {
+    const w = Math.random() * Math.PI * 2;
+    VENTIL.push({
+      x: ccx + Math.cos(w) * Rst * 0.7,
+      y: ccy + Math.sin(w) * Rst * 0.5,
+      rx: Math.cos(w) * 0.8 + 0.3, ry: Math.sin(w) * 0.8 - 0.2,
+      alter: 0, dauer: 4200,
+    });
+    bordbuch("Ventil abgeblasen");
+  }
+  for (let i = VENTIL.length - 1; i >= 0; i--) {
+    const v = VENTIL[i];
+    v.alter += dt;
+    if (v.alter > v.dauer) { VENTIL.splice(i, 1); continue; }
+    const u = v.alter / v.dauer;
+    /* Ein kurzer Stoss, dann treibt die Wolke weiter und wird duenner */
+    const stoss = u < 0.22 ? u / 0.22 : Math.max(0, 1 - (u - 0.22) / 0.78);
+    for (let k = 0; k < 9; k++) {
+      const f = (k / 9 + u * 1.4) % 1;
+      const weit = f * Rst * 1.4;
+      const streuung = (streu(k, 5, 17) - 0.5) * weit * 0.4;
+      const px = v.x + v.rx * weit - v.ry * streuung;
+      const py = v.y + v.ry * weit + v.rx * streuung;
+      cx.fillStyle = `rgba(232,244,255,${stoss * (1 - f) * 0.3 * TAGLICHT})`;
+      cx.beginPath();
+      cx.arc(px, py, Rst * (0.02 + f * 0.09), 0, Math.PI * 2);
+      cx.fill();
+    }
+  }
 
   /* Einschlaege: selten, kurz, und immer auf der Struktur */
   if (EINSCHLAG.length < 3 && Math.random() < dt / 9000) {
@@ -2320,6 +2362,10 @@ function abendlicht(hell) {
    Positionslichter richten sich danach. */
 let TAGLICHT = 1, ABENDLICHT = 0;
 let LETZTER_TAG = null;
+/* Wie viel der Crew gerade arbeitet. Danach richtet sich, wie hell
+   die Fenster brennen — an einer bewohnten Station sieht man von
+   aussen, ob drinnen jemand wach ist. */
+let CREWWACH = 0;
 /* Nur fuer automatische Tests: eine feste Stelle im Umlauf */
 let PHASE_TEST = null;
 
@@ -2878,8 +2924,12 @@ function zeichneStation(t, cxp, cyp, R) {
   /* Die beleuchteten Fenster pulsieren — und nachts fallen sie erst
      richtig auf, weil dann nichts mehr um sie herum leuchtet. */
   const nachthell = 1 + (1 - TAGLICHT) * 0.8;
+  /* Arbeitet niemand, brennt nur Notbeleuchtung. Arbeitet die halbe
+     Crew, sind die Fenster hell. Das ist der billigste Weg, den
+     Zustand der Station von weitem lesbar zu machen. */
+  const wach = 0.45 + 0.55 * CREWWACH;
   for (const fe of b.fenster) {
-    const staerke = Math.min(1, (fe.grund + fe.hub * Math.sin(t * fe.takt + fe.ph)) * nachthell);
+    const staerke = Math.min(1, (fe.grund + fe.hub * Math.sin(t * fe.takt + fe.ph)) * nachthell * wach);
     cx.fillStyle = `rgba(${fe.ton},${staerke})`;
     cx.beginPath();
     cx.arc(mitte.x + fe.x * f, mitte.y + fe.y * f, Math.max(0.6, fe.r * f), 0, Math.PI * 2);
@@ -2905,8 +2955,30 @@ function zeichneStation(t, cxp, cyp, R) {
      Minuten, nicht Sekunden. Zu schnell bewegt, sieht die ganze
      Station sofort nach Spielzeug aus — Geschwindigkeit ist selbst
      ein Groessenhinweis. */
-  const a1 = -0.62 + Math.sin(t * 0.000026) * 0.28;
-  const a2 = 1.15 + Math.cos(t * 0.000031) * 0.4;
+  /* Der Arm arbeitet, statt nur zu schwenken: er holt eine Palette von
+     der Ablage, traegt sie hinueber und setzt sie ab. Ein voller
+     Durchlauf dauert gut drei Minuten — das ist nicht langsam
+     gemacht, sondern gemessen; jede schnellere Bewegung laesst die
+     Station nach Modell aussehen.
+
+     Der Takt hat Pausen: greifen und loslassen brauchen Zeit, in der
+     sich nichts bewegt. Genau die Pausen machen aus einer Schwingung
+     eine Handlung. */
+  const takt = (t % 196000) / 196000;
+  let arm, haelt = false;
+  if (takt < 0.06)      { arm = 0;                 haelt = false; }   // wartet
+  else if (takt < 0.3)  { arm = (takt - 0.06) / 0.24; haelt = false; } // hin
+  else if (takt < 0.38) { arm = 1;                 haelt = true; }    // greift
+  else if (takt < 0.68) { arm = 1 - (takt - 0.38) / 0.3; haelt = true; } // traegt
+  else if (takt < 0.76) { arm = 0;                 haelt = true; }    // setzt ab
+  else                  { arm = 0;                 haelt = false; }   // zurueck
+  /* Weich in die Bewegung hinein und wieder heraus, aber nur an den
+     Enden: dazwischen laeuft der Arm gleichmaessig. */
+  const weich = arm < 0.15 ? (arm / 0.15) * 0.15
+              : arm > 0.85 ? 0.85 + ((arm - 0.85) / 0.15) * 0.15
+              : arm;
+  const a1 = -0.62 + weich * 0.52;
+  const a2 = 1.15 - weich * 0.72;
   c.translate(R * 0.55, -R * 0.1);
   c.lineCap = "round";
   /* Fuss auf dem Traeger */
@@ -2928,15 +3000,42 @@ function zeichneStation(t, cxp, cyp, R) {
   c.beginPath(); c.moveTo(0, R * 0.013); c.lineTo(R * 0.55, R * 0.013); c.stroke();
   c.fillStyle = "#8ea0b8";
   c.beginPath(); c.arc(0, 0, R * 0.036, 0, Math.PI * 2); c.fill();
-  /* Greifer */
+  /* Greifer — beim Halten geschlossen, sonst offen */
   c.translate(R * 0.55, 0);
   c.lineWidth = R * 0.018;
   c.strokeStyle = "rgba(206,218,234,.9)";
+  const spreiz = haelt ? 0.018 : 0.045;
   c.beginPath();
-  c.moveTo(0, -R * 0.045); c.lineTo(R * 0.06, -R * 0.018);
-  c.moveTo(0, R * 0.045); c.lineTo(R * 0.06, R * 0.018);
+  c.moveTo(0, -R * spreiz); c.lineTo(R * 0.06, -R * spreiz * 0.4);
+  c.moveTo(0, R * spreiz);  c.lineTo(R * 0.06, R * spreiz * 0.4);
   c.stroke();
+
+  /* Die Palette. Sie haengt am Greifer, solange er sie haelt, und
+     liegt sonst dort, wo sie zuletzt abgesetzt wurde. */
+  if (haelt) {
+    const pw = R * 0.19, ph = R * 0.13;
+    c.fillStyle = sonnenlauf(c, R * 0.06, -ph / 2, pw, ph,
+      "#f2f0e6", "#93918a", "#171a1d");
+    rundRect(c, R * 0.06, -ph / 2, pw, ph, ph * 0.12); c.fill();
+    c.strokeStyle = "rgba(26,28,32,.6)"; c.lineWidth = Math.max(0.3, R * 0.006);
+    rundRect(c, R * 0.06, -ph / 2, pw, ph, ph * 0.12); c.stroke();
+    folie(c, R * 0.09, -ph * 0.3, pw * 0.4, ph * 0.6, ph * 0.1, 91);
+  }
   c.restore();
+
+  /* Die Ablage, auf der die Palette liegt, wenn sie nicht getragen
+     wird — sonst kaeme sie aus dem Nichts. */
+  if (!haelt) {
+    c.save();
+    c.translate(R * (takt < 0.3 ? 1.28 : 0.62), -R * 0.34);
+    const pw = R * 0.19, ph = R * 0.13;
+    c.fillStyle = sonnenlauf(c, 0, -ph / 2, pw, ph, "#f2f0e6", "#93918a", "#171a1d");
+    rundRect(c, 0, -ph / 2, pw, ph, ph * 0.12); c.fill();
+    c.strokeStyle = "rgba(26,28,32,.6)"; c.lineWidth = Math.max(0.3, R * 0.006);
+    rundRect(c, 0, -ph / 2, pw, ph, ph * 0.12); c.stroke();
+    folie(c, R * 0.03, -ph * 0.3, pw * 0.4, ph * 0.6, ph * 0.1, 91);
+    c.restore();
+  }
 
   /* ---------- Positionslichter ---------- */
   const blink = Math.sin(t * 0.0031) > 0.72;
@@ -4541,6 +4640,7 @@ const KAM = {
   zoom: 1, x: 0, y: 0,
   zielZoom: 1, zielX: 0, zielY: 0,
   ziehtGerade: false,
+  folgt: null,      // ID der Figur, an der die Kamera haengt
 };
 const ZOOM_MIN = 0.55, ZOOM_MAX = 7;
 
@@ -4575,6 +4675,7 @@ function grenzenHalten() {
 }
 
 function kameraZurueck() {
+  KAM.folgt = null;
   KAM.zielZoom = 1; KAM.zielX = 0; KAM.zielY = 0;
   zeigeZoomLeiste();
 }
@@ -4584,12 +4685,23 @@ function fahreZu(id, zoom) {
   const v = SICHT.get(id);
   if (!v) return;
   KAM.zielZoom = klemm(zoom || 2.6, ZOOM_MIN, ZOOM_MAX);
-  /* Die Figur etwas ueber die Mitte setzen, damit das Detailfenster
-     unten links sie nicht verdeckt */
+  /* Und dann dranbleiben. Seit die Astronauten sich ueber die Station
+     hangeln, waere ein einmaliges Hinfahren sinnlos — nach einer
+     halben Minute waere die Figur aus dem Bild. */
+  KAM.folgt = id;
+  kameraNachfuehren();
+  zeigeZoomLeiste();
+}
+
+/* Die verfolgte Figur in der Mitte halten. Sie sitzt etwas ueber der
+   Mitte, damit das Detailfenster unten links sie nicht verdeckt. */
+function kameraNachfuehren() {
+  if (!KAM.folgt) return;
+  const v = SICHT.get(KAM.folgt);
+  if (!v) { KAM.folgt = null; return; }
   KAM.zielX = (W / 2 - v.sx) * KAM.zielZoom + W * 0.12;
   KAM.zielY = (H / 2 - v.sy) * KAM.zielZoom - H * 0.06;
   grenzenHalten();
-  zeigeZoomLeiste();
 }
 
 const SICHT = new Map();     // agentId -> { r, winkel, sx, sy }
@@ -4624,6 +4736,7 @@ function rahmen(jetzt) {
   cx.clearRect(0, 0, W, H);
 
   /* Kamera nachziehen — gleitet statt zu springen */
+  kameraNachfuehren();
   const eil = 1 - Math.pow(0.004, dt / 1000);
   KAM.zoom = lerp(KAM.zoom, KAM.zielZoom, eil);
   KAM.x = lerp(KAM.x, KAM.zielX, eil);
@@ -4632,6 +4745,16 @@ function rahmen(jetzt) {
   /* Die Stelle im Umlauf bestimmt das Licht fuer alles Weitere */
   const umlaufPhase = PHASE_TEST !== null ? PHASE_TEST : (t % UMLAUF) / UMLAUF;
   window.__PHASE_WERT = umlaufPhase;
+  {
+    const alle = alleAstronauten();
+    const wach = alle.filter(a => {
+      const l = LAUF.get(a.id);
+      return l && (l.zustand === "denkt" || l.zustand === "sendet");
+    }).length;
+    const ziel = alle.length ? wach / alle.length : 0;
+    /* Traege nachziehen: die Beleuchtung einer Station springt nicht */
+    CREWWACH = lerp(CREWWACH, ziel, 1 - Math.pow(0.3, dt / 1000));
+  }
   /* Den Wechsel ins Bordbuch, aber nur den Uebergang selbst */
   if (Z.umlauf !== false) {
     const jetztTag = umlaufPhase < TAGANTEIL;
@@ -6002,6 +6125,7 @@ function blendeAuf(id) {
   /* Wechselt man vom Detail zu einer anderen Blende, gehoert der
      Auswahlring am Astronauten weg */
   if (id !== "blende-detail" && offeneDetailId) { offeneDetailId = null; zeichneCrewLeiste(); }
+  if (id === "blende-detail") KAM.folgt = null;
   $$(".blende").forEach(b => b.classList.toggle("offen", b.id === id));
   $("#schleier").classList.add("an");
   if (id === "blende-crew") zeichneCrewListe();
@@ -6323,8 +6447,34 @@ umlaufSchalter.onclick = () => {
 umlaufSchalter.classList.toggle("an", Z.umlauf !== false);
 
 $("#btn-kino").onclick = () => kino(!kinoAn);
+/* --- Tastenkuerzel ---
+   Nur einzelne Buchstaben, und nur wenn gerade nicht getippt wird.
+   Wer im Auftragsfeld steht, will ein L schreiben und nicht das Log
+   aufklappen — deshalb wird vorher geprueft, wo der Eingabepunkt
+   steht. */
+const TASTEN = {
+  l: "#btn-log", c: "#btn-crew", h: "#btn-himmel",
+  b: "#btn-bruecke", t: "#btn-telemetrie", k: "#btn-kino",
+};
+
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { if (kinoAn) kino(false); else blendeZu(); }
+  if (e.key === "Escape") { if (kinoAn) kino(false); else blendeZu(); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const z = document.activeElement;
+  if (z && (z.tagName === "INPUT" || z.tagName === "TEXTAREA" || z.isContentEditable)) return;
+
+  const taste = e.key.toLowerCase();
+  if (TASTEN[taste]) {
+    const knopf = $(TASTEN[taste]);
+    if (knopf) { e.preventDefault(); knopf.click(); }
+    return;
+  }
+  /* Leertaste stellt die Kamera zurueck — das braucht man am
+     haeufigsten, wenn man sich beim Zoomen verlaufen hat. */
+  if (e.key === " ") { e.preventDefault(); kameraZurueck(); }
+  /* Plus und Minus zoomen, damit es auch ohne Mausrad geht */
+  if (e.key === "+" || e.key === "=") { e.preventDefault(); zoomeAuf(W / 2, H / 2, 1.25); }
+  if (e.key === "-" || e.key === "_") { e.preventDefault(); zoomeAuf(W / 2, H / 2, 1 / 1.25); }
 });
 
 /* --- Auftragsfeld --- */
@@ -6412,6 +6562,8 @@ cv.addEventListener("pointermove", (ev) => {
   if (!zieh.bewegt && Math.hypot(dx, dy) > 5) {
     zieh.bewegt = true;
     cv.classList.add("zieht");
+    /* Wer selbst schiebt, will nicht, dass die Kamera dagegenhaelt */
+    KAM.folgt = null;
   }
   if (zieh.bewegt) {
     KAM.zielX = zieh.kx + dx; KAM.zielY = zieh.ky + dy;
@@ -6434,6 +6586,10 @@ function zeigerLoslassen(ev) {
     if (treffer) {
       detailOeffnen(treffer.id);
       if (KAM.zielZoom < 1.6) fahreZu(treffer.id, 2.4);
+    } else if (offeneDetailId) {
+      /* Ins Leere getippt: das Detailfenster zu. Frueher uebernahm das
+         der Schleier, aber der laesst jetzt Zeiger durch. */
+      blendeZu();
     }
   }
 }
