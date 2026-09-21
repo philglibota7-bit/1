@@ -1826,14 +1826,21 @@ function solarfluegel(c, x, y, w, h, saat, dunkel) {
       g.addColorStop(0, "#161a26"); g.addColorStop(0.5, "#252a3e");
       g.addColorStop(0.72, "#3a3550"); g.addColorStop(1, "#0d0f16");
     } else {
-      g.addColorStop(0, "#5a3d15"); g.addColorStop(0.38, "#a97c2b");
-      g.addColorStop(0.58, "#d9a544"); g.addColorStop(1, "#4a3311");
+      /* Kupferrot, nicht Gold. Die Zellen sitzen auf einer
+         Kaptonfolie, und auf Fotos liest sich das als Terracotta mit
+         einem Stich ins Rostrote — deutlich dunkler und weniger gelb,
+         als man es aus dem Gedaechtnis malen wuerde. Zu goldene
+         Fluegel sind der haeufigste Farbfehler an gezeichneten
+         Stationen. */
+      g.addColorStop(0, "#2f1c12"); g.addColorStop(0.34, "#6d4029");
+      g.addColorStop(0.56, "#a0603c"); g.addColorStop(0.78, "#7a4529");
+      g.addColorStop(1, "#281710");
     }
     c.fillStyle = g;
     c.fillRect(x, yy, w, halb);
 
     /* Zellraster: viele feine Querstreifen laengs der langen Achse */
-    c.strokeStyle = dunkel ? "rgba(6,8,14,.75)" : "rgba(34,22,6,.5)";
+    c.strokeStyle = dunkel ? "rgba(6,8,14,.75)" : "rgba(28,14,8,.55)";
     c.lineWidth = 0.4;
     c.beginPath();
     const spalten = Math.max(14, Math.round(w / (halb * 0.28)));
@@ -1843,7 +1850,7 @@ function solarfluegel(c, x, y, w, h, saat, dunkel) {
     }
     c.stroke();
     /* Trennnaehte quer: deutlich seltener als die Zellstreifen */
-    c.strokeStyle = dunkel ? "rgba(140,150,190,.3)" : "rgba(246,226,170,.35)";
+    c.strokeStyle = dunkel ? "rgba(140,150,190,.3)" : "rgba(214,158,112,.32)";
     c.lineWidth = Math.max(0.4, halb * 0.05);
     c.beginPath();
     for (let i = 1; i < 6; i++) {
@@ -1852,7 +1859,7 @@ function solarfluegel(c, x, y, w, h, saat, dunkel) {
     }
     c.stroke();
     /* Wellige Kante: die Teppiche haengen unter Spannung, nicht gerade */
-    c.strokeStyle = "rgba(255,238,190,.28)";
+    c.strokeStyle = "rgba(226,176,132,.26)";
     c.lineWidth = 0.5;
     c.beginPath();
     for (let i = 0; i <= 10; i++) {
@@ -2145,7 +2152,7 @@ function stationStatisch(c, R, fenster, plaetze) {
   c.save();
   c.scale(1, 0.5);
   const schein = c.createRadialGradient(0, 0, R * 0.3, 0, 0, R * 2.2);
-  schein.addColorStop(0, "rgba(150,186,234,.15)");
+  schein.addColorStop(0, "rgba(150,186,234,.13)");
   schein.addColorStop(0.5, "rgba(123,164,216,.05)");
   schein.addColorStop(1, "rgba(123,164,216,0)");
   c.fillStyle = schein;
@@ -2221,13 +2228,13 @@ function stationStatisch(c, R, fenster, plaetze) {
           c.save();
           c.translate(flL * 0.3, 0);
           c.rotate(0.17);
-          const iw = flL * 0.48, ih = flB * 0.62;
+          const iw = flL * 0.46, ih = flB * 0.54;
           const ig = c.createLinearGradient(-iw / 2, -ih / 2, iw / 2, ih / 2);
-          ig.addColorStop(0, "#0c0e14"); ig.addColorStop(0.55, "#1d2130");
-          ig.addColorStop(1, "#080a0f");
+          ig.addColorStop(0, "#1b1f2a"); ig.addColorStop(0.5, "#333a4a");
+          ig.addColorStop(0.78, "#2a3040"); ig.addColorStop(1, "#14171f");
           c.fillStyle = ig;
           c.fillRect(-iw / 2, -ih / 2, iw, ih);
-          c.strokeStyle = "rgba(150,162,196,.28)"; c.lineWidth = 0.4;
+          c.strokeStyle = "rgba(168,180,210,.3)"; c.lineWidth = 0.4;
           c.beginPath();
           for (let i = 1; i < 14; i++) {
             const xx = -iw / 2 + (iw * i) / 14;
@@ -2592,7 +2599,7 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
 
   /* --- Masse. H ist die Figurenhoehe, alles andere haengt daran. --- */
   const H = s * 2.1;
-  const helmR  = H * 0.095;          // Helm 0,19 H im Durchmesser
+  const helmR  = H * 0.107;          // Helm 0,215 H im Durchmesser
   const helmY  = -H * 0.5 + helmR;   // Oberkante genau bei -H/2
   /* Kein Hals: der Kugelkopf sitzt tief zwischen den Schultern, die
      Schulterlinie liegt noch innerhalb des Helmkreises. */
@@ -2625,8 +2632,8 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
   const griff = haltung === "griff";
   const nachts = 1 - TAGLICHT;
   const tf = (hell, dunkel) => nachts < 0.01 ? hell : mischen(hell, dunkel, nachts * 0.82);
-  const WEISS = tf("#efebe1", "#243449");
-  const HELL  = tf("#fdfcf7", "#33465f");
+  const WEISS = tf("#f1f1ee", "#243449");
+  const HELL  = tf("#ffffff", "#33465f");
   const SCHATTEN = tf("#6f6c64", "#161e2c");
 
   cx.save();
@@ -2684,7 +2691,7 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
     if (mittel) {
       /* Konvoluten: Balgfalten an Huefte, Knie und Knoechel. Weich
          gerippt — anders als die harten Lagerringe am Oberkoerper. */
-      cx.strokeStyle = "rgba(120,117,108,.55)"; cx.lineWidth = Math.max(0.35, H * 0.006);
+      cx.strokeStyle = "rgba(96,93,85,.7)"; cx.lineWidth = Math.max(0.4, H * 0.009);
       for (const [gx, gy, ax, ay] of [[hx, hy, kx, ky], [kx, ky, fx, fy]]) {
         const dx = ax - gx, dy = ay - gy, l = Math.hypot(dx, dy) || 1;
         for (let i = 0; i < 3; i++) {
@@ -2736,7 +2743,7 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
      hervor. Genau dieser Ueberstand macht den Umriss unverwechselbar. */
   if (mittel) {
     const sb = H * 0.179;            // halbe Breite (0,358 H)
-    const sm = -H * 0.03;
+    const sm = -H * 0.055;
     const so = schuY + H * 0.16, su = hueftY;
     cx.fillStyle = "#8d8a80";
     rundRect(cx, sm - sb, so, sb * 2, su - so, H * 0.02); cx.fill();
@@ -2773,8 +2780,8 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
      metallisch, sonst wird eine Tauchflasche daraus. Seine Oberkante
      liegt etwa auf Hoehe des Helmaequators, nicht darueber. Weil wir
      die Figur leicht von der Seite sehen, schaut er links hervor. */
-  const pb = H * 0.135;              // halbe Breite (0,27 H)
-  const pm = -H * 0.062;             // nach hinten versetzt: Dreiviertelblick
+  const pb = H * 0.14;               // halbe Breite (0,28 H)
+  const pm = -H * 0.095;             // nach hinten versetzt: Dreiviertelblick
   const po = helmY, pu = hueftY - H * 0.02;
   const rg = cx.createLinearGradient(pm - pb, po, pm + pb, pu);
   rg.addColorStop(0, "#fbf9f2");
@@ -2821,7 +2828,7 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
   cx.closePath();
   const tg = cx.createLinearGradient(-schuB, schuY, schuB * 0.7, hueftY);
   tg.addColorStop(0, HELL);
-  tg.addColorStop(0.34, WEISS);
+  tg.addColorStop(0.3, WEISS);
   tg.addColorStop(0.7, tf("#7b786f", "#131a26"));
   tg.addColorStop(0.9, tf("#1b1c1f", "#0b0f18"));
   tg.addColorStop(1, tf("#3f5772", "#2b4062"));
@@ -2937,7 +2944,7 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
     cx.stroke();
     if (mittel) {
       /* Balgfalten am Ellbogen */
-      cx.strokeStyle = "rgba(120,117,108,.55)"; cx.lineWidth = Math.max(0.3, H * 0.005);
+      cx.strokeStyle = "rgba(96,93,85,.7)"; cx.lineWidth = Math.max(0.35, H * 0.008);
       const dx = ex - sx, dy = ey - sy, l = Math.hypot(dx, dy) || 1;
       for (let i = 0; i < 3; i++) {
         const f = 0.72 + i * 0.09;
@@ -3050,14 +3057,28 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
   vg.addColorStop(0.3, tf("#c9962e", "#3a2f13"));
   vg.addColorStop(0.62, tf("#6b4f18", "#1f1a0c"));
   vg.addColorStop(1, tf("#2a2008", "#100c04"));
+  /* Das Visier ist ein OVAL in einer weissen Schale, kein Vollkreis.
+     Die Schutzschale liegt ueber Scheitel, Seiten und Kinn — auf jedem
+     Foto sieht man rundherum einen weissen Rand. Wer den Helm ganz
+     vergoldet, macht eine Christbaumkugel daraus. */
   cx.fillStyle = vg;
-  cx.beginPath(); cx.arc(0, helmY + helmR * 0.06, helmR * 0.72, 0, Math.PI * 2); cx.fill();
+  cx.beginPath();
+  cx.ellipse(0, helmY + helmR * 0.07, helmR * 0.6, helmR * 0.66, 0, 0, Math.PI * 2);
+  cx.fill();
+  /* Der Rahmen der Frontoeffnung */
+  cx.strokeStyle = "rgba(226,222,210,.55)";
+  cx.lineWidth = Math.max(0.4, helmR * 0.07);
+  cx.beginPath();
+  cx.ellipse(0, helmY + helmR * 0.07, helmR * 0.6, helmR * 0.66, 0, 0, Math.PI * 2);
+  cx.stroke();
 
   /* Im Visier spiegelt sich die Erde — eine blau-weisse Sichel. Das
      ist das bekannteste Motiv der ganzen Raumfahrtfotografie und das
      Einzige, was die Goldkugel endgueltig zum Helm macht. */
   cx.save();
-  cx.beginPath(); cx.arc(0, helmY + helmR * 0.06, helmR * 0.72, 0, Math.PI * 2); cx.clip();
+  cx.beginPath();
+  cx.ellipse(0, helmY + helmR * 0.07, helmR * 0.6, helmR * 0.66, 0, 0, Math.PI * 2);
+  cx.clip();
   const eg = cx.createLinearGradient(-helmR * 0.6, helmY + helmR * 0.7, helmR * 0.2, helmY - helmR * 0.2);
   eg.addColorStop(0, "rgba(120,190,255,.62)");
   eg.addColorStop(0.45, "rgba(80,140,210,.4)");
@@ -3074,10 +3095,10 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
   if (mittel) {
     /* Die weisse Schutzschale liegt wie ein Helmdach ueber Scheitel
        und Seiten */
-    cx.fillStyle = "#e9e6da";
+    cx.fillStyle = tf("#eeece2", "#2b3b52");
     cx.beginPath();
-    cx.arc(0, helmY, helmR * 0.99, Math.PI * 1.1, Math.PI * 1.9);
-    cx.arc(0, helmY, helmR * 0.7, Math.PI * 1.9, Math.PI * 1.1, true);
+    cx.arc(0, helmY, helmR * 0.99, Math.PI * 0.98, Math.PI * 2.02);
+    cx.arc(0, helmY, helmR * 0.66, Math.PI * 2.02, Math.PI * 0.98, true);
     cx.closePath(); cx.fill();
     /* Helmlampen. Im Erdschatten sind sie das einzige Licht, das der
        Astronaut noch hat — zwei schmale Kegel von rund 28 Grad, die
