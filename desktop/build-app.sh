@@ -15,7 +15,7 @@ done
 echo "2/4  Desktop-Start einbauen…"
 python3 - <<'PY'
 p = 'resources/index.html'
-h = open(p).read()
+h = open(p, encoding='utf-8').read()
 if 'js/neutralino.js' not in h:
     boot = '''<script src="js/neutralino.js"></script>
 <script>
@@ -37,7 +37,7 @@ if 'js/neutralino.js' not in h:
 </script>
 </head>'''
     h = h.replace('</head>', boot, 1)
-    open(p, 'w').write(h)
+    open(p, 'w', encoding='utf-8').write(h)
     print('   Desktop-Start eingefuegt')
 else:
     print('   war schon drin')

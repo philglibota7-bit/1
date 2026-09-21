@@ -38,6 +38,8 @@ npm i -g @neutralinojs/neu    # einmalig
 ./desktop/build-app.sh
 ```
 
+Gebraucht werden außerdem `python3` und `zip` — auf macOS beides ab Werk dabei.
+
 Ergebnis liegt danach in `desktop/dist/PULSE.app` und als ZIP daneben.
 
 Dateien:

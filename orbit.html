@@ -286,6 +286,14 @@ body.kino #kino-tipp{opacity:1; animation:tippweg 4s ease forwards;}
   backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px);}
 #schleier.an{opacity:1; pointer-events:auto;}
 
+.feld-hinweis{font-size:11.5px; color:var(--tx3); line-height:1.5; margin-top:7px;
+  text-transform:none; letter-spacing:0; font-weight:400;}
+.summe{font-size:11.5px; color:var(--tx3); letter-spacing:.02em; margin-right:6px;
+  font-variant-numeric:tabular-nums;}
+.knopf.gefahr{background:rgba(224,122,106,.16); border:1px solid rgba(224,122,106,.32);
+  color:var(--bad);}
+.knopf.gefahr:hover{background:rgba(224,122,106,.24);}
+
 /* ---------- Einladung zum Installieren ---------- */
 #install{
   position:fixed; z-index:8; left:12px; right:12px;
@@ -420,6 +428,7 @@ body.kino #install{display:none;}
   <div class="griff"></div>
   <div class="blende-kopf">
     <h2>Missions-Log</h2>
+    <span class="summe" id="log-summe"></span>
     <button class="mini" id="log-leeren" title="Log leeren">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13"/></svg>
     </button>
@@ -471,6 +480,16 @@ body.kino #install{display:none;}
         <option value="xhigh">sehr hoch</option>
         <option value="max">maximal — teuer</option>
       </select></label>
+    <label class="feld"><span>Gedächtnis</span>
+      <button class="schalter an" id="a-gedaechtnis" type="button">
+        <span class="kasten">✓</span>
+        <span class="bez">Frühere Missionen mitschicken</span>
+      </button>
+      <p class="feld-hinweis">Mit Gedächtnis versteht der Agent „mach das nochmal kürzer".
+        Dafür wird der bisherige Verlauf bei jeder Mission mitgeschickt — das kostet
+        jedes Mal ein paar Tokens mehr. Gedeckelt auf sechs Wechsel.</p>
+      <div id="a-verlauf-lage"></div></label>
+
     <label class="feld"><span>Anzugfarbe</span>
       <div class="farbwahl" id="a-farbe"></div></label>
     <button class="knopf voll" id="a-speichern">Speichern</button>
@@ -622,7 +641,8 @@ function laden() {
       id: "a" + Date.now() + i,
       name: v.name, rolle: v.rolle, farbe: v.farbe,
       modell: "claude-opus-5", aufwand: "high",
-      laeufe: 0, tokens: 0,
+      laeufe: 0, tokens: 0, kosten: 0,
+      gedaechtnis: true, verlauf: [],
     }));
   }
   /* Ein Agent, den es nicht mehr gibt, darf nicht ausgewaehlt bleiben */
@@ -951,12 +971,19 @@ async function sammleGithub() {
     return [];
   }
 
-  const raus = [];
-  for (const r of repos.slice(0, Z.bruecke.ghAnzahl)) {
-    let laeufe = [], prs = [];
-    try { laeufe = (await gh(`/repos/${r.full_name}/actions/runs?per_page=3`)).workflow_runs || []; } catch {}
-    try { prs = await gh(`/repos/${r.full_name}/pulls?state=open&per_page=5`); } catch {}
+  /* Die beiden Abfragen je Repo sind voneinander unabhaengig, und die
+     Repos untereinander auch. Nacheinander waeren das bei zehn Repos
+     einundzwanzig Runden — parallel ist es eine. */
+  const roh = await Promise.all(repos.slice(0, Z.bruecke.ghAnzahl).map(async (r) => {
+    const [laeufe, prs] = await Promise.all([
+      gh(`/repos/${r.full_name}/actions/runs?per_page=3`).then(x => x.workflow_runs || []).catch(() => []),
+      gh(`/repos/${r.full_name}/pulls?state=open&per_page=5`).catch(() => []),
+    ]);
+    return { r, laeufe, prs };
+  }));
 
+  const raus = [];
+  for (const { r, laeufe, prs } of roh) {
     const l0 = laeufe[0];
     const laufend = laeufe.some(x => x.status === "in_progress" || x.status === "queued");
     const rot = l0 && l0.status === "completed" && l0.conclusion !== "success";
@@ -993,8 +1020,46 @@ async function sammleGithub() {
 
 let bruecke_sessions = [], bruecke_ordner = [], bruecke_prozesse = [], bruecke_github = [];
 
+let githubLaeuft = false;
+
+/* GitHub geht ueber das Netz und kann Sekunden dauern. Frueher lief es
+   im selben Riegel wie die lokalen Quellen — dann wurden Sessions und
+   Prozesse waehrenddessen gar nicht mehr abgefragt. Jetzt hat es einen
+   eigenen Riegel und einen eigenen Takt. */
+async function githubDurchlauf() {
+  if (githubLaeuft || !Z.bruecke.typen.github) return;
+  if (Date.now() - BR.uhren.github < TAKT.github) return;
+  githubLaeuft = true;
+  BR.uhren.github = Date.now();
+  try {
+    bruecke_github = await sammleGithub();
+  } catch (e) {
+    BR.letzterFehler = "GitHub: " + (e && e.message || e);
+  } finally {
+    githubLaeuft = false;
+    liveNeuBauen();
+  }
+}
+
+function liveNeuBauen() {
+  const vorher = BR.live.map(x => x.id).join("|");
+  BR.live = [].concat(
+    Z.bruecke.typen.session ? bruecke_sessions : [],
+    Z.bruecke.typen.ordner  ? bruecke_ordner   : [],
+    Z.bruecke.typen.prozess ? bruecke_prozesse : [],
+    Z.bruecke.typen.github  ? bruecke_github   : [],
+  );
+  zeichneCrewLeiste();
+  if (BR.live.map(x => x.id).join("|") !== vorher) aufraeumenSicht();
+  if (offeneDetailId) zeichneDetail(offeneDetailId);
+}
+
 async function brueckeDurchlauf() {
-  if (BR.laeuft) return;                 // kein zweiter Durchlauf parallel
+  /* Liegt das Fenster im Hintergrund, muss weder git noch ps laufen —
+     das spart auf dem Laptop spuerbar Akku. */
+  if (document.hidden) return;
+  githubDurchlauf();                     // eigener Riegel, laeuft nebenher
+  if (BR.laeuft) return;                 // kein zweiter lokaler Durchlauf
   BR.laeuft = true;
   const jetzt = Date.now();
   try {
@@ -1007,28 +1072,20 @@ async function brueckeDurchlauf() {
     if (BR.aktiv && Z.bruecke.typen.prozess && jetzt - BR.uhren.prozesse > TAKT.prozesse) {
       BR.uhren.prozesse = jetzt; bruecke_prozesse = await sammleProzesse();
     }
-    /* GitHub geht auch ohne Mac-Programm — reines fetch */
-    if (Z.bruecke.typen.github && jetzt - BR.uhren.github > TAKT.github) {
-      BR.uhren.github = jetzt; bruecke_github = await sammleGithub();
-    }
   } catch (e) {
     BR.letzterFehler = String(e && e.message || e);
     console.warn("Brücke:", e);
   } finally {
     BR.laeuft = false;
   }
-
-  const vorher = BR.live.map(x => x.id).join("|");
-  BR.live = [].concat(
-    Z.bruecke.typen.session ? bruecke_sessions : [],
-    Z.bruecke.typen.ordner  ? bruecke_ordner   : [],
-    Z.bruecke.typen.prozess ? bruecke_prozesse : [],
-    Z.bruecke.typen.github  ? bruecke_github   : [],
-  );
-  zeichneCrewLeiste();
-  if (BR.live.map(x => x.id).join("|") !== vorher) aufraeumenSicht();
-  if (offeneDetailId) zeichneDetail(offeneDetailId);
+  liveNeuBauen();
 }
+
+/* Beim Zurueckkommen sofort aktualisieren statt bis zum naechsten Takt
+   veraltete Zustaende zu zeigen */
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) brueckeDurchlauf();
+});
 
 async function brueckeStarten() {
   if (nativVorhanden()) {
@@ -1074,10 +1131,14 @@ function alleAstronauten() {
   return eigene.concat(BR.live);
 }
 
-/* Sicht- und Laufdaten verschwundener Astronauten wegwerfen */
+/* Sicht- und Laufdaten verschwundener Astronauten wegwerfen.
+   Wichtig fuer Prozesse: deren IDs haengen an der PID und wechseln bei
+   jedem Neustart eines Entwicklungsservers. Ohne das Aufraeumen wuechse
+   die Karte ueber einen Arbeitstag auf Tausende toter Eintraege. */
 function aufraeumenSicht() {
   const da = new Set(alleAstronauten().map(a => a.id));
   for (const k of Array.from(SICHT.keys())) if (!da.has(k)) SICHT.delete(k);
+  for (const k of Array.from(LAUF.keys())) if (!da.has(k)) LAUF.delete(k);
 }
 
 /* ================================================================
@@ -1736,13 +1797,33 @@ const PREISE = {
 /* Haiku kennt weder adaptives Denken noch Aufwandsstufen */
 const KANN_DENKEN = (m) => m !== "claude-haiku-4-5";
 
+/* Gedaechtnis-Grenzen. Die API ist zustandslos: jede Nachricht schickt den
+   ganzen bisherigen Verlauf mit. Ohne Deckel waechst damit sowohl der
+   Speicher im Browser als auch die Rechnung bei jeder Mission. */
+const VERLAUF_MAX_NACHRICHTEN = 12;      // sechs Wechsel
+const VERLAUF_MAX_ZEICHEN = 24000;
+
+function verlaufKuerzen(v) {
+  let k = v.slice(-VERLAUF_MAX_NACHRICHTEN);
+  /* Von vorne abschneiden, bis es passt — immer paarweise, damit der
+     Verlauf mit einer Nutzerfrage beginnt. */
+  while (k.length > 2 && k.reduce((sum, m) => sum + m.content.length, 0) > VERLAUF_MAX_ZEICHEN) {
+    k = k.slice(2);
+  }
+  if (k.length && k[0].role !== "user") k = k.slice(1);
+  return k;
+}
+
+const verlaufZeichen = (v) => (v || []).reduce((sum, m) => sum + m.content.length, 0);
+
 function baueKoerper(agent, auftrag, mitFallback) {
+  const verlauf = agent.gedaechtnis === false ? [] : verlaufKuerzen(agent.verlauf || []);
   const k = {
     model: agent.modell || "claude-opus-5",
     max_tokens: Z.maxTok,
     stream: true,
     system: agent.rolle || "Du bist ein hilfreicher Agent.",
-    messages: [{ role: "user", content: auftrag }],
+    messages: [...verlauf, { role: "user", content: auftrag }],
   };
   if (KANN_DENKEN(k.model)) {
     k.thinking = { type: "adaptive", display: "summarized" };
@@ -1936,6 +2017,17 @@ async function fuehreAus(agent, auftrag) {
 
     agent.laeufe = (agent.laeufe || 0) + 1;
     agent.tokens = (agent.tokens || 0) + nutzung.ein + nutzung.aus;
+    if (eintrag.kosten != null) agent.kosten = (agent.kosten || 0) + eintrag.kosten;
+
+    /* Nur vollstaendige Wechsel ins Gedaechtnis — eine abgelehnte oder
+       leere Antwort wuerde den Verlauf nur vergiften. */
+    if (agent.gedaechtnis !== false && !eintrag.fehler && eintrag.antwort.trim()) {
+      agent.verlauf = verlaufKuerzen([
+        ...(agent.verlauf || []),
+        { role: "user", content: auftrag },
+        { role: "assistant", content: eintrag.antwort },
+      ]);
+    }
     setzeZustand(agent.id, eintrag.fehler ? "fehler" : "fertig");
 
   } catch (e) {
@@ -2079,6 +2171,13 @@ function logAktualisieren(e) {
 function zeichneLog() {
   const box = $("#log-liste");
   box.innerHTML = "";
+
+  /* Laufende Summe — es ist echtes Geld, das soll man sehen */
+  const summe = Z.log.reduce((s, e) => s + (e.kosten || 0), 0);
+  const tok = Z.log.reduce((s, e) => s + (e.ein || 0) + (e.aus || 0), 0);
+  $("#log-summe").textContent = tok
+    ? "≈ $" + summe.toFixed(3) + "  ·  " + tok.toLocaleString("de-DE") + " Tokens"
+    : "";
   if (!Z.log.length) {
     box.innerHTML = '<div class="leer-hinweis"><span class="gross">🛰</span>Noch keine Mission geflogen.<br>Schreib unten einen Auftrag.</div>';
     return;
@@ -2171,8 +2270,10 @@ function zeichneCrewListe() {
     me.className = "meta";
     me.textContent = (a.modell || "claude-opus-5").replace("claude-", "")
       + "  ·  Aufwand " + (a.aufwand || "high")
+      + (a.gedaechtnis === false ? "  ·  ohne Gedächtnis" : "")
       + "  ·  " + (a.laeufe || 0) + " Missionen"
-      + (a.tokens ? "  ·  " + a.tokens.toLocaleString("de-DE") + " Tokens" : "");
+      + (a.tokens ? "  ·  " + a.tokens.toLocaleString("de-DE") + " Tokens" : "")
+      + (a.kosten ? "  ·  ≈ $" + a.kosten.toFixed(3) : "");
 
     k.append(z1, ro, me);
     box.appendChild(k);
@@ -2248,6 +2349,14 @@ function zeichneDetail(id) {
   const a = alleAstronauten().find(x => x.id === id);
   const box = $("#d-inhalt");
   if (!a) {
+    /* Auch die Kopfzeile zuruecksetzen — sonst stand dort weiter der Name
+       des verschwundenen Astronauten und der Knopf zeigte auf dessen Seite. */
+    $("#d-titel").textContent = "Nicht mehr da";
+    $("#d-kugel").style.cssText = "width:11px;height:11px;border-radius:50%;flex:0 0 auto;"
+      + "background:var(--tx3)";
+    const wegBtn = $("#d-oeffnen");
+    wegBtn.style.display = "none";
+    wegBtn.onclick = null;
     box.innerHTML = '<div class="leer-hinweis">Dieser Astronaut ist nicht mehr da.<br>'
                   + 'Die Session wurde beendet oder der Prozess ist ausgelaufen.</div>';
     return;
@@ -2273,16 +2382,41 @@ function zeichneDetail(id) {
   box.appendChild(zeile("Art", marke));
 
   if (a.typ === "agent") {
-    box.appendChild(zeile("Rolle", a.agent.rolle || "—"));
-    box.appendChild(zeile("Modell", (a.agent.modell || "").replace("claude-", "")
-      + "  ·  Aufwand " + (a.agent.aufwand || "high")));
-    box.appendChild(zeile("Bilanz", (a.agent.laeufe || 0) + " Missionen, "
-      + (a.agent.tokens || 0).toLocaleString("de-DE") + " Tokens"));
+    const ag = a.agent;
+    box.appendChild(zeile("Rolle", ag.rolle || "—"));
+    box.appendChild(zeile("Modell", (ag.modell || "").replace("claude-", "")
+      + "  ·  Aufwand " + (ag.aufwand || "high")));
+    const wechsel = Math.floor(((ag.verlauf || []).length) / 2);
+    box.appendChild(zeile("Gedächtnis", ag.gedaechtnis === false
+      ? "aus — jede Mission beginnt bei null"
+      : wechsel ? wechsel + " Wechsel gespeichert" : "an, noch leer"));
+    box.appendChild(zeile("Bilanz", (ag.laeufe || 0) + " Missionen  ·  "
+      + (ag.tokens || 0).toLocaleString("de-DE") + " Tokens"
+      + (ag.kosten ? "  ·  ≈ $" + ag.kosten.toFixed(3) : "")));
+
+    /* Laeuft gerade etwas, gehoert der Abbruch hierher — seit dem Antippen
+       das Detail oeffnet, war er sonst nirgends zu finden. */
+    if (lauf(a.id).abbruch) {
+      const stop = document.createElement("button");
+      stop.className = "knopf gefahr"; stop.style.marginTop = "14px";
+      stop.textContent = "Mission abbrechen";
+      stop.onclick = () => { abbrechen(a.id); zeichneDetail(a.id); };
+      box.appendChild(stop);
+    }
+
     const b = document.createElement("button");
-    b.className = "knopf leer"; b.style.marginTop = "14px";
+    b.className = "knopf leer"; b.style.marginTop = "9px";
     b.textContent = "Agent bearbeiten";
     b.onclick = () => agentBearbeiten(a.id);
     box.appendChild(b);
+
+    if (wechsel) {
+      const v = document.createElement("button");
+      v.className = "knopf leer"; v.style.marginTop = "9px";
+      v.textContent = "Gespräch vergessen";
+      v.onclick = () => { ag.verlauf = []; sichern(); zeichneDetail(a.id); };
+      box.appendChild(v);
+    }
     return;
   }
 
@@ -2451,6 +2585,9 @@ function ordnerDazu(pfad) {
    ================================================================ */
 
 function blendeAuf(id) {
+  /* Wechselt man vom Detail zu einer anderen Blende, gehoert der
+     Auswahlring am Astronauten weg */
+  if (id !== "blende-detail" && offeneDetailId) { offeneDetailId = null; zeichneCrewLeiste(); }
   $$(".blende").forEach(b => b.classList.toggle("offen", b.id === id));
   $("#schleier").classList.add("an");
   if (id === "blende-crew") zeichneCrewListe();
@@ -2479,6 +2616,33 @@ function farbwahlAufbauen() {
   }
 }
 
+$("#a-gedaechtnis").onclick = () => {
+  $("#a-gedaechtnis").classList.toggle("an");
+};
+
+function verlaufLageZeichnen(a) {
+  const box = $("#a-verlauf-lage");
+  box.innerHTML = "";
+  const v = (a && a.verlauf) || [];
+  if (!v.length) return;
+  const zeile = document.createElement("div");
+  zeile.className = "ordner-zeile";
+  zeile.style.marginTop = "8px";
+  const t = document.createElement("span");
+  t.className = "pf"; t.style.fontFamily = "inherit";
+  t.textContent = Math.floor(v.length / 2) + " Wechsel gespeichert  ·  "
+    + verlaufZeichen(v).toLocaleString("de-DE") + " Zeichen";
+  const w = document.createElement("button");
+  w.className = "mini gefahr"; w.title = "Gespräch vergessen"; w.textContent = "↺";
+  w.onclick = () => {
+    a.verlauf = [];
+    sichern(); verlaufLageZeichnen(a);
+    if (offeneDetailId === a.id) zeichneDetail(a.id);
+  };
+  zeile.append(t, w);
+  box.appendChild(zeile);
+}
+
 function agentBearbeiten(id) {
   bearbeiteId = id;
   const a = id ? agentNach(id) : null;
@@ -2488,6 +2652,8 @@ function agentBearbeiten(id) {
   $("#a-modell").value = a ? (a.modell || "claude-opus-5") : "claude-opus-5";
   $("#a-aufwand").value = a ? (a.aufwand || "high") : "high";
   bearbeiteFarbe = a ? a.farbe : FARBEN[Z.agenten.length % FARBEN.length];
+  $("#a-gedaechtnis").classList.toggle("an", a ? a.gedaechtnis !== false : true);
+  verlaufLageZeichnen(a);
   farbwahlAufbauen();
   $("#a-loeschen").style.display = a ? "flex" : "none";
   blendeAuf("blende-agent");
@@ -2501,13 +2667,15 @@ $("#a-speichern").onclick = () => {
   if (bearbeiteId) {
     const a = agentNach(bearbeiteId);
     if (a) Object.assign(a, { name, rolle, farbe: bearbeiteFarbe,
-      modell: $("#a-modell").value, aufwand: $("#a-aufwand").value });
+      modell: $("#a-modell").value, aufwand: $("#a-aufwand").value,
+      gedaechtnis: $("#a-gedaechtnis").classList.contains("an") });
   } else {
     Z.agenten.push({
       id: "a" + Date.now() + Math.random().toString(36).slice(2, 5),
       name, rolle, farbe: bearbeiteFarbe,
       modell: $("#a-modell").value, aufwand: $("#a-aufwand").value,
-      laeufe: 0, tokens: 0,
+      laeufe: 0, tokens: 0, kosten: 0,
+      gedaechtnis: $("#a-gedaechtnis").classList.contains("an"), verlauf: [],
     });
   }
   sichern(); zeichneCrewLeiste(); zeichneCrewListe();
@@ -2679,7 +2847,8 @@ if (!imProgramm() && "serviceWorker" in navigator && location.protocol.startsWit
 let installAngebot = null;
 
 function installZeigen(text, knopf) {
-  if (localStorage.getItem("orbit.install.weg") === "1") return;
+  /* In Safari mit gesperrten Website-Daten wirft schon der Lesezugriff */
+  try { if (localStorage.getItem("orbit.install.weg") === "1") return; } catch {}
   $("#install-text").textContent = text;
   $("#install-tun").style.display = knopf ? "block" : "none";
   $("#install").classList.add("da");
@@ -2722,6 +2891,7 @@ if (!imProgramm() && !schonInstalliert()
 /* Haken fuer automatische Tests — im Betrieb ungenutzt */
 window.__BR_LIVE = () => BR.live;
 window.__DETAIL = (id) => detailOeffnen(id);
+window.__SET_GED = (id, an) => { const a = agentNach(id); if (a) { a.gedaechtnis = an; sichern(); } };
 
 /* Beim allerersten Besuch direkt zum Schluessel fuehren — sonst steht
    man vor einer huebschen Szene, in der nichts passiert. */

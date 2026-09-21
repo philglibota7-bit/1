@@ -98,6 +98,8 @@ npm i -g @neutralinojs/neu    # einmalig
 ./desktop/orbit/build-app.sh
 ```
 
+Gebraucht werden außerdem `python3` und `zip` — auf macOS beides ab Werk dabei.
+
 Ergebnis: `desktop/orbit/dist/ORBIT.app` und `ORBIT-mac.zip` daneben.
 
 | Datei | Zweck |
