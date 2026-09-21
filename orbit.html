@@ -433,6 +433,29 @@ body.sicht #blende-detail{
 .d-marke.gut{background:rgba(116,180,141,.14); border-color:rgba(116,180,141,.3); color:var(--good);}
 .d-marke.schlecht{background:rgba(224,122,106,.14); border-color:rgba(224,122,106,.3); color:var(--bad);}
 
+/* --- Stationswerte ---
+   Die Zahlen kommen nicht aus der Szene, sondern aus der Arbeit: was
+   die Agenten gerade tun, was sie gekostet haben, wo die Station im
+   Umlauf steht. Deshalb steht die Anzeige auch nicht in der Szene,
+   sondern darueber. */
+#telemetrie{position:fixed; left:16px; top:74px; z-index:30; width:230px;
+  padding:12px 13px 11px; border-radius:var(--r2); font-size:11.5px;
+  pointer-events:none; animation:tmrein .25s var(--ease);}
+@keyframes tmrein{from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:none;}}
+#telemetrie[hidden]{display:none;}
+.tm-kopf{font-size:9.5px; letter-spacing:.14em; color:var(--tx3); margin-bottom:9px;}
+.tm-zeile{display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+  padding:3px 0; border-top:1px solid rgba(255,255,255,.05);}
+.tm-zeile:first-child{border-top:0;}
+.tm-name{color:var(--tx3); font-size:10px; letter-spacing:.06em; flex:0 0 auto;}
+.tm-wert{color:var(--tx1); font-variant-numeric:tabular-nums; text-align:right;
+  font-size:11.5px;}
+.tm-balken{height:4px; border-radius:2px; background:rgba(255,255,255,.08);
+  margin-top:5px; overflow:hidden;}
+.tm-balken i{display:block; height:100%; border-radius:2px; background:var(--acc);
+  transition:width .5s var(--ease);}
+@media (max-width:620px){ #telemetrie{left:10px; top:64px; width:196px; font-size:11px;} }
+
 .schalterliste{display:flex; flex-direction:column; gap:2px;}
 .schalter{display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:var(--r1);
   background:var(--p1); border:1px solid var(--edge); transition:all .2s var(--ease); text-align:left;}
@@ -485,10 +508,19 @@ body.sicht #blende-detail{
     <button class="kopf-knopf" id="btn-bruecke" title="Echte Arbeitsabläufe">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17V9a9 9 0 0 1 18 0v8M3 17h18M8 17V11M16 17V11M12 17V8.5"/></svg>
     </button>
+    <button class="kopf-knopf" id="btn-telemetrie" title="Stationswerte">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3l2.5-6 4 12 2.5-6h6"/></svg>
+    </button>
     <button class="kopf-knopf" id="btn-kino" title="Kinomodus — alles ausblenden">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>
     </button>
   </header>
+
+  <!-- ---------- Stationswerte ---------- -->
+  <div id="telemetrie" class="glas" hidden>
+    <div class="tm-kopf">STATIONSWERTE</div>
+    <div id="tm-zeilen"></div>
+  </div>
 
   <footer>
     <div id="crew-leiste"></div>
@@ -2048,6 +2080,98 @@ function radiator(c, x, y, w, h, quer) {
    laesst eine gezeichnete Station so schnell nach Zeichentrick
    aussehen. */
 
+/* --- Das Versorgungsschiff -------------------------------------------
+   Eine Station, an der nie etwas ankommt, ist ein Standbild. In
+   Wirklichkeit dockt alle paar Wochen ein Frachter an, und der Anflug
+   ist der langsamste Vorgang, den man dort oben sehen kann: die
+   letzten Meter legt ein Schiff mit wenigen Zentimetern je Sekunde
+   zurueck, mit langen Pausen dazwischen, in denen nur die Duesen
+   kurz blitzen.
+
+   Hier ist die Zeit gerafft wie alles andere, aber das Verhaeltnis
+   bleibt: anfliegen dauert lange, andocken dauert noch laenger, und
+   dann steht es eine Weile da. */
+const FRACHT = {
+  lage: "wartet",       // wartet, anflug, gedockt, abflug
+  bis: 0,               // wann der naechste Abschnitt beginnt
+  von: 0,               // wann der laufende Abschnitt begann
+  seite: 1,
+};
+
+function frachtTakt(t, hafen) {
+  if (!hafen) return;
+  if (FRACHT.bis === 0) { FRACHT.bis = t + 25000; FRACHT.von = t; }
+  if (t < FRACHT.bis) return;
+  if (FRACHT.lage === "wartet") {
+    FRACHT.lage = "anflug"; FRACHT.von = t; FRACHT.bis = t + 52000;
+    FRACHT.seite = Math.sin(t * 0.001) > 0 ? 1 : -1;
+  } else if (FRACHT.lage === "anflug") {
+    FRACHT.lage = "gedockt"; FRACHT.von = t; FRACHT.bis = t + 90000;
+  } else if (FRACHT.lage === "gedockt") {
+    FRACHT.lage = "abflug"; FRACHT.von = t; FRACHT.bis = t + 44000;
+  } else {
+    FRACHT.lage = "wartet"; FRACHT.von = t; FRACHT.bis = t + 70000;
+  }
+}
+
+/* Ein kleiner Frachter: Druckkoerper in Folie, zwei Solarpaneele, vorn
+   der Kopplungsstutzen mit dem Ziel-Kreuz. */
+function zeichneFrachter(c, R, richtung, schub) {
+  const L = R * 0.5, D = R * 0.26;
+  c.save();
+  c.rotate(richtung);
+
+  /* Solarpaneele — klein, dunkel, an kurzen Auslegern */
+  for (const sd of [-1, 1]) {
+    c.strokeStyle = "rgba(176,182,192,.8)";
+    c.lineWidth = Math.max(0.5, D * 0.08);
+    c.beginPath();
+    c.moveTo(-L * 0.2, sd * D * 0.45); c.lineTo(-L * 0.2, sd * D * 0.8);
+    c.stroke();
+    const pg = c.createLinearGradient(-L * 0.55, 0, L * 0.1, 0);
+    pg.addColorStop(0, "#151a28"); pg.addColorStop(0.5, "#2a3348");
+    pg.addColorStop(1, "#101420");
+    c.fillStyle = pg;
+    c.fillRect(-L * 0.55, sd * D * 0.8 - (sd < 0 ? D * 0.5 : 0), L * 0.65, D * 0.5);
+    c.strokeStyle = "rgba(150,164,196,.35)"; c.lineWidth = 0.4;
+    c.beginPath();
+    for (let i = 1; i < 7; i++) {
+      const xx = -L * 0.55 + (L * 0.65 * i) / 7;
+      c.moveTo(xx, sd * D * 0.8 - (sd < 0 ? D * 0.5 : 0));
+      c.lineTo(xx, sd * D * 0.8 - (sd < 0 ? D * 0.5 : 0) + D * 0.5);
+    }
+    c.stroke();
+  }
+
+  /* Der Druckkoerper */
+  folie(c, -L * 0.5, -D / 2, L * 0.85, D, D * 0.3, 61);
+  /* Kopplungsstutzen vorn */
+  c.fillStyle = sonnenlauf(c, L * 0.35, -D * 0.2, L * 0.16, D * 0.4,
+    "#eceada", "#8e8c84", "#16181c");
+  rundRect(c, L * 0.35, -D * 0.2, L * 0.16, D * 0.4, D * 0.06); c.fill();
+  c.fillStyle = "rgba(18,22,30,.9)";
+  c.beginPath(); c.ellipse(L * 0.51, 0, D * 0.05, D * 0.13, 0, 0, Math.PI * 2); c.fill();
+
+  /* Positionslicht */
+  c.fillStyle = "rgba(255,120,100,.9)";
+  c.beginPath(); c.arc(-L * 0.46, -D * 0.4, D * 0.055, 0, Math.PI * 2); c.fill();
+
+  /* Duesenblitze: nur kurz, und nur Eispartikel — der Strahl selbst
+     ist im Vakuum unsichtbar. */
+  if (schub > 0.02) {
+    for (const sd of [-1, 1]) {
+      for (let i = 0; i < 3; i++) {
+        const f = (i / 3 + schub) % 1;
+        c.fillStyle = `rgba(226,240,255,${(1 - f) * schub * 0.8})`;
+        c.beginPath();
+        c.arc(L * 0.4 + f * L * 0.3, sd * D * 0.22, D * 0.05 * (1 - f) + 0.3, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+  }
+  c.restore();
+}
+
 /* --- Der Umlauf ------------------------------------------------------
    Alles, was sich an der Station bewegt oder woran sich das Licht
    aendert, haengt an EINER Zahl: der Stelle im Umlauf. Ein Umlauf
@@ -2490,6 +2614,9 @@ function stationStatisch(c, R, fenster, plaetze) {
      Haenden. Das ist die haeufigste Arbeitshaltung ueberhaupt. */
   merkePlatz(c, plaetze, knoten[0] !== undefined ? knoten[0] : 0, -md * 0.62, "fussraste", 0);
   merkePlatz(c, plaetze, knoten[1] !== undefined ? knoten[1] : pos * 0.5, md * 0.62, "fussraste", Math.PI);
+
+  /* Der freie Kopplungsstutzen, an dem Frachter andocken */
+  merkePlatz(c, plaetze, pos + md * 0.55, 0, "hafen", 0);
 
   /* Endkappe vorn: die feste Ellipse mit halber Breite */
   endkappe(c, pos, 0, md / 2);
@@ -4391,6 +4518,10 @@ function rahmen(jetzt) {
   /* Die Stelle im Umlauf bestimmt das Licht fuer alles Weitere */
   const umlaufPhase = PHASE_TEST !== null ? PHASE_TEST : (t % UMLAUF) / UMLAUF;
   window.__PHASE_WERT = umlaufPhase;
+  /* Die Anzeige braucht keine sechzig Aktualisierungen je Sekunde —
+     zwei reichen, und Text neu zu setzen ist teurer als alles, was
+     die Szene zeichnet. */
+  if (telemetrieAn && t - tmUhr > 480) { tmUhr = t; zeichneTelemetrie(t); }
   TAGLICHT = Z.umlauf === false ? 1 : tageslicht(umlaufPhase);
   ABENDLICHT = abendlicht(TAGLICHT);
 
@@ -4471,12 +4602,66 @@ function rahmen(jetzt) {
      Die Plaetze stammen aus der Station selbst: beim Backen wird
      mitgeschrieben, wo Handlaeufe, Fussrasten und Traegerknoten
      wirklich liegen. */
-  const plaetze = (STBILD && STBILD.plaetze && STBILD.plaetze.length)
+  const alleOrte = (STBILD && STBILD.plaetze && STBILD.plaetze.length)
     ? STBILD.plaetze : [{ x: 0, y: -0.4, art: "handlauf", winkel: 0 }];
+  const hafen = alleOrte.find(q => q.art === "hafen") || null;
+  const plaetze = alleOrte.filter(q => q.art !== "hafen");
+
+  /* --- Der Frachter -------------------------------------------------
+     Er fliegt an, dockt, bleibt eine Weile und faehrt wieder. Der
+     Anflug dauert absichtlich lange: die letzten Meter legt ein
+     echtes Schiff mit wenigen Zentimetern je Sekunde zurueck. */
+  frachtTakt(t, hafen);
+  if (hafen && FRACHT.lage !== "wartet" && !sparsam) {
+    const hx = ccx + hafen.x * Rst, hy = ccy + hafen.y * Rst;
+    /* Der Anflugweg kommt von weit aussen und trifft den Stutzen
+       genau von vorn — seitlich anzudocken geht nicht. */
+    const richtung = hafen.winkel;
+    const fernX = hx + Math.cos(richtung) * Rst * 7 + Math.sin(richtung) * Rst * 3.2 * FRACHT.seite;
+    const fernY = hy + Math.sin(richtung) * Rst * 7 - Math.cos(richtung) * Rst * 3.2 * FRACHT.seite;
+    const u = klemm((t - FRACHT.von) / Math.max(1, FRACHT.bis - FRACHT.von), 0, 1);
+    let f, schub = 0;
+    if (FRACHT.lage === "anflug") {
+      /* Langsam werden: die letzten zehn Prozent des Weges brauchen
+         ein Drittel der Zeit. */
+      f = 1 - Math.pow(1 - u, 2.4);
+      schub = u > 0.08 && u < 0.92 ? 0.3 + 0.7 * ((t * 0.0012) % 1) : 0;
+    } else if (FRACHT.lage === "gedockt") {
+      f = 1;
+    } else {
+      f = 1 - (1 - Math.pow(1 - u, 2.2));
+      schub = u < 0.5 ? 0.6 : 0.1;
+    }
+    const fx = fernX + (hx - fernX) * f;
+    const fy = fernY + (hy - fernY) * f;
+    cx.save();
+    cx.translate(fx, fy);
+    zeichneFrachter(cx, Rst, richtung + Math.PI, schub);
+    cx.restore();
+  }
   /* Nach dem Namen sortiert, damit dieselbe Mannschaft immer dieselbe
      Aufstellung ergibt — sonst springen die Figuren, sobald eine
      Live-Quelle kurz verschwindet und wiederkommt. */
   const reihe = liste.map(a => a.id).sort();
+
+  /* --- Unterwegs von Griff zu Griff ----------------------------------
+     Astronauten bleiben nicht an einer Stelle stehen. Sie hangeln sich
+     ueber die Struktur, und zwar nicht gleitend: jeder Griff bringt
+     rund 0,61 Meter, und zwischen zwei Griffen steht die Figur kurz
+     still. Diese ruckweise Fortbewegung ist das Erkennungszeichen
+     echter Aussenbordarbeit — wer im All gleitet, der treibt, und wer
+     treibt, der arbeitet nicht.
+
+     Zuerst wird gesammelt, welche Plaetze vergeben sind. Ohne das
+     wandern zwei Astronauten zur selben Fussraste und stehen
+     ineinander. */
+  const vergeben = new Set();
+  for (const a of liste) {
+    const v = SICHT.get(a.id);
+    if (!v) continue;
+    if (v.platz !== undefined) vergeben.add(v.platz);
+    if (v.ziel !== undefined && v.ziel !== null) vergeben.add(v.ziel);
+  }
 
   liste.forEach((a, i) => {
     const v = sicht(a.id, i, n, 0);
@@ -4484,7 +4669,65 @@ function rahmen(jetzt) {
     /* Live-Astronauten bringen ihren Zustand selbst mit */
     if (a.typ !== "agent") l.zustand = a.zustand;
 
-    const q = plaetze[reihe.indexOf(a.id) % plaetze.length];
+    /* Erstmalig einen Platz beziehen */
+    if (v.platz === undefined) {
+      v.platz = reihe.indexOf(a.id) % plaetze.length;
+      v.ziel = null;
+      v.wechselUm = t + 8000 + streu(i, 13, 5) * 40000;
+      vergeben.add(v.platz);
+    }
+    if (v.platz >= plaetze.length) v.platz = v.platz % plaetze.length;
+
+    /* Wird gerade nicht gearbeitet und ist Zeit, sucht sich die Figur
+       einen neuen Arbeitsplatz — moeglichst einen, der weit genug weg
+       ist, dass der Weg dorthin etwas erzaehlt. */
+    if (v.ziel === null && t > v.wechselUm && plaetze.length > 2 && !sparsam) {
+      const hier = plaetze[v.platz];
+      let best = -1, bestWert = -1;
+      for (let k = 0; k < plaetze.length; k++) {
+        if (vergeben.has(k)) continue;
+        const d = Math.hypot(plaetze[k].x - hier.x, plaetze[k].y - hier.y);
+        /* Weder direkt nebenan noch quer ueber die ganze Station */
+        const wert = d > 0.4 && d < 4.5 ? d + streu(k, i, 29) : 0;
+        if (wert > bestWert) { bestWert = wert; best = k; }
+      }
+      if (best >= 0) {
+        v.ziel = best; vergeben.add(best);
+        const d = Math.hypot(plaetze[best].x - hier.x, plaetze[best].y - hier.y);
+        /* Ein Griff bringt 0,284 Modulradien, also 0,071 in den
+           Einheiten der Station, und dauert gut zwei Sekunden. */
+        v.griffe = Math.max(2, Math.round(d / 0.071));
+        v.losUm = t;
+        v.dauer = v.griffe * 2200;
+      }
+    }
+
+    /* Wo steht die Figur gerade? Zwischen zwei Plaetzen wird ruckweise
+       interpoliert: ziehen, halten, ziehen. */
+    let q = plaetze[v.platz];
+    let unterwegs = 0;
+    if (v.ziel !== null) {
+      const u = Math.min(1, (t - v.losUm) / v.dauer);
+      const stufe = Math.min(v.griffe, Math.floor(u * v.griffe));
+      const drin = u * v.griffe - stufe;
+      /* Der Zug dauert gut die Haelfte des Takts, danach wird gehalten */
+      const zug = Math.min(1, drin / 0.58);
+      const f = Math.min(1, (stufe + zug) / v.griffe);
+      const b = plaetze[v.ziel];
+      q = {
+        x: q.x + (b.x - q.x) * f,
+        y: q.y + (b.y - q.y) * f,
+        art: "handlauf",
+        winkel: winkelZu(plaetze[v.platz].winkel, b.winkel, f),
+      };
+      unterwegs = 1 - Math.abs(u - 0.5) * 2;
+      if (u >= 1) {
+        vergeben.delete(v.platz);
+        v.platz = v.ziel; v.ziel = null;
+        v.wechselUm = t + 20000 + streu(i, 41, 7) * 50000;
+      }
+    }
+
     const anker = { x: ccx + q.x * Rst, y: ccy + q.y * Rst };
     /* Vom Bauteil weg zeigt die Senkrechte auf seine Oberflaeche */
     const auf = q.winkel - Math.PI / 2;
@@ -4493,7 +4736,8 @@ function rahmen(jetzt) {
        ist, laesst sich ein Stueck treiben. Wer haengt, taumelt am Ende
        der Leine — das ist der einzige Zustand, in dem jemand wirklich
        frei im Raum ist. */
-    const weg = l.zustand === "fehler" ? 6.2
+    const weg = unterwegs > 0.05 ? 1.1
+              : l.zustand === "fehler" ? 6.2
               : l.zustand === "fertig" ? 3.0
               : l.zustand === "ruht"   ? 1.6
               : 1.18;
@@ -4576,7 +4820,8 @@ function rahmen(jetzt) {
     const hervor = Z.gewaehlt === a.id || offeneDetailId === a.id;
     /* Wer frei treibt, hat keine Haltung — wer an der Struktur haengt,
        schon, und zwar je nach dem, woran er haengt. */
-    const haltung = frei > 0.25 ? "frei"
+    const haltung = unterwegs > 0.05 ? "griff"
+                  : frei > 0.25 ? "frei"
                   : q.art === "fussraste" ? "raste" : "griff";
     /* Menschen sind nicht alle gleich gross. Belegt ist nur ein Wert:
        2,04 m ist die Koerperhoehe im Anzug fuer den groessten
@@ -5824,6 +6069,92 @@ function kino(an) {
   $("#btn-kino").classList.toggle("an", an);
   if (an) blendeZu();
 }
+/* --- Stationswerte ---------------------------------------------------
+   Eine Raumstation hat Leistung, Waerme, Funkverkehr und eine Stelle
+   im Umlauf. Diese App hat Agenten, Tokens, Kosten und dieselbe Stelle
+   im Umlauf. Die Anzeige uebersetzt das eine ins andere — nicht als
+   Spielerei, sondern weil man daran auf einen Blick sieht, ob gerade
+   etwas laeuft und was es kostet. */
+let telemetrieAn = false;
+let tmUhr = 0;
+
+function zeitKurz(ms) {
+  const sek = Math.max(0, Math.round(ms / 1000));
+  return Math.floor(sek / 60) + ":" + String(sek % 60).padStart(2, "0");
+}
+
+function zeichneTelemetrie(t) {
+  if (!telemetrieAn) return;
+  const feld = $("#tm-zeilen");
+  if (!feld) return;
+
+  const alle = alleAstronauten();
+  const laufend = alle.filter(a => {
+    const l = LAUF.get(a.id);
+    return l && (l.zustand === "denkt" || l.zustand === "sendet");
+  }).length;
+
+  /* Umlauf: wo stehen wir, und wie lange noch bis zum Wechsel? */
+  const ph = window.__PHASE_WERT || 0;
+  const tags = Z.umlauf === false ? true : ph < TAGANTEIL;
+  const restAnteil = tags ? TAGANTEIL - ph : 1 - ph;
+  const rest = Z.umlauf === false ? null : restAnteil * UMLAUF;
+
+  /* Tokens der letzten Minute aus dem Log */
+  const jetzt = Date.now();
+  let frisch = 0, heuteTok = 0, heuteKost = 0, heuteMiss = 0;
+  const tagStart = new Date(); tagStart.setHours(0, 0, 0, 0);
+  for (const e of Z.log) {
+    const ts = e.zeit || e.seit || 0;
+    const tok = (e.ein || 0) + (e.aus || 0);
+    if (ts > tagStart.getTime()) { heuteTok += tok; heuteKost += e.kosten || 0; heuteMiss++; }
+    if (jetzt - ts < 60000) frisch += tok;
+  }
+
+  /* Leistung: wie viel der Crew gerade arbeitet. An einer echten
+     Station ist das der Anteil der erzeugten Leistung, der gerade
+     abgenommen wird — hier ist es derselbe Gedanke. */
+  const last = alle.length ? laufend / alle.length : 0;
+
+  const zeilen = [
+    ["UMLAUF", Z.umlauf === false ? "aus"
+      : (tags ? "Tag" : "Erdschatten") + " · " + zeitKurz(rest)],
+    ["BESATZUNG", alle.length + (laufend ? " · " + laufend + " arbeitet" : " · bereit")],
+    ["LEISTUNG", Math.round(last * 100) + " %", last],
+    ["FUNK", frisch ? (frisch > 999 ? (frisch / 1000).toFixed(1) + "k" : frisch) + " Token/min" : "still"],
+    ["HEUTE", heuteMiss ? "$" + heuteKost.toFixed(3) + " · " + heuteMiss + (heuteMiss === 1 ? " Mission" : " Missionen") : "noch nichts"],
+    ["FRACHT", FRACHT.lage === "gedockt" ? "angedockt"
+      : FRACHT.lage === "anflug" ? "im Anflug"
+      : FRACHT.lage === "abflug" ? "legt ab" : "keine"],
+  ];
+
+  /* Ueber textContent statt innerHTML: die Werte kommen zwar alle aus
+     dem eigenen Zustand, aber Agentennamen stehen frei zur Eingabe,
+     und eine Stelle, an der ungeprueft Text in HTML landet, ist eine
+     Stelle zu viel. */
+  feld.textContent = "";
+  for (const [name, wert, balken] of zeilen) {
+    const z = document.createElement("div"); z.className = "tm-zeile";
+    const n = document.createElement("span"); n.className = "tm-name"; n.textContent = name;
+    const w = document.createElement("span"); w.className = "tm-wert"; w.textContent = wert;
+    z.append(n, w); feld.append(z);
+    if (balken !== undefined) {
+      const b = document.createElement("div"); b.className = "tm-balken";
+      const i = document.createElement("i");
+      i.style.width = Math.round(klemm(balken, 0, 1) * 100) + "%";
+      b.append(i); feld.append(b);
+    }
+  }
+}
+
+const telemetrieKnopf = $("#btn-telemetrie");
+if (telemetrieKnopf) telemetrieKnopf.onclick = () => {
+  telemetrieAn = !telemetrieAn;
+  $("#telemetrie").hidden = !telemetrieAn;
+  telemetrieKnopf.classList.toggle("an", telemetrieAn);
+  if (telemetrieAn) zeichneTelemetrie(performance.now());
+};
+
 const umlaufSchalter = $("#umlauf-schalter");
 umlaufSchalter.onclick = () => {
   Z.umlauf = !Z.umlauf;
@@ -6055,6 +6386,7 @@ window.__BLENDE_OFFEN = () => blendeOffen;
 window.__STERNE = (t,a,b) => zeichneSterne(t,a,b);
 window.__STATION = (t,x,y,r) => zeichneStation(t,x,y,r);
 window.__STBILD = () => STBILD;
+window.__FRACHT = () => FRACHT;
 window.__PHASE = (ph) => { PHASE_TEST = ph; };
 window.__LICHT = () => ({ tag: TAGLICHT, abend: ABENDLICHT });
 window.__ASTRO = (...a) => zeichneAstronaut(...a);
