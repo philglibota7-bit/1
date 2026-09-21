@@ -4806,6 +4806,70 @@ function zeichneErde(t) {
   cx.setTransform(1, 0, 0, 1, 0, 0);
   cx.drawImage(ERDE.bild,
     Math.round(dx * DPR), Math.round((ERDE.oben + dy) * DPR));
+
+  /* --- Polarlicht ----------------------------------------------------
+     Von oben sieht man es nicht als Bogen am Himmel, sondern als
+     gruenes Band, das dem Horizont folgt und ueber ihn hinausragt —
+     die Vorhaenge stehen bis zu dreihundert Kilometer hoch, also
+     deutlich hoeher als die Station selbst fliegt.
+
+     Nur auf der Nachtseite: bei Tag ueberstrahlt die Sonne es
+     vollstaendig. Und es steht nie still — die Vorhaenge wandern und
+     flackern ueber Minuten, nicht ueber Sekunden. */
+  const m2 = erdeMasse();
+  if (TAGLICHT < 0.92) {
+    const staerke = (1 - TAGLICHT);
+    /* In Bildschirmkoordinaten, nicht in denen der gebackenen Scheibe:
+       deren Nullpunkt liegt bei ERDE.oben, und wer den hier abzieht,
+       zeichnet das Polarlicht um genau diesen Betrag zu hoch. */
+    const mx = (m2.cx + dx) * DPR, my = (m2.cy + dy) * DPR;
+    const rr = m2.r * DPR;
+    /* Nur ueber dem Teil des Horizonts, der im Dunkeln liegt */
+    const dunkelVon = tags ? (termX + W * 0.2) * DPR : -W * DPR;
+    const dunkelBis = tags ? W * 1.4 * DPR : (termX - W * 0.2) * DPR;
+    cx.save();
+    cx.globalCompositeOperation = "lighter";
+    /* Zuerst ein durchgehendes schwaches Band. Ohne das bleiben
+       zwischen den Vorhaengen Luecken stehen, und aus dem Polarlicht
+       wird eine Perlenkette. */
+    const bg = cx.createRadialGradient(mx, my, rr * 0.997, mx, my, rr * 1.02);
+    bg.addColorStop(0, "rgba(70,210,160,0)");
+    bg.addColorStop(0.4, `rgba(86,226,170,${staerke * 0.18})`);
+    bg.addColorStop(1, "rgba(90,200,255,0)");
+    cx.fillStyle = bg;
+    cx.beginPath();
+    cx.rect(Math.max(0, dunkelVon), my - rr * 1.03,
+            Math.min(cv.width, dunkelBis) - Math.max(0, dunkelVon), rr * 0.09);
+    cx.fill();
+
+    for (let i = 0; i < 170; i++) {
+      const f = i / 169;
+      /* Der Winkel laeuft ueber den sichtbaren Bogen des Horizonts */
+      const w = -Math.PI / 2 + (f - 0.5) * 0.9;
+      const px = mx + Math.cos(w) * rr;
+      if (px < dunkelVon || px > dunkelBis) continue;
+      const py = my + Math.sin(w) * rr;
+      /* Zwei Wellen unterschiedlicher Laenge uebereinander ergeben das
+         unregelmaessige Wandern echter Vorhaenge. */
+      const welle = 0.5 + 0.5 * Math.sin(f * 11 + t * 0.00021)
+                  * Math.sin(f * 4.3 - t * 0.00013 + 1.7);
+      const hoehe = rr * 0.011 * (0.3 + welle * 1.5);
+      const a = staerke * (0.05 + welle * 0.3);
+      if (a < 0.02) continue;
+      const g = cx.createLinearGradient(px, py, px - Math.cos(w) * hoehe, py - Math.sin(w) * hoehe);
+      g.addColorStop(0, `rgba(96,255,176,${a * 0.85})`);
+      g.addColorStop(0.45, `rgba(70,226,190,${a * 0.5})`);
+      g.addColorStop(1, "rgba(120,180,255,0)");
+      cx.strokeStyle = g;
+      cx.lineWidth = rr * 0.013;
+      cx.lineCap = "butt";
+      cx.beginPath();
+      cx.moveTo(px, py);
+      cx.lineTo(px - Math.cos(w) * hoehe, py - Math.sin(w) * hoehe);
+      cx.stroke();
+    }
+    cx.restore();
+  }
   cx.restore();
 }
 
