@@ -154,6 +154,23 @@ header{
   .marke h1{font-size:13.5px; letter-spacing:.13em;}
   .marke small{display:none;}
 }
+/* Sieben Knoepfe passen unter 470 Bildpunkten nicht mehr neben den
+   Namen. Statt sie abzuschneiden — der letzte lag zuletzt hundert
+   Punkte ausserhalb und war gar nicht mehr erreichbar — wird der Name
+   zum blossen Punkt und die Knoepfe werden kleiner. Unter 380 faellt
+   auch der Punkt weg; dann bleibt die volle Breite fuer die
+   Bedienung. */
+@media (max-width:470px){
+  header{gap:4px; padding-left:8px; padding-right:8px;}
+  .kopf-knopf{padding:0; width:34px; height:34px;}
+  .kopf-knopf svg{width:17px; height:17px;}
+  .marke h1{display:none;}
+  .marke .sat{width:24px; height:24px;}
+}
+@media (max-width:380px){
+  .marke{display:none;}
+  .kopf-knopf{width:36px; height:36px;}
+}
 
 /* ---------- Fussleiste: Missionsfeld ---------- */
 footer{
@@ -523,6 +540,9 @@ body.sicht #blende-detail{
     <button class="kopf-knopf" id="btn-bruecke" title="Echte Arbeitsabläufe">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17V9a9 9 0 0 1 18 0v8M3 17h18M8 17V11M16 17V11M12 17V8.5"/></svg>
     </button>
+    <button class="kopf-knopf" id="btn-hilfe" title="Kurzanleitung">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.3a2.9 2.9 0 1 1 3.4 3.3v1.4"/><path d="M12 17.2v.1"/></svg>
+    </button>
     <button class="kopf-knopf" id="btn-telemetrie" title="Stationswerte">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3l2.5-6 4 12 2.5-6h6"/></svg>
     </button>
@@ -530,6 +550,16 @@ body.sicht #blende-detail{
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>
     </button>
   </header>
+
+  <!-- ---------- Blende: Kurzanleitung ---------- -->
+  <div class="blende glas" id="blende-hilfe">
+    <div class="griff"></div>
+    <div class="blende-kopf">
+      <h2>Kurzanleitung</h2>
+      <button class="zu" data-zu="blende-hilfe">✕</button>
+    </div>
+    <div class="blende-inhalt" id="hilfe-inhalt"></div>
+  </div>
 
   <!-- ---------- Blende: Bauteil erklärt ---------- -->
   <div class="blende glas" id="blende-teil">
@@ -6742,6 +6772,69 @@ function zeichneTelemetrie(t) {
   }
 }
 
+/* --- Die Kurzanleitung -----------------------------------------------
+   Die App ist in Schichten gewachsen, und wer sie zum ersten Mal
+   oeffnet, sieht eine Raumstation und weiss nicht, dass darunter
+   laufende Arbeit steckt. Also einmal in Ruhe erklaeren — aufgebaut
+   wie die Bauteilerklaerungen: erst wozu, dann wie. */
+const HILFE = [
+  {
+    titel: "Was du siehst",
+    text: "Jeder Astronaut ist ein Agent oder eine laufende Arbeit. Er hängt an einer Leine an der "
+      + "Station und arbeitet dort, wo wirklich Handläufe und Fußrasten sind. Tippst du ihn an, "
+      + "erfährst du, wo er ist und was er dort gerade tut — die Szene bleibt dabei scharf und die "
+      + "Kamera bleibt an ihm dran.",
+  },
+  {
+    titel: "Die Astronauten",
+    text: "◆ ist ein eigener Claude-Agent. ⌘ eine laufende Claude-Code-Sitzung, ▣ ein Projektordner, "
+      + "▶ ein laufender Befehl, ⑂ ein GitHub-Repo. Die letzten vier gibt es nur im Mac-Programm — im "
+      + "Browser darf eine Seite das Dateisystem nicht lesen.",
+  },
+  {
+    titel: "Die Station",
+    text: "Sie ist nach echten Maßen gebaut: der Gitterträger misst 108,5 Meter, ein Mensch im Anzug ist "
+      + "ein Achtundfünfzigstel davon. Zoom hinein, dann bekommen die Bauteile Schilder — tipp eines an, "
+      + "und es erklärt sich selbst.",
+  },
+  {
+    titel: "Tag und Nacht",
+    text: "Die Station umrundet die Erde in 92 Minuten, davon 59 Prozent in der Sonne. Der Übergang "
+      + "dauert 43 Sekunden und ist der schönste Moment des Umlaufs. Gerafft läuft ein Umlauf in knapp "
+      + "acht Minuten. Abschaltbar unter Hintergrund.",
+  },
+  {
+    titel: "Bedienung",
+    text: "Mausrad oder zwei Finger zoomen, Ziehen verschiebt, Doppelklick fährt heran. "
+      + "Tasten: L Log, C Crew, H Hintergrund, B Brücke, T Stationswerte, K Kinomodus, "
+      + "Leertaste stellt die Kamera zurück, Plus und Minus zoomen, Escape schließt.",
+  },
+  {
+    titel: "Was es kostet",
+    text: "Die Agenten rufen Claude direkt von hier aus auf, mit deinem eigenen Schlüssel. Er bleibt im "
+      + "Browser und geht nirgends sonst hin. Je Mission siehst du Tokens und geschätzte Kosten, unter "
+      + "Stationswerte die Summe des Tages. Von selbst läuft nichts — nur was du abschickst.",
+  },
+];
+
+function zeichneHilfe() {
+  const box = $("#hilfe-inhalt");
+  if (!box) return;
+  box.textContent = "";
+  for (const h of HILFE) {
+    const t = document.createElement("div");
+    t.style.cssText = "font-size:13px;font-weight:600;color:var(--tx1);margin:0 0 5px";
+    t.textContent = h.titel;
+    const p2 = document.createElement("p");
+    p2.style.cssText = "font-size:12.5px;line-height:1.6;color:var(--tx2);margin:0 0 16px";
+    p2.textContent = h.text;
+    box.append(t, p2);
+  }
+}
+
+const hilfeKnopf = $("#btn-hilfe");
+if (hilfeKnopf) hilfeKnopf.onclick = () => { zeichneHilfe(); blendeAuf("blende-hilfe"); };
+
 /* Ein Bauteil erklaeren. Der Text steht in TEILE und ist bewusst in
    drei Stufen gebaut: ein Satz, ein Absatz, die Zahlen. */
 function teilZeigen(schluessel) {
@@ -6841,6 +6934,7 @@ $("#btn-kino").onclick = () => kino(!kinoAn);
 const TASTEN = {
   l: "#btn-log", c: "#btn-crew", h: "#btn-himmel",
   b: "#btn-bruecke", t: "#btn-telemetrie", k: "#btn-kino",
+  "?": "#btn-hilfe",
 };
 
 document.addEventListener("keydown", (e) => {
