@@ -2851,7 +2851,7 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
       WEISS, tf("#ffffff", "#5c7794"), "rgba(22,23,26,.72)");
     /* Die abgewandte Seite im Schatten, damit die Roehre eine Richtung
        bekommt und nicht nur eine Woelbung */
-    cx.strokeStyle = tf("rgba(24,24,22,.34)", "rgba(40,62,92,.4)");
+    cx.strokeStyle = nachts > 0.5 ? "rgba(40,62,92,.4)" : "rgba(24,24,22,.34)";
     cx.lineWidth = beinD * 0.26;
     cx.beginPath();
     cx.moveTo(hx + beinD * 0.3, hy + beinD * 0.1);
@@ -3027,7 +3027,7 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
   cx.clip(rumpf);
   const gb = cx.createLinearGradient(-schuB, schuY, -schuB * 0.1, hueftY);
   gb.addColorStop(0, "rgba(255,255,255,0)");
-  gb.addColorStop(0.42, tf("rgba(255,255,255,.55)", "rgba(150,186,230,.3)"));
+  gb.addColorStop(0.42, nachts > 0.5 ? "rgba(150,186,230,.3)" : "rgba(255,255,255,.55)");
   gb.addColorStop(0.8, "rgba(255,255,255,0)");
   cx.fillStyle = gb;
   cx.fill(rumpf);
@@ -3151,7 +3151,7 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
 
     roehre(cx, [sx, sy, ex, ey, hx, hy], armD,
       WEISS, tf("#ffffff", "#5c7794"), "rgba(22,23,26,.62)");
-    cx.strokeStyle = tf("rgba(24,24,22,.3)", "rgba(40,62,92,.36)");
+    cx.strokeStyle = nachts > 0.5 ? "rgba(40,62,92,.36)" : "rgba(24,24,22,.3)";
     cx.lineWidth = armD * 0.26;
     cx.beginPath();
     cx.moveTo(sx + armD * 0.3, sy + armD * 0.1);
