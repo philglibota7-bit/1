@@ -461,9 +461,18 @@ body.sicht #blende-detail{
    die Agenten gerade tun, was sie gekostet haben, wo die Station im
    Umlauf steht. Deshalb steht die Anzeige auch nicht in der Szene,
    sondern darueber. */
+/* Die Anzeige ist mit dem Lebenserhalt deutlich laenger geworden — zu
+   lang fuer kleine Schirme. Sie bekommt deshalb eine Hoehengrenze und
+   rollt darin. Damit das Rollen geht, muss sie Zeiger annehmen; der
+   Platz darunter bleibt frei, damit das Eingabefeld erreichbar
+   bleibt. */
 #telemetrie{position:fixed; left:16px; top:74px; z-index:30; width:230px;
   padding:12px 13px 11px; border-radius:var(--r2); font-size:11.5px;
-  pointer-events:none; animation:tmrein .25s var(--ease);}
+  max-height:calc(100dvh - 208px); overflow-y:auto; overscroll-behavior:contain;
+  scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.16) transparent;
+  animation:tmrein .25s var(--ease);}
+#telemetrie::-webkit-scrollbar{width:5px;}
+#telemetrie::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16); border-radius:3px;}
 @keyframes tmrein{from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:none;}}
 #telemetrie[hidden]{display:none;}
 .tm-kopf{font-size:9.5px; letter-spacing:.14em; color:var(--tx3); margin-bottom:9px;}
@@ -477,6 +486,23 @@ body.sicht #blende-detail{
   margin-top:5px; overflow:hidden;}
 .tm-balken i{display:block; height:100%; border-radius:2px; background:var(--acc);
   transition:width .5s var(--ease);}
+.tm-balken.warm i{background:linear-gradient(90deg,#c88a3e,#e0a24e);}
+.tm-balken.schlecht i{background:linear-gradient(90deg,#b8503f,#e07a6a);}
+.tm-balken.gut i{background:linear-gradient(90deg,#4f8d68,#74b48d);}
+/* Die Pulskurve. Sie steht bewusst ganz oben und ohne Beschriftung:
+   ein Ausschlag sagt mehr als eine Zahl, und wer wissen will, was er
+   bedeutet, liest die Zeilen darunter. */
+#tm-puls{display:block; width:100%; height:30px; margin:2px 0 9px;
+  border-radius:5px; background:rgba(255,255,255,.035);}
+.tm-wert.schlecht{color:var(--bad);}
+.tm-wert.warm{color:#e0a24e;}
+.tm-alarm{display:flex; align-items:center; gap:6px; margin:0 0 9px; padding:5px 7px;
+  border-radius:6px; font-size:10.5px; letter-spacing:.04em;
+  background:rgba(224,122,106,.13); border:1px solid rgba(224,122,106,.28);
+  color:var(--bad); animation:tmblink 1.6s ease-in-out infinite;}
+@keyframes tmblink{0%,100%{opacity:1;} 50%{opacity:.55;}}
+.tm-gruppe{font-size:9px; letter-spacing:.14em; color:var(--tx3);
+  margin:11px 0 5px; padding-top:9px; border-top:1px solid rgba(255,255,255,.06);}
 .tm-buchzeile{display:flex; gap:7px; padding:2.5px 0; font-size:10.5px; line-height:1.35;}
 .tm-buchzeile b{color:var(--tx3); font-weight:500; font-variant-numeric:tabular-nums;
   flex:0 0 auto;}
@@ -486,7 +512,8 @@ body.sicht #blende-detail{
 #vorschlaege{display:flex; flex-direction:column; gap:4px;}
 #vorschlaege .schalter{width:100%;}
 #vorschlaege .schalter:disabled{cursor:default;}
-@media (max-width:620px){ #telemetrie{left:10px; top:64px; width:196px; font-size:11px;} }
+@media (max-width:620px){ #telemetrie{left:10px; top:64px; width:200px; font-size:11px;
+  max-height:calc(100dvh - 190px);} }
 
 .schalterliste{display:flex; flex-direction:column; gap:2px;}
 .schalter{display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:var(--r1);
@@ -579,6 +606,8 @@ body.sicht #blende-detail{
   <!-- ---------- Stationswerte ---------- -->
   <div id="telemetrie" class="glas" hidden>
     <div class="tm-kopf">STATIONSWERTE</div>
+    <canvas id="tm-puls" width="420" height="60"></canvas>
+    <div id="tm-alarm"></div>
     <div id="tm-zeilen"></div>
     <div class="tm-kopf" style="margin:12px 0 7px">BORDBUCH</div>
     <div id="tm-buch"></div>
@@ -2578,6 +2607,167 @@ let PHASE_TEST = null;
    weiter. */
 let PHASE_VERSATZ = 0;
 
+/* --- Der Lebenserhalt: die Station als Organismus --------------------
+   Bis hierher war die Station eine Kulisse mit Lichtwechsel. Was ihr
+   fehlte, ist das, was eine bewohnte Station von einem Modell
+   unterscheidet: ein Stoffwechsel. Strom wird erzeugt, gespeichert,
+   verbraucht. Luft wird geatmet und wieder gereinigt. Waerme faellt an
+   und muss weg. Die Bahn sinkt und wird angehoben.
+
+   Alle vier Kreislaeufe haengen an derselben Zahl wie das Licht — an
+   der Stelle im Umlauf. Das ist kein Zufall: an einer echten Station
+   ist der Umlauf der Taktgeber fuer alles. Die Sonne kommt, die
+   Fluegel liefern, die Akkus laden; der Schatten kommt, die Akkus
+   tragen. Vierzehneinhalb Mal am Tag.
+
+   Die Zahlen sind keine Erfindung, sondern die der ISS:
+     - acht Fluegel, zusammen 84 bis 120 kW im Sonnenlicht
+     - 24 Lithium-Ionen-Einheiten, zusammen rund 96 kWh nutzbar
+     - Grundlast rund 75 kW, davon ein grosser Teil Kuehlung
+     - ein Mensch atmet rund 1 kg CO2 am Tag aus
+     - Kabinendruck 1013 hPa, CO2-Grenze 5,3 mmHg, Ziel unter 3
+     - 98 Prozent des Wassers werden zurueckgewonnen
+     - die Bahn sinkt ohne Schub rund 70 Meter am Tag
+   Die Zeit laeuft 12-fach — ein Umlauf dauert hier 460 Sekunden statt
+   92 Minuten. Alle Raten werden mit demselben Faktor gerafft, sonst
+   passte der Stoffwechsel nicht zum Licht. */
+const ZEITRAFFER = 12;
+
+const LEBEN = {
+  akku: 0.82,        // Ladestand der Batterien, 0 bis 1
+  erzeugt: 0,        // kW, was die Fluegel gerade liefern
+  bedarf: 0,         // kW, was die Station gerade zieht
+  co2: 2.6,          // mmHg Partialdruck in der Kabine
+  o2: 20.9,          // Volumenprozent
+  druck: 1013,       // hPa
+  wasser: 0.97,      // Anteil zurueckgewonnenen Wassers
+  vorlauf: 4.4,      // Grad C, Kuehlmittel zum Radiator hin
+  ruecklauf: 2.1,    // Grad C, zurueck aus dem Radiator
+  hoehe: 419.4,      // km ueber Grund
+  waerme: 0.5,       // 0 bis 1, wie voll das Waermesystem ist
+  scrubber: false,   // laeuft der CO2-Filter gerade?
+  scrubberBis: 0,
+  alarm: null,       // welcher Wert gerade ausserhalb liegt
+  puls: [],          // die letzten Werte fuer die Kurve
+  pulsUhr: 0,
+  gemerkt: {},       // zuletzt gemeldeter Zustand je Kreislauf
+};
+
+/* Ein Alarm soll nicht bei jedem Zittern um die Schwelle erneut ins
+   Bordbuch. Also wird je Kreislauf gemerkt, was zuletzt gemeldet
+   wurde, und nur der WECHSEL geht raus. */
+function lebenMelden(schluessel, lage, text) {
+  if (LEBEN.gemerkt[schluessel] === lage) return;
+  LEBEN.gemerkt[schluessel] = lage;
+  if (text) bordbuch(text);
+}
+
+function lebenTakt(t, dt, phase) {
+  /* Gerafft und in Stunden — alle Raten unten sind Einheiten je
+     Stunde, das ist die Groesse, in der Stationswerte angegeben
+     werden. */
+  const std = (dt / 3600000) * ZEITRAFFER;
+  const tags = Z.umlauf === false ? 1 : TAGLICHT;
+
+  /* --- Strom ---------------------------------------------------------
+     Die Fluegel liefern nur im Sonnenlicht, und nicht gleichmaessig:
+     der Winkel zur Sonne wandert im Lauf des Umlaufs, deshalb steht am
+     Anfang und am Ende des Tagbogens weniger an als in der Mitte. Der
+     Kosinus davon ist das Kosinusgesetz der Einstrahlung — dieselbe
+     Formel, die auch bestimmt, wie hell ein Fleck auf einer Kugel
+     ist. */
+  const bogen = Z.umlauf === false ? 1
+    : Math.sin(Math.PI * klemm(phase / TAGANTEIL, 0, 1));
+  LEBEN.erzeugt = tags * (84 + 36 * bogen);
+
+  /* Verbrauch: Grundlast plus das, was die Crew gerade anstellt. Ein
+     arbeitender Agent kostet Rechenzeit, und Rechenzeit ist an einer
+     Station Strom und Waerme in einem. */
+  const arbeit = CREWWACH;
+  LEBEN.bedarf = 74 + arbeit * 28
+    + (LEBEN.scrubber ? 1.2 : 0)
+    + (SCHUB.laeuft ? 4 : 0);
+
+  /* Die Bilanz laedt oder entlaedt die Akkus. 96 kWh nutzbar. */
+  const bilanz = LEBEN.erzeugt - LEBEN.bedarf;
+  LEBEN.akku = klemm(LEBEN.akku + (bilanz * std) / 96, 0.04, 1);
+
+  lebenMelden("akku",
+    LEBEN.akku < 0.22 ? "tief" : LEBEN.akku > 0.9 ? "voll" : "gut",
+    LEBEN.akku < 0.22 ? "Batterien unter 22 Prozent" : null);
+
+  /* --- Luft ----------------------------------------------------------
+     Jeder an Bord atmet CO2 aus. Der Filter faengt es wieder ein, aber
+     nicht dauernd: er arbeitet in Zyklen und wird angeworfen, wenn der
+     Wert steigt. Genau daher kommt das Zischen, das man auf Aufnahmen
+     von der Station hoert. */
+  const kopfzahl = Math.max(1, alleAstronauten().length);
+  LEBEN.co2 += kopfzahl * 0.052 * std;
+  if (!LEBEN.scrubber && LEBEN.co2 > 3.4) {
+    LEBEN.scrubber = true;
+    LEBEN.scrubberBis = t + 22000;
+    bordbuch("CO₂-Filter angelaufen");
+  }
+  if (LEBEN.scrubber) {
+    LEBEN.co2 -= 0.42 * std * kopfzahl;
+    if (t > LEBEN.scrubberBis || LEBEN.co2 < 2.2) {
+      LEBEN.scrubber = false;
+      LEBEN.gemerkt.co2filter = null;
+    }
+  }
+  LEBEN.co2 = klemm(LEBEN.co2, 1.6, 7);
+  lebenMelden("co2", LEBEN.co2 > 5.3 ? "hoch" : "gut",
+    LEBEN.co2 > 5.3 ? "CO₂ über Grenzwert" : null);
+
+  /* Sauerstoff und Druck atmen leicht mit: der Elektrolyseur spaltet
+     Wasser, wenn der Anteil faellt. Kleine Bewegungen, aber eine
+     Kabine, deren Druck auf drei Stellen genau stillsteht, ist tot. */
+  LEBEN.o2 += (20.9 - LEBEN.o2) * klemm(std * 2.4, 0, 1)
+    - kopfzahl * 0.0008 * std;
+  LEBEN.druck += (1013 - LEBEN.druck) * klemm(std * 1.2, 0, 1)
+    + (Math.sin(t * 0.00011) * 0.06 - 0.03) * std * 6;
+  LEBEN.wasser = klemm(0.968 + Math.sin(t * 0.00007) * 0.012
+    - arbeit * 0.006, 0.9, 0.995);
+
+  /* --- Waerme ---------------------------------------------------------
+     Im Vakuum gibt es keine Luft, die Waerme wegtraegt — sie kann nur
+     abgestrahlt werden. Deshalb sind die Radiatoren so gross. In der
+     Sonne faellt Waerme an, im Schatten strahlt die Station sie ab,
+     also schwingt der Vorlauf im Takt des Umlaufs. Dazu kommt die
+     Abwaerme des Stroms: fast alles, was verbraucht wird, wird
+     Waerme. */
+  const zufuhr = tags * 0.62 + (LEBEN.bedarf / 120) * 0.5;
+  LEBEN.waerme = klemm(LEBEN.waerme + (zufuhr - 0.66) * std * 2.6, 0, 1);
+  LEBEN.vorlauf = 1.7 + LEBEN.waerme * 8.4;
+  LEBEN.ruecklauf = LEBEN.vorlauf - 2.2 - (1 - tags) * 0.7;
+  lebenMelden("waerme", LEBEN.waerme > 0.88 ? "heiss" : "gut",
+    LEBEN.waerme > 0.88 ? "Kühlkreis am Anschlag" : null);
+
+  /* --- Bahn -----------------------------------------------------------
+     In 420 km Hoehe ist noch Restatmosphaere. Sie bremst, und die
+     Station sinkt — rund 70 Meter am Tag, mehr bei aktiver Sonne. Der
+     Schub hebt sie wieder an. Das ist der langsamste Kreislauf von
+     allen und der einzige, den man ueber Wochen sehen wuerde. */
+  LEBEN.hoehe -= 0.0029 * std;
+  if (SCHUB.laeuft) LEBEN.hoehe += 0.42 * std;
+  LEBEN.hoehe = klemm(LEBEN.hoehe, 414, 424);
+
+  /* --- Der Puls -------------------------------------------------------
+     Eine Kurve der Strombilanz ueber die letzten Minuten. Sie ist das
+     ehrlichste Bild vom Zustand der Station: steigt sie, laedt sie;
+     faellt sie, zehrt sie. Zwei Werte je Sekunde reichen — feiner
+     waere nur Rauschen. */
+  if (t - LEBEN.pulsUhr > 460) {
+    LEBEN.pulsUhr = t;
+    LEBEN.puls.push(klemm(0.5 + bilanz / 90, 0, 1));
+    if (LEBEN.puls.length > 78) LEBEN.puls.shift();
+  }
+
+  LEBEN.alarm = LEBEN.co2 > 5.3 ? "CO₂"
+    : LEBEN.akku < 0.22 ? "Strom"
+    : LEBEN.waerme > 0.88 ? "Wärme" : null;
+}
+
 /* --- Die Station als gebackenes Bild ---------------------------------
    Die Form der Station aendert sich nie. Nur der Roboterarm, die
    Positionslichter und die beleuchteten Fenster leben. Also wird alles
@@ -2624,6 +2814,22 @@ function merkeTeil(c, liste, x, y, schluessel) {
   const m = c.getTransform();
   const p = new DOMPoint(x, y).matrixTransform(m);
   liste.push({ x: p.x, y: p.y, schluessel });
+}
+
+/* Ein Ansatzpunkt fuer ein bewegliches Bauteil — einen Solarfluegel
+   oder einen Waermetauscher. Gemerkt wird, wo es sitzt und wie es
+   gedreht ist; gezeichnet wird es spaeter live, weil es sich dreht.
+   Die Massstabsumrechnung auf Vielfache von R passiert wie bei den
+   Arbeitsplaetzen erst am Ende. */
+function merkeMast(c, liste, x, y, dreh, seite, paar, oben, irosa) {
+  if (!liste) return;
+  const m = c.getTransform();
+  const p = new DOMPoint(x, y).matrixTransform(m);
+  liste.push({
+    x: p.x, y: p.y,
+    winkel: Math.atan2(m.b, m.a) + dreh,
+    seite, paar, oben, irosa,
+  });
 }
 
 function merkePlatz(c, liste, x, y, art, dreh) {
@@ -2712,6 +2918,40 @@ function weitStreuen(liste) {
    dort, wo schon etwas steht — der leere Raum drumherum bleibt frei.
    Das ist der Trick, mit dem die Beleuchtung wechseln kann, obwohl die
    Form gebacken ist. */
+/* Die beiden Faerbungen stehen an einer Stelle, weil Rumpf, Fluegel
+   und der scharfe Ausschnitt dieselben brauchen. Drei Kopien derselben
+   Farbwerte waeren drei Stellen, an denen sie auseinanderlaufen
+   koennen. */
+const NACHTSTUFEN = [
+  [0, "rgba(5,8,16,.95)"], [0.5, "rgba(8,14,28,.92)"],
+  [0.86, "rgba(14,26,52,.82)"], [1, "rgba(30,60,108,.6)"],
+];
+const ABENDSTUFEN = [
+  [0, "rgba(180,74,26,.5)"], [0.42, "rgba(214,112,40,.42)"],
+  [0.78, "rgba(126,44,30,.5)"], [1, "rgba(58,40,66,.55)"],
+];
+
+/* Aus der Stelle im Umlauf wird die Mischung: hoechstens ZWEI Bilder,
+   eines voll und eines darueber angeblendet. Frueher waren es drei —
+   Tag, Abendsaum und Nacht uebereinander. Bei acht Fluegeln und einem
+   breiten Rumpf ist jede zusaetzliche Lage die ganze Bildflaeche noch
+   einmal, und gemessen war das im Uebergang der Unterschied zwischen
+   zwanzig und dreissig Bildern je Sekunde.
+
+   Zwei reichen, weil das Abendbild kein Saum ist, sondern ein
+   fertiges Bild: es entsteht aus dem Tagbild mit eingebrannter
+   Faerbung. Also wird von Tag nach Abend und von Abend nach Nacht
+   ueberblendet, statt alles zu stapeln. */
+function lichtMischung(hell, abend) {
+  if (hell < 0.02) return [["nacht", 1]];
+  if (abend > 0.01) {
+    return hell > 0.5
+      ? [["tag", 1], ["abend", Math.min(1, (1 - hell) * 2 * 0.9)]]
+      : [["abend", 1], ["nacht", Math.min(1, (0.5 - hell) * 2)]];
+  }
+  return hell > 0.999 ? [["tag", 1]] : [["tag", 1], ["nacht", 1 - hell]];
+}
+
 function umfaerben(tag, stufen, teiler) {
   const f = teiler || 1;
   const cv = document.createElement("canvas");
@@ -2729,14 +2969,19 @@ function umfaerben(tag, stufen, teiler) {
 
 function stationBacken(Rpx) {
   /* Die Station ist breit und flach — das Bild wird genauso
-     zugeschnitten. Quadratisch waere die Haelfte davon leer. */
-  const rx = Math.ceil(Rpx * 6.6), ry = Math.ceil(Rpx * 3.1);
+     zugeschnitten. Quadratisch waere die Haelfte davon leer.
+     Seit Fluegel und Waermetauscher live obendrauf kommen, ist auch
+     der Rest der Hoehe leer: nachgemessen reicht der Inhalt nur noch
+     1,45 R ueber die Mitte hinaus. Das Bild wird entsprechend flacher
+     und braucht damit weniger als die Haelfte des Speichers — bei der
+     feinsten Stufe sind das rund vierzig Megabyte weniger. */
+  const rx = Math.ceil(Rpx * 6.6), ry = Math.ceil(Rpx * 1.62);
   const cv = document.createElement("canvas");
   cv.width = rx * 2; cv.height = ry * 2;
   const c = cv.getContext("2d");
   c.translate(rx, ry);
-  const fenster = [], plaetze = [], teile = [];
-  stationStatisch(c, Rpx, fenster, plaetze, teile);
+  const fenster = [], plaetze = [], teile = [], masten = [], kuehler = [];
+  stationStatisch(c, Rpx, fenster, plaetze, teile, masten, kuehler);
   /* Die gemerkten Punkte liegen in Bildkoordinaten — auf die Mitte
      umrechnen, damit sie beim Kopieren mitwandern. */
   for (const f of fenster) { f.x -= rx; f.y -= ry; }
@@ -2744,6 +2989,17 @@ function stationBacken(Rpx) {
      nicht ins Bild kopiert, sondern in der Szene gebraucht. */
   for (const q of plaetze) { q.x = (q.x - rx) / Rpx; q.y = (q.y - ry) / Rpx; }
   for (const q of teile) { q.x = (q.x - rx) / Rpx; q.y = (q.y - ry) / Rpx; }
+  /* Die Ansaetze der beweglichen Teile genauso: sie werden nicht ins
+     Bild gebacken, sondern in der Szene gebraucht. */
+  for (const q of masten) { q.x = (q.x - rx) / Rpx; q.y = (q.y - ry) / Rpx; }
+  for (const q of kuehler) { q.x = (q.x - rx) / Rpx; q.y = (q.y - ry) / Rpx; }
+  /* Die Schilder fuer Fluegel und Radiator haengen an beweglichen
+     Teilen. Sie bekommen ihre Stelle deshalb aus den Ansaetzen und
+     nicht aus dem gebackenen Bild. */
+  const mFl = masten.find(q => q.seite < 0 && q.paar === 0 && q.oben < 0);
+  if (mFl) teile.push({ x: mFl.x, y: mFl.y - 1.3, schluessel: "fluegel" });
+  const mRa = kuehler.find(q => q.seite > 0 && q.paar === 0);
+  if (mRa) teile.push({ x: mRa.x, y: mRa.y - 0.7, schluessel: "radiator" });
   /* Nachts faellt kein Sonnenlicht mehr auf die Station, nur noch der
      Erdschein von unten. Sie wird also nicht einfach dunkler, sondern
      blauer — und von unten heller als von oben, genau umgekehrt zum
@@ -2752,23 +3008,16 @@ function stationBacken(Rpx) {
 
      Das Abendbild darf halb so fein sein. Es ist nur dreieinhalb
      Sekunden im Umlauf zu sehen, und weich ist es dann ohnehin. */
-  return { R: Rpx, rx, ry, bild: cv, fenster, teile, plaetze: weitOrdnen(plaetze),
+  return { R: Rpx, rx, ry, bild: cv, fenster, teile, masten, kuehler,
+           laenge: masten.laenge, breite: masten.breite,
+           kLaenge: kuehler.laenge, kBreite: kuehler.breite,
+           plaetze: weitOrdnen(plaetze),
            streifen: streifenMessen(cv, 16),
-           nacht: umfaerben(cv, [
-             [0, "rgba(5,8,16,.95)"],
-             [0.5, "rgba(8,14,28,.92)"],
-             [0.86, "rgba(14,26,52,.82)"],
-             [1, "rgba(30,60,108,.6)"],
-           ]),
-           abend: umfaerben(cv, [
-             [0, "rgba(180,74,26,.5)"],
-             [0.42, "rgba(214,112,40,.42)"],
-             [0.78, "rgba(126,44,30,.5)"],
-             [1, "rgba(58,40,66,.55)"],
-           ], 2) };
+           nacht: umfaerben(cv, NACHTSTUFEN),
+           abend: umfaerben(cv, ABENDSTUFEN, 2) };
 }
 
-function stationStatisch(c, R, fenster, plaetze, teile) {
+function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler) {
   const saat = 17;
   const t = 0;
   /* 30 Grad aus der reinen Seitenansicht gedreht: alles, was in
@@ -2805,20 +3054,24 @@ function stationStatisch(c, R, fenster, plaetze, teile) {
   gittertraeger(c, -tr, tr, 0, trh, saat, plaetze);
   merkeTeil(c, teile, -tr * 0.28, -trh * 0.6, "traeger");
 
-  /* ---------- Solarfluegel: vier Paare, QUER zum Traeger ----------
-     Ein Fluegel misst 34 auf 11,6 Meter, also 15,8 auf 5,4 Modulradien.
-     Entscheidend ist die Richtung: die Fluegel stehen senkrecht zum
-     Traeger, nicht laengs. Anders herum koennte das Alpha-Drehgelenk
-     sie gar nicht zur Sonne drehen — es dreht naemlich um die
-     Traegerachse. Daraus entsteht die bekannte Silhouette: ein langer
-     Balken mit vier Fluegelpaaren, die nach oben und unten abstehen. */
-  /* Wir sehen die Station nicht genau senkrecht zur Fluegelebene —
-     das tut man auf keinem echten Bild. Alles, was in Flugrichtung
-     zeigt, erscheint deshalb verkuerzt: die Fluegel, und genauso der
-     Modulstapel, der in dieselbe Richtung laeuft. Ein und derselbe
-     Faktor fuer beide, sonst kippt das Bild auseinander. */
+  /* ---------- Solarfluegel und Radiatoren: LEBEND ----------
+     Bis hierher waren beide mit ins Bild gebacken und standen damit
+     still. Das war der groesste verbliebene Fehler: an einer echten
+     Station steht nichts von beidem still. Das Alpha-Drehgelenk dreht
+     die Fluegel einmal je Umlauf um die Traegerachse, damit sie auf
+     die Sonne zeigen — vier Grad in der Minute, 360 Grad in 92
+     Minuten. Die Radiatoren drehen umgekehrt, damit sie die Sonne
+     gerade NICHT sehen.
+
+     Beides kommt jetzt live obendrauf. Gebacken wird nur noch je ein
+     einzelner Fluegel und ein einzelnes Paneel; die acht Fluegel sind
+     dann achtmal dasselbe Bild, verschieden gedreht und gestaucht.
+     Ein Bild zu kopieren und dabei zu stauchen kostet fast nichts —
+     einen Verlauf ueber dieselbe Flaeche zu legen kostet viel. Genau
+     das ist der Unterschied, an dem es frueher gescheitert ist.
+
+     Hier werden also nur noch die Ansatzpunkte mitgeschrieben. */
   const flL = R * 3.95 * stauch, flB = R * 1.35;
-  const sonnendreh = Math.sin(t * 0.00004) * 0.04;
   for (const seite of [-1, 1]) {
     /* Alpha-Drehgelenk: sitzt IM Querschnitt, ragt nicht darueber hinaus */
     const gx = seite * tr * 0.42;
@@ -2846,48 +3099,19 @@ function stationStatisch(c, R, fenster, plaetze, teile) {
       c.fill();
 
       for (const oben of [-1, 1]) {
-        c.save();
-        /* Tiefenstaffelung. Im Vakuum gibt es keine Luftperspektive,
-           also kann Tiefe nicht ueber Dunst entstehen — sie entsteht
-           ueber Kontrast und Kantenschaerfe. Der Fluegel, der vom
-           Betrachter weg zeigt, bekommt deshalb etwas weniger davon
-           als der, der auf ihn zu laeuft. */
-        if (oben < 0) c.globalAlpha = 0.86;
-        c.translate(wurzel, oben * trh * 0.4);
-        /* Um 90 Grad gedreht: der Fluegel laeuft vom Traeger weg,
-           nicht an ihm entlang. */
-        c.rotate(oben * Math.PI / 2 + sonnendreh * seite);
-        solarfluegel(c, 0, -flB / 2, flL, flB, saat + oben * 3 + paar, false);
-        if (seite < 0 && paar === 0 && oben < 0) merkeTeil(c, teile, flL * 0.5, 0, "fluegel");
-
-        /* iROSA: die neuen Rollfluegel liegen als kleinere, fast
-           schwarze Teppiche schraeg ueber der inneren Haelfte, also
-           der dem Traeger zugewandten. Sie liegen nicht auf allen —
-           genau das gibt die Asymmetrie gratis. */
-        if (!(seite > 0 && paar === 1 && oben < 0)) {
-          c.save();
-          c.translate(flL * 0.3, 0);
-          c.rotate(0.17);
-          const iw = flL * 0.46, ih = flB * 0.54;
-          const ig = c.createLinearGradient(-iw / 2, -ih / 2, iw / 2, ih / 2);
-          ig.addColorStop(0, "#1b1f2a"); ig.addColorStop(0.5, "#333a4a");
-          ig.addColorStop(0.78, "#2a3040"); ig.addColorStop(1, "#14171f");
-          c.fillStyle = ig;
-          c.fillRect(-iw / 2, -ih / 2, iw, ih);
-          c.strokeStyle = "rgba(168,180,210,.3)"; c.lineWidth = 0.4;
-          c.beginPath();
-          for (let i = 1; i < 14; i++) {
-            const xx = -iw / 2 + (iw * i) / 14;
-            c.moveTo(xx, -ih / 2); c.lineTo(xx, ih / 2);
-          }
-          c.stroke();
-          c.strokeStyle = "rgba(208,218,232,.5)"; c.lineWidth = 0.5;
-          c.strokeRect(-iw / 2, -ih / 2, iw, ih);
-          c.restore();
-        }
-        c.restore();
+        /* Der Ansatz wird in Bildkoordinaten gemerkt, samt der
+           Drehung, die der Traeger schon mitbringt. Das iROSA-Feld
+           fehlt auf genau einem Fluegel — eine gebaute Station ist
+           nie an beiden Enden gleich, und diese eine Luecke traegt
+           mehr zum Eindruck bei als jedes zusaetzliche Detail. */
+        merkeMast(c, masten, wurzel, oben * trh * 0.4,
+          oben * Math.PI / 2, seite, paar, oben,
+          !(seite > 0 && paar === 1 && oben < 0));
       }
     }
+  }
+  if (masten && masten.length) {
+    masten.laenge = flL; masten.breite = flB;
   }
 
   /* ---------- Radiatoren: weiss, senkrecht zum Traeger ----------
@@ -2922,6 +3146,9 @@ function stationStatisch(c, R, fenster, plaetze, teile) {
     c.restore();
   }
 
+  /* Die drei drehbaren Waermetauscher je Seite kommen live dazu: sie
+     haben ein eigenes Drehgelenk, das sie von der Sonne wegdreht. Nur
+     die Ansatzpunkte werden gemerkt. */
   const raL = R * 2.68 * 0.42, raB = R * 0.22;
   for (const seite of [-1, 1]) {
     for (let i = 0; i < 3; i++) {
@@ -2930,11 +3157,13 @@ function stationStatisch(c, R, fenster, plaetze, teile) {
       c.save();
       c.translate(rx, 0);
       c.rotate(seite * 0.05 * oben);
-      radiator(c, -raB / 2, oben < 0 ? -raL : trh * 0.5,
-        raB, raL - trh * 0.5, false);
-      if (seite > 0 && i === 0) merkeTeil(c, teile, 0, -raL * 0.6, "radiator");
+      merkeMast(c, kuehler, 0, oben < 0 ? -trh * 0.3 : trh * 0.3,
+        oben < 0 ? -Math.PI / 2 : Math.PI / 2, seite, i, oben, false);
       c.restore();
     }
+  }
+  if (kuehler && kuehler.length) {
+    kuehler.laenge = raL; kuehler.breite = raB;
   }
   /* Der Modulstapel wirft einen Schatten auf den Traeger. Ein harter
      Schatten ist im Vakuum die Regel: die Sonne misst nur ein halbes
@@ -3135,6 +3364,282 @@ function stationStatisch(c, R, fenster, plaetze, teile) {
    Strukturen, also faellt nicht auf, dass er weich ist. */
 let STNAH = null;
 
+/* --- Die beweglichen Teile ------------------------------------------
+   Ein Fluegel und ein Waermetauscher werden je einmal gebacken und
+   danach acht- beziehungsweise sechsmal kopiert. Der Massstab ist
+   derselbe wie beim Rumpf, damit nichts weich wird.
+
+   Gebacken wird je Bauteil eine Sonnenseite und eine Rueckseite. Ein
+   Solarfluegel sieht von vorn und von hinten wirklich verschieden aus:
+   vorn die Zellen, kupferrot bis fast schwarz, hinten die Kaptonfolie,
+   bernsteinfarben und durchscheinend. Welche Seite man sieht, sagt
+   allein das Vorzeichen des Kosinus — und genau das ist es, was die
+   Drehung lesbar macht. Ohne den Seitenwechsel saehe es aus, als
+   zoege jemand die Fluegel schmal und wieder breit. */
+let FLBILD = null;
+
+function fluegelBacken(Rpx, laenge, breite, kLaenge, kBreite, winkel) {
+  /* GEDREHT gebacken, nicht gerade. Das ist der ganze Trick hinter der
+     Geschwindigkeit: ein Bild, das beim Kopieren nur noch gestaucht
+     und verschoben wird, laeuft ueber den schnellen Weg der Leinwand.
+     Kommt eine Drehung dazu, muss fuer JEDEN Zielbildpunkt die
+     Umkehrabbildung gerechnet und aus vier Quellpunkten gemischt
+     werden — gemessen kostete das die halbe Bildrate. Also wird die
+     Drehung einmal beim Backen erledigt.
+
+     Dass das reicht, liegt an einer Eigenheit dieser Station: die acht
+     Fluegel stehen paarweise um genau 180 Grad gegeneinander. Eine
+     halbe Drehung ist aber dasselbe wie eine Spiegelung an beiden
+     Achsen — und die ist wieder nur ein Vorzeichen im Massstab. Ein
+     gebackenes Bild genuegt damit fuer alle acht. */
+  const co = Math.cos(winkel), si = Math.sin(winkel);
+  const halb = breite / 2;
+  const ecken = [[0, -halb], [0, halb], [laenge, -halb], [laenge, halb]]
+    .map(([x, y]) => [x * co - y * si, x * si + y * co]);
+  const pad = Math.ceil(Rpx * 0.035);
+  const minX = Math.min(...ecken.map(e => e[0])), maxX = Math.max(...ecken.map(e => e[0]));
+  const minY = Math.min(...ecken.map(e => e[1])), maxY = Math.max(...ecken.map(e => e[1]));
+  /* Der Ankerpunkt ist die Wurzel am Mast. Um ihn wird spaeter
+     gestaucht und gespiegelt, also muss er im Bild bekannt sein. */
+  const ax = pad - minX, ay = pad - minY;
+  const bw = Math.ceil(maxX - minX) + pad * 2;
+  const bh = Math.ceil(maxY - minY) + pad * 2;
+
+  const einer = (dunkel, mitIrosa) => {
+    const cv = document.createElement("canvas");
+    cv.width = bw; cv.height = bh;
+    const c = cv.getContext("2d");
+    c.translate(ax, ay);
+    c.rotate(winkel);
+    solarfluegel(c, 0, -halb, laenge, breite, 17, dunkel);
+    /* iROSA: die neuen Rollfluegel liegen als kleinere, fast
+       schwarze Teppiche schraeg ueber der inneren Haelfte, also
+       der dem Traeger zugewandten. */
+    if (mitIrosa) {
+      c.translate(laenge * 0.3, 0);
+      c.rotate(0.17);
+      const iw = laenge * 0.46, ih = breite * 0.54;
+      const ig = c.createLinearGradient(-iw / 2, -ih / 2, iw / 2, ih / 2);
+      if (dunkel) {
+        ig.addColorStop(0, "#0d1016"); ig.addColorStop(0.5, "#1b2029");
+        ig.addColorStop(0.78, "#161a22"); ig.addColorStop(1, "#090b10");
+      } else {
+        ig.addColorStop(0, "#1b1f2a"); ig.addColorStop(0.5, "#333a4a");
+        ig.addColorStop(0.78, "#2a3040"); ig.addColorStop(1, "#14171f");
+      }
+      c.fillStyle = ig;
+      c.fillRect(-iw / 2, -ih / 2, iw, ih);
+      c.strokeStyle = dunkel ? "rgba(110,120,146,.22)" : "rgba(168,180,210,.3)";
+      c.lineWidth = 0.4;
+      c.beginPath();
+      for (let i = 1; i < 14; i++) {
+        const xx = -iw / 2 + (iw * i) / 14;
+        c.moveTo(xx, -ih / 2); c.lineTo(xx, ih / 2);
+      }
+      c.stroke();
+      c.strokeStyle = dunkel ? "rgba(140,152,180,.34)" : "rgba(208,218,232,.5)";
+      c.lineWidth = 0.5;
+      c.strokeRect(-iw / 2, -ih / 2, iw, ih);
+    }
+    return cv;
+  };
+
+  /* Der Waermetauscher: ein weisses Paneelpaket, das von seinem
+     Drehgelenk weg nach aussen zeigt — genauso gedreht gebacken. */
+  const kpad = Math.ceil(Rpx * 0.06);
+  const kecken = [[0, -kBreite / 2], [0, kBreite / 2],
+                  [kLaenge, -kBreite / 2], [kLaenge, kBreite / 2]]
+    .map(([x, y]) => [x * co - y * si, x * si + y * co]);
+  const kminX = Math.min(...kecken.map(e => e[0])), kmaxX = Math.max(...kecken.map(e => e[0]));
+  const kminY = Math.min(...kecken.map(e => e[1])), kmaxY = Math.max(...kecken.map(e => e[1]));
+  const kax = kpad - kminX, kay = kpad - kminY;
+  const kw = Math.ceil(kmaxX - kminX) + kpad * 2;
+  const kh = Math.ceil(kmaxY - kminY) + kpad * 2;
+  const kcv = document.createElement("canvas");
+  kcv.width = kw; kcv.height = kh;
+  const kc = kcv.getContext("2d");
+  kc.translate(kax, kay);
+  kc.rotate(winkel);
+  /* Die Funktion zeichnet hochkant nach unten; eine Vierteldrehung
+     GEGEN den Uhrzeigersinn legt sie nach rechts, also in die
+     Laengsrichtung, die hier gemeint ist. */
+  kc.rotate(-Math.PI / 2);
+  kc.translate(0, 0);
+  radiator(kc, -kBreite / 2, 0, kBreite, kLaenge, false);
+
+  const tag = einer(false, true), tagO = einer(false, false);
+  const rueck = einer(true, true), rueckO = einer(true, false);
+
+  /* Nacht und Abend wie beim Rumpf: aus dem Tagbild abgeleitet, nicht
+     neu gezeichnet. Beide duerfen halb so fein sein — nachts sieht man
+     ohnehin kaum Struktur, und der Abend dauert Sekunden. */
+  const NACHT = NACHTSTUFEN, ABEND = ABENDSTUFEN;
+  /* Die Faerbung fuer Nacht und Abend ist KEIN gleichmaessiger Ton,
+     sondern ein Verlauf von oben nach unten: nachts kommt das Licht
+     von der Erde, also von unten, und der Abendsaum liegt ebenfalls
+     unten. Das stimmt fuer jedes Bauteil einzeln — die dem Planeten
+     zugewandte Kante ist die hellere.
+
+     Nur: die untere Haelfte der Fluegel wird aus demselben Bild
+     gezeichnet, um eine halbe Drehung gekippt. Damit kippt auch der
+     Verlauf, und der Erdschein laege bei ihnen oben statt unten. Also
+     bekommen sie ihre eigene, umgekehrte Fassung. Vier kleine Bilder
+     mehr, dafuer faellt das Licht auf allen acht Fluegeln aus
+     derselben Richtung. */
+  const kehren = st => st.map(([p, f]) => [1 - p, f]).reverse();
+  const NACHTU = kehren(NACHT), ABENDU = kehren(ABEND);
+  return {
+    R: Rpx, bw, bh, ax, ay, kw, kh, kax, kay, winkel,
+    laenge, breite, kLaenge, kBreite,
+    tag: [tagO, tag], rueck: [rueckO, rueck],
+    nacht: [umfaerben(tagO, NACHT, 2), umfaerben(tag, NACHT, 2)],
+    rnacht: [umfaerben(rueckO, NACHT, 2), umfaerben(rueck, NACHT, 2)],
+    abend: [umfaerben(tagO, ABEND, 2), umfaerben(tag, ABEND, 2)],
+    rabend: [umfaerben(rueckO, ABEND, 2), umfaerben(rueck, ABEND, 2)],
+    nachtU: [umfaerben(tagO, NACHTU, 2), umfaerben(tag, NACHTU, 2)],
+    rnachtU: [umfaerben(rueckO, NACHTU, 2), umfaerben(rueck, NACHTU, 2)],
+    abendU: [umfaerben(tagO, ABENDU, 2), umfaerben(tag, ABENDU, 2)],
+    rabendU: [umfaerben(rueckO, ABENDU, 2), umfaerben(rueck, ABENDU, 2)],
+    kuehl: kcv,
+    knacht: umfaerben(kcv, NACHT, 2),
+    kabend: umfaerben(kcv, ABEND, 2),
+    knachtU: umfaerben(kcv, NACHTU, 2),
+    kabendU: umfaerben(kcv, ABENDU, 2),
+  };
+}
+
+/* Wo steht das Alpha-Drehgelenk gerade? Einmal herum je Umlauf, weil
+   die Sonne in einem Umlauf einmal um die Station wandert. Der
+   Versatz legt fest, wann die Fluegel voll auf den Betrachter zeigen —
+   gewaehlt ist die Mitte des Tagbogens, denn dort steht die Sonne am
+   hoechsten und dort liefern sie am meisten. Das passt zu dem, was die
+   Anzeige als Leistung meldet. */
+function alphaWinkel(phase) {
+  if (Z.umlauf === false) return 0.82;
+  /* Der Versatz von 0,9 ist gewaehlt, nicht hergeleitet: er legt die
+     Mitte des Tagbogens auf rund sechzig Prozent Breite. Ohne ihn
+     stuenden die Fluegel ausgerechnet im hellsten Augenblick auf der
+     Kante — physikalisch waere das vertretbar, aber es waere der
+     schlechteste aller Zeitpunkte, um sie nicht zu sehen. */
+  return (phase - TAGANTEIL / 2) * Math.PI * 2 + 0.9;
+}
+
+/* Die beweglichen Teile ins Bild. Gezeichnet wird in Geraetepunkten
+   wie der Rumpf, damit nichts zweimal skaliert wird.
+
+   Der Kniff steckt in einer einzigen Zeile: die Stauchung quer zur
+   Fluegelachse ist der Kosinus des Drehwinkels. Steht der Fluegel
+   flach zum Betrachter, ist er voll breit; steht er auf der Kante,
+   ist er ein Strich. Das ist keine Annaeherung, sondern genau die
+   Projektion einer gedrehten Flaeche. Und weil im Vakuum nichts
+   bremst, laeuft die Drehung mit gleichbleibender Rate durch — kein
+   Anlaufen, kein Auslaufen. Ein Gelenk, das an den Umkehrpunkten
+   zoegert, verraet sofort, dass da jemand eine Animation gebaut hat
+   statt eine Bahn. */
+let BEWEGLICH = true;
+function zeichneBewegliche(t, mitte, f, phase) {
+  if (!STBILD || !FLBILD || !BEWEGLICH) return;
+  const b = STBILD, fb = FLBILD;
+  const alpha = alphaWinkel(phase);
+  const hell = TAGLICHT, abend = ABENDLICHT;
+
+  /* Skalierung vom Backmassstab auf den Bildmassstab */
+  const sk = (f * b.R) / fb.R;
+  /* Die Ansaetze stehen in Vielfachen von R, nicht in Bildpunkten —
+     wie die Arbeitsplaetze und anders als die Fenster. Ohne den
+     Massstab landen alle acht Fluegel auf demselben Punkt in der
+     Mitte, und das sieht man sofort: aus der Station wird ein Kreuz
+     mit einem Balken. */
+  const mf = b.R * f;
+
+  /* Welches der drei Bilder gilt gerade? Waehlen statt uebereinander
+     legen: zwei Bilder je Fluegel waeren doppelte Fuellarbeit, und bei
+     acht Fluegeln ist das der Unterschied zwischen fluessig und
+     ruckelig. Nur im Uebergang selbst wird ueberblendet, und der
+     dauert dreieinhalb Sekunden im Umlauf. */
+  const mischung = lichtMischung(hell, abend);
+
+  for (const m of b.masten) {
+    /* Der Ausschlag ist klein genug, dass er das Vorzeichen nie
+       umdreht: alle acht Fluegel zeigen immer dieselbe Seite. Sie
+       haengen am selben Gelenk und folgen derselben Sonne — saehe man
+       links die Zellen und rechts die Rueckseite, waere die Station
+       auseinandergebrochen. */
+    const beta = m.seite * 0.055 + m.paar * 0.035 + (m.oben < 0 ? 0.03 : -0.02);
+    const kos = Math.cos(alpha);
+    /* Auf der Kante bleibt ein Rest: das Paket hat Dicke, und der
+       Mast steht auch dann noch da. Ganz verschwinden darf nichts. */
+    const breit = Math.max(0.1, Math.abs(kos) + beta * Math.sign(kos || 1));
+    const vorn = kos >= 0;
+    const idx = m.irosa ? 1 : 0;
+    /* Minus mal minus: der untere Fluegel ist der obere, um eine halbe
+       Drehung gekippt. Eine halbe Drehung ist eine Spiegelung an
+       beiden Achsen, und die kostet nur ein Vorzeichen. */
+    const sx = (m.oben < 0 ? -1 : 1) * sk * breit;
+    const sy = (m.oben < 0 ? -1 : 1) * sk;
+    const px = mitte.x + m.x * mf, py = mitte.y + m.y * mf;
+
+    const male = (bild, deck) => {
+      const q = bild.width / fb.bw;   // halb so fein gebackene Bilder
+      cx.setTransform(sx, 0, 0, sy, px, py);
+      if (deck !== 1) cx.globalAlpha = deck;
+      cx.drawImage(bild, 0, 0, bild.width, bild.height,
+        -fb.ax, -fb.ay, fb.bw, fb.bh);
+      if (deck !== 1) cx.globalAlpha = 1;
+    };
+
+    const u = m.oben < 0 ? "U" : "";
+    for (const [wer, deck] of mischung) {
+      const satz = wer === "tag" ? (vorn ? fb.tag : fb.rueck)
+        : wer === "nacht" ? (vorn ? fb["nacht" + u] : fb["rnacht" + u])
+        : (vorn ? fb["abend" + u] : fb["rabend" + u]);
+      male(satz[idx], deck);
+    }
+  }
+
+  /* Die Waermetauscher drehen sich anders herum: ihr Gelenk haelt sie
+     moeglichst schmal zur Sonne, damit sie sich nicht aufheizen. Wo
+     die Fluegel breit stehen, stehen sie also auf der Kante — die
+     Vierteldrehung im Winkel ist genau dieser Gegensinn. Dass beide
+     sich gleichzeitig und gegenlaeufig drehen, ist das sicherste
+     Zeichen dafuer, dass eine Station arbeitet. */
+  const kAlpha = alpha + Math.PI / 2;
+  for (const m of b.kuehler) {
+    const kos = Math.cos(kAlpha + m.seite * 0.1 + m.paar * 0.06);
+    /* Je waermer der Kreis laeuft, desto weiter werden die Paneele
+       aufgedreht — mehr Flaeche, mehr Abstrahlung. Das ist der Grund,
+       warum sie ueberhaupt drehbar sind. */
+    const auf = 0.3 + LEBEN.waerme * 0.7;
+    const breit = Math.max(0.12, Math.abs(kos)) * auf + 0.16;
+    const sx = (m.oben < 0 ? -1 : 1) * sk * breit;
+    const sy = (m.oben < 0 ? -1 : 1) * sk;
+    const px = mitte.x + m.x * mf, py = mitte.y + m.y * mf;
+    const male = (bild, deck) => {
+      cx.setTransform(sx, 0, 0, sy, px, py);
+      if (deck !== 1) cx.globalAlpha = deck;
+      cx.drawImage(bild, 0, 0, bild.width, bild.height,
+        -fb.kax, -fb.kay, fb.kw, fb.kh);
+      if (deck !== 1) cx.globalAlpha = 1;
+    };
+    const u = m.oben < 0 ? "U" : "";
+    for (const [wer, deck] of mischung) {
+      male(wer === "tag" ? fb.kuehl
+        : wer === "nacht" ? fb["knacht" + u] : fb["kabend" + u], deck);
+    }
+  }
+  cx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+/* Die Nacht- und Abendfassung des scharfen Ausschnitts, erst beim
+   ersten Gebrauch gebacken und danach behalten, bis er neu entsteht. */
+function nahLage(wer) {
+  if (!STNAH[wer]) {
+    STNAH[wer] = umfaerben(STNAH.bild,
+      wer === "nacht" ? NACHTSTUFEN : ABENDSTUFEN, 2);
+  }
+  return STNAH[wer];
+}
+
 function stationNahBacken(Rpx, mitte) {
   const bw = Math.ceil(cv.width * 1.3), bh = Math.ceil(cv.height * 1.3);
   const ox = Math.round((bw - cv.width) / 2), oy = Math.round((bh - cv.height) / 2);
@@ -3142,7 +3647,7 @@ function stationNahBacken(Rpx, mitte) {
   bild.width = bw; bild.height = bh;
   const c = bild.getContext("2d");
   c.translate(mitte.x + ox, mitte.y + oy);
-  stationStatisch(c, Rpx, null, null, null);
+  stationStatisch(c, Rpx, null, null, null, null, null);
   return { R: Rpx, mx: mitte.x, my: mitte.y, bild, ox, oy, bw, bh };
 }
 
@@ -3160,6 +3665,13 @@ function zeichneStation(t, cxp, cyp, R) {
      neu — das waere schlimmer als gar nicht zu backen. */
   if (STBILD && STBILD.R >= noetig && STBILD.R <= Rpx * 1.5) Rpx = STBILD.R;
   if (!STBILD || STBILD.R !== Rpx) STBILD = stationBacken(Rpx);
+  /* Die beweglichen Teile haengen am selben Massstab wie der Rumpf und
+     werden zusammen mit ihm erneuert. */
+  if (!FLBILD || FLBILD.R !== STBILD.R) {
+    const auf = STBILD.masten.find(q => q.oben > 0);
+    FLBILD = fluegelBacken(STBILD.R, STBILD.laenge, STBILD.breite,
+      STBILD.kLaenge, STBILD.kBreite, auf ? auf.winkel : Math.PI / 2);
+  }
 
   const b = STBILD;
   const f = noetig / b.R;
@@ -3170,6 +3682,12 @@ function zeichneStation(t, cxp, cyp, R) {
      werden — genau das kostet. */
   cx.save();
   cx.setTransform(1, 0, 0, 1, 0, 0);
+
+  /* Fluegel und Waermetauscher zuerst: der Traeger und die
+     Gelenkkaesten liegen danach darueber und decken die Wurzeln ab.
+     Anders herum klebten die Fluegel vor dem Traeger, und das waere an
+     genau der Stelle falsch, an der man am genauesten hinsieht. */
+  zeichneBewegliche(t, mitte, f, window.__PHASE_WERT || 0);
 
   /* Reicht die feinste Stufe nicht mehr, kommt der scharfe Ausschnitt
      dazu — gebacken nur, wenn sich Groesse oder Blickpunkt wirklich
@@ -3193,34 +3711,49 @@ function zeichneStation(t, cxp, cyp, R) {
   /* Je nach Stelle im Umlauf werden bis zu drei Bilder uebereinander
      gelegt: Tag, warmer Saum, Nacht. Meistens ist nur eines sichtbar —
      die beiden anderen kosten dann nichts. */
-  /* Der scharfe Ausschnitt ersetzt das grobe Tagbild. Er wird vor den
-     Streifen gezeichnet, damit die Faerbung fuer Nacht und Abend
-     darauf liegt und nicht darunter. */
+  const mischung = lichtMischung(TAGLICHT, ABENDLICHT);
+
   if (STNAH) {
-    cx.drawImage(STNAH.bild,
-      Math.round(mitte.x - STNAH.mx - STNAH.ox),
-      Math.round(mitte.y - STNAH.my - STNAH.oy));
-  }
+    /* Der scharfe Ausschnitt ersetzt das grobe Bild vollstaendig — er
+       ist um ein Drittel groesser als der Schirm, ausserhalb davon
+       ist nichts zu sehen. Seine Nacht- und Abendfassung entsteht erst
+       dann, wenn sie gebraucht wird: bei dieser Bildgroesse kostet
+       jede ein paar Megabyte, und die meiste Zeit ist Tag.
 
-  const lagen = [];
-  if (!STNAH) lagen.push([b.bild, 1, 1]);
-  if (ABENDLICHT > 0.01) lagen.push([b.abend, ABENDLICHT * 0.72, 2]);
-  if (TAGLICHT < 0.999) lagen.push([b.nacht, 1 - TAGLICHT, 1]);
-
-  for (const st of b.streifen) {
-    const dx = zx + st.x * f, dy = zy + st.y * f;
-    const dw = st.w * f, dh = st.h * f;
-    const ax = Math.max(0, dx), ay = Math.max(0, dy);
-    const bx = Math.min(cv.width, dx + dw), by = Math.min(cv.height, dy + dh);
-    if (bx <= ax || by <= ay) continue;
-    for (const [bild, deck, teiler] of lagen) {
+       Vorher wurde hier das grobe Nachtbild darueber gelegt. Bei
+       voller Nacht deckte es den scharfen Ausschnitt zu hundert
+       Prozent zu — die ganze Schaerfe war nachts also umsonst
+       gebacken. */
+    for (const [wer, deck] of mischung) {
+      const bild = wer === "tag" ? STNAH.bild : nahLage(wer);
       cx.globalAlpha = deck;
-      cx.drawImage(bild,
-        (st.x + (ax - dx) / f) / teiler, (st.y + (ay - dy) / f) / teiler,
-        ((bx - ax) / f) / teiler, ((by - ay) / f) / teiler,
-        ax, ay, bx - ax, by - ay);
+      cx.drawImage(bild, 0, 0, bild.width, bild.height,
+        Math.round(mitte.x - STNAH.mx - STNAH.ox),
+        Math.round(mitte.y - STNAH.my - STNAH.oy),
+        STNAH.bw, STNAH.bh);
     }
     cx.globalAlpha = 1;
+  } else {
+    const lagen = mischung.map(([wer, deck]) =>
+      wer === "tag" ? [b.bild, deck, 1]
+      : wer === "nacht" ? [b.nacht, deck, 1]
+      : [b.abend, deck, 2]);
+
+    for (const st of b.streifen) {
+      const dx = zx + st.x * f, dy = zy + st.y * f;
+      const dw = st.w * f, dh = st.h * f;
+      const ax = Math.max(0, dx), ay = Math.max(0, dy);
+      const bx = Math.min(cv.width, dx + dw), by = Math.min(cv.height, dy + dh);
+      if (bx <= ax || by <= ay) continue;
+      for (const [bild, deck, teiler] of lagen) {
+        cx.globalAlpha = deck;
+        cx.drawImage(bild,
+          (st.x + (ax - dx) / f) / teiler, (st.y + (ay - dy) / f) / teiler,
+          ((bx - ax) / f) / teiler, ((by - ay) / f) / teiler,
+          ax, ay, bx - ax, by - ay);
+      }
+      cx.globalAlpha = 1;
+    }
   }
 
   /* Die beleuchteten Fenster pulsieren — sie kommen live darueber */
@@ -3230,7 +3763,13 @@ function zeichneStation(t, cxp, cyp, R) {
   /* Arbeitet niemand, brennt nur Notbeleuchtung. Arbeitet die halbe
      Crew, sind die Fenster hell. Das ist der billigste Weg, den
      Zustand der Station von weitem lesbar zu machen. */
-  const wach = 0.45 + 0.55 * CREWWACH;
+  /* Und daueber liegt der Ladestand. Sinkt er, schaltet eine echte
+     Station Verbraucher ab — zuerst das Licht, das gerade niemand
+     braucht. Unter einem Fuenftel brennt nur noch Notbeleuchtung, und
+     das sieht man von aussen sofort. Das ist die Stelle, an der der
+     Stoffwechsel aus der Anzeige heraus ins Bild tritt. */
+  const strom = klemm(0.34 + LEBEN.akku * 1.1, 0.34, 1);
+  const wach = (0.45 + 0.55 * CREWWACH) * strom;
   for (const fe of b.fenster) {
     const staerke = Math.min(1, (fe.grund + fe.hub * Math.sin(t * fe.takt + fe.ph)) * nachthell * wach);
     cx.fillStyle = `rgba(${fe.ton},${staerke})`;
@@ -5207,6 +5746,10 @@ function rahmen(jetzt) {
   if (telemetrieAn && t - tmUhr > 480) { tmUhr = t; zeichneTelemetrie(t); }
   TAGLICHT = Z.umlauf === false ? 1 : tageslicht(umlaufPhase);
   ABENDLICHT = abendlicht(TAGLICHT);
+  /* Der Stoffwechsel laeuft immer mit, auch wenn niemand hinsieht —
+     sonst waere der Ladestand beim Oeffnen der Anzeige jedes Mal
+     derselbe, und das faellt sofort auf. */
+  lebenTakt(t, dt, umlaufPhase);
 
   zeichneHimmel(t);
   zeichneErde(t);
@@ -5245,9 +5788,17 @@ function rahmen(jetzt) {
      bleibt die Figur auf grossen Schirmen winzig und auf dem Handy
      unsichtbar. Hier gewinnt die Lesbarkeit: ein Drittel groesser als
      wahr, und darunter eine feste Untergrenze. Das ist bewusst
-     geschummelt — der Rest der Station stimmt auf den Zentimeter. */
-  const LESBAR = 1.34;
-  const groesse = Math.max(12, (modulR * 0.88 * LESBAR) / 2.1);
+     geschummelt — der Rest der Station stimmt auf den Zentimeter.
+
+     Die Figur ist inzwischen deutlich feiner gezeichnet als frueher:
+     Visier, Ruecksack, Tasche, Kennleuchte. Das alles ist bei 1,34
+     nicht mehr zu sehen, also wird der Massstab angehoben, bis die
+     Details tragen. Der Preis ist ein etwas groesseres Luegenmass —
+     das ist die richtige Seite, auf der man irrt, denn eine Figur,
+     deren Ausruestung man nicht erkennt, ist kein Mensch, sondern ein
+     Punkt. */
+  const LESBAR = 1.62;
+  const groesse = Math.max(15, (modulR * 0.88 * LESBAR) / 2.1);
 
   /* Im Kinomodus atmet die Kamera leicht — reicht fuer einen Loop */
   const hoch = H / W > 1.3;
@@ -7041,16 +7592,38 @@ function zeichneTelemetrie(t) {
      abgenommen wird — hier ist es derselbe Gedanke. */
   const last = alle.length ? laufend / alle.length : 0;
 
+  /* Die Bilanz in einer Zahl: was die Fluegel liefern, minus was die
+     Station zieht. Positiv heisst laden, negativ heisst zehren. */
+  const bilanz = LEBEN.erzeugt - LEBEN.bedarf;
+  const vz = bilanz >= 0 ? "+" : "−";
+
   const zeilen = [
-    ["UMLAUF", Z.umlauf === false ? "aus"
+    ["~", "LEBENSERHALT"],
+    ["BATTERIE", Math.round(LEBEN.akku * 100) + " % · " + vz + Math.abs(Math.round(bilanz)) + " kW",
+      LEBEN.akku, LEBEN.akku < 0.22 ? "schlecht" : LEBEN.akku < 0.4 ? "warm" : "gut"],
+    ["FLÜGEL", Math.round(LEBEN.erzeugt) + " kW" + (LEBEN.erzeugt < 1 ? " · Schatten" : "")],
+    ["BEDARF", Math.round(LEBEN.bedarf) + " kW"],
+    ["CO₂", LEBEN.co2.toFixed(1) + " mmHg" + (LEBEN.scrubber ? " · Filter" : ""),
+      klemm((LEBEN.co2 - 1.6) / 4, 0, 1),
+      LEBEN.co2 > 5.3 ? "schlecht" : LEBEN.co2 > 4 ? "warm" : "gut"],
+    ["KABINE", Math.round(LEBEN.druck) + " hPa · " + LEBEN.o2.toFixed(1) + " % O₂"],
+    ["KÜHLKREIS", LEBEN.vorlauf.toFixed(1) + " °C vor · " + LEBEN.ruecklauf.toFixed(1) + " zurück",
+      LEBEN.waerme, LEBEN.waerme > 0.88 ? "schlecht" : LEBEN.waerme > 0.7 ? "warm" : "gut"],
+    ["WASSER", Math.round(LEBEN.wasser * 1000) / 10 + " % zurück"],
+    ["BAHN", LEBEN.hoehe.toFixed(1) + " km" + (SCHUB.laeuft ? " · Schub" : "")],
+
+    ["~", "UMLAUF UND CREW"],
+    ["PHASE", Z.umlauf === false ? "aus"
       : (tags ? "Tag" : "Erdschatten") + " · " + zeitKurz(rest)],
     ["BESATZUNG", alle.length + (laufend ? " · " + laufend + " arbeitet" : " · bereit")],
-    ["LEISTUNG", Math.round(last * 100) + " %", last],
-    ["FUNK", frisch ? (frisch > 999 ? (frisch / 1000).toFixed(1) + "k" : frisch) + " Token/min" : "still"],
-    ["HEUTE", heuteMiss ? "$" + heuteKost.toFixed(3) + " · " + heuteMiss + (heuteMiss === 1 ? " Mission" : " Missionen") : "noch nichts"],
+    ["AUSLASTUNG", Math.round(last * 100) + " %", last],
     ["FRACHT", FRACHT.lage === "gedockt" ? "angedockt"
       : FRACHT.lage === "anflug" ? "im Anflug"
       : FRACHT.lage === "abflug" ? "legt ab" : "keine"],
+
+    ["~", "FUNKVERKEHR"],
+    ["DURCHSATZ", frisch ? (frisch > 999 ? (frisch / 1000).toFixed(1) + "k" : frisch) + " Token/min" : "still"],
+    ["HEUTE", heuteMiss ? "$" + heuteKost.toFixed(3) + " · " + heuteMiss + (heuteMiss === 1 ? " Mission" : " Missionen") : "noch nichts"],
   ];
 
   /* Ueber textContent statt innerHTML: die Werte kommen zwar alle aus
@@ -7058,18 +7631,43 @@ function zeichneTelemetrie(t) {
      und eine Stelle, an der ungeprueft Text in HTML landet, ist eine
      Stelle zu viel. */
   feld.textContent = "";
-  for (const [name, wert, balken] of zeilen) {
+  for (const [name, wert, balken, lage] of zeilen) {
+    if (name === "~") {
+      const g = document.createElement("div");
+      g.className = "tm-gruppe"; g.textContent = wert;
+      feld.append(g);
+      continue;
+    }
     const z = document.createElement("div"); z.className = "tm-zeile";
     const n = document.createElement("span"); n.className = "tm-name"; n.textContent = name;
-    const w = document.createElement("span"); w.className = "tm-wert"; w.textContent = wert;
+    const w = document.createElement("span");
+    w.className = "tm-wert" + (lage && lage !== "gut" ? " " + lage : "");
+    w.textContent = wert;
     z.append(n, w); feld.append(z);
     if (balken !== undefined) {
-      const b = document.createElement("div"); b.className = "tm-balken";
+      const b = document.createElement("div");
+      b.className = "tm-balken" + (lage ? " " + lage : "");
       const i = document.createElement("i");
       i.style.width = Math.round(klemm(balken, 0, 1) * 100) + "%";
       b.append(i); feld.append(b);
     }
   }
+
+  /* Die Alarmzeile steht oben, weil sie sonst uebersehen wird. Sie ist
+     leer, solange alles im Rahmen liegt — eine Anzeige, die dauernd
+     etwas meldet, meldet gar nichts. */
+  const az = $("#tm-alarm");
+  if (az) {
+    az.textContent = "";
+    if (LEBEN.alarm) {
+      const a = document.createElement("div");
+      a.className = "tm-alarm";
+      a.textContent = "▲  " + LEBEN.alarm + " ausserhalb des Rahmens";
+      az.append(a);
+    }
+  }
+
+  pulsZeichnen();
 
   /* Das Bordbuch darunter — die fuenf juengsten Eintraege */
   const buch = $("#tm-buch");
@@ -7083,6 +7681,68 @@ function zeichneTelemetrie(t) {
     const x = document.createElement("span"); x.textContent = e.text;
     z.append(u, x); buch.append(z);
   }
+}
+
+/* Die Pulskurve: die Strombilanz der letzten anderthalb Minuten.
+   Gezeichnet wird auf einem eigenen, winzigen Canvas — das ist
+   billiger als eine SVG jedes Mal neu zu bauen, und die Kurve liegt
+   damit ausserhalb der Szene, die sowieso schon genug zu tun hat.
+
+   Die Mittellinie ist die Null: darueber laedt die Station, darunter
+   zehrt sie. Ein Fuellbereich bis zur Mittellinie macht auf einen
+   Blick sichtbar, welche Seite ueberwiegt — beim reinen Strich muesste
+   man die Linie erst suchen. */
+function pulsZeichnen() {
+  const cv = $("#tm-puls");
+  if (!cv) return;
+  const c = cv.getContext("2d");
+  const w = cv.width, h = cv.height;
+  c.clearRect(0, 0, w, h);
+  const n = LEBEN.puls.length;
+  if (n < 2) return;
+
+  const mitte = h * 0.5;
+  const px = i => (i / (LEBEN.puls.length - 1)) * w;
+  const py = v => h - 5 - v * (h - 10);
+
+  /* Mittellinie */
+  c.strokeStyle = "rgba(255,255,255,.1)";
+  c.lineWidth = 1;
+  c.beginPath(); c.moveTo(0, mitte); c.lineTo(w, mitte); c.stroke();
+
+  /* Flaeche zwischen Kurve und Mittellinie */
+  c.beginPath();
+  c.moveTo(px(0), mitte);
+  for (let i = 0; i < n; i++) c.lineTo(px(i), py(LEBEN.puls[i]));
+  c.lineTo(px(n - 1), mitte);
+  c.closePath();
+  const letzt = LEBEN.puls[n - 1];
+  const g = c.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, "rgba(116,180,141,.34)");
+  g.addColorStop(0.5, "rgba(116,180,141,.06)");
+  g.addColorStop(0.5, "rgba(224,122,106,.06)");
+  g.addColorStop(1, "rgba(224,122,106,.3)");
+  c.fillStyle = g;
+  c.fill();
+
+  /* Die Kurve selbst */
+  c.beginPath();
+  for (let i = 0; i < n; i++) {
+    const x = px(i), y = py(LEBEN.puls[i]);
+    if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
+  }
+  c.strokeStyle = letzt >= 0.5 ? "rgba(140,205,166,.95)" : "rgba(232,140,122,.95)";
+  c.lineWidth = 2;
+  c.lineJoin = "round"; c.lineCap = "round";
+  c.stroke();
+
+  /* Der Kopf der Kurve: ein Punkt mit Schein, damit das Auge sieht,
+     wo gerade JETZT ist. */
+  const hx = px(n - 1), hy = py(letzt);
+  c.fillStyle = letzt >= 0.5 ? "rgba(140,205,166,.22)" : "rgba(232,140,122,.22)";
+  c.beginPath(); c.arc(hx, hy, 7, 0, Math.PI * 2); c.fill();
+  c.fillStyle = letzt >= 0.5 ? "#b6e2c6" : "#f0a99a";
+  c.beginPath(); c.arc(hx, hy, 2.6, 0, Math.PI * 2); c.fill();
 }
 
 /* --- Die Kurzanleitung -----------------------------------------------
@@ -7516,6 +8176,9 @@ window.__BLENDE_OFFEN = () => blendeOffen;
 window.__STERNE = (t,a,b) => zeichneSterne(t,a,b);
 window.__STATION = (t,x,y,r) => zeichneStation(t,x,y,r);
 window.__STBILD = () => STBILD;
+window.__FLBILD = () => FLBILD;
+window.__BEWEG = (v) => { BEWEGLICH = v; };
+window.__LEBEN = () => LEBEN;
 window.__FRACHT = () => FRACHT;
 window.__SCHILDER = () => TEILSCHILDER;
 window.__ORTE = () => LETZTE_ORTE;
