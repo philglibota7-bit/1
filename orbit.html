@@ -2028,11 +2028,26 @@ function streifenMessen(cv, n) {
 }
 
 /* Die Arbeitsplaetze so umsortieren, dass zwei aufeinanderfolgende
-   moeglichst weit auseinanderliegen. Sonst haengen bei drei Agenten
-   alle drei am selben Traegerabschnitt, und die halbe Station bleibt
-   leer. Immer den Platz nehmen, der am weitesten von allen bisher
-   vergebenen entfernt ist. */
+   moeglichst weit auseinanderliegen. */
 function weitOrdnen(liste) {
+  if (liste.length < 3) return liste;
+  /* Plaetze auf der Oberseite zuerst. Im All gibt es kein Oben, und
+     echte Astronauten arbeiten in jeder Lage — aber wer hier Namen und
+     Zustaende ablesen will, soll nicht die halbe Mannschaft kopfueber
+     sehen. Die Unterseiten kommen zum Zug, sobald es mehr Agenten als
+     Plaetze oben gibt. */
+  const oben = [], unten = [];
+  for (const q of liste) {
+    const w = ((q.winkel % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    (w < Math.PI / 2 || w > Math.PI * 1.5 ? oben : unten).push(q);
+  }
+  return weitStreuen(oben).concat(weitStreuen(unten));
+}
+
+/* Immer den Platz nehmen, der am weitesten von allen bisher vergebenen
+   entfernt ist — sonst haengen bei drei Agenten alle drei am selben
+   Traegerabschnitt, und die halbe Station bleibt leer. */
+function weitStreuen(liste) {
   if (liste.length < 3) return liste;
   const rest = liste.slice();
   const raus = [rest.shift()];
@@ -2714,15 +2729,22 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
       rundRect(cx, sm + sd * sb - (sd < 0 ? 0 : H * 0.03), oy, H * 0.03, H * 0.02, H * 0.006);
       cx.fill();
     }
-    /* Duesenstoss beim Arbeiten */
-    if (zustand === "sendet" && !ruhig) {
-      const st = 0.35 + 0.65 * Math.abs(Math.sin(t * 0.009 + phase));
+    /* Kein leuchtender Duesenstoss. Kalter Stickstoff ist im Vakuum
+       unsichtbar — es gibt nichts, woran er streuen koennte. Sichtbar
+       sind nur ein paar Eispartikel, die im Strahl gefrieren und
+       aufblitzen, wenn die Sonne sie trifft. Der eigentliche Beweis
+       fuer Schub ist, dass die Figur sich danach anders bewegt. */
+    if (zustand === "sendet" && !ruhig && TAGLICHT > 0.3) {
       for (const sd of [-1, 1]) {
-        const g = cx.createRadialGradient(sm + sd * sb, so + H * 0.02, 0, sm + sd * sb, so + H * 0.02, H * 0.16);
-        g.addColorStop(0, `rgba(210,232,255,${0.5 * st})`);
-        g.addColorStop(1, "rgba(210,232,255,0)");
-        cx.fillStyle = g;
-        cx.beginPath(); cx.arc(sm + sd * sb, so + H * 0.02, H * 0.16, 0, Math.PI * 2); cx.fill();
+        for (let i = 0; i < 3; i++) {
+          const f = ((t * 0.0016 + i * 0.37 + phase) % 1);
+          const px = sm + sd * sb + sd * f * H * 0.3;
+          const py = so + H * 0.02 + (streu(i, 7, 3) - 0.5) * H * 0.06 * f;
+          cx.fillStyle = `rgba(228,242,255,${(1 - f) * 0.7 * TAGLICHT})`;
+          cx.beginPath();
+          cx.arc(px, py, Math.max(0.3, H * 0.007 * (1 - f)), 0, Math.PI * 2);
+          cx.fill();
+        }
       }
     }
   }
@@ -2954,14 +2976,24 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
       /* Pistol Grip Tool: klobiger als ein irdischer Akkuschrauber */
       cx.save();
       cx.translate(rechts.x, rechts.y);
-      cx.rotate(0.5 + (ruhig ? 0 : Math.sin(t * 0.02 + phase) * 0.07));
+      /* Ein Mensch bei der Arbeit zappelt nicht gleichmaessig. Er
+         haelt, zieht kurz, haelt wieder, und steht zwischendurch ganz
+         still. Genau dieser Takt — gut die Haelfte halten, ein Viertel
+         ziehen, ein Fuenftel Stillstand — laesst eine blosse
+         Silhouette als Mensch lesen statt als Maschine. Eine
+         gleichmaessige Schwingung liest sich immer als Motor. */
+      const takt = ruhig ? 0 : ((t * 0.00026 + phase * 0.13) % 1);
+      const zug = takt < 0.55 ? 0
+                : takt < 0.8 ? (takt - 0.55) / 0.25
+                : 0;
+      cx.rotate(0.5 - zug * 0.26);
       cx.fillStyle = "#4e4c45";
       rundRect(cx, -H * 0.03, -H * 0.028, H * 0.13, H * 0.058, H * 0.016); cx.fill();
       rundRect(cx, -H * 0.022, H * 0.025, H * 0.048, H * 0.08, H * 0.014); cx.fill();
       cx.fillStyle = "#b8b4a8";
       rundRect(cx, H * 0.098, -H * 0.012, H * 0.055, H * 0.024, H * 0.008); cx.fill();
-      /* Funken */
-      if (!ruhig) {
+      /* Funken nur, solange wirklich gedreht wird */
+      if (!ruhig && zug > 0) {
         for (let i = 0; i < 4; i++) {
           const f = (t * 0.02 + i * 1.7 + phase) % 1;
           cx.fillStyle = `rgba(255,${200 - i * 20},120,${(1 - f) * 0.85})`;
@@ -3032,23 +3064,17 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
        Astronaut noch hat — zwei schmale Kegel von rund 28 Grad, die
        gut zwei Modulradien weit reichen. Bei Tag sieht man nur die
        Lampen selbst. */
+    /* Kein sichtbarer Lichtkegel: im Vakuum sieht man keinen
+       Lichtstrahl, nur das, was er trifft. Was man sieht, ist die
+       Lampe selbst — als harter heller Punkt, der die Kamera
+       ueberstrahlt — und die Aufhellung dort, wo ihr Licht auf den
+       eigenen Anzug faellt. */
     if (nachts > 0.05) {
-      for (const sd of [-1, 1]) {
-        cx.save();
-        cx.translate(sd * helmR * 0.6, helmY - helmR * 0.62);
-        cx.rotate(-Math.PI / 2 + sd * 0.1);
-        const reich = H * 1.1;
-        const kg = cx.createLinearGradient(0, 0, reich, 0);
-        kg.addColorStop(0, `rgba(255,248,220,${0.3 * nachts})`);
-        kg.addColorStop(0.5, `rgba(255,248,220,${0.09 * nachts})`);
-        kg.addColorStop(1, "rgba(255,248,220,0)");
-        cx.fillStyle = kg;
-        cx.beginPath();
-        cx.moveTo(0, 0);
-        cx.arc(0, 0, reich, -0.245, 0.245);
-        cx.closePath(); cx.fill();
-        cx.restore();
-      }
+      const ag = cx.createRadialGradient(0, helmY + helmR * 0.9, 0, 0, helmY + helmR * 0.9, H * 0.28);
+      ag.addColorStop(0, `rgba(255,246,214,${0.16 * nachts})`);
+      ag.addColorStop(1, "rgba(255,246,214,0)");
+      cx.fillStyle = ag;
+      cx.beginPath(); cx.arc(0, helmY + helmR * 0.9, H * 0.28, 0, Math.PI * 2); cx.fill();
     }
     cx.fillStyle = "rgba(255,250,228,.95)";
     for (const sd of [-1, 1]) {
@@ -3109,28 +3135,46 @@ function bezier(p0, p1, p2, t) {
            y: u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y };
 }
 
+/* Die Sicherungsleine. Im Vakuum haengt sie NICHT durch: ein Durchhang
+   ist eine Kettenlinie unter Schwerkraft, und die gibt es hier nicht.
+   Die Leine ist gerade gespannt oder schlaff, aber nie geschwungen.
+
+   Was sie lebendig macht, sind Querwellen: jeder Ruck laeuft als Welle
+   durch das Stahlseil und wird nicht gedaempft, weil nichts da ist,
+   was daempfen koennte. Ueber die volle Laenge von fast sechsundzwanzig
+   Metern braucht so eine Welle rund acht Sekunden. An beiden
+   befestigten Enden steht sie still — dort sind die Knoten. */
+function leinePunkt(von, bis, nx, ny, laenge, u, t, phase, hub) {
+  const welle = Math.sin(u * Math.PI * 1.5 - t * 0.0008 + phase)
+              + 0.4 * Math.sin(u * Math.PI * 3.5 - t * 0.0013 + phase * 1.7);
+  /* Am Anfang und am Ende festgehalten */
+  const rand = Math.sin(u * Math.PI);
+  const a = welle * rand * laenge * hub;
+  return { x: von.x + (bis.x - von.x) * u + nx * a,
+           y: von.y + (bis.y - von.y) * u + ny * a };
+}
+
 function zeichneLeine(von, bis, farbe, zustand, t, blitze, phase) {
-  const mx = (von.x + bis.x) / 2, my = (von.y + bis.y) / 2;
   const dx = bis.x - von.x, dy = bis.y - von.y;
   const laenge = Math.hypot(dx, dy) || 1;
-  /* Durchhang senkrecht zur Verbindung, atmet leicht */
-  const schlaff = zustand === "fehler" ? 0.3 : zustand === "denkt" ? 0.08 : 0.15;
-  const wehen = sparsam ? 0 : Math.sin(t * 0.0011 + phase) * laenge * 0.05;
-  const stp = { x: mx + (-dy / laenge) * (laenge * schlaff + wehen),
-                y: my + ( dx / laenge) * (laenge * schlaff + wehen) };
+  const nx = -dy / laenge, ny = dx / laenge;
+  const hub = sparsam ? 0 : (zustand === "fehler" ? 0.055 : 0.028);
 
   cx.strokeStyle = zustand === "fehler" ? "rgba(224,122,106,.45)" : "rgba(184,208,242,.34)";
   /* Gegen den Zoom herausgerechnet: eine Leine, die beim Heranfahren zum
      Balken wird, sieht falsch aus — beim Herauszoomen verschwaende sie. */
   cx.lineWidth = 1.15 / Math.max(0.6, KAM.zoom);
   cx.beginPath();
-  cx.moveTo(von.x, von.y);
-  cx.quadraticCurveTo(stp.x, stp.y, bis.x, bis.y);
+  const n = 16;
+  for (let i = 0; i <= n; i++) {
+    const p = leinePunkt(von, bis, nx, ny, laenge, i / n, t, phase, hub);
+    i ? cx.lineTo(p.x, p.y) : cx.moveTo(p.x, p.y);
+  }
   cx.stroke();
 
   /* Impulse laufen zur Station — sichtbare Datenuebertragung */
   for (const b of blitze) {
-    const p = bezier(bis, stp, von, b.p);
+    const p = leinePunkt(von, bis, nx, ny, laenge, 1 - b.p, t, phase, hub);
     cx.fillStyle = farbe; cx.globalAlpha = 0.9 * (1 - Math.abs(b.p - 0.5) * 0.8);
     cx.beginPath(); cx.arc(p.x, p.y, 2.2, 0, Math.PI * 2); cx.fill();
     cx.globalAlpha = 0.22;
@@ -3953,7 +3997,13 @@ function rahmen(jetzt) {
        Minute, nicht ueber Sekunden. Zu schnelle Bewegung ist im All
        der verlaesslichste Hinweis darauf, dass etwas gezeichnet ist. */
     const frei = Math.max(0, v.weg - 1.3);
-    const trift = sparsam ? 0 : Math.sin(t * 0.00009 + v.phase) * frei * groesse * 0.9;
+    /* Auch das Treiben laeuft gleichmaessig: hin und her mit konstanter
+       Geschwindigkeit, nicht weich ein- und ausschwingend. Die Leine
+       holt die Figur an den Enden zurueck — das ist der einzige Punkt,
+       an dem sich etwas aendern darf. */
+    const schwung = (t * 0.00009 + v.phase / 6) % 2;
+    const trift = sparsam ? 0
+      : (schwung < 1 ? schwung * 2 - 1 : 3 - schwung * 2) * frei * groesse * 0.9;
     const atem  = sparsam ? 0 : Math.sin(t * 0.0009 + v.phase) * groesse * 0.06;
 
     const abstand = groesse * (1.05 * v.weg) + atem;
@@ -3973,22 +4023,45 @@ function rahmen(jetzt) {
     /* Die Sicherungsleine geht an den Haltepunkt daneben, nicht ins
        Nichts — im Vakuum haengt sie nicht durch, sondern steht in der
        Schlaufe, in der sie zuletzt losgelassen wurde. */
+    /* Kontaktschatten. Wahrnehmungspsychologisch entscheidet genau er
+       darueber, ob eine Figur das Bauteil BERUEHRT oder nur davor
+       schwebt — ohne ihn klebt jede Figur wie aufgeklebt im Bild. Im
+       Vakuum ist er hart: der Halbschatten ist weniger als ein Prozent
+       des Abstands breit, also praktisch nicht vorhanden. */
+    if (frei < 0.35) {
+      const nah = 1 - frei / 0.35;
+      cx.save();
+      cx.translate(anker.x, anker.y);
+      cx.rotate(q.winkel);
+      cx.fillStyle = `rgba(6,8,14,${0.3 * nah * TAGLICHT})`;
+      cx.beginPath();
+      cx.ellipse(groesse * 0.08, 0, groesse * 0.42, groesse * 0.16, 0, 0, Math.PI * 2);
+      cx.fill();
+      cx.restore();
+    }
+
     zeichneLeine(anker, { x, y }, a.farbe, l.zustand, t, l.blitze, v.phase);
 
-    /* Der Anzug steht senkrecht auf dem Bauteil. Wer frei treibt,
-       kippt langsam weg — ein Drehimpuls, den nichts wieder abbremst.
+    /* Wer mit einer Hand am Handlauf haengt, pendelt um diese Hand:
+       neun Grad Ausschlag, elf Sekunden fuer hin und zurueck. Hier ist
+       eine Sinuskurve richtig, denn der Arm zieht zurueck — es gibt
+       eine ruecktreibende Kraft.
 
-       Wer dagegen mit einer Hand am Handlauf haengt und wartet, pendelt
-       um diese Hand: neun Grad Ausschlag, elf Sekunden fuer hin und
-       zurueck. Das ist gemessen, und es ist der Unterschied zwischen
-       einer wartenden Figur und einer eingefrorenen. In der Fussraste
-       steht man dagegen fest — dort sind die Beine starr und nur der
-       Rumpf arbeitet. */
+       Wer dagegen frei treibt, dreht sich mit GLEICHBLEIBENDER Rate
+       weiter. Ohne Kontakt bremst nichts, also darf die Drehung an
+       keinem Punkt langsamer werden. Genau dieses Abbremsen an den
+       Umkehrpunkten ist der sichtbarste Fehler in gezeichneter
+       Schwerelosigkeit — es verraet die Erde.
+
+       Und die Rate haengt an der Groesse: ein Astronaut dreht sich rund
+       hundertachtzigmal schneller als die Station. Diese Staffelung
+       ist der Massstab, den im All sonst nichts liefert. */
     const haelt = q.art === "handlauf" && frei < 0.2;
     const pendeln = sparsam || !haelt ? 0
       : Math.sin(t * 0.000571 + v.phase) * 0.157;
-    const kipp = q.winkel + pendeln
-      + (sparsam ? 0 : Math.sin(t * 0.00007 + v.phase) * frei * 0.22);
+    const taumeln = sparsam ? 0
+      : frei * ((t * 0.00021 + v.phase) % (Math.PI * 2));
+    const kipp = q.winkel + pendeln + taumeln;
     const hervor = Z.gewaehlt === a.id || offeneDetailId === a.id;
     /* Wer frei treibt, hat keine Haltung — wer an der Struktur haengt,
        schon, und zwar je nach dem, woran er haengt. */
