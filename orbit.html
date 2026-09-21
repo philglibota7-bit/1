@@ -1565,6 +1565,22 @@ function handlauf(c, x1, y1, x2, y2, d, auf) {
   c.beginPath(); c.moveTo(x1, y1 + oy - d * 0.3); c.lineTo(x2, y2 + oy - d * 0.3); c.stroke();
 }
 
+/* Der Umriss einer liegenden Roehre: ein Rechteck, dessen Enden keine
+   runden Ecken haben, sondern halbe Ellipsen. Das ist der Unterschied
+   zwischen einer Tablette und einem Rohr — bei runden Ecken sieht man
+   eine flache Scheibe, bei Ellipsen eine Woelbung, die in die Tiefe
+   laeuft. */
+function zylinderPfad(c, x, y, w, h) {
+  const r = h / 2, e = r * 0.5;
+  c.beginPath();
+  c.moveTo(x, y);
+  c.lineTo(x + w, y);
+  c.ellipse(x + w, y + r, e, r, 0, -Math.PI / 2, Math.PI / 2);
+  c.lineTo(x, y + h);
+  c.ellipse(x, y + r, e, r, 0, Math.PI / 2, Math.PI * 1.5);
+  c.closePath();
+}
+
 /* Weisses Druckmodul, laengs gesehen: ein Zylinder. Die Schattierung
    laeuft quer zur Achse — oben die Sonne, unten der Erdschein, dazwischen
    ein tiefer, fast schwarzer Gurt. */
@@ -1576,28 +1592,51 @@ function modul(c, x, y, w, h, saat, opt) {
      malt, sieht sofort nach Rechenbild aus; wer das blaue Fuelllicht
      dazugibt, sieht nach Fotografie aus. Dazwischen liegt der dunkelste
      Gurt — dort trifft weder das eine noch das andere. */
+  /* Ein Zylinder, kein Rechteck mit runden Ecken. Der Unterschied
+     steckt im Verlauf: ein flaches Bauteil laeuft gleichmaessig von
+     hell nach dunkel, eine Roehre hat ein schmales, sehr helles Band
+     kurz unter der Oberkante und faellt danach schnell ab. Genau
+     dieses Band ist es, was das Auge als Woelbung liest. */
   const g = c.createLinearGradient(0, y, 0, y + h);
-  g.addColorStop(0, "#fdfdfa");
-  g.addColorStop(0.18, "#eceade");
-  g.addColorStop(0.44, "#b6b3a5");
-  g.addColorStop(0.66, "#4e4f4c");
-  g.addColorStop(0.8, "#23282f");
-  g.addColorStop(0.92, "#35485f");
-  g.addColorStop(1, "#4f6b8e");
+  g.addColorStop(0, "#cfccc1");                 /* Kante, kruemmt sich weg */
+  g.addColorStop(0.08, "#f6f5f0");
+  g.addColorStop(0.17, "#ffffff");              /* Glanzband */
+  g.addColorStop(0.3, "#eceae1");
+  g.addColorStop(0.48, "#b4b1a3");
+  g.addColorStop(0.66, "#63645f");
+  g.addColorStop(0.8, "#262b32");
+  g.addColorStop(0.9, "#171c24");               /* dunkelster Gurt */
+  g.addColorStop(1, "#4f6b8e");                 /* Erdschein-Saum */
   c.fillStyle = g;
-  rundRect(c, x, y, w, h, h * 0.4);
+  zylinderPfad(c, x, y, w, h);
   c.fill();
 
   c.save();
-  rundRect(c, x, y, w, h, h * 0.4); c.clip();
+  zylinderPfad(c, x, y, w, h); c.clip();
 
-  /* Nahtringe zwischen den Schuessen */
-  c.strokeStyle = "rgba(52,50,42,.42)";
-  c.lineWidth = Math.max(0.5, h * 0.03);
+  /* Nahtringe als erhabene Baender, nicht als duenne Striche. Ein
+     Strich liegt flach auf der Flaeche; ein Band mit eigenem Glanz
+     und eigenem Schatten steht darauf und macht die Woelbung sichtbar. */
   const schuesse = Math.max(2, Math.round(w / (h * 0.8)));
   for (let i = 1; i < schuesse; i++) {
     const xx = x + (w * i) / schuesse;
-    c.beginPath(); c.ellipse(xx, y + h / 2, h * 0.09, h / 2, 0, 0, Math.PI * 2); c.stroke();
+    const bb = Math.max(1, h * 0.05);
+    const rg = c.createLinearGradient(0, y, 0, y + h);
+    rg.addColorStop(0, "rgba(255,255,255,.5)");
+    rg.addColorStop(0.2, "rgba(255,255,255,.75)");
+    rg.addColorStop(0.45, "rgba(196,192,180,.5)");
+    rg.addColorStop(0.72, "rgba(28,32,38,.6)");
+    rg.addColorStop(1, "rgba(96,124,158,.45)");
+    c.fillStyle = rg;
+    c.beginPath();
+    c.ellipse(xx, y + h / 2, bb, h / 2, 0, 0, Math.PI * 2);
+    c.fill();
+    /* Der Schattenstrich an der abgewandten Kante des Bandes */
+    c.strokeStyle = "rgba(40,38,32,.45)";
+    c.lineWidth = Math.max(0.4, h * 0.016);
+    c.beginPath();
+    c.ellipse(xx + bb * 0.9, y + h / 2, bb * 0.3, h / 2, 0, 0, Math.PI * 2);
+    c.stroke();
   }
 
   /* Steppmuster der Schutzdecken: Felder von rund einem Meter, also
@@ -1697,6 +1736,22 @@ function modul(c, x, y, w, h, saat, opt) {
   c.beginPath();
   c.moveTo(x + h * 0.3, y + h * 0.035); c.lineTo(x + w - h * 0.3, y + h * 0.035);
   c.stroke();
+
+  /* Die vordere Endkappe. Sie ist der Beweis, dass da eine Roehre
+     steht und keine Scheibe: man sieht in ihre Woelbung hinein. */
+  const kx = x + w, kr = h / 2;
+  const kg = c.createLinearGradient(kx - kr * 0.5, y, kx + kr * 0.5, y + h);
+  kg.addColorStop(0, "#e2e0d6");
+  kg.addColorStop(0.42, "#9b998f");
+  kg.addColorStop(0.78, "#20242b");
+  kg.addColorStop(1, "#3d5573");
+  c.fillStyle = kg;
+  c.beginPath();
+  c.ellipse(kx, y + h / 2, kr * 0.5, kr, 0, 0, Math.PI * 2);
+  c.fill();
+  c.strokeStyle = "rgba(36,34,28,.5)";
+  c.lineWidth = Math.max(0.4, h * 0.02);
+  c.stroke();
 }
 
 /* Endkappe eines Moduls, das in die Tiefe laeuft. Bei 30 Grad Drehung
@@ -1722,13 +1777,18 @@ function gittertraeger(c, x1, x2, y, hoehe, saat, plaetze) {
      auf 13,4 Meter, also 2,68 m je Feld — rund das Anderthalbfache der
      sichtbaren Bauhoehe. */
   const felder = Math.max(8, Math.round(laenge / (hoehe * 1.3)));
-  const versatz = hoehe * 0.28;
+  /* Der Traeger ist ein Kasten, kein Band. Man sieht ihn leicht von
+     oben, also liegt der hintere Rahmen etwas hoeher im Bild als der
+     vordere, und dazwischen schaut die Oberseite hervor. Diese eine
+     Flaeche macht aus einem Strichmuster einen Balken — ohne sie
+     bleibt das Fachwerk ein flaches Gitter, egal wie fein es ist. */
+  const tiefeX = hoehe * 0.42, tiefeY = -hoehe * 0.62;
 
-  /* Hinterer Rahmen: gleiche Form, schwaecher, nach unten versetzt */
+  /* Hinterer Rahmen, schwaecher und versetzt */
   c.save();
-  c.globalAlpha = 0.5;
-  c.translate(versatz * 0.5, versatz);
-  c.strokeStyle = "#5e646c"; c.lineWidth = Math.max(0.5, hoehe * 0.06);
+  c.globalAlpha = 0.45;
+  c.translate(tiefeX, tiefeY);
+  c.strokeStyle = "#4e545c"; c.lineWidth = Math.max(0.5, hoehe * 0.06);
   c.beginPath();
   c.moveTo(x1, y - hoehe / 2); c.lineTo(x2, y - hoehe / 2);
   c.moveTo(x1, y + hoehe / 2); c.lineTo(x2, y + hoehe / 2);
@@ -1739,6 +1799,33 @@ function gittertraeger(c, x1, x2, y, hoehe, saat, plaetze) {
   }
   c.stroke();
   c.restore();
+
+  /* Die Oberseite: ein Parallelogramm zwischen vorderem und hinterem
+     Obergurt. Sie faengt das Sonnenlicht flach und ist deshalb heller
+     als die Vorderseite. */
+  const og = c.createLinearGradient(0, y - hoehe / 2 + tiefeY, 0, y - hoehe / 2);
+  og.addColorStop(0, "rgba(206,212,220,.8)");
+  og.addColorStop(0.6, "rgba(158,166,176,.7)");
+  og.addColorStop(1, "rgba(96,104,114,.6)");
+  c.fillStyle = og;
+  c.beginPath();
+  c.moveTo(x1, y - hoehe / 2);
+  c.lineTo(x2, y - hoehe / 2);
+  c.lineTo(x2 + tiefeX, y - hoehe / 2 + tiefeY);
+  c.lineTo(x1 + tiefeX, y - hoehe / 2 + tiefeY);
+  c.closePath();
+  c.fill();
+
+  /* Querstreben ueber die Oberseite — sie machen die Tiefe messbar */
+  c.strokeStyle = "rgba(70,76,84,.55)";
+  c.lineWidth = Math.max(0.3, hoehe * 0.035);
+  c.beginPath();
+  for (let i = 0; i <= felder; i++) {
+    const xa = x1 + (laenge * i) / felder;
+    c.moveTo(xa, y - hoehe / 2);
+    c.lineTo(xa + tiefeX, y - hoehe / 2 + tiefeY);
+  }
+  c.stroke();
 
   /* Vorderer Rahmen: Gurte mit hellem Grat oben, fast schwarzer Kante unten */
   c.lineCap = "butt";
@@ -1836,8 +1923,26 @@ function solarfluegel(c, x, y, w, h, saat, dunkel) {
       g.addColorStop(0.56, "#a0603c"); g.addColorStop(0.78, "#7a4529");
       g.addColorStop(1, "#281710");
     }
+    /* Nicht als Rechteck, sondern leicht verjuengt: das aeussere Ende
+       ist ein paar Prozent schmaler. Geometrisch gehoert das zur
+       Perspektive, und genau diese wenigen Prozent sind es, die eine
+       Flaeche in die Tiefe kippen lassen statt flach auf dem Bild zu
+       kleben.
+
+       Dazu ein Durchhang: die Teppiche haengen zwischen Mast und
+       Aussenrahmen in der Spannung, die sie beim Ausfahren bekommen
+       haben. Vollkommen plan ist an einer echten Station nichts. */
+    const eng = halb * 0.06, bauch = halb * 0.05 * s;
+    c.beginPath();
+    c.moveTo(x, yy);
+    c.quadraticCurveTo(x + w * 0.5, yy + bauch, x + w, yy + eng * (s < 0 ? 1 : 0));
+    c.lineTo(x + w, yy + halb - eng * (s < 0 ? 0 : 1));
+    c.quadraticCurveTo(x + w * 0.5, yy + halb + bauch, x, yy + halb);
+    c.closePath();
+    c.save();
+    c.clip();
     c.fillStyle = g;
-    c.fillRect(x, yy, w, halb);
+    c.fillRect(x, yy - halb, w, halb * 3);
 
     /* Zellraster: viele feine Querstreifen laengs der langen Achse */
     c.strokeStyle = dunkel ? "rgba(6,8,14,.75)" : "rgba(28,14,8,.55)";
@@ -1858,15 +1963,22 @@ function solarfluegel(c, x, y, w, h, saat, dunkel) {
       c.moveTo(xx, yy); c.lineTo(xx, yy + halb);
     }
     c.stroke();
-    /* Wellige Kante: die Teppiche haengen unter Spannung, nicht gerade */
-    c.strokeStyle = "rgba(226,176,132,.26)";
-    c.lineWidth = 0.5;
+    c.restore();
+
+    /* Die Dicke des Teppichs: eine helle Kante auf der Sonnenseite und
+       eine fast schwarze auf der abgewandten. Ohne diese beiden Striche
+       bleibt jede Flaeche ein Aufkleber. */
+    c.strokeStyle = s < 0 ? "rgba(255,226,184,.55)" : "rgba(14,10,6,.7)";
+    c.lineWidth = Math.max(0.5, halb * 0.035);
     c.beginPath();
-    for (let i = 0; i <= 10; i++) {
-      const xx = x + (w * i) / 10;
-      const wy = yy + (s < 0 ? 0 : halb) + Math.sin(i * 1.7 + saat) * halb * 0.035;
-      i ? c.lineTo(xx, wy) : c.moveTo(xx, wy);
-    }
+    c.moveTo(x, yy);
+    c.quadraticCurveTo(x + w * 0.5, yy + bauch, x + w, yy + eng * (s < 0 ? 1 : 0));
+    c.stroke();
+    c.strokeStyle = s < 0 ? "rgba(14,10,6,.55)" : "rgba(226,176,132,.4)";
+    c.lineWidth = Math.max(0.4, halb * 0.025);
+    c.beginPath();
+    c.moveTo(x, yy + halb);
+    c.quadraticCurveTo(x + w * 0.5, yy + halb + bauch, x + w, yy + halb - eng * (s < 0 ? 0 : 1));
     c.stroke();
   }
   /* Ausfahrmast in der Mitte */
@@ -1903,8 +2015,23 @@ function radiator(c, x, y, w, h, quer) {
     else      { const yy = y + (h * i) / 8; c.moveTo(x, yy); c.lineTo(x + w, yy); }
   }
   c.stroke();
-  c.strokeStyle = "rgba(255,255,255,.7)";
-  c.lineWidth = 0.6;
+  /* Die Dicke des Paneelpakets: oben eine gleissende Kante, unten die
+     fast schwarze Unterseite. Das ist der ganze Unterschied zwischen
+     einer Platte und einem Rechteck. */
+  c.strokeStyle = "rgba(255,255,255,.85)";
+  c.lineWidth = Math.max(0.6, (quer ? h : w) * 0.06);
+  c.beginPath();
+  if (quer) { c.moveTo(x, y); c.lineTo(x + w, y); }
+  else      { c.moveTo(x, y); c.lineTo(x, y + h); }
+  c.stroke();
+  c.strokeStyle = "rgba(12,16,22,.75)";
+  c.lineWidth = Math.max(0.5, (quer ? h : w) * 0.05);
+  c.beginPath();
+  if (quer) { c.moveTo(x, y + h); c.lineTo(x + w, y + h); }
+  else      { c.moveTo(x + w, y); c.lineTo(x + w, y + h); }
+  c.stroke();
+  c.strokeStyle = "rgba(190,200,210,.45)";
+  c.lineWidth = 0.5;
   c.strokeRect(x, y, w, h);
 }
 
@@ -2214,6 +2341,12 @@ function stationStatisch(c, R, fenster, plaetze) {
 
       for (const oben of [-1, 1]) {
         c.save();
+        /* Tiefenstaffelung. Im Vakuum gibt es keine Luftperspektive,
+           also kann Tiefe nicht ueber Dunst entstehen — sie entsteht
+           ueber Kontrast und Kantenschaerfe. Der Fluegel, der vom
+           Betrachter weg zeigt, bekommt deshalb etwas weniger davon
+           als der, der auf ihn zu laeuft. */
+        if (oben < 0) c.globalAlpha = 0.86;
         c.translate(wurzel, oben * trh * 0.4);
         /* Um 90 Grad gedreht: der Fluegel laeuft vom Traeger weg,
            nicht an ihm entlang. */
@@ -2295,6 +2428,20 @@ function stationStatisch(c, R, fenster, plaetze) {
       c.restore();
     }
   }
+  /* Der Modulstapel wirft einen Schatten auf den Traeger. Ein harter
+     Schatten ist im Vakuum die Regel: die Sonne misst nur ein halbes
+     Grad, der Halbschatten ist damit weniger als ein Prozent des
+     Abstands breit. Genau dieser harte Streifen sagt dem Auge, dass
+     das eine Bauteil VOR dem anderen liegt. */
+  c.save();
+  c.translate(R * 0.3, R * 0.22);
+  c.rotate(0.72);
+  c.fillStyle = "rgba(6,8,12,.5)";
+  c.beginPath();
+  c.ellipse(0, 0, R * 1.5, R * 0.3, 0, 0, Math.PI * 2);
+  c.fill();
+  c.restore();
+
   c.restore();  /* Traegerdrehung zurueck */
 
   /* ---------- Druckmodule: der bewohnte Teil ----------
@@ -2585,6 +2732,28 @@ function zeichneStation(t, cxp, cyp, R) {
    Feine Teile werden erst ab einer gewissen Groesse gezeichnet. Bei
    zwoelf Pixeln waere ein Schalterfeld nur noch Rauschen, und es kostet
    trotzdem Rechenzeit. */
+/* Ein Glied ist eine Roehre, kein Strich. Canvas kann einen Strich
+   nicht quer zu seiner Richtung schattieren, also legen wir drei
+   uebereinander: den dunklen Umriss, darauf den Koerper, und darauf
+   ein schmales Glanzband, das zum Licht hin versetzt ist. Drei
+   Striche sind billiger als jede andere Loesung und lesen sich sofort
+   als Woelbung. */
+function roehre(c, punkte, d, koerper, glanz, umriss) {
+  const zieh = (breite, dx, dy, farbe) => {
+    c.strokeStyle = farbe; c.lineWidth = breite;
+    c.beginPath();
+    for (let i = 0; i < punkte.length; i += 2) {
+      i ? c.lineTo(punkte[i] + dx, punkte[i + 1] + dy)
+        : c.moveTo(punkte[i] + dx, punkte[i + 1] + dy);
+    }
+    c.stroke();
+  };
+  c.lineCap = "round"; c.lineJoin = "round";
+  zieh(d * 1.2, 0, 0, umriss);
+  zieh(d, 0, 0, koerper);
+  zieh(d * 0.42, -d * 0.19, -d * 0.2, glanz);
+}
+
 function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltung) {
   const ruhig = sparsam;
   const wippen = ruhig ? 0 : Math.sin(t * 0.0022 + phase) * 0.12;
@@ -2678,15 +2847,16 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
     const ky = hueftY + H * 0.2;
     const fx = raste ? kx : kx - sd * H * 0.015 + sw * H * 0.1;
     const fy = sohle - H * 0.035;
-    cx.lineCap = "round"; cx.lineJoin = "round";
-    cx.strokeStyle = "rgba(26,27,30,.7)"; cx.lineWidth = beinD * 1.18;
-    cx.beginPath(); cx.moveTo(hx, hy); cx.lineTo(kx, ky); cx.lineTo(fx, fy); cx.stroke();
-    cx.strokeStyle = WEISS; cx.lineWidth = beinD;
-    cx.beginPath(); cx.moveTo(hx, hy); cx.lineTo(kx, ky); cx.lineTo(fx, fy); cx.stroke();
-    /* Unterseite im Schatten — eine Roehre, keine flache Linie */
-    cx.strokeStyle = "rgba(24,24,22,.34)"; cx.lineWidth = beinD * 0.3;
+    roehre(cx, [hx, hy, kx, ky, fx, fy], beinD,
+      WEISS, tf("#ffffff", "#5c7794"), "rgba(22,23,26,.72)");
+    /* Die abgewandte Seite im Schatten, damit die Roehre eine Richtung
+       bekommt und nicht nur eine Woelbung */
+    cx.strokeStyle = tf("rgba(24,24,22,.34)", "rgba(40,62,92,.4)");
+    cx.lineWidth = beinD * 0.26;
     cx.beginPath();
-    cx.moveTo(hx + beinD * 0.26, hy); cx.lineTo(kx + beinD * 0.26, ky); cx.lineTo(fx + beinD * 0.26, fy);
+    cx.moveTo(hx + beinD * 0.3, hy + beinD * 0.1);
+    cx.lineTo(kx + beinD * 0.3, ky + beinD * 0.1);
+    cx.lineTo(fx + beinD * 0.3, fy + beinD * 0.1);
     cx.stroke();
     if (mittel) {
       /* Konvoluten: Balgfalten an Huefte, Knie und Knoechel. Weich
@@ -2795,6 +2965,19 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
      der Figur rund ist — das ist sein Erkennungsmerkmal. */
   cx.strokeStyle = "rgba(30,30,28,.6)"; cx.lineWidth = Math.max(0.35, H * 0.006);
   cx.beginPath(); cx.moveTo(pm - pb, po + H * 0.02); cx.lineTo(pm - pb, pu - H * 0.02); cx.stroke();
+
+  /* Die Deckflaeche des Kastens. Sie liegt flacher zum Licht und ist
+     deshalb heller als die Vorderseite — daran liest man, dass es ein
+     Kasten ist und keine Platte. */
+  cx.fillStyle = tf("#fbfaf4", "#3a4c66");
+  cx.beginPath();
+  cx.moveTo(pm - pb, po + H * 0.012);
+  cx.lineTo(pm + pb, po + H * 0.012);
+  cx.lineTo(pm + pb - H * 0.016, po - H * 0.014);
+  cx.lineTo(pm - pb + H * 0.016, po - H * 0.014);
+  cx.closePath(); cx.fill();
+  cx.strokeStyle = "rgba(36,36,32,.45)"; cx.lineWidth = Math.max(0.3, H * 0.005);
+  cx.stroke();
   if (mittel) {
     /* Waagerechte Fuge auf zwei Dritteln Hoehe */
     cx.strokeStyle = "rgba(48,48,44,.45)"; cx.lineWidth = Math.max(0.35, H * 0.007);
@@ -2817,15 +3000,17 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
      Tonnenfoermig, ohne Taille. Der Umriss ist das, was die Figur schon
      bei 25 Pixeln als Raumanzug lesbar macht. */
   const rh = hueftY - schuY;
-  cx.beginPath();
-  cx.moveTo(-schuB * 0.92, schuY + rh * 0.12);
-  cx.quadraticCurveTo(-schuB, schuY, -schuB * 0.58, schuY - rh * 0.05);
-  cx.lineTo(schuB * 0.58, schuY - rh * 0.05);
-  cx.quadraticCurveTo(schuB, schuY, schuB * 0.92, schuY + rh * 0.12);
-  cx.quadraticCurveTo(schuB * 1.0, schuY + rh * 0.62, schuB * 0.7, hueftY);
-  cx.lineTo(-schuB * 0.7, hueftY);
-  cx.quadraticCurveTo(-schuB * 1.0, schuY + rh * 0.62, -schuB * 0.92, schuY + rh * 0.12);
-  cx.closePath();
+  /* Der Rumpf wird als eigener Pfad gemerkt: spaeter fallen die
+     Schatten der Arme darauf, und die duerfen nicht daneben landen. */
+  const rumpf = new Path2D();
+  rumpf.moveTo(-schuB * 0.92, schuY + rh * 0.12);
+  rumpf.quadraticCurveTo(-schuB, schuY, -schuB * 0.58, schuY - rh * 0.05);
+  rumpf.lineTo(schuB * 0.58, schuY - rh * 0.05);
+  rumpf.quadraticCurveTo(schuB, schuY, schuB * 0.92, schuY + rh * 0.12);
+  rumpf.quadraticCurveTo(schuB * 1.0, schuY + rh * 0.62, schuB * 0.7, hueftY);
+  rumpf.lineTo(-schuB * 0.7, hueftY);
+  rumpf.quadraticCurveTo(-schuB * 1.0, schuY + rh * 0.62, -schuB * 0.92, schuY + rh * 0.12);
+  rumpf.closePath();
   const tg = cx.createLinearGradient(-schuB, schuY, schuB * 0.7, hueftY);
   tg.addColorStop(0, HELL);
   tg.addColorStop(0.3, WEISS);
@@ -2833,7 +3018,20 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
   tg.addColorStop(0.9, tf("#1b1c1f", "#0b0f18"));
   tg.addColorStop(1, tf("#3f5772", "#2b4062"));
   cx.fillStyle = tg;
-  cx.fill();
+  cx.fill(rumpf);
+
+  /* Ein schmales Glanzband ueber der linken Woelbung. Es ist dasselbe
+     Mittel wie bei den Modulen: erst das schmale, sehr helle Band
+     macht aus einer Flaeche eine Woelbung. */
+  cx.save();
+  cx.clip(rumpf);
+  const gb = cx.createLinearGradient(-schuB, schuY, -schuB * 0.1, hueftY);
+  gb.addColorStop(0, "rgba(255,255,255,0)");
+  gb.addColorStop(0.42, tf("rgba(255,255,255,.55)", "rgba(150,186,230,.3)"));
+  gb.addColorStop(0.8, "rgba(255,255,255,0)");
+  cx.fillStyle = gb;
+  cx.fill(rumpf);
+  cx.restore();
 
   if (mittel) {
     /* Lagerringe an Schulter und Taille: hart und glaenzend, im
@@ -2933,14 +3131,32 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
     }
     /* Erst eine dunkle Kontur, dann die helle Roehre darauf: sonst
        verschwindet der weisse Arm im weissen Rumpf. */
-    cx.lineCap = "round"; cx.lineJoin = "round";
-    cx.strokeStyle = "rgba(26,27,30,.6)"; cx.lineWidth = armD * 1.2;
-    cx.beginPath(); cx.moveTo(sx, sy); cx.lineTo(ex, ey); cx.lineTo(hx, hy); cx.stroke();
-    cx.strokeStyle = WEISS; cx.lineWidth = armD;
-    cx.beginPath(); cx.moveTo(sx, sy); cx.lineTo(ex, ey); cx.lineTo(hx, hy); cx.stroke();
-    cx.strokeStyle = "rgba(24,24,22,.28)"; cx.lineWidth = armD * 0.3;
+    /* Der Arm wirft einen Schatten auf die Brust. Im Vakuum ist der
+       hart — der Halbschatten ist weniger als ein Prozent des
+       Abstands breit. Er faellt nur auf den Rumpf, deshalb wird auf
+       dessen Pfad beschnitten. */
+    if (mittel && TAGLICHT > 0.25) {
+      cx.save();
+      cx.clip(rumpf);
+      cx.strokeStyle = `rgba(14,16,20,${0.4 * TAGLICHT})`;
+      cx.lineWidth = armD * 1.05;
+      cx.lineCap = "round"; cx.lineJoin = "round";
+      cx.beginPath();
+      cx.moveTo(sx + armD * 0.42, sy + armD * 0.46);
+      cx.lineTo(ex + armD * 0.42, ey + armD * 0.46);
+      cx.lineTo(hx + armD * 0.42, hy + armD * 0.46);
+      cx.stroke();
+      cx.restore();
+    }
+
+    roehre(cx, [sx, sy, ex, ey, hx, hy], armD,
+      WEISS, tf("#ffffff", "#5c7794"), "rgba(22,23,26,.62)");
+    cx.strokeStyle = tf("rgba(24,24,22,.3)", "rgba(40,62,92,.36)");
+    cx.lineWidth = armD * 0.26;
     cx.beginPath();
-    cx.moveTo(sx + armD * 0.26, sy); cx.lineTo(ex + armD * 0.26, ey); cx.lineTo(hx + armD * 0.26, hy);
+    cx.moveTo(sx + armD * 0.3, sy + armD * 0.1);
+    cx.lineTo(ex + armD * 0.3, ey + armD * 0.1);
+    cx.lineTo(hx + armD * 0.3, hy + armD * 0.1);
     cx.stroke();
     if (mittel) {
       /* Balgfalten am Ellbogen */
