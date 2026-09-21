@@ -1489,7 +1489,12 @@ function sonnenlauf(c, x, y, w, h, hell, mitte, dunkel) {
   const g = c.createLinearGradient(
     x + w / 2 - SONNE.x * w * 0.6, y + h / 2 - SONNE.y * h * 0.6,
     x + w / 2 + SONNE.x * w * 0.6, y + h / 2 + SONNE.y * h * 0.6);
-  g.addColorStop(0, hell); g.addColorStop(0.52, mitte); g.addColorStop(1, dunkel);
+  g.addColorStop(0, hell);
+  g.addColorStop(0.5, mitte);
+  g.addColorStop(0.86, dunkel);
+  /* Die letzte Kante faengt wieder Licht — von der Erde, nicht von der
+     Sonne. Deshalb ist sie blau und nicht schwarz. */
+  g.addColorStop(1, `rgba(${ERDSCHEIN},.55)`);
   return g;
 }
 
@@ -1523,14 +1528,33 @@ function folie(c, x, y, w, h, r, saat) {
    staerkste Groessenzeichen ueberhaupt — ein Handlauf ist immer so
    lang wie ein Unterarm, also weiss das Auge sofort, wie gross der
    Rest ist. Deshalb sitzen sie ueberall. */
-function handlauf(c, x1, y1, x2, y2, d) {
+function handlauf(c, x1, y1, x2, y2, d, auf) {
+  const n = auf || -1;
+  /* Fuesse: der Buegel liegt nicht auf der Wand, sondern steht ab —
+     gerade so weit, dass eine Faust im Handschuh dazwischenpasst. Der
+     Spalt ist schmaler als der Buegel dick ist; breiter gezeichnet
+     sieht es nach Treppengelaender aus. */
+  if (d > 0.9) {
+    c.strokeStyle = "rgba(120,98,34,.8)";
+    c.lineWidth = d * 0.55;
+    c.beginPath();
+    c.moveTo(x1 + d * 0.4, y1 - n * d * 1.1); c.lineTo(x1 + d * 0.4, y1);
+    c.moveTo(x2 - d * 0.4, y2 - n * d * 1.1); c.lineTo(x2 - d * 0.4, y2);
+    c.stroke();
+  }
+  const oy = n * d * 1.1;
   c.lineCap = "round";
-  c.strokeStyle = "rgba(60,46,10,.75)";
-  c.lineWidth = d * 1.7;
-  c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
-  c.strokeStyle = "rgba(186,152,62,.8)";
+  c.strokeStyle = "rgba(52,40,8,.8)";
+  c.lineWidth = d * 1.8;
+  c.beginPath(); c.moveTo(x1, y1 + oy); c.lineTo(x2, y2 + oy); c.stroke();
+  /* Gold oder Gelb ist keine Geschmacksfrage: die Griffe sind nach
+     Norm farblich abgesetzt, damit man sie im Anzug findet. */
+  c.strokeStyle = "rgba(198,162,66,.92)";
   c.lineWidth = d;
-  c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+  c.beginPath(); c.moveTo(x1, y1 + oy); c.lineTo(x2, y2 + oy); c.stroke();
+  c.strokeStyle = "rgba(255,232,150,.55)";
+  c.lineWidth = Math.max(0.3, d * 0.3);
+  c.beginPath(); c.moveTo(x1, y1 + oy - d * 0.3); c.lineTo(x2, y2 + oy - d * 0.3); c.stroke();
 }
 
 /* Weisses Druckmodul, laengs gesehen: ein Zylinder. Die Schattierung
@@ -1538,13 +1562,20 @@ function handlauf(c, x1, y1, x2, y2, d) {
    ein tiefer, fast schwarzer Gurt. */
 function modul(c, x, y, w, h, saat, opt) {
   const o = opt || {};
+  /* Zwei Lichtquellen, nicht eine. Oben die harte Sonne, unten die
+     Erde: sie fuellt 140 Grad des Himmels und wirft rund 30 Prozent
+     der Sonnenleistung zurueck, blau-weiss. Wer nur Sonne und Schwarz
+     malt, sieht sofort nach Rechenbild aus; wer das blaue Fuelllicht
+     dazugibt, sieht nach Fotografie aus. Dazwischen liegt der dunkelste
+     Gurt — dort trifft weder das eine noch das andere. */
   const g = c.createLinearGradient(0, y, 0, y + h);
   g.addColorStop(0, "#fdfdfa");
   g.addColorStop(0.18, "#eceade");
-  g.addColorStop(0.46, "#b9b6a8");
-  g.addColorStop(0.74, "#4a4b46");
-  g.addColorStop(0.92, "#16181c");
-  g.addColorStop(1, "#2c3d54");                 /* Erdschein-Saum */
+  g.addColorStop(0.44, "#b6b3a5");
+  g.addColorStop(0.66, "#4e4f4c");
+  g.addColorStop(0.8, "#23282f");
+  g.addColorStop(0.92, "#35485f");
+  g.addColorStop(1, "#4f6b8e");
   c.fillStyle = g;
   rundRect(c, x, y, w, h, h * 0.4);
   c.fill();
@@ -1561,16 +1592,68 @@ function modul(c, x, y, w, h, saat, opt) {
     c.beginPath(); c.ellipse(xx, y + h / 2, h * 0.09, h / 2, 0, 0, Math.PI * 2); c.stroke();
   }
 
-  /* Mikrometeoritenpanele: feines Rechteckraster auf der Lichtseite */
+  /* Steppmuster der Schutzdecken: Felder von rund einem Meter, also
+     0,47 Modulradien — laengs zusaetzlich um die Verkuerzung gestaucht.
+     Es ist das feinste durchgehende Raster am ganzen Bauwerk und
+     deshalb der genaueste Massstabshinweis, den ein Modul hat. */
   if (h > 9) {
-    c.strokeStyle = "rgba(120,116,104,.22)";
+    const fx = h * 0.2325 * 0.68, fy = h * 0.2325;
+    c.strokeStyle = "rgba(118,114,102,.22)";
     c.lineWidth = 0.4;
     c.beginPath();
-    for (let i = 1; i < schuesse * 3; i++) {
-      const xx = x + (w * i) / (schuesse * 3);
-      c.moveTo(xx, y + h * 0.06); c.lineTo(xx, y + h * 0.5);
+    for (let xx = x + fx; xx < x + w; xx += fx) {
+      c.moveTo(xx, y + h * 0.04); c.lineTo(xx, y + h * 0.72);
     }
-    c.moveTo(x, y + h * 0.28); c.lineTo(x + w, y + h * 0.28);
+    for (let yy = y + fy; yy < y + h * 0.78; yy += fy) {
+      c.moveTo(x, yy); c.lineTo(x + w, yy);
+    }
+    c.stroke();
+  }
+
+  /* Alterung: das Beta-Tuch vergilbt ueber Jahre messbar und wird
+     dabei leicht rotstichig, die weisse Beschichtung daneben bleibt
+     praktisch unveraendert. Genau dieser Unterschied zwischen zwei
+     Bauteilen nebeneinander ist das, woran das Auge "seit Jahren
+     draussen" erkennt — nicht gleichmaessiger Schmutz ueber allem. */
+  if (o.alt && h > 8) {
+    c.fillStyle = "rgba(188,150,96,.16)";
+    rundRect(c, x + w * 0.04, y + h * 0.05, w * 0.5, h * 0.66, h * 0.1);
+    c.fill();
+  }
+
+  /* Einschlaege: der Krater selbst ist kleiner als ein Bildpunkt, was
+     man sieht, ist der helle aufgeworfene Rand. */
+  if (h > 14) {
+    for (let i = 0; i < 5; i++) {
+      const ex = x + w * streu(i, saat, 5);
+      const ey = y + h * (0.08 + 0.6 * streu(i, saat, 11));
+      c.fillStyle = "rgba(255,252,240,.5)";
+      c.beginPath(); c.arc(ex, ey, Math.max(0.4, h * 0.012), 0, Math.PI * 2); c.fill();
+      c.fillStyle = "rgba(24,22,18,.6)";
+      c.beginPath(); c.arc(ex, ey, Math.max(0.2, h * 0.005), 0, Math.PI * 2); c.fill();
+    }
+  }
+
+  /* Kabellauf: mit Drahtbindern an den Handlaeufen festgezurrt. Nichts
+     an einer gebauten Station verlaeuft im Inneren allein — die
+     nachtraeglich verlegten Leitungen liegen offen aussen. */
+  if (h > 12) {
+    const ky = y + h * 0.33;
+    c.strokeStyle = "rgba(46,48,52,.6)";
+    c.lineWidth = Math.max(0.4, h * 0.013);
+    c.beginPath();
+    c.moveTo(x + w * 0.04, ky);
+    c.bezierCurveTo(x + w * 0.35, ky + h * 0.016, x + w * 0.65, ky - h * 0.012,
+                    x + w * 0.96, ky + h * 0.006);
+    c.stroke();
+    /* Drahtbinder in regelmaessigen Abstaenden */
+    c.strokeStyle = "rgba(168,164,152,.5)";
+    c.lineWidth = Math.max(0.3, h * 0.006);
+    c.beginPath();
+    for (let i = 1; i < 5; i++) {
+      const bx = x + w * (0.1 + 0.8 * i / 5);
+      c.moveTo(bx, ky - h * 0.018); c.lineTo(bx, ky + h * 0.018);
+    }
     c.stroke();
   }
 
@@ -1589,7 +1672,7 @@ function modul(c, x, y, w, h, saat, opt) {
       const yy = y + h * ry;
       for (let i = 0; i < n; i++) {
         const xa = x + w * 0.05 + (w * 0.9 * i) / n;
-        handlauf(c, xa, yy, xa + lang, yy, d);
+        handlauf(c, xa, yy, xa + lang, yy, d, ry < 0.5 ? -1 : 1);
       }
     }
   }
@@ -1613,7 +1696,8 @@ function modul(c, x, y, w, h, saat, opt) {
    braucht es hier keine Perspektivrechnung, nur eine Konstante. */
 function endkappe(c, x, y, r) {
   const g = c.createLinearGradient(x, y - r, x, y + r);
-  g.addColorStop(0, "#e8e6da"); g.addColorStop(0.55, "#7b7a70"); g.addColorStop(1, "#1a1c20");
+  g.addColorStop(0, "#e8e6da"); g.addColorStop(0.5, "#7b7a70");
+  g.addColorStop(0.85, "#1a1c20"); g.addColorStop(1, "#40566f");
   c.fillStyle = g;
   c.beginPath(); c.ellipse(x, y, r * 0.68, r, 0, 0, Math.PI * 2); c.fill();
   c.strokeStyle = "rgba(40,40,36,.6)"; c.lineWidth = Math.max(0.4, r * 0.06);
@@ -1654,7 +1738,7 @@ function gittertraeger(c, x1, x2, y, hoehe, saat, plaetze) {
     c.strokeStyle = s < 0 ? "rgba(237,239,241,.95)" : "rgba(160,168,176,.6)";
     c.lineWidth = Math.max(0.35, hoehe * 0.03);
     c.beginPath(); c.moveTo(x1, yy - hoehe * 0.03); c.lineTo(x2, yy - hoehe * 0.03); c.stroke();
-    c.strokeStyle = "rgba(20,24,28,.85)";
+    c.strokeStyle = s > 0 ? `rgba(${ERDSCHEIN},.6)` : "rgba(20,24,28,.85)";
     c.beginPath(); c.moveTo(x1, yy + hoehe * 0.035); c.lineTo(x2, yy + hoehe * 0.035); c.stroke();
   }
   /* Diagonalen */
@@ -1787,8 +1871,9 @@ function radiator(c, x, y, w, h, quer) {
     : c.createLinearGradient(0, y, 0, y + h);
   g.addColorStop(0, "#ffffff");
   g.addColorStop(0.42, "#f2f5f7");
-  g.addColorStop(0.78, "#9aa4ad");
-  g.addColorStop(1, "#2b333c");
+  g.addColorStop(0.72, "#9aa4ad");
+  g.addColorStop(0.9, "#2b333c");
+  g.addColorStop(1, "#46607f");                 /* Erdschein von unten */
   c.fillStyle = g;
   c.fillRect(x, y, w, h);
   /* Naehte im Ziehharmonika-Takt: acht Paneele */
@@ -1966,12 +2051,12 @@ function stationStatisch(c, R, fenster, plaetze) {
 
   /* ---------- Gittertraeger: das Rueckgrat ---------- */
   /* Alle Masse als Vielfache des Moduldurchmessers, und der ist
-     0,5 R. Der Traeger misst 94 m bei 4,3 m Moduldurchmesser, also
-     21,9 Moduldurchmesser — das ist der Grund, warum die Druckmodule
+     0,5 R. Der Traeger misst 108,5 m bei 4,3 m Moduldurchmesser, also
+     25,4 Moduldurchmesser — das ist der Grund, warum die Druckmodule
      auf jedem echten Bild nur ein kleiner Klumpen in der Mitte sind.
      Frueher war er halb so lang, und genau das liess die Station wie
      ein Modell aussehen. */
-  const tr = R * 5.46;                       // halbe Traegerlaenge
+  const tr = R * 6.34;                       // halbe Traegerlaenge
   const trh = R * 0.24;                      // Traegerhoehe (4,6 m)
   c.save();
   c.rotate(-0.045);                          // leicht schraeg, nie exakt waagerecht
@@ -2095,17 +2180,17 @@ function stationStatisch(c, R, fenster, plaetze) {
   c.rotate(0.72);                            // schraeg zum Traeger
   const md = R * 0.5;                         // Moduldurchmesser
   const stapel = [
-    { l: R * 1.15, rein: false },
-    { l: R * 0.78, rein: true  },
-    { l: R * 1.05, rein: false },
-    { l: R * 0.62, rein: true  },
+    { l: R * 1.15, rein: false, alt: true  },
+    { l: R * 0.78, rein: true,  alt: false },
+    { l: R * 1.05, rein: false, alt: true  },
+    { l: R * 0.62, rein: true,  alt: false },
   ];
   let pos = -R * 1.05;
   const knoten = [];
   for (let i = 0; i < stapel.length; i++) {
     const s = stapel[i];
     const l = s.l * stauch;
-    modul(c, pos, -md / 2, l, md, saat + i * 4, { rein: s.rein });
+    modul(c, pos, -md / 2, l, md, saat + i * 4, { rein: s.rein, alt: s.alt });
     /* Auf jedem Modul liegt oben und unten ein Handlauf — dort haengt
        sich ein Astronaut ein. */
     merkePlatz(c, plaetze, pos + l * 0.4, -md / 2, "handlauf", 0);
@@ -2555,8 +2640,9 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor) {
   const tg = cx.createLinearGradient(-schuB, schuY, schuB * 0.7, hueftY);
   tg.addColorStop(0, HELL);
   tg.addColorStop(0.34, WEISS);
-  tg.addColorStop(0.74, "#7b786f");
-  tg.addColorStop(1, "#1b1c1f");
+  tg.addColorStop(0.7, "#7b786f");
+  tg.addColorStop(0.9, "#1b1c1f");
+  tg.addColorStop(1, "#3f5772");                /* Erdschein von unten */
   cx.fillStyle = tg;
   cx.fill();
 
@@ -2743,8 +2829,9 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor) {
                                      0, helmY, helmR);
   hg.addColorStop(0, "#ffffff");
   hg.addColorStop(0.5, "#eceade");
-  hg.addColorStop(0.84, "#787569");
-  hg.addColorStop(1, "#1a1b1e");
+  hg.addColorStop(0.8, "#787569");
+  hg.addColorStop(0.93, "#1a1b1e");
+  hg.addColorStop(1, "#445d79");                /* Erdschein von unten */
   cx.fillStyle = hg;
   cx.beginPath(); cx.arc(0, helmY, helmR, 0, Math.PI * 2); cx.fill();
 
