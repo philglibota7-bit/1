@@ -542,6 +542,22 @@ body.sicht #blende-detail{
    dahinter liegt schraffiert die halbe Stunde Reserve. Man soll auf
    einen Blick sehen, WO auf dem Einsatz jemand steht, nicht nur wie
    lange er schon draussen ist. */
+/* --- Die zwei Seiten des Logs ---
+   Das Missions-Log sagt, was ein Agent geantwortet hat; das Bordbuch,
+   was an der Station geschehen ist. Zwei Erzaehlungen, ein Fenster. */
+.log-reiter{display:flex; gap:4px; padding:10px 16px 0; flex:0 0 auto;}
+.log-reiter button{flex:1 1 0; padding:7px 10px; border-radius:var(--r1);
+  background:var(--p2); border:1px solid var(--edge); color:var(--tx3);
+  font-size:11.5px; letter-spacing:.04em;}
+.log-reiter button.an{background:var(--p3); color:var(--tx); border-color:var(--edge2);}
+.buchzeile{display:flex; gap:10px; padding:7px 0; font-size:12.5px;
+  border-bottom:1px solid var(--edge); line-height:1.45;}
+.buchzeile:last-child{border-bottom:none;}
+.buchzeile b{color:var(--tx3); font-weight:500; font-variant-numeric:tabular-nums;
+  flex:0 0 auto; font-size:11.5px; padding-top:1px;}
+.buchzeile span{color:var(--tx2);}
+.buchzeile:first-child span{color:var(--tx);}
+
 .d-anzug{margin:3px 0 4px;}
 .d-uhr{position:relative; height:9px; border-radius:4px; overflow:hidden;
   background:rgba(255,255,255,.07); border:1px solid var(--edge);}
@@ -641,9 +657,9 @@ body.sicht #blende-detail{
 #vorschlaege .schalter{width:100%;}
 #vorschlaege .schalter:disabled{cursor:default;}
 /* Auf dem Handy frisst die Anzeige sonst drei Viertel des Schirms.
-   Also: flachere Uhr, engere Zeilen, und das Bordbuch faellt weg — es
-   steht vollstaendig im Log, und zweimal dasselbe ist auf einem
-   kleinen Schirm einmal zu viel. */
+   Also: flachere Uhr, engere Zeilen, und das Bordbuch faellt hier weg.
+   Es ist deshalb nicht verloren: es hat einen eigenen Reiter im Log,
+   und der zeigt alle vierzig Eintraege statt der fuenf juengsten. */
 @media (max-width:620px){
   #telemetrie{left:10px; top:64px; width:204px; font-size:11px;
     padding:10px 11px 9px; max-height:calc(100dvh - 206px);}
@@ -817,7 +833,12 @@ body.sicht #blende-detail{
     </button>
     <button class="zu" data-zu="blende-log">✕</button>
   </div>
+  <div class="log-reiter">
+    <button id="reiter-missionen" class="an">Missionen</button>
+    <button id="reiter-buch">Bordbuch</button>
+  </div>
   <div class="blende-inhalt" id="log-liste"></div>
+  <div class="blende-inhalt" id="log-buch" hidden></div>
 </div>
 
 <!-- ---------- Blende: Crew ---------- -->
@@ -3320,6 +3341,10 @@ function bordbuch(text) {
   if (letzter && letzter.text === text && Date.now() - letzter.zeit < 20000) return;
   BORDBUCH.unshift({ text, zeit: Date.now() });
   if (BORDBUCH.length > 40) BORDBUCH.length = 40;
+  /* Steht der Reiter offen, soll der Eintrag sofort dort stehen und
+     nicht erst beim naechsten Oeffnen. */
+  const b = document.getElementById("log-buch");
+  if (b && !b.hidden) zeichneBordbuch();
 }
 
 /* --- Kleine Ereignisse ----------------------------------------------
@@ -11442,7 +11467,52 @@ $("#b-speichern").onclick = () => {
   brueckeDurchlauf();
   blendeZu();
 };
-$("#btn-log").onclick  = () => blendeAuf("blende-log");
+$("#btn-log").onclick  = () => { zeichneBordbuch(); blendeAuf("blende-log"); };
+
+/* --- Die zwei Seiten des Logs ---------------------------------------
+   Das Bordbuch stand bisher nur in den Stationswerten, und auf dem
+   Handy fiel es dort ersatzlos weg — der Kommentar behauptete, es
+   stehe vollstaendig im Log, aber bordbuch() hat nie etwas ins Log
+   geschrieben. Damit waren Ankunft eines Frachters, Eintritt in den
+   Erdschatten, Einschlaege und seit neuestem auch Aus- und Einstieg
+   auf dem Handy unsichtbar.
+
+   Zusammenlegen waere falsch: das Log sagt, was ein Agent geantwortet
+   hat, das Bordbuch, was an der Station geschehen ist. Also zwei
+   Reiter in einem Fenster statt einer Liste aus zweierlei. */
+function logSeite(buch) {
+  $("#log-liste").hidden = buch;
+  $("#log-buch").hidden = !buch;
+  $("#reiter-missionen").classList.toggle("an", !buch);
+  $("#reiter-buch").classList.toggle("an", buch);
+  $("#blende-log").querySelector("h2").textContent = buch ? "Bordbuch" : "Missions-Log";
+  /* Sichern und Leeren gehoeren zum Missions-Log. Auf der anderen
+     Seite stuenden sie da und taeten etwas anderes, als sie sagen. */
+  for (const id of ["#log-sichern", "#log-leeren", "#log-summe"])
+    $(id).style.display = buch ? "none" : "";
+  if (buch) zeichneBordbuch();
+}
+$("#reiter-missionen").onclick = () => logSeite(false);
+$("#reiter-buch").onclick = () => logSeite(true);
+
+function zeichneBordbuch() {
+  const box = $("#log-buch");
+  if (!box) return;
+  box.textContent = "";
+  if (!BORDBUCH.length) {
+    box.innerHTML = '<div class="leer-hinweis"><span class="gross">🛰</span>'
+      + 'Noch nichts geschehen.<br>Hier steht, was an der Station passiert.</div>';
+    return;
+  }
+  for (const e of BORDBUCH) {
+    const z = document.createElement("div"); z.className = "buchzeile";
+    const u = document.createElement("b");
+    u.textContent = new Date(e.zeit).toLocaleTimeString("de-DE",
+      { hour: "2-digit", minute: "2-digit" });
+    const x = document.createElement("span"); x.textContent = e.text;
+    z.append(u, x); box.append(z);
+  }
+}
 $("#btn-neuer-agent").onclick = () => agentBearbeiten(null);
 $("#schleier").onclick = blendeZu;
 $$("[data-zu]").forEach(b => (b.onclick = blendeZu));
