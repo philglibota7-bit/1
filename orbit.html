@@ -1587,7 +1587,7 @@ function ersterAuftrag(roh) {
     if (/^\[Workflow harness — user request\]/.test(txt)) continue;
     const vorspann = txt.match(/^\[Workflow harness — computed task\][\s\S]*?follows:[ \t]*\n/);
     if (vorspann) txt = txt.slice(vorspann[0].length).replace(/^ {2}/gm, "");
-    if (txt.trim()) return txt.replace(/\s+/g, " ").trim().slice(0, 300);
+    if (txt.trim()) return anfang(txt, 300);
   }
   return "";
 }
@@ -1791,7 +1791,7 @@ async function protokollLesen(pfad, groesse, mt) {
        hinausgeht, liest sowieso niemand in einem Fenster von
        vierhundert Punkten Breite, und es wanderte sonst bei jedem
        Takt durch den Speicher. */
-    auftrag: auftrag ? auftrag.replace(/\s+/g, " ").trim().slice(0, 300) : "",
+    auftrag: auftrag ? anfang(auftrag, 300) : "",
     antwort: antwortKurz(bericht || antwort),
     fertigeAgenten: [...fertigeAgenten],
     schritte: schritte.slice(0, 8),
@@ -12018,7 +12018,8 @@ function vorZeit(ms) {
   if (s < 60) return "vor " + s + " Sek.";
   if (s < 3600) return "vor " + Math.round(s / 60) + " Min.";
   if (s < 86400) return "vor " + Math.round(s / 3600) + " Std.";
-  return "vor " + Math.round(s / 86400) + " Tagen";
+  const tage = Math.round(s / 86400);
+  return tage === 1 ? "vor einem Tag" : "vor " + tage + " Tagen";
 }
 
 function uhr(ms) {
@@ -12319,7 +12320,11 @@ function zeichneDetail(id) {
   marke.className = "d-marke " + (a.zustand === "fehler" ? "schlecht"
                                 : a.zustand === "winkt" ? "wartet"
                                 : a.zustand === "sendet" ? "gut" : "");
-  marke.textContent = TYP_NAME[a.typ] + " · " + (BESCHRIFTUNG[a.zustand] || a.zustand);
+  /* Wer berichtet hat oder abgebrochen wurde, sagt das auch hier oben —
+     nach fuenf Minuten ist er in der Szene "ruht", und darunter stand
+     dann "fertig", daneben "ruht". */
+  marke.textContent = TYP_NAME[a.typ] + " · " + (a.fehlerText && a.typ === "unteragent" ? "abgebrochen"
+    : a.berichtet ? "hat berichtet" : (BESCHRIFTUNG[a.zustand] || a.zustand));
   box.appendChild(zeile("Art", marke));
 
   if (a.typ === "agent") {
