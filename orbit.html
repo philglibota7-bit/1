@@ -10995,6 +10995,47 @@ function erdeSchatten(termX, tags, lauf) {
   c.fillRect(0, 0, bw, bh);
   c.restore();
 
+  /* --- Wolken im Mondlicht --------------------------------------------
+     Die Nachtseite war bis auf die Staedte schwarz. So sieht sie nur bei
+     Neumond aus. Steht der Mond, liegen die Wolken unten grau-blau im
+     Licht — auf den Nachtbildern von der Station erkennt man bei
+     Vollmond jede Front. Der Boden darunter bleibt fast dunkel, denn
+     Wolken werfen viel mehr zurueck als Meer oder Wald.
+
+     Wie hell, haengt an der Phase, und zwar stark: der Halbmond
+     beleuchtet halb so viel Flaeche wie der Vollmond, ist aber nur ein
+     Zehntel so hell, weil die Schatten auf seiner Oberflaeche lang
+     werden. Daher die hohe Potenz.
+
+     Gebraucht wird dafuer das Bild der Wolkendecke, das auch die
+     Gewitter ausleuchten, und als Maske derselbe Verlauf wie am
+     Tagesrand: je tiefer die Nacht, desto mehr Mondlicht ist zu sehen,
+     und auf der Tagseite gar keins. */
+  const mond = ERDE.wolkenLicht ? 0.3 * Math.pow(mondBeleuchtet(), 2.5) : 0;
+  if (mond > 0.012) {
+    const z = ERDE.mondZettel || (ERDE.mondZettel = document.createElement("canvas"));
+    if (z.width !== bw || z.height !== bh) { z.width = bw; z.height = bh; }
+    const g = z.getContext("2d");
+    g.globalCompositeOperation = "source-over";
+    g.clearRect(0, 0, bw, bh);
+    g.drawImage(ERDE.wolkenLicht, -schub, 0, bw, bh);
+    g.drawImage(ERDE.wolkenLicht, bw - schub, 0, bw, bh);
+    g.globalCompositeOperation = "destination-in";
+    g.fillStyle = sg;
+    g.fillRect(0, 0, bw, bh);
+    g.globalCompositeOperation = "source-over";
+    const mE = erdeMasse();
+    c.save();
+    c.beginPath();
+    c.arc((mE.cx + vorrat) * sk, (mE.cy - ERDE.oben) * sk, mE.r * sk, 0, Math.PI * 2);
+    c.clip();
+    c.globalCompositeOperation = "lighter";
+    c.globalAlpha = mond;
+    c.drawImage(z, 0, 0);
+    c.restore();
+  }
+  ERDE.mondLicht = mond;
+
   /* --- Stadtlichter ---------------------------------------------------
      Sie kommen ZULETZT, nach dem Daemmerungsverlauf. Vorher lagen sie
      darunter, und der Verlauf deckt in tiefer Nacht
@@ -11760,6 +11801,12 @@ function himmelsWinkel(phase, versatz) {
   if (th > 0.5) th -= 1;
   if (th < -0.5) th += 1;
   return th * Math.PI * 2;
+}
+
+/* Der beleuchtete Anteil des Mondes: null bei Neumond, eins bei Vollmond */
+function mondBeleuchtet() {
+  const elong = ((MOND.elong0 + MISSION.simSek / 86400 * 12.19) % 360 + 360) % 360;
+  return (1 - Math.cos(elong * Math.PI / 180)) / 2;
 }
 
 function mondStand(phase) {
@@ -16107,7 +16154,8 @@ const HILFE = [
       + "meisten kurz nach Sonnenuntergang über Land, so wie in echt. Selten steht über einem "
       + "starken Gewitter am Horizont für einen Augenblick ein roter Kobold, eine Entladung nach oben "
       + "bis fast in die Leuchtschicht. Sternschnuppen sieht man von hier oben unter sich, über der "
-      + "dunklen Erde.",
+      + "dunklen Erde. Steht der Mond voll, liegen nachts die Wolken grau im Licht; bei Neumond ist "
+      + "die Nachtseite bis auf die Städte schwarz.",
   },
   {
     titel: "Der Lebenserhalt",
