@@ -3679,25 +3679,89 @@ function satellitenTakt(t, dt) {
   }
 }
 
-function zeichneSternschnuppe(t, dt) {
-  if (sparsam) return;
-  if (!sternschnuppe && Math.random() < dt * 0.00009) {
-    sternschnuppe = {
-      x: Math.random() * W, y: Math.random() * H * 0.45,
-      vx: -0.26 - Math.random() * 0.2, vy: 0.12 + Math.random() * 0.1, leben: 1,
+/* --- Meteore -------------------------------------------------------
+   Eine Sternschnuppe verglueht in achtzig bis hundert Kilometern Hoehe,
+   also weit UNTER der Station. Von hier oben sieht man sie deshalb nie
+   am Sternhimmel, sondern unter sich: ueber die dunkle Erde ziehend
+   oder, nahe am Horizont, in der duennen Schicht, in der auch das
+   Nachthimmelsleuchten steht — dieselbe Hoehe. So zeigt es das bekannte
+   Bild einer Perseide, von der Station aus fotografiert: ein kurzer
+   gruener Strich ueber den Wolken.
+
+   Vorher zog sie durch das obere Bilddrittel, mitten durch die Sterne,
+   und auch bei Tag. Der Kommentar an der Aufrufstelle sagte schon das
+   Richtige; gezeichnet wurde etwas anderes.
+
+   Gruen ist sie, weil der Sauerstoff, den der Meteor im Vorbeiflug
+   anregt, bei 557,7 Nanometern leuchtet — dieselbe Linie wie beim
+   Polarlicht. Der Kopf ist weisser, und manche enden in einem kurzen
+   Aufflackern, wenn der Rest des Koerpers auf einmal zerfaellt.
+
+   Nur nachts: gegen die sonnenbeschienene Erde sieht man keinen. */
+function meteorStarten() {
+  if (!ERDE.bild || ERDE.termX === null || TAGLICHT > 0.35) return null;
+  const m = erdeMasse();
+  const dx = ERDE.dx || 0, dy = ERDE.dy || 0;
+  const kmx = m.cx + dx, kmy = m.cy + dy;
+  const unten = Math.min(H, (bedienRand().unten || H)) - 8;
+  const rand = ERDE.termX + dx, kante = W * 0.14;
+  for (let versuch = 0; versuch < 6; versuch++) {
+    const x = W * (0.06 + Math.random() * 0.88);
+    /* Nur ueber der Nachtseite, mit Abstand zum Tagesrand */
+    if (ERDE.tags ? x < rand + kante : x > rand - kante) continue;
+    const ddx = x - kmx;
+    if (Math.abs(ddx) > m.r) continue;
+    /* Kante der Scheibe an dieser Stelle, und darueber die Schicht, in
+       der die Meteore vergluehen — gut ein Prozent des Radius */
+    const kanteY = kmy - Math.sqrt(m.r * m.r - ddx * ddx);
+    const schicht = m.r * 0.012;
+    const y = kanteY - schicht * 0.8 + Math.pow(Math.random(), 1.6) * (unten - kanteY + schicht * 0.8);
+    if (y > unten) continue;
+    /* Am Rand sieht man streifend darauf — die Bahn wird flach */
+    const k = Math.min(1, Math.hypot(ddx, y - kmy) / m.r);
+    const quetsch = klemm(Math.sqrt(Math.max(0, 1 - k * k)) * 1.7, 0.18, 0.85);
+    const w = Math.random() * Math.PI * 2;
+    const tempo = 0.08 + Math.random() * 0.09;          // Bildpunkte je Millisekunde
+    return {
+      x, y, vx: Math.cos(w) * tempo, vy: Math.sin(w) * tempo * quetsch,
+      leben: 1, dauer: 380 + Math.random() * 520,
+      flacker: Math.random() < 0.3, hell: 0.55 + Math.random() * 0.45,
     };
   }
+  return null;
+}
+
+function zeichneSternschnuppe(t, dt) {
+  if (sparsam) return;
+  if (!sternschnuppe && ZEIT.rate > 0 && Math.random() < dt * 0.00004) sternschnuppe = meteorStarten();
   if (!sternschnuppe) return;
   const s = sternschnuppe;
-  s.x += s.vx * dt; s.y += s.vy * dt; s.leben -= dt * 0.0007;
+  s.x += s.vx * dt; s.y += s.vy * dt; s.leben -= dt / s.dauer;
   if (s.leben <= 0) { sternschnuppe = null; return; }
-  const l = 90;
-  const g = cx.createLinearGradient(s.x, s.y, s.x - s.vx * l, s.y - s.vy * l);
-  g.addColorStop(0, `rgba(220,235,255,${0.75 * s.leben})`);
-  g.addColorStop(1, "rgba(220,235,255,0)");
-  cx.strokeStyle = g; cx.lineWidth = 1.5; cx.lineCap = "round";
-  cx.beginPath(); cx.moveTo(s.x, s.y);
-  cx.lineTo(s.x - s.vx * l, s.y - s.vy * l); cx.stroke();
+  /* Hell auf, dann langsam ab — ein Meteor wird heller, je tiefer er in
+     die Luft kommt, und erlischt, wenn nichts mehr uebrig ist. Mit
+     Flackern ein kurzes Aufleuchten kurz vor dem Ende. */
+  const u = 1 - s.leben;
+  let a = Math.min(1, u * 5) * Math.min(1, s.leben * 3) * s.hell;
+  if (s.flacker && u > 0.72 && u < 0.84) a = Math.min(1, a * 1.9);
+  const l = 150;                                     // Schweiflaenge in Millisekunden Flug
+  const ex = s.x - s.vx * l, ey = s.y - s.vy * l;
+  cx.save();
+  cx.globalCompositeOperation = "lighter";
+  cx.lineCap = "round";
+  const g = cx.createLinearGradient(s.x, s.y, ex, ey);
+  g.addColorStop(0, `rgba(214,255,226,${0.85 * a})`);
+  g.addColorStop(0.3, `rgba(120,236,160,${0.5 * a})`);
+  g.addColorStop(1, "rgba(90,200,140,0)");
+  cx.strokeStyle = g; cx.lineWidth = 1.4;
+  cx.beginPath(); cx.moveTo(s.x, s.y); cx.lineTo(ex, ey); cx.stroke();
+  /* Der Kopf */
+  const kg = cx.createRadialGradient(s.x, s.y, 0, s.x, s.y, 3.2);
+  kg.addColorStop(0, `rgba(246,255,248,${a})`);
+  kg.addColorStop(1, "rgba(160,240,190,0)");
+  cx.fillStyle = kg;
+  cx.beginPath(); cx.arc(s.x, s.y, 3.2, 0, Math.PI * 2); cx.fill();
+  cx.restore();
 }
 
 /* --- Bauteil-Helfer -------------------------------------------------
@@ -16518,6 +16582,7 @@ window.__BUCH = () => BORDBUCH;
 window.__LOGPUSH = (e) => { Z.log.unshift(e); zeichneLog(); };
 window.__PHASE = (ph) => { PHASE_TEST = ph; };
 window.__GEWITTER = () => GEWITTER;
+window.__METEOR = () => { sternschnuppe = meteorStarten(); return sternschnuppe; };
 window.__CREWPULS = () => ({ ereignisse: CREWPULS.length, letzt: PULS_LETZT, ort: PULS_ORT });
 window.__BLITZ = () => {
   const oben = erdeMasse().oben, unten = bedienRand().unten;
