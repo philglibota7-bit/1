@@ -259,6 +259,29 @@ footer{
 .agent-karte .rolle{font-size:12.5px; color:var(--tx2); line-height:1.45;
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
 .agent-karte .meta{font-size:11px; color:var(--tx3); margin-top:7px; letter-spacing:.02em;}
+/* --- Die Live-Crew in der Crew-Liste ---
+   Dieselbe Karte, nur flacher und anklickbar: hier steht kein Agent,
+   den man bearbeiten koennte, sondern eine laufende Arbeit, zu der man
+   hinfahren will. */
+.live-karte{border:1px solid var(--edge); border-radius:var(--r1); background:var(--p1);
+  padding:10px 12px; margin-bottom:8px; width:100%; text-align:left; display:block;
+  transition:all .2s var(--ease);}
+.live-karte:hover{background:var(--p2); border-color:var(--edge2);}
+.live-karte .zeile1{display:flex; align-items:baseline; gap:9px;}
+.live-karte .kugel{width:9px; height:9px; border-radius:50%; flex:0 0 auto;
+  align-self:center; box-shadow:0 0 8px currentColor;}
+.live-karte .name{font-weight:600; font-size:13px; margin-right:auto;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.live-karte .uhr{font-size:11px; color:var(--tx3); flex:0 0 auto;
+  font-variant-numeric:tabular-nums;}
+.live-karte .uhr.eng{color:#e0a24e;}
+.live-karte .uhr.leer{color:var(--bad);}
+.live-karte .tut{font-size:11.5px; color:var(--tx2); margin-top:4px; line-height:1.4;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.live-karte .wo{font-size:10.5px; color:var(--tx3); margin-top:3px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+
 .mini{width:28px; height:28px; border-radius:7px; background:var(--p2); color:var(--tx3);
   display:flex; align-items:center; justify-content:center; flex:0 0 auto; transition:all .2s var(--ease);}
 .mini:hover{background:var(--p3); color:var(--tx);}
@@ -1626,6 +1649,9 @@ function liveNeuBauen() {
     Z.bruecke.typen.github  ? bruecke_github   : [],
   );
   zeichneCrewLeiste();
+  /* Steht die Crew-Liste offen, gehoert der neue Stand sofort hinein */
+  if (document.getElementById("blende-crew")?.classList.contains("offen"))
+    zeichneCrewListe();
   if (BR.live.map(x => x.id).join("|") !== vorher) aufraeumenSicht();
   if (offeneDetailId) zeichneDetail(offeneDetailId);
 }
@@ -10648,6 +10674,62 @@ function zeichneCrewListe() {
     k.append(z1, ro, me);
     box.appendChild(k);
   }
+
+  /* --- Und dann alle anderen ----------------------------------------
+     Die Liste hiess "Crew" und zeigte nur die selbst angelegten
+     Agenten. Alles, was wirklich laeuft — Sitzungen, Ordner, Prozesse,
+     Repos —, stand nirgends zusammen: man musste jede Figur einzeln in
+     der Szene finden und antippen. Fuer "was ist gerade alles im Gang?"
+     war das der falsche Weg herum.
+
+     Hier steht jetzt beides untereinander, und jede Zeile faehrt beim
+     Antippen zu ihrer Figur. Die Dauer rechts ist dieselbe Anzuguhr wie
+     im Detailfenster — sie faerbt sich, wenn jemand in die Reserve
+     laeuft, und das ist die Zeile, die man in einer langen Liste
+     zuerst sehen will. */
+  const live = (BR.live || []).concat(heimkehrer());
+  if (live.length) {
+    const t = document.createElement("div");
+    t.className = "d-abschnitt"; t.style.marginTop = "4px";
+    t.textContent = "Aus deiner Arbeit";
+    box.appendChild(t);
+  }
+  for (const a of live) {
+    const k = document.createElement("button");
+    k.className = "live-karte";
+    const z1 = document.createElement("div"); z1.className = "zeile1";
+    const kug = document.createElement("span");
+    kug.className = "kugel";
+    kug.style.color = a.farbe; kug.style.background = a.farbe;
+    const nm = document.createElement("span"); nm.className = "name";
+    nm.textContent = (TYP_ZEICHEN[a.typ] || "") + " " + a.name;
+    z1.append(kug, nm);
+    const drin = draussenSeit(a);
+    if (drin) {
+      const u = document.createElement("span");
+      const st = anzugStand(a);
+      u.className = "uhr" + (st >= 2 ? " leer" : st >= 1 ? " eng" : "");
+      u.textContent = dauer(drin);
+      z1.appendChild(u);
+    }
+    k.appendChild(z1);
+    const tut = document.createElement("div"); tut.className = "tut";
+    tut.textContent = a.heimwaerts ? "auf dem Rückweg zur Schleuse"
+      : (a.taetigkeit || BESCHRIFTUNG[a.zustand] || "");
+    if (tut.textContent) k.appendChild(tut);
+    if (a.branch || a.ort) {
+      const wo = document.createElement("div"); wo.className = "wo";
+      wo.textContent = a.branch || a.ort;
+      k.appendChild(wo);
+    }
+    k.onclick = () => {
+      blendeZu();
+      detailOeffnen(a.id);
+      if (SICHT.has(a.id)) fahreZu(a.id, Math.max(2.4, KAM.zielZoom));
+    };
+    box.appendChild(k);
+  }
+
   zeichneVorschlaege();
 
   /* Hinweis, solange kein Schluessel hinterlegt ist */
