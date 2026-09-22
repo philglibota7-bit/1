@@ -1900,15 +1900,17 @@ async function sessionLesen(k, elternName) {
    raten, ob gerade gearbeitet wird oder auf eine Eingabe gewartet.
    Eine Aufgabenliste gibt es in dieser Fassung nicht — der Ordner
    ~/.claude/todos existiert schlicht nicht, nachgesehen und bestaetigt. */
-async function sammleSitzungsregister() {
+async function sammleSitzungsregister(ohnePs) {
   const basis = BR.heim + "/.claude/sessions";
   let dateien;
   try { dateien = await Neutralino.filesystem.readDirectory(basis); }
   catch { return {}; }
 
   /* Tote Eintraege aussortieren: die Datei bleibt liegen, wenn ein
-     Prozess abstuerzt. */
-  const lebende = new Set(
+     Prozess abstuerzt. Im Hintergrund nicht — dort laeuft kein ps, und
+     eine abgestuerzte Sitzung aendert ihren Eintrag nie wieder, kann
+     also auch keine Meldung ausloesen. */
+  const lebende = new Set(ohnePs ? [] :
     (await befehl("ps -Ao pid= 2>/dev/null")).split(/\s+/).filter(Boolean)
   );
 
@@ -2065,6 +2067,11 @@ async function sammleSessions() {
     if (REGISTER_ZUSTAND[r.status]) s.zustand = REGISTER_ZUSTAND[r.status];
     s.status = r.status;
     s.wartetAuf = r.waitingFor || "";
+    /* Seit wann in diesem Zustand — das Register fuehrt es mit
+       (statusUpdatedAt, Millisekunden; an einem echten nachgesehen).
+       Bei einer wartenden Sitzung ist das die zweite Frage nach
+       "worauf": seit wann schon? */
+    s.statusSeit = Number(r.statusUpdatedAt) || 0;
     s.version = r.version;
     s.art = r.kind;
     /* Nur ueberschreiben, wenn das Register wirklich etwas weiss —
@@ -2437,13 +2444,14 @@ async function hintergrundDurchlauf() {
   hintergrundUm = jetzt;
   BR.laeuft = true;
   try {
-    const register = await sammleSitzungsregister();
+    const register = await sammleSitzungsregister(true);
     for (const s of bruecke_sessions) {
       const r = s.sid && register[s.sid];
       if (!r) continue;
       if (REGISTER_ZUSTAND[r.status]) s.zustand = REGISTER_ZUSTAND[r.status];
       s.status = r.status;
       s.wartetAuf = r.waitingFor || "";
+      s.statusSeit = Number(r.statusUpdatedAt) || 0;
     }
   } catch (e) {
     BR.letzterFehler = String(e && e.message || e);
@@ -11925,6 +11933,7 @@ function zeichneCrewListe() {
     const tut = document.createElement("div"); tut.className = "tut";
     tut.textContent = a.heimwaerts ? "auf dem Rückweg zur Schleuse"
       : a.zustand === "winkt" ? (WARTET_TEXT[a.wartetAuf] || "wartet auf dich")
+          + (a.statusSeit && a.statusSeit < Date.now() ? " · seit " + luecke(Date.now() - a.statusSeit) : "")
       : (a.taetigkeit || BESCHRIFTUNG[a.zustand] || "");
     if (a.zustand === "winkt" && !a.heimwaerts) tut.style.color = "#e0a24e";
     if (tut.textContent) k.appendChild(tut);
@@ -12338,7 +12347,9 @@ function zeichneDetail(id) {
       const txt = a.status === "busy" ? "arbeitet gerade"
         : a.status === "waiting" ? (WARTET_TEXT[a.wartetAuf] || "wartet auf dich")
         : "untätig";
-      box.appendChild(zeile("Zustand", txt + "   (aus dem Sitzungsregister)"));
+      const seit = a.statusSeit && a.statusSeit < Date.now()
+        ? " — seit " + luecke(Date.now() - a.statusSeit) : "";
+      box.appendChild(zeile("Zustand", txt + seit + "   (aus dem Sitzungsregister)"));
     } else if (a.typ === "unteragent") {
       /* Ein Unteragent wartet nie auf dich — er berichtet an seine
          Sitzung. "Wartet vermutlich auf dich" waere hier schlicht
