@@ -5732,7 +5732,11 @@ function backeFerneSterne(breite, hoehe, thema) {
    Bildrand. Die ganze Kugel waere ein Vielfaches des Schirms gross und
    zu neun Zehnteln ausserhalb; sie ganz zu backen waere Speicher fuer
    nichts. */
-const ERDE = { bild: null, lichter: null, breite: 0, hoehe: 0, oben: 0, rand: 0 };
+const ERDE = { bild: null, lichter: null, maske: null, saum: null, ring: null,
+               breite: 0, hoehe: 0, oben: 0, rand: 0,
+               /* Wie weit der Boden schon vorbeigezogen ist, in
+                  Bildpunkten der fertigen Scheibe. */
+               schub: 0, schubGebacken: null, uhr: 0 };
 
 function erdeMasse() {
   /* Im Hochformat ist der Schirm schmal und hoch: eine Kugel, deren
@@ -5765,6 +5769,19 @@ function erdeBacken() {
   lichter.width = bw; lichter.height = bh;
   const lc = lichter.getContext("2d");
 
+  /* Zwei weitere Bilder: die Scheibenform und der Luftschleier ueber
+     dem Rand. Beide bleiben stehen, waehrend die Oberflaeche darunter
+     vorbeizieht. */
+  const maske = document.createElement("canvas");
+  maske.width = bw; maske.height = bh;
+  const mdBild = maske.getContext("2d").createImageData(bw, bh);
+  const md = mdBild.data;
+  const saum = document.createElement("canvas");
+  saum.width = bw; saum.height = bh;
+  const saumCtx = saum.getContext("2d");
+  const sdBild = saumCtx.createImageData(bw, bh);
+  const sd = sdBild.data;
+
   const rr = m.r * fein, mx = m.cx * fein, my = (m.cy - oben) * fein;
 
   for (let y = 0; y < bh; y++) {
@@ -5776,8 +5793,14 @@ function erdeBacken() {
          Das Bild wird spaeter hochgezogen, und eine harte Kante trepp
          dabei sichtbar — ein weicher Saum von anderthalb Bildpunkten
          nicht. */
-      if (ab > rr + 1.5) { d[i + 3] = 0; continue; }
+      /* Die Scheibenform steckt NICHT mehr in diesem Bild. Sie kommt
+         als eigene Maske darueber, denn die Oberflaeche zieht vorbei
+         und die Scheibe bleibt stehen. Also wird das ganze Rechteck
+         gefuellt, auch was gerade ausserhalb liegt — beim Scrollen
+         wandert es hinein. */
       const kante2 = Math.max(0, Math.min(1, (rr + 0.5 - ab) / 1.5));
+      md[i] = 255; md[i + 1] = 255; md[i + 2] = 255;
+      md[i + 3] = Math.round(255 * kante2);
 
       /* Wie steil steht die Flaeche zum Betrachter? Am Rand der Scheibe
          blickt man streifend darauf, und dort wird die Luft dick —
@@ -5790,9 +5813,34 @@ function erdeBacken() {
          moeglich noch noetig — was man aus dem Orbit erkennt, sind
          Formen und Farben, keine Laender. */
       const sx = dx / rr * 2.6, sy = dy / rr * 2.6;
-      const h = fbm(sx * 1.7 + 12, sy * 1.7 + 30, 71, 5);
+      /* Der Boden zieht vorbei, und zwar endlos. Damit das geht, muss
+         die Textur sich fortsetzen: die Spalte ganz rechts muss zur
+         Spalte ganz links passen, sonst laeuft alle paar Sekunden eine
+         Naht durchs Bild.
+
+         Rauschen ist von sich aus nicht periodisch. Also wird im
+         letzten Fuenftel der Breite auf den Wert ueberblendet, den das
+         Rauschen eine ganze Breite weiter links hat — am rechten Rand
+         zu hundert Prozent. Damit stimmen beide Raender ueberein. Nur
+         ein Fuenftel der Spalten braucht die zweite Rechnung, das
+         kostet zwanzig Prozent statt hundert.
+
+         Die Mischzone ist etwas ruhiger als der Rest, weil dort zwei
+         unabhaengige Rauschfelder gemittelt werden. Bei Wolken und
+         Meer faellt das nicht auf; bei einer Landkarte waere es der
+         falsche Weg. */
+      const mu = x / bw;
+      const misch = mu > 0.8 ? (mu - 0.8) / 0.2 : 0;
+      const versatz = (bw / rr) * 2.6;        // eine Bildbreite im Rauschraum
+      const nahtlos = misch === 0
+        ? (skala, ax, ay, saat, tiefe) => fbm(sx * skala + ax, sy * skala + ay, saat, tiefe)
+        : (skala, ax, ay, saat, tiefe) =>
+            fbm(sx * skala + ax, sy * skala + ay, saat, tiefe) * (1 - misch)
+            + fbm((sx - versatz) * skala + ax, sy * skala + ay, saat, tiefe) * misch;
+
+      const h = nahtlos(1.7, 12, 30, 71, 5);
       const land = h > 0.52;
-      const trocken = fbm(sx * 3.1 - 8, sy * 3.1 + 5, 113, 3);
+      const trocken = nahtlos(3.1, -8, 5, 113, 3);
 
       let r, g, b;
       if (land) {
@@ -5809,8 +5857,8 @@ function erdeBacken() {
 
       /* Wolken: ein eigenes, weicheres Rauschen darueber. Sie liegen in
          Baendern, weil die Atmosphaere in Baendern stroemt. */
-      const band = 0.5 + 0.5 * Math.sin(sy * 5.2 + fbm(sx * 0.9, sy * 0.9, 211, 3) * 4);
-      const w = fbm(sx * 2.3 + 40, sy * 2.3 - 15, 157, 5) * (0.45 + 0.55 * band);
+      const band = 0.5 + 0.5 * Math.sin(sy * 5.2 + nahtlos(0.9, 0, 0, 211, 3) * 4);
+      const w = nahtlos(2.3, 40, -15, 157, 5) * (0.45 + 0.55 * band);
       const wolke = Math.max(0, (w - 0.42) / 0.58);
       if (wolke > 0) {
         const a = Math.min(1, wolke * 1.6);
@@ -5820,18 +5868,20 @@ function erdeBacken() {
       }
 
       /* Streifender Blick am Rand: die Atmosphaere legt sich als
-         blauer Schleier darueber und wird zur Kante hin dichter. */
+         blauer Schleier darueber und wird zur Kante hin dichter. Der
+         gehoert zur SCHEIBE, nicht zur Oberflaeche — er steht still,
+         waehrend der Boden darunter vorbeizieht. Also kommt er in ein
+         eigenes Bild. */
       const dunst = Math.pow(1 - steil, 2.2);
-      r = r * (1 - dunst) + 118 * dunst;
-      g = g * (1 - dunst) + 168 * dunst;
-      b = b * (1 - dunst) + 232 * dunst;
+      sd[i] = 118; sd[i + 1] = 168; sd[i + 2] = 232;
+      sd[i + 3] = Math.round(255 * dunst * kante2);
 
       /* Ein Hauch Rauschen gegen Streifenbildung. Weiche Verlaeufe
          ueber viele hundert Bildpunkte treffen sonst dieselbe
          gerundete Farbe in ganzen Baendern, und die sieht man. */
       const koern = (streu(x, y, 909) - 0.5) * 3.5;
       d[i] = r + koern; d[i + 1] = g + koern; d[i + 2] = b + koern;
-      d[i + 3] = 255 * kante2;
+      d[i + 3] = 255;
 
       /* Stadtlichter: nur an Land, nur nahe der Kueste, und nie
          gleichmaessig. Sie werden getrennt gemerkt und spaeter nur auf
@@ -5843,25 +5893,33 @@ function erdeBacken() {
     }
   }
   c.putImageData(bd, 0, 0);
+  maske.getContext("2d").putImageData(mdBild, 0, 0);
+  saumCtx.putImageData(sdBild, 0, 0);
 
   /* Der Lufthauch ueber der Kante wird mitgebacken. Live gezeichnet
      waere er ein Farbverlauf ueber einen Kreis von ueber zweitausend
      Bildpunkten Radius — gemessen hat das allein die Bildrate von
      sechzig auf vierzehn gedrueckt. Er bewegt sich nie, also gehoert
      er ins Bild. */
-  c.save();
-  c.globalCompositeOperation = "lighter";
-  const rg = c.createRadialGradient(mx, my, rr * 0.982, mx, my, rr * 1.03);
+  /* Der leuchtende Saum ueber der Kante kommt AUFADDIERT aufs Bild,
+     nicht daruebergelegt: er ist Licht, das die Atmosphaere streut,
+     und Licht addiert sich. Deshalb bekommt er ein eigenes Bild —
+     mit dem Luftschleier zusammen in einem waere er beim Kopieren
+     kein Licht mehr, sondern Farbe, und die Scheibe saehe aus wie
+     hinter Milchglas. */
+  const ring = document.createElement("canvas");
+  ring.width = bw; ring.height = bh;
+  const ringCtx = ring.getContext("2d");
+  const rg = ringCtx.createRadialGradient(mx, my, rr * 0.982, mx, my, rr * 1.03);
   rg.addColorStop(0, "rgba(120,180,255,0)");
   rg.addColorStop(0.42, "rgba(150,205,255,.55)");
   rg.addColorStop(1, "rgba(120,180,255,0)");
-  c.fillStyle = rg;
+  ringCtx.fillStyle = rg;
   /* Nur der Streifen um die Kante, nicht die ganze Scheibe */
-  c.beginPath();
-  c.rect(0, 0, bw, Math.max(2, my - rr * 0.94));
-  c.clip();
-  c.fillRect(0, 0, bw, bh);
-  c.restore();
+  ringCtx.beginPath();
+  ringCtx.rect(0, 0, bw, Math.max(2, my - rr * 0.94));
+  ringCtx.clip();
+  ringCtx.fillRect(0, 0, bw, bh);
 
   /* Feines Korn ueber alles. Ein Farbverlauf ueber hunderte
      Bildpunkte trifft sonst dieselbe gerundete Farbe in ganzen
@@ -5881,16 +5939,35 @@ function erdeBacken() {
   c.fillStyle = c.createPattern(kb, "repeat");
   c.fillRect(0, 0, bw, bh);
   c.restore();
+  /* Dasselbe Korn ueber den Luftschleier. Er ist der weichste Verlauf
+     im ganzen Bild und zeigt Ringe am deutlichsten. */
+  saumCtx.save();
+  saumCtx.globalCompositeOperation = "source-atop";
+  saumCtx.fillStyle = saumCtx.createPattern(kb, "repeat");
+  saumCtx.fillRect(0, 0, bw, bh);
+  saumCtx.restore();
 
-  /* Die fertige Scheibe in Bildschirmaufloesung. Hier landet spaeter
-     auch der Tagesrand hinein — dann bleibt im laufenden Betrieb eine
-     einzige Kopie eins zu eins uebrig, und die kostet fast nichts. */
+  /* Die fertige Scheibe — in HALBER Bildschirmaufloesung. Das klingt
+     nach einem Kompromiss, ist aber keiner: die Oberflaeche wird
+     ohnehin nur mit 0,85 der Bildbreite gerechnet, und alles andere
+     an dieser Scheibe sind weiche Verlaeufe ohne feine Struktur.
+     Mehr Bildpunkte traegen also keine zusaetzliche Auskunft.
+
+     Kosten tun sie dafuer viel. Seit der Boden vorbeizieht, wird die
+     Scheibe rund dreimal je Sekunde neu zusammengesetzt statt alle
+     zweieinhalb Sekunden, und jedes Zusammensetzen sind sechs bis
+     acht Kopien ueber die ganze Flaeche. In voller Aufloesung hat das
+     gemessen die Bildrate halbiert — von 31 auf 15. Mit der halben
+     Kantenlaenge sind es ein Viertel der Bildpunkte, und die Bildrate
+     ist wieder da, wo sie vorher war. Das Hochziehen beim Kopieren
+     kostet nichts Messbares, weil die Zielflaeche dieselbe bleibt. */
   const fertig = document.createElement("canvas");
-  fertig.width = Math.round(W * DPR); fertig.height = Math.round(hoehe * DPR);
+  fertig.width = Math.round(W * DPR * 0.5); fertig.height = Math.round(hoehe * DPR * 0.5);
 
   ERDE.roh = bild; ERDE.lichter = lichter; ERDE.bild = fertig;
+  ERDE.maske = maske; ERDE.saum = saum; ERDE.ring = ring;
   ERDE.breite = W; ERDE.hoehe = H; ERDE.oben = oben; ERDE.rand = rand;
-  ERDE.termX = null;
+  ERDE.termX = null; ERDE.schubGebacken = null;
 }
 
 /* Tagesrand und Stadtlichter in die Scheibe einrechnen. Das passiert
@@ -5904,15 +5981,45 @@ function erdeSchatten(termX, tags, lauf) {
   c.setTransform(1, 0, 0, 1, 0, 0);
   c.clearRect(0, 0, bw, bh);
   c.imageSmoothingQuality = "high";
-  c.drawImage(ERDE.roh, 0, 0, bw, bh);
+
+  /* Der Boden zieht vorbei. Die Station laeuft mit 7,66 Kilometern je
+     Sekunde ueber den Planeten — das ist der Grund, warum man aus dem
+     Orbit nicht lange auf dieselbe Stelle sieht. Gezeichnet wird das
+     Oberflaechenbild zweimal nebeneinander, damit an der Nahtstelle
+     nichts fehlt; die Textur ist dafuer in der Breite periodisch
+     gebacken. */
+  const schub = ((ERDE.schub % bw) + bw) % bw;
+  c.drawImage(ERDE.roh, -schub, 0, bw, bh);
+  c.drawImage(ERDE.roh, bw - schub, 0, bw, bh);
+
+  /* Die Scheibe steht still, also wird erst jetzt auf ihre Form
+     beschnitten. "destination-in" laesst nur stehen, wo die Maske
+     deckt — damit wird aus dem endlosen Band eine Kugel. */
+  c.globalCompositeOperation = "destination-in";
+  c.drawImage(ERDE.maske, 0, 0, bw, bh);
+  c.globalCompositeOperation = "source-over";
 
   if (!tags || lauf > 0.55) {
     c.save();
     c.globalCompositeOperation = "lighter";
     c.globalAlpha = tags ? 0.3 : 1;
-    c.drawImage(ERDE.lichter, 0, 0, bw, bh);
+    c.drawImage(ERDE.lichter, -schub, 0, bw, bh);
+    c.drawImage(ERDE.lichter, bw - schub, 0, bw, bh);
     c.restore();
+    /* Die Lichter duerfen nicht ueber den Rand der Scheibe hinaus —
+       sie wurden ohne Maske kopiert. */
+    c.globalCompositeOperation = "destination-in";
+    c.drawImage(ERDE.maske, 0, 0, bw, bh);
+    c.globalCompositeOperation = "source-over";
   }
+
+  /* Der Luftschleier ueber dem Rand: Farbe, also darueberlegen. */
+  c.drawImage(ERDE.saum, 0, 0, bw, bh);
+  /* Der leuchtende Saum: Licht, also dazuaddieren. */
+  c.save();
+  c.globalCompositeOperation = "lighter";
+  c.drawImage(ERDE.ring, 0, 0, bw, bh);
+  c.restore();
 
   const m = erdeMasse();
   const breite = W * 0.34 * DPR;
@@ -5939,6 +6046,7 @@ function erdeSchatten(termX, tags, lauf) {
   c.fillRect(0, 0, bw, bh);
   c.restore();
   ERDE.termX = termX;
+  ERDE.schubGebacken = ERDE.schub;
 }
 
 function zeichneErde(t) {
@@ -5960,15 +6068,30 @@ function zeichneErde(t) {
   const lauf = Z.umlauf === false ? 0.1
              : tags ? ph / TAGANTEIL : (ph - TAGANTEIL) / (1 - TAGANTEIL);
   const termX = W * (1.7 - 2.4 * lauf);
-  if (ERDE.termX === null || Math.abs(termX - ERDE.termX) > 20 || ERDE.tags !== tags) {
+  /* Wie weit der Boden seit dem letzten Mal weitergezogen ist. Die
+     Rate ist aus dem Flug hergeleitet: die Station umrundet die Erde
+     einmal je Umlauf, und dabei laeuft unter ihr rund dreizehnmal die
+     sichtbare Bodenbreite durch. */
+  ERDE.schub += (t - ERDE.uhr > 0 && ERDE.uhr ? (t - ERDE.uhr) : 0) / 1000
+    * 0.024 * ERDE.bild.width * ZEIT.rate;
+  ERDE.uhr = t;
+  /* Neu zusammengesetzt wird nur, wenn sich wirklich etwas verschoben
+     hat. Bei hoher Zeitraffung wird die Schwelle mitgezogen: sonst
+     waere die Scheibe bei zwoelffachem Tempo dreissigmal je Sekunde
+     neu zu bauen, und das kostet mehr als es zeigt. */
+  const schwelle = 22 * Math.max(1, ZEIT.rate * 0.6);
+  if (ERDE.termX === null || Math.abs(termX - ERDE.termX) > 20 || ERDE.tags !== tags
+      || ERDE.schubGebacken === null
+      || Math.abs(ERDE.schub - ERDE.schubGebacken) > schwelle) {
     ERDE.tags = tags;
     erdeSchatten(termX, tags, lauf);
   }
 
   cx.save();
   cx.setTransform(1, 0, 0, 1, 0, 0);
-  cx.drawImage(ERDE.bild,
-    Math.round(dx * DPR), Math.round((ERDE.oben + dy) * DPR));
+  cx.drawImage(ERDE.bild, 0, 0, ERDE.bild.width, ERDE.bild.height,
+    Math.round(dx * DPR), Math.round((ERDE.oben + dy) * DPR),
+    Math.round(W * DPR), Math.round(hoehe * DPR));
 
   /* --- Polarlicht ----------------------------------------------------
      Von oben sieht man es nicht als Bogen am Himmel, sondern als
