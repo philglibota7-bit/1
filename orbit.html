@@ -1308,7 +1308,7 @@ async function sessionLesen(pfad, groesse, name, erstellt) {
   const zeilen = roh.split("\n");
   if (pos > 0) zeilen.shift();          // erste Zeile ist angeschnitten
 
-  let cwd = "", branch = "", modell = "", aufwand = "", sid = "";
+  let cwd = "", branch = "", modell = "", aufwand = "", sid = "", nutzung = null;
   let letzteZeit = 0, letzteRolle = "";
   const schritte = [];
 
@@ -1327,6 +1327,34 @@ async function sessionLesen(pfad, groesse, name, erstellt) {
       const m = d.message || {};
       if (!modell && m.model) modell = m.model;
       if (!aufwand && d.effort) aufwand = d.effort;
+      /* --- Wie voll ist diese Sitzung? --------------------------------
+         Jeder Assistenteneintrag fuehrt mit, wie gross der Prompt beim
+         letzten Aufruf war. Die Summe aus frisch gesendeten, neu
+         zwischengespeicherten und aus dem Zwischenspeicher gelesenen
+         Tokens IST der belegte Kontext — nicht geschaetzt, sondern das,
+         was der Dienst abgerechnet hat.
+
+         Genommen wird nur der NEUESTE Eintrag, nicht die Summe ueber
+         alle. Die Datei wird nur zum Ende hin gelesen (120 kB), eine
+         Summe waere also ohnehin angeschnitten — und sie waere auch
+         die falsche Frage. Interessant ist nicht, wieviel diese
+         Sitzung insgesamt verbraucht hat, sondern wie voll sie
+         gerade ist.
+
+         Die Feldnamen sind an einem echten Protokoll geprueft, nicht
+         aus der Doku uebernommen. */
+      if (!nutzung && m.usage) {
+        const u = m.usage;
+        const z = (v) => Number.isFinite(v) ? v : 0;
+        nutzung = {
+          kontext: z(u.input_tokens) + z(u.cache_creation_input_tokens)
+                 + z(u.cache_read_input_tokens),
+          zwischen: z(u.cache_read_input_tokens),
+          aus: z(u.output_tokens),
+          denken: z((u.output_tokens_details || {}).thinking_tokens),
+        };
+        if (!nutzung.kontext) nutzung = null;      // leere Eintraege nicht zaehlen
+      }
       const inhalt = Array.isArray(m.content) ? m.content : [];
       for (let j = inhalt.length - 1; j >= 0; j--) {
         const b = inhalt[j];
@@ -1360,7 +1388,7 @@ async function sessionLesen(pfad, groesse, name, erstellt) {
     werkzeug: schritte.length ? schritte[0].werkzeug : "",
     seit: letzteZeit,
     seitStart: erstellt || 0,
-    modell, aufwand,
+    modell, aufwand, nutzung,
     letzteRolle,
     schritte: schritte.slice(0, 8),
   };
@@ -11350,6 +11378,22 @@ function zeichneDetail(id) {
       box.appendChild(zeile("Draußen", dauer(draussenSeit(a))));
       box.appendChild(anzugBlock(a));
     }
+    if (a.nutzung) {
+      /* Wie voll ist die Sitzung? Der belegte Kontext ist die einzige
+         Zahl, die ein langer Lauf wirklich spuerbar macht: irgendwann
+         ist das Fenster voll und es wird zusammengefasst. Daneben, wie
+         viel davon aus dem Zwischenspeicher kam — das ist der Anteil,
+         der nichts mehr kostet und den man beim Lesen der Rechnung
+         sonst fuer neu haelt. */
+      const n = a.nutzung;
+      const tsd = (v) => v.toLocaleString("de-DE");
+      box.appendChild(zeile("Kontext", tsd(n.kontext) + " Tokens"
+        + (n.zwischen ? "  ·  " + Math.round(n.zwischen / n.kontext * 100)
+                        + " % aus dem Zwischenspeicher" : "")));
+      if (n.denken)
+        box.appendChild(zeile("Zuletzt gedacht", tsd(n.denken) + " von "
+          + tsd(n.aus) + " Tokens"));
+    }
     if (a.version) box.appendChild(zeile("Version", a.version + (a.art ? "  ·  " + a.art : "")));
     if (a.schritte && a.schritte.length) {
       /* "Arbeitsschritte" und nicht "Letzte Schritte": der oberste ist
@@ -12448,7 +12492,9 @@ const HILFE = [
       + "und CO₂-Filter reichen sieben Stunden, Sauerstoff und Kühlwasser acht, und die Batterie "
       + "beendet einen Einsatz, nicht die Luft. Auf die Uhr gelegt wird die Laufzeit der Sitzung, "
       + "nicht ein gemessener Vorrat. Läuft jemand in die Reserve, steht ein Punkt vor seinem Namen: "
-      + "bernstein, dann rot.",
+      + "bernstein, dann rot. Darunter steht, wie voll die Sitzung ist: der belegte Kontext beim "
+      + "letzten Aufruf und wie viel davon aus dem Zwischenspeicher kam. Diese Zahl ist nicht "
+      + "geschätzt — sie steht so im Protokoll der Sitzung.",
   },
   {
     titel: "Rein und raus",
