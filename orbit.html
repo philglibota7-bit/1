@@ -1298,18 +1298,65 @@ function taetigkeitAus(name, ein) {
 }
 
 /* Nur das Ende der Datei lesen — Protokolle werden schnell megabytegross */
-async function sessionLesen(pfad, groesse, name, erstellt) {
+/* Ein Name fuer den Unteragenten. Er hat keinen — also die ersten
+   Woerter seiner Aufgabe, so wie man einen Kollegen nach dem nennt,
+   was er gerade macht. Hoechstens drei Woerter und 22 Zeichen: unter
+   den Figuren steht er in einem Namensschild. */
+function kurzeAufgabe(t) {
+  if (!t) return "";
+  const w = t.replace(/[`*_#>\[\]]/g, " ").split(/\s+/).filter(Boolean).slice(0, 3);
+  const n = w.join(" ");
+  return n.length > 22 ? n.slice(0, 21) + "…" : n;
+}
+
+/* Die Aufgabe eines Unteragenten: sein allererster Benutzereintrag.
+   Genau der Text, mit dem er losgeschickt wurde. */
+function ersterAuftrag(roh) {
+  for (const z of String(roh).split("\n")) {
+    const t = z.trim();
+    if (!t) continue;
+    let d;
+    try { d = JSON.parse(t); } catch { continue; }
+    if (d.type !== "user") continue;
+    const c = (d.message || {}).content;
+    let txt = "";
+    if (typeof c === "string") txt = c;
+    else if (Array.isArray(c)) {
+      const b = c.find(x => x && x.type === "text" && typeof x.text === "string");
+      if (b) txt = b.text;
+    }
+    if (txt) return txt.replace(/\s+/g, " ").trim().slice(0, 300);
+  }
+  return "";
+}
+
+async function sessionLesen(pfad, groesse, name, erstellt, elternName) {
   const fenster = Math.min(groesse, 120 * 1024);
   const pos = Math.max(0, groesse - fenster);
   let roh;
   try { roh = await Neutralino.filesystem.readFile(pfad, { pos, size: fenster }); }
   catch { return null; }
 
+  /* Bei einem Unteragenten steht die Aufgabe ganz vorn in der Datei —
+     und das Fenster oben liest nur das Ende. Also fuer die Aufgabe
+     einmal getrennt die ersten acht Kilobyte lesen. Bei einer Sitzung
+     lohnt das nicht: dort ist der letzte Auftrag der interessante,
+     und der steht hinten. */
+  let aufgabe = "";
+  if (elternName && pos > 0) {
+    try {
+      const kopf = await Neutralino.filesystem.readFile(pfad, { pos: 0, size: 8192 });
+      aufgabe = ersterAuftrag(kopf);
+    } catch { /* ohne Aufgabe geht es auch */ }
+  } else if (elternName) {
+    aufgabe = ersterAuftrag(roh);
+  }
+
   const zeilen = roh.split("\n");
   if (pos > 0) zeilen.shift();          // erste Zeile ist angeschnitten
 
   let cwd = "", branch = "", modell = "", aufwand = "", sid = "", nutzung = null;
-  let auftrag = "";
+  let auftrag = "", agentId = "";
   let letzteZeit = 0, letzteRolle = "";
   const schritte = [];
 
@@ -1340,6 +1387,7 @@ async function sessionLesen(pfad, groesse, name, erstellt) {
       }
     }
     if (!sid && d.sessionId) sid = d.sessionId;
+    if (!agentId && d.agentId) agentId = d.agentId;
     if (!letzteZeit && d.timestamp) letzteZeit = Date.parse(d.timestamp) || 0;
     if (!letzteRolle && (d.type === "user" || d.type === "assistant")) letzteRolle = d.type;
 
@@ -1394,6 +1442,32 @@ async function sessionLesen(pfad, groesse, name, erstellt) {
   if (!cwd) return null;
   const alter = Date.now() - letzteZeit;
   const zustand = alter < 25000 ? "sendet" : alter < 300000 ? "denkt" : "ruht";
+
+  if (elternName) {
+    /* Die sessionId eines Unteragenten ist die seiner Mutter-Sitzung —
+       als Kennung waere sie also doppelt, und beide Figuren wuerden
+       sich gegenseitig ueberschreiben. Die agentId ist eindeutig. */
+    const kennung = agentId || name.replace(/\.jsonl$/, "");
+    return {
+      id: "u:" + kennung,
+      sid: kennung,
+      typ: "unteragent",
+      name: kurzeAufgabe(aufgabe) || "Agent",
+      eltern: elternName,
+      farbe: farbeAusName(kennung),
+      zustand,
+      ort: cwd,
+      branch,
+      auftrag: aufgabe,
+      taetigkeit: schritte.length ? schritte[0].text : "wartet",
+      werkzeug: schritte.length ? schritte[0].werkzeug : "",
+      seit: letzteZeit,
+      seitStart: erstellt || 0,
+      modell, aufwand, nutzung,
+      letzteRolle,
+      schritte: schritte.slice(0, 8),
+    };
+  }
 
   return {
     id: "s:" + (sid || name),
@@ -1497,7 +1571,37 @@ async function sammleSessions() {
   const raus = [];
   for (const k of kandidaten.slice(0, 6)) {
     const info = await sessionLesen(k.pfad, k.groesse, k.name, k.ct);
-    if (info) raus.push(info);
+    if (!info) continue;
+    raus.push(info);
+    /* --- Und die Unteragenten dieser Sitzung -------------------------
+       Schickt eine Sitzung einen Agenten los, bekommt der ein eigenes
+       Protokoll unter <sitzung>/subagents/agent-*.jsonl. Das ist
+       laufende Arbeit wie jede andere und gehoert damit als eigene
+       Figur in die Szene — bisher war sie unsichtbar, obwohl oft drei
+       davon gleichzeitig laufen.
+
+       Hoechstens drei je Sitzung und nur die frischen: die Ordner
+       sammeln ueber einen Arbeitstag Dutzende an, und alte
+       Protokolle sind kein laufender Einsatz. */
+    const unterOrdner = k.pfad.replace(/\.jsonl$/, "") + "/subagents";
+    let unterDateien;
+    try { unterDateien = await Neutralino.filesystem.readDirectory(unterOrdner); }
+    catch { continue; }
+    const unterKand = [];
+    for (const u of unterDateien) {
+      if (!u.entry.endsWith(".jsonl") || !u.entry.startsWith("agent-")) continue;
+      const up = unterOrdner + "/" + u.entry;
+      let ust;
+      try { ust = await Neutralino.filesystem.getStats(up); } catch { continue; }
+      if (jetzt - ust.modifiedAt > Z.bruecke.sessionFensterMin * 60000) continue;
+      unterKand.push({ pfad: up, groesse: ust.size, mt: ust.modifiedAt,
+                       ct: ust.createdAt || 0, name: u.entry });
+    }
+    unterKand.sort((a, b) => b.mt - a.mt);
+    for (const u of unterKand.slice(0, 3)) {
+      const ui = await sessionLesen(u.pfad, u.groesse, u.name, u.ct, info.name);
+      if (ui) raus.push(ui);
+    }
   }
 
   /* Den geratenen Zustand durch den echten ersetzen, wo es ihn gibt */
@@ -1780,8 +1884,10 @@ function zeichneBrueckeLage2() {
 
 /* ---------- Alle Astronauten in einer Liste ---------- */
 
-const TYP_ZEICHEN = { agent: "◆", session: "⌘", ordner: "▣", prozess: "▶", github: "⑂" };
-const TYP_NAME = { agent: "Agent", session: "Claude Code", ordner: "Projekt", prozess: "Prozess", github: "GitHub" };
+const TYP_ZEICHEN = { agent: "◆", session: "⌘", ordner: "▣", prozess: "▶",
+                      github: "⑂", unteragent: "↳" };
+const TYP_NAME = { agent: "Agent", session: "Claude Code", ordner: "Projekt",
+                   prozess: "Prozess", github: "GitHub", unteragent: "Unteragent" };
 
 function alleAstronauten() {
   const eigene = Z.agenten.map(a => ({
@@ -10149,8 +10255,12 @@ function rahmen(jetzt) {
        sonst uebereinander, und uebereinanderliegende Schrift ist
        schlimmer als gar keine. */
     const schirm = inSicht(x, y + groesse * 1.5);
+    /* Unter dem Namen steht, was die Figur am besten einordnet. Bei
+       einem Unteragenten ist das nicht sein Branch — den teilt er mit
+       seiner Sitzung —, sondern wer ihn losgeschickt hat. */
     const unter = a.typ === "agent" ? (l.zustand !== "ruht" ? BESCHRIFTUNG[l.zustand] : "")
-                                    : kuerzenVorn(a.branch || a.ort || "", 22);
+                : a.typ === "unteragent" && a.eltern ? "von " + kuerzenVorn(a.eltern, 18)
+                : kuerzenVorn(a.branch || a.ort || "", 22);
     schilder.push({
       x: klemm(schirm.x, 54, W - 54),
       y: schirm.y,
@@ -11383,6 +11493,9 @@ function zeichneDetail(id) {
   /* --- Live-Quellen: wo und was --- */
   if (a.ort)    box.appendChild(zeile("Ort", a.ort, "pfad"));
   if (a.branch) box.appendChild(zeile("Branch", a.branch));
+  /* Ein Unteragent gehoert zu jemandem. Ohne diese Zeile steht er da
+     wie eine eigene Sitzung, und man sucht vergeblich, wo er herkommt. */
+  if (a.eltern) box.appendChild(zeile("Geschickt von", "⌘ " + a.eltern));
   /* Erst wo, dann wofuer, dann was: der Auftrag gehoert vor die
      Taetigkeit. Ein Werkzeugaufruf sagt, WAS gerade laeuft; der
      Auftrag sagt, WOFUER — und das ist die Frage, die man an eine
@@ -11391,7 +11504,7 @@ function zeichneDetail(id) {
   if (a.taetigkeit) box.appendChild(zeile("Tut gerade", a.taetigkeit));
   if (a.seit)   box.appendChild(zeile("Zuletzt", vorZeit(a.seit) + "  ·  " + uhr(a.seit)));
 
-  if (a.typ === "session") {
+  if (a.typ === "session" || a.typ === "unteragent") {
     if (a.modell) box.appendChild(zeile("Modell", a.modell.replace("claude-", "")
       + (a.aufwand ? "  ·  Aufwand " + a.aufwand : "")));
     if (a.status) {
@@ -11399,6 +11512,14 @@ function zeichneDetail(id) {
         : a.status === "waiting" ? (WARTET_TEXT[a.wartetAuf] || "wartet auf dich")
         : "untätig";
       box.appendChild(zeile("Zustand", txt + "   (aus dem Sitzungsregister)"));
+    } else if (a.typ === "unteragent") {
+      /* Ein Unteragent wartet nie auf dich — er berichtet an seine
+         Sitzung. "Wartet vermutlich auf dich" waere hier schlicht
+         falsch, und zwar auf eine Weise, die einen zum Nachsehen
+         bringt, wo es nichts nachzusehen gibt. */
+      box.appendChild(zeile("Zustand", a.zustand === "ruht"
+        ? "fertig oder abgebrochen — meldet sich nicht mehr"
+        : "arbeitet und berichtet an " + (a.eltern || "seine Sitzung")));
     } else {
       box.appendChild(zeile("Zustand", a.letzteRolle === "user"
         ? "Claude antwortet gleich" : "wartet vermutlich auf dich"));
@@ -11519,6 +11640,7 @@ function zeichneDetail(id) {
 
 const TYP_BESCHRIFTUNG = {
   session: "Claude-Code-Sessions",
+  unteragent: "Unteragenten",
   ordner:  "Projektordner / VS Code",
   prozess: "Laufende Befehle",
   github:  "GitHub Actions & Pull Requests",
@@ -12502,7 +12624,8 @@ const HILFE = [
   {
     titel: "Die Astronauten",
     text: "◆ ist ein eigener Claude-Agent. ⌘ eine laufende Claude-Code-Sitzung, ▣ ein Projektordner, "
-      + "▶ ein laufender Befehl, ⑂ ein GitHub-Repo. Die letzten vier gibt es nur im Mac-Programm — im "
+      + "▶ ein laufender Befehl, ⑂ ein GitHub-Repo, ↳ ein Unteragent, den eine Sitzung losgeschickt "
+      + "hat. Die letzten fünf gibt es nur im Mac-Programm — im "
       + "Browser darf eine Seite das Dateisystem nicht lesen. Unter Crew stehen alle untereinander, "
       + "mit dem, was sie gerade tun; eine Zeile antippen fährt zu ihrer Figur. Im Detailfenster "
       + "steht über der Tätigkeit der Auftrag — das, was du zuletzt verlangt hast. Erst wo, dann "
