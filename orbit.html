@@ -2414,6 +2414,68 @@ let TEILSCHILDER = [];
 /* Die Schilder erscheinen erst beim Hineinzoomen. Herausgezoomt waere
    die Station von Text zugestellt, und man sieht die Teile ohnehin
    nicht mehr. */
+/* --- Die Massstabsleiste ---------------------------------------------
+   Diese App erklaert ueberall Groessen: der Traeger misst 108,5 Meter,
+   ein Handlauf sitzt 61 Zentimeter vom naechsten. Was bisher fehlte,
+   war der Weg von diesen Zahlen zum Bild — wie lang IST ein Meter hier
+   gerade?
+
+   Die Umrechnung ist exakt und nicht geschaetzt: ein Druckmodul misst
+   4,3 Meter im Durchmesser, sein Radius ist ein Viertel von R, also
+   entspricht R genau 8,6 Metern. Alles andere folgt aus dem Zoom.
+
+   Gewaehlt wird eine runde Laenge — 1, 2, 5, 10, 20, 50, 100 Meter —,
+   und zwar die, deren Balken am naechsten an hundert Bildpunkten
+   liegt. Eine Leiste mit "37 m" waere technisch richtig und praktisch
+   nutzlos; man vergleicht mit runden Zahlen, nicht mit krummen. */
+const MASSSTUFEN = [0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500];
+
+function massstabsleiste(Rpx) {
+  if (kinoAn || sparsam || !Rpx) return;
+  /* Meter je Bildpunkt: R sind 8,6 Meter. */
+  const mProPx = 8.6 / Rpx;
+  let beste = MASSSTUFEN[0], bestAb = Infinity;
+  for (const m of MASSSTUFEN) {
+    const px = m / mProPx;
+    if (px < 42 || px > 210) continue;
+    const ab = Math.abs(px - 110);
+    if (ab < bestAb) { bestAb = ab; beste = m; }
+  }
+  if (bestAb === Infinity) return;
+  const laenge = beste / mProPx;
+
+  const x = 18, y = H - (W < 620 ? 150 : 166);
+  cx.save();
+  cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  cx.globalAlpha = 0.72;
+  /* Ein Balken mit zwei Endstrichen, wie auf einer Karte. Dunkel
+     unterlegt, sonst verschwindet er ueber der hellen Erde. */
+  cx.strokeStyle = "rgba(10,14,22,.75)";
+  cx.lineWidth = 3.5; cx.lineCap = "butt";
+  cx.beginPath();
+  cx.moveTo(x, y); cx.lineTo(x + laenge, y);
+  cx.moveTo(x, y - 4); cx.lineTo(x, y + 4);
+  cx.moveTo(x + laenge, y - 4); cx.lineTo(x + laenge, y + 4);
+  cx.stroke();
+  cx.strokeStyle = "rgba(226,234,244,.9)";
+  cx.lineWidth = 1.4;
+  cx.beginPath();
+  cx.moveTo(x, y); cx.lineTo(x + laenge, y);
+  cx.moveTo(x, y - 4); cx.lineTo(x, y + 4);
+  cx.moveTo(x + laenge, y - 4); cx.lineTo(x + laenge, y + 4);
+  cx.stroke();
+
+  const wort = beste < 1 ? "50 cm" : beste + " m";
+  cx.font = "600 10.5px ui-sans-serif, system-ui, -apple-system, sans-serif";
+  cx.textAlign = "left"; cx.textBaseline = "bottom";
+  cx.lineWidth = 3; cx.strokeStyle = "rgba(10,14,22,.8)";
+  cx.strokeText(wort, x, y - 6);
+  cx.fillStyle = "rgba(232,238,246,.95)";
+  cx.fillText(wort, x, y - 6);
+  cx.globalAlpha = 1;
+  cx.restore();
+}
+
 function zeichneTeileSchilder(t, ccx, ccy, Rst, inSicht, kinoZoom) {
   if (kinoAn || sparsam) return null;
   const b = STBILD;
@@ -4410,7 +4472,20 @@ function zeichneStation(t, cxp, cyp, R) {
    ein schmales Glanzband, das zum Licht hin versetzt ist. Drei
    Striche sind billiger als jede andere Loesung und lesen sich sofort
    als Woelbung. */
-function roehre(c, punkte, d, koerper, glanz, umriss) {
+/* Ein Glied als Roehre. Gezeichnet wird es als Stapel von Strichen
+   verschiedener Breite, leicht gegeneinander versetzt — das ist der
+   billigste Weg zu einem runden Koerper, denn ein Farbverlauf QUER zu
+   einer geknickten Linie laesst sich mit einem einzigen Strich nicht
+   malen.
+
+   Fuenf Lagen statt drei: aussen der Umriss, darin der Koerper, dann
+   die Schattenseite unten, die Lichtseite oben und ganz zuletzt ein
+   schmaler Glanzstrich. Mit drei Lagen sah der Arm von nahem aus wie
+   ein ausgeschnittenes Stueck Papier mit einem hellen Streifen darauf;
+   erst die Schattenseite macht daraus einen Zylinder. Die beiden
+   feinsten Lagen fallen weg, wenn die Figur klein ist — dort waeren
+   sie unter einem Bildpunkt breit und kosteten nur Zeit. */
+function roehre(c, punkte, d, koerper, glanz, umriss, fein) {
   const zieh = (breite, dx, dy, farbe) => {
     c.strokeStyle = farbe; c.lineWidth = breite;
     c.beginPath();
@@ -4421,9 +4496,18 @@ function roehre(c, punkte, d, koerper, glanz, umriss) {
     c.stroke();
   };
   c.lineCap = "round"; c.lineJoin = "round";
-  zieh(d * 1.2, 0, 0, umriss);
+  zieh(d * 1.14, 0, 0, umriss);
   zieh(d, 0, 0, koerper);
+  if (fein) {
+    /* Die abgewandte Seite. Sie faellt nicht auf Schwarz, sondern auf
+       ein kuehles Grau — im Orbit kommt von unten immer noch der
+       Erdschein. */
+    c.globalAlpha = 0.5;
+    zieh(d * 0.46, d * 0.2, d * 0.22, umriss);
+    c.globalAlpha = 1;
+  }
   zieh(d * 0.42, -d * 0.19, -d * 0.2, glanz);
+  if (fein) zieh(d * 0.13, -d * 0.27, -d * 0.28, "rgba(255,255,255,.55)");
 }
 
 function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltung, blick) {
@@ -4526,7 +4610,7 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
     const fx = raste ? kx : kx - sd * H * 0.015 + sw * H * 0.1;
     const fy = sohle - H * 0.035;
     roehre(cx, [hx, hy, kx, ky, fx, fy], beinD,
-      WEISS, tf("#ffffff", "#5c7794"), "rgba(22,23,26,.72)");
+      WEISS, tf("#ffffff", "#5c7794"), "rgba(22,23,26,.72)", fein);
     /* Die abgewandte Seite im Schatten, damit die Roehre eine Richtung
        bekommt und nicht nur eine Woelbung */
     cx.strokeStyle = nachts > 0.5 ? "rgba(40,62,92,.4)" : "rgba(24,24,22,.34)";
@@ -4536,6 +4620,27 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
     cx.lineTo(kx + beinD * 0.3, ky + beinD * 0.1);
     cx.lineTo(fx + beinD * 0.3, fy + beinD * 0.1);
     cx.stroke();
+    /* Die Lagerringe an Huefte und Knoechel. Am Anzug sitzt an jedem
+       beweglichen Gelenk ein Metallring, und der ist von aussen zu
+       sehen — er ist das Einzige am ganzen Bein, was nicht Stoff ist.
+       Ohne ihn bleibt das Bein ein Schlauch. */
+    if (fein) {
+      for (const [rx0, ry0, rx1, ry1, f] of [[hx, hy, kx, ky, 0.0], [kx, ky, fx, fy, 0.9]]) {
+        const dx = rx1 - rx0, dy = ry1 - ry0, l = Math.hypot(dx, dy) || 1;
+        const px = rx0 + dx * f, py = ry0 + dy * f;
+        cx.save();
+        cx.translate(px, py);
+        cx.rotate(Math.atan2(dy, dx));
+        const rg = cx.createLinearGradient(0, -beinD * 0.55, 0, beinD * 0.55);
+        rg.addColorStop(0, tf("#e8e6de", "#4a5e78"));
+        rg.addColorStop(0.42, tf("#b4b0a6", "#33465f"));
+        rg.addColorStop(1, tf("#5a574f", "#1a2434"));
+        cx.fillStyle = rg;
+        rundRect(cx, -beinD * 0.13, -beinD * 0.56, beinD * 0.26, beinD * 1.12, beinD * 0.07);
+        cx.fill();
+        cx.restore();
+      }
+    }
     if (mittel) {
       /* Konvoluten: Balgfalten an Huefte, Knie und Knoechel. Weich
          gerippt — anders als die harten Lagerringe am Oberkoerper. */
@@ -4828,7 +4933,7 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
     }
 
     roehre(cx, [sx, sy, ex, ey, hx, hy], armD,
-      WEISS, tf("#ffffff", "#5c7794"), "rgba(22,23,26,.62)");
+      WEISS, tf("#ffffff", "#5c7794"), "rgba(22,23,26,.62)", fein);
     cx.strokeStyle = nachts > 0.5 ? "rgba(40,62,92,.36)" : "rgba(24,24,22,.3)";
     cx.lineWidth = armD * 0.26;
     cx.beginPath();
@@ -6889,6 +6994,8 @@ function rahmen(jetzt) {
 
   /* Die Schilder der Bauteile, sobald man nah genug dran ist */
   TEILSCHILDER = zeichneTeileSchilder(t, ccx, ccy, Rst, inSicht, kinoZoom) || [];
+
+  massstabsleiste(Rst * KAM.zoom * kinoZoom);
 
   const maxBlasen = W < 520 ? 2 : 4;
   blasen.sort((a, b) => (b.seit || 0) - (a.seit || 0));
