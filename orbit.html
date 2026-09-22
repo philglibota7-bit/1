@@ -370,6 +370,17 @@ footer{
 .d-zitat.offen{display:block; -webkit-line-clamp:unset;}
 .d-zitat.bericht{border-left-color:var(--good); color:var(--tx);}
 .d-zitat.fehler{border-left-color:var(--bad); color:#e79a8c; cursor:default;}
+/* Der Tagesbogen in der Bruecke */
+.heute{margin:2px 0 16px;}
+.heute .achse{position:relative; height:14px; margin:2px 0 3px 86px; font-size:9.5px; color:var(--tx3);
+  font-variant-numeric:tabular-nums;}
+.heute .achse span{position:absolute; top:0; transform:translateX(-50%);}
+.heute .zeile{display:flex; align-items:center; gap:8px; height:19px;}
+.heute .zeile .nm{flex:0 0 78px; font-size:11px; color:var(--tx2);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.heute .spur{position:relative; flex:1 1 auto; height:7px; border-radius:4px; background:rgba(255,255,255,.05);}
+.heute .spur i{position:absolute; top:0; bottom:0; border-radius:4px; opacity:.72;}
+.heute .spur i.lebt{opacity:1; box-shadow:0 0 0 1px rgba(255,255,255,.55);}
 .d-kind{display:flex; align-items:center; gap:9px; width:100%; text-align:left;
   padding:7px 9px; margin:0 0 5px; border-radius:9px; border:1px solid rgba(255,255,255,.06);
   background:rgba(255,255,255,.03); transition:background .15s;}
@@ -1197,6 +1208,7 @@ body.sicht #blende-detail{
   </div>
   <div class="blende-inhalt">
     <div id="b-lage"></div>
+    <div id="b-heute"></div>
 
     <label class="feld"><span>Welche Astronauten?</span>
       <div id="b-typen" class="schalterliste"></div></label>
@@ -1548,9 +1560,13 @@ const TAKT = { sessions: 3000, ordner: 6000, prozesse: 6000, github: 90000 };
 
 /* Farbe stabil aus dem Namen ableiten — gleicher Astronaut, gleiche Farbe */
 function farbeAusName(t) {
-  let h = 0;
-  for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0;
-  return FARBEN[h % FARBEN.length];
+  /* FNV-1a und ein Nachmischen. Die alte Streuung (h · 31 + Zeichen,
+     dann modulo 8) hing nur an den unteren drei Bits jedes Zeichens:
+     "orbit", "webshop" und "blog" bekamen alle dasselbe Gruen. */
+  let h = 0x811c9dc5;
+  for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  h ^= h >>> 16; h = Math.imul(h, 0x45d9f3b); h ^= h >>> 16;
+  return FARBEN[(h >>> 0) % FARBEN.length];
 }
 
 function nativVorhanden() {
@@ -2342,6 +2358,133 @@ async function projektDateien(ordner, jetzt, fenster) {
   return stand.dateien.filter(f => jetzt - f.mt <= fenster);
 }
 
+/* --- Heute: der Tag in Sitzungen ----------------------------------------
+   Die Szene zeigt, was gerade laeuft; was heute schon vorbei ist, stand
+   nirgends. Der Tagesbogen zeigt je Projekt, wann heute Sitzungen offen
+   waren — von der Entstehung ihrer Datei bis zu ihrem letzten Eintrag.
+   Das ist "offen", nicht "gearbeitet": eine Sitzung, die mittags zwei
+   Stunden auf dich wartete, war in der Zeit trotzdem offen, und so
+   steht es auch darunter.
+
+   Gebaut wird er aus dem, was die Bruecke ohnehin weiss: Anfang und
+   letzte Aenderung jeder Sitzungsdatei. Nur der Name des Projekts fehlt
+   fuer Sitzungen, die heute schon vorbei sind — er wird einmal aus den
+   ersten Zeilen der Datei gelesen und gemerkt, hoechstens zwoelf je
+   Durchlauf. */
+let HEUTE = [];
+const KOPF_ORT = new Map();      // pfad -> cwd aus den ersten Zeilen
+
+async function heuteSammeln() {
+  const mitternacht = new Date(); mitternacht.setHours(0, 0, 0, 0);
+  const ab = mitternacht.getTime();
+  const nachProjekt = new Map();
+  let gelesen = 0;
+  for (const stand of PROJEKT_STAND.values()) {
+    for (const f of stand.dateien) {
+      if (!f.mt || f.mt < ab) continue;
+      let ort = KOPF_ORT.get(f.pfad);
+      if (ort === undefined) {
+        if (gelesen >= 12) continue;           // beim naechsten Durchlauf
+        gelesen++;
+        ort = "";
+        try {
+          const kopf = await Neutralino.filesystem.readFile(f.pfad,
+            { pos: 0, size: Math.max(1, Math.min(f.groesse || 16384, 16384)) });
+          const m = /"cwd":"((?:[^"\\]|\\.)*)"/.exec(kopf);
+          if (m) ort = JSON.parse('"' + m[1] + '"');
+        } catch {}
+        KOPF_ORT.set(f.pfad, ort);
+      }
+      if (!ort) continue;
+      const name = ort.split("/").pop() || ort;
+      if (!nachProjekt.has(name)) nachProjekt.set(name, []);
+      nachProjekt.get(name).push({ von: Math.max(ab, Math.min(f.ct || f.mt, f.mt)), bis: f.mt,
+                                   sid: f.name.replace(/\.jsonl$/, "") });
+    }
+  }
+  if (KOPF_ORT.size > 2000) KOPF_ORT.clear();
+  /* Die Farben der Reihe nach und nicht aus dem Namen: bei acht Farben
+     traefen sich sonst schon drei Projekte oft genug auf einer */
+  HEUTE = [...nachProjekt.entries()].map(([name, segmente]) => ({
+    name, segmente: segmente.sort((x, y) => x.von - y.von),
+  })).sort((x, y) => x.segmente[0].von - y.segmente[0].von)
+     .map((p, i) => ({ ...p, farbe: FARBEN[i % FARBEN.length] }));
+}
+
+/* Wie lange insgesamt offen: die Vereinigung aller Stuecke, damit zwei
+   Sitzungen zur selben Zeit nicht doppelt zaehlen */
+function offenGesamt(stuecke) {
+  const s = stuecke.map(x => [x.von, x.bis]).sort((a, b) => a[0] - b[0]);
+  let summe = 0, a = -1, e = -1;
+  for (const [v, b] of s) {
+    if (v > e) { if (e > a) summe += e - a; a = v; e = b; }
+    else if (b > e) e = b;
+  }
+  if (e > a) summe += e - a;
+  return summe;
+}
+
+function zeichneHeute() {
+  const box = document.getElementById("b-heute");
+  if (!box) return;
+  box.innerHTML = "";
+  if (!HEUTE.length) return;
+  const jetzt = Date.now();
+  const alle = HEUTE.flatMap(p => p.segmente);
+  const start = new Date(Math.min(...alle.map(x => x.von)));
+  start.setMinutes(0, 0, 0);
+  const t0 = start.getTime(), spanne = Math.max(3600000, jetzt - t0);
+  const lebend = new Set((BR.live || []).filter(x => x.typ === "session").map(x => x.sid));
+  const pos = (t) => Math.max(0, Math.min(100, (t - t0) / spanne * 100));
+
+  const wrap = document.createElement("div");
+  wrap.className = "heute";
+  const kopf = document.createElement("div");
+  kopf.className = "d-abschnitt";
+  kopf.textContent = "Heute  ·  " + alle.length + (alle.length === 1 ? " Sitzung" : " Sitzungen")
+    + "  ·  " + dauer(offenGesamt(alle)) + " offen";
+  wrap.appendChild(kopf);
+
+  /* Die Achse: volle Stunden, so dicht, dass es lesbar bleibt */
+  const achse = document.createElement("div");
+  achse.className = "achse";
+  const stunden = spanne / 3600000;
+  const schritt = stunden <= 4 ? 1 : stunden <= 9 ? 2 : stunden <= 16 ? 3 : 4;
+  for (let t = t0; t <= jetzt; t += schritt * 3600000) {
+    const s = document.createElement("span");
+    s.style.left = pos(t) + "%";
+    s.textContent = String(new Date(t).getHours()).padStart(2, "0");
+    achse.appendChild(s);
+  }
+  wrap.appendChild(achse);
+
+  for (const p of HEUTE) {
+    const z = document.createElement("div");
+    z.className = "zeile";
+    const nm = document.createElement("span");
+    nm.className = "nm"; nm.textContent = p.name; nm.title = p.name;
+    const spur = document.createElement("span");
+    spur.className = "spur";
+    for (const sg of p.segmente) {
+      const i = document.createElement("i");
+      i.style.left = pos(sg.von) + "%";
+      i.style.width = Math.max(0.8, pos(sg.bis) - pos(sg.von)) + "%";
+      i.style.background = p.farbe;
+      if (lebend.has(sg.sid)) i.className = "lebt";
+      i.title = p.name + ": " + uhr(sg.von) + " bis " + (lebend.has(sg.sid) ? "jetzt" : uhr(sg.bis));
+      spur.appendChild(i);
+    }
+    z.append(nm, spur);
+    wrap.appendChild(z);
+  }
+  const f = document.createElement("div");
+  f.className = "d-fussnote";
+  f.textContent = "Von der ersten bis zur letzten Zeile einer Sitzung — offen, nicht unbedingt "
+    + "gearbeitet. Hell umrandet: läuft gerade.";
+  wrap.appendChild(f);
+  box.appendChild(wrap);
+}
+
 async function sammleSessions() {
   const basis = BR.heim + "/.claude/projects";
   let projekte;
@@ -2802,6 +2945,8 @@ function liveNeuBauen() {
   /* Steht die Crew-Liste offen, gehoert der neue Stand sofort hinein */
   if (document.getElementById("blende-crew")?.classList.contains("offen"))
     zeichneCrewListe();
+  if (document.getElementById("blende-bruecke")?.classList.contains("offen"))
+    zeichneHeute();
   if (BR.live.map(x => x.id).join("|") !== vorher) aufraeumenSicht();
   if (offeneDetailId) zeichneDetail(offeneDetailId);
   meldungenPruefen();
@@ -2843,6 +2988,7 @@ function vorfuehrungBeenden() {
   VORF.an = false;
   clearInterval(VORF.uhr);
   bruecke_sessions = []; bruecke_ordner = []; bruecke_prozesse = []; bruecke_github = [];
+  HEUTE = [];
   bordbuch("Vorführung beendet");
   liveNeuBauen();
   vorfuehrungKnopf();
@@ -3069,6 +3215,22 @@ function vorfuehrungTakt() {
   bruecke_github = [G];
   bruecke_prozesse = [P];
   bruecke_ordner = [O];
+  /* Ein Beispieltag fuer den Tagesbogen, vom Jetzt aus zurueckgerechnet —
+     um acht Uhr morgens laege ein fester Tagesplan sonst in der Zukunft.
+     Was vor Mitternacht laege, faellt weg wie am echten Tag auch. */
+  const mitternacht = new Date(jetzt); mitternacht.setHours(0, 0, 0, 0);
+  const tag = [
+    ["orbit", -480, -405, "vorf-o1"], ["webshop", -420, -330, "vorf-w1"],
+    ["webshop", -290, -250, "vorf-w2"], ["blog", -95, -21, "vorf-b"], ["webshop", -52, 0, "vorf-a"],
+  ].map(([name, von, bis, sid]) => ({ name, von: Math.max(mitternacht.getTime(), t0 + von * 60000),
+                                      bis: bis ? t0 + bis * 60000 : jetzt, sid }))
+   .filter(x => x.bis > x.von);
+  const projekte = new Map();
+  for (const x of tag) {
+    if (!projekte.has(x.name)) projekte.set(x.name, []);
+    projekte.get(x.name).push({ von: x.von, bis: x.bis, sid: x.sid });
+  }
+  HEUTE = [...projekte.entries()].map(([name, segmente], i) => ({ name, farbe: FARBEN[i % FARBEN.length], segmente }));
   liveNeuBauen();
 }
 
@@ -3086,6 +3248,7 @@ async function brueckeDurchlauf() {
   try {
     if (BR.aktiv && Z.bruecke.typen.session && jetzt - BR.uhren.sessions > TAKT.sessions) {
       BR.uhren.sessions = jetzt; bruecke_sessions = await sammleSessions();
+      await heuteSammeln();
     }
     if (BR.aktiv && Z.bruecke.typen.ordner && Z.bruecke.ordner.length && jetzt - BR.uhren.ordner > TAKT.ordner) {
       BR.uhren.ordner = jetzt; bruecke_ordner = await sammleOrdner();
@@ -13996,6 +14159,7 @@ const TYP_BESCHRIFTUNG = {
 };
 
 function zeichneBrueckeLage() {
+  zeichneHeute();
   const box = $("#b-lage");
   const zahl = (t) => BR.live.filter(x => x.typ === t).length;
   if (BR.aktiv) {
