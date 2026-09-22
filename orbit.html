@@ -1945,11 +1945,35 @@ async function protokollLesen(pfad, groesse, mt) {
      unveraendert. Ausgepackt werden nur die Zeilen, um die es geht. */
   const schreibt = new Map(), erledigt = new Set();
   let todos = null;
+  /* Zwei Meldungen, die Claude Code selbst als "system" ins Protokoll
+     schreibt — beide an einem echten nachgesehen:
+     api_error: der Dienst hat eine Anfrage abgelehnt und Claude Code
+       wiederholt sie ("formatted": "529 Overloaded", retryAttempt,
+       maxRetries). Steht sie nach dem letzten Eintrag des Assistenten,
+       wartet die Sitzung gerade auf den Dienst und arbeitet NICHT —
+       sie sah bisher aus, als waere sie mitten in der Arbeit.
+     compact_boundary: der Kontext wurde verdichtet (compactMetadata
+       mit trigger, preTokens, postTokens). */
+  let stoerung = null, verdichtet = null, letzterAssistent = 0;
   for (const z of zeilen) {
     const m = /"timestamp":"([^"]+)"/.exec(z);
     if (!m) continue;
     const zt = Date.parse(m[1]) || 0;
     if (!abgedecktAb || (zt && zt < abgedecktAb)) abgedecktAb = zt;
+    if (z.includes('"type":"assistant"')) letzterAssistent = zt;
+    if (z.includes('"type":"system"') && (z.includes('"subtype":"api_error"') || z.includes('"subtype":"compact_boundary"'))) {
+      let d = null;
+      try { d = JSON.parse(z); } catch {}
+      if (d && d.subtype === "api_error" && d.error) {
+        stoerung = { text: String(d.error.formatted || d.error.message || "Fehler").slice(0, 80),
+                     status: +d.error.status || 0, netz: !!d.error.isNetworkDown,
+                     versuch: +d.retryAttempt || 0, max: +d.maxRetries || 0, zeit: zt };
+      }
+      if (d && d.subtype === "compact_boundary") {
+        const cm = d.compactMetadata || {};
+        verdichtet = { zeit: zt, art: String(cm.trigger || ""), vor: +cm.preTokens || 0, nach: +cm.postTokens || 0 };
+      }
+    }
     if (z.includes('"type":"assistant"') && z.includes('"tool_use"')) {
       const n = z.split('"type":"tool_use"').length - 1;
       for (let k = 0; k < Math.max(1, n); k++) takt.push(zt);
@@ -1998,6 +2022,8 @@ async function protokollLesen(pfad, groesse, mt) {
     takt: takt.slice(-600), abgedecktAb: pos > 0 ? abgedecktAb : 0,
     geaendert: [...geaendert.values()].sort((x, y) => y.zuletzt - x.zuletzt).slice(0, 12),
     geaendertZahl: geaendert.size,
+    stoerung: stoerung && stoerung.zeit > letzterAssistent ? stoerung : null,
+    verdichtet,
     todos: todos ? todos.filter(x => x && typeof x.content === "string").slice(0, 30).map((x, i) => ({
       id: String(i + 1), titel: x.content,
       aktiv: typeof x.activeForm === "string" && x.activeForm ? x.activeForm : x.content,
@@ -2095,9 +2121,29 @@ async function aufgabeLesen(pfad, groesse) {
   return a;
 }
 
+/* Eine Verdichtung steht nur so lange im gelesenen Ende des Protokolls,
+   bis genug Neues dazukommt. Einmal gesehen, wird sie deshalb je
+   Protokoll gemerkt. */
+const VERDICHTET = new Map();   // pfad -> { zeit, art, vor, nach }
+
+/* Was eine Stoerung fuer die Arbeit heisst, in Worten */
+function stoerungText(st) {
+  const was = st.netz ? "keine Verbindung zum Dienst"
+    : st.status === 529 ? "Dienst überlastet"
+    : st.status === 429 ? "Anfragegrenze erreicht"
+    : st.status >= 500 ? "Dienst gestört" : "Fehler beim Dienst";
+  return was + (st.versuch ? " — Versuch " + st.versuch + (st.max ? " von " + st.max : "") : "");
+}
+
 async function sessionLesen(k, elternName) {
   const p = await protokollLesen(k.pfad, k.groesse, k.mt);
   if (!p || !p.cwd) return null;
+  if (p.verdichtet) VERDICHTET.set(k.pfad, p.verdichtet);
+  if (VERDICHTET.size > 300) VERDICHTET.clear();
+  /* Eine Stoerung gilt nur, solange sie frisch ist: zehn Versuche mit
+     wachsenden Pausen dauern ein paar Minuten, danach hat Claude Code
+     aufgegeben oder es geht weiter — beides steht dann im Protokoll. */
+  const stoerung = p.stoerung && Date.now() - p.stoerung.zeit < 240000 ? p.stoerung : null;
   const aufgabe = elternName ? await aufgabeLesen(k.pfad, k.groesse) : "";
   const { cwd, branch, modell, aufwand, sid, nutzung, agentId, letzteZeit, letzteRolle,
           letzterText, fehlerText, antwort, schritte } = p;
@@ -2143,7 +2189,9 @@ async function sessionLesen(k, elternName) {
          in der Blase. Wer abgebrochen wurde, ebenso wenig. */
       taetigkeit: fehlerText ? "abgebrochen: " + anfang(fehlerText, 60)
                 : berichtet ? "Bericht abgegeben"
+                : stoerung ? stoerungText(stoerung)
                 : schritte.length ? schritte[0].text : "noch kein Schritt",
+      stoerung, verdichtet: VERDICHTET.get(k.pfad) || null,
       werkzeug: schritte.length ? schritte[0].werkzeug : "",
       seit: letzteZeit,
       seitStart: k.ct || 0,
@@ -2167,7 +2215,9 @@ async function sessionLesen(k, elternName) {
     ort: cwd,
     branch,
     taetigkeit: fehlerText ? "abgebrochen: " + anfang(fehlerText, 60)
+              : stoerung ? stoerungText(stoerung)
               : schritte.length ? schritte[0].text : "wartet auf Eingabe",
+    stoerung, verdichtet: VERDICHTET.get(k.pfad) || null,
     werkzeug: schritte.length ? schritte[0].werkzeug : "",
     seit: letzteZeit,
     seitStart: k.ct || 0,
@@ -2874,14 +2924,22 @@ function vorfuehrungTakt() {
   for (let m = 58; m > 0.4; m -= 0.18 + 0.25 * (1 + Math.sin(m * 0.9)))
     if (m < 34 || m > 41) taktA.push(t0 - m * 60000);
   for (const x of SCHRITTE_A) if (x[0] <= s) taktA.push(um(x[0]));
+  /* Gleich nach der Freigabe ist der Dienst ein paar Sekunden
+     ueberlastet — das kommt vor, und genau dann sah eine Sitzung bisher
+     aus, als arbeite sie. Und vor einer guten halben Stunde wurde ihr
+     Kontext verdichtet: das ist die Pause im Takt. */
+  const stoerA = s >= 56 && s < 61
+    ? { text: "529 Overloaded", status: 529, netz: false, versuch: s < 58.5 ? 1 : 2, max: 10, zeit: um(56) } : null;
   const A = {
     ...gemeinsam, id: "s:vorf-a", sid: "vorf-a", typ: "session", name: "webshop-kasse",
     farbe: "#7ba4d8", zustand: REGISTER_ZUSTAND[phaseA], status: phaseA,
     wartetAuf: phaseA === "waiting" ? "permission prompt" : "", statusSeit: um(phaseAb),
     auftrag: "Rabattcodes in der Kasse einbauen und die Preisberechnung dafür auf decimal.js umstellen",
-    taetigkeit: schritteA.length ? schritteA[0].text : "liest sich ein",
+    taetigkeit: stoerA ? stoerungText(stoerA) : schritteA.length ? schritteA[0].text : "liest sich ein",
     werkzeug: schritteA.length ? schritteA[0].werkzeug : "",
     seit: schritteA.length ? schritteA[0].zeit : t0, seitStart: t0 - 52 * 60000,
+    stoerung: stoerA,
+    verdichtet: { zeit: t0 - 34.5 * 60000, art: "auto", vor: 158212, nach: 21940 },
     modell: "claude-opus-5", aufwand: "high",
     nutzung: { kontext: Math.round(41800 + s * 430), zwischen: Math.round((41800 + s * 430) * 0.71),
                aus: 1450, denken: 1120 },
@@ -11355,6 +11413,18 @@ function rahmen(jetzt) {
           bordbuch(a.name + " hat an " + (a.eltern || "seine Sitzung") + " berichtet");
       }
     }
+    /* Eine Verdichtung gehoert ins Bordbuch — einmal, und nicht bei der
+       ersten Sichtung: die hat nur gelesen, was vorher geschah. */
+    if (a.verdichtet && a.typ !== "agent") {
+      if (v.verdichtetUm === undefined) v.verdichtetUm = a.verdichtet.zeit;
+      else if (a.verdichtet.zeit > v.verdichtetUm) {
+        v.verdichtetUm = a.verdichtet.zeit;
+        bordbuch(a.name + " hat den Kontext verdichtet"
+          + (a.verdichtet.vor && a.verdichtet.nach
+            ? " — " + a.verdichtet.vor.toLocaleString("de-DE") + " → "
+              + a.verdichtet.nach.toLocaleString("de-DE") + " Tokens" : ""));
+      }
+    } else if (a.typ !== "agent" && v.verdichtetUm === undefined) v.verdichtetUm = 0;
     /* Die Anzeigedaten hier merken und nicht erst beim Aufraeumen:
        aufraeumenSicht() laeuft nur, wenn sich die Liste aendert, und
        zu dem Zeitpunkt ist die verschwundene Figur schon nicht mehr
@@ -13503,6 +13573,12 @@ function zeichneDetail(id) {
       box.appendChild(zeile("Zustand", a.letzteRolle === "user"
         ? "Claude antwortet gleich" : "wartet vermutlich auf dich"));
     }
+    if (a.stoerung) {
+      const st = a.stoerung;
+      const z = zeile("Störung", stoerungText(st) + "  ·  " + st.text + "  ·  seit " + uhr(st.zeit));
+      z.querySelector(".w").style.color = "#e0a24e";
+      box.appendChild(z);
+    }
     /* Das Zuletzt-Gesagte als Zitat. Beim fertigen Unteragenten heisst
        es Bericht und ist gruen gerandet: es ist das Ergebnis, fuer das
        er losgeschickt wurde. Acht Zeilen, ein Tipp zeigt alles — und
@@ -13553,6 +13629,15 @@ function zeichneDetail(id) {
       if (n.denken)
         box.appendChild(zeile("Zuletzt gedacht", tsd(n.denken) + " von "
           + tsd(n.aus) + " Tokens"));
+    }
+    /* Wann zuletzt verdichtet wurde: danach kennt die Sitzung ihren
+       eigenen Verlauf nur noch als Zusammenfassung — gut zu wissen,
+       wenn sie auf einmal etwas von vorhin nicht mehr weiss. */
+    if (a.verdichtet) {
+      const vd = a.verdichtet, tsd = (v) => v.toLocaleString("de-DE");
+      box.appendChild(zeile("Verdichtet", vorZeit(vd.zeit)
+        + (vd.art === "auto" ? "  ·  automatisch" : vd.art === "manual" ? "  ·  von Hand" : "")
+        + (vd.vor && vd.nach ? "  ·  " + tsd(vd.vor) + " → " + tsd(vd.nach) + " Tokens" : "")));
     }
     if (a.version) box.appendChild(zeile("Version", a.version + (a.art ? "  ·  " + a.art : "")));
     /* Wen diese Sitzung losgeschickt hat. Die Funkstrecke in der Szene
