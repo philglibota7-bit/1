@@ -766,7 +766,14 @@ body.sicht #blende-detail{
       <button class="knopf leer" data-phase="0.78" style="flex:1; font-size:11.5px; padding:8px 4px">Nacht</button>
       <button class="knopf leer" data-phase="0.996" style="flex:1; font-size:11.5px; padding:8px 4px">Aufgang</button>
     </div>
-    <div class="zahl" style="margin-bottom:6px">Springt an die Stelle im Umlauf. Der Übergang dauert echte 43 Sekunden und ist der schönste Moment — den muss man nicht acht Minuten lang abwarten.</div>
+    <div class="zahl" style="margin-bottom:10px">Springt an die Stelle im Umlauf. Der Übergang dauert echte 43 Sekunden und ist der schönste Moment — den muss man nicht acht Minuten lang abwarten.</div>
+    <div id="zeit-raffer" style="display:flex; gap:6px; margin:0 0 4px">
+      <button class="knopf leer" data-rate="0" style="flex:1; font-size:11.5px; padding:8px 4px">Pause</button>
+      <button class="knopf leer an" data-rate="1" style="flex:1; font-size:11.5px; padding:8px 4px">1×</button>
+      <button class="knopf leer" data-rate="4" style="flex:1; font-size:11.5px; padding:8px 4px">4×</button>
+      <button class="knopf leer" data-rate="12" style="flex:1; font-size:11.5px; padding:8px 4px">12×</button>
+    </div>
+    <div class="zahl" id="zeit-text" style="margin-bottom:6px"></div>
     <input class="eingabe" id="himmel-suche" placeholder="Suchen — Name oder Objekt" autocomplete="off" style="margin:12px 0">
     <div id="himmel-gitter"></div>
   </div>
@@ -2637,6 +2644,16 @@ let PHASE_TEST = null;
    ohne die Uhr anzuhalten — danach laeuft der Umlauf von dort aus
    weiter. */
 let PHASE_VERSATZ = 0;
+/* Wie schnell die Uhr laeuft. Eins ist die Grundrate, also zwoelffach
+   gerafft und damit ein Umlauf in 7:40. Null haelt an — und zwar
+   wirklich alles: Licht, Fluegelstellung, Stoffwechsel. Ein Standbild,
+   in dem die Werte weiterliefen, waere eine Luege.
+
+   Die Phase wird dafuer aufaddiert statt aus der Uhrzeit gerechnet.
+   Anders liesse sich die Rate nicht mittendrin aendern, ohne dass das
+   Bild springt. */
+const ZEIT = { rate: 1 };
+let PHASE_UHR = 0;
 
 /* --- Der Lebenserhalt: die Station als Organismus --------------------
    Bis hierher war die Station eine Kulisse mit Lichtwechsel. Was ihr
@@ -2766,7 +2783,7 @@ function lebenTakt(t, dt, phase) {
   /* Gerafft und in Stunden — alle Raten unten sind Einheiten je
      Stunde, das ist die Groesse, in der Stationswerte angegeben
      werden. */
-  const std = (dt / 3600000) * ZEITRAFFER;
+  const std = (dt / 3600000) * ZEITRAFFER * ZEIT.rate;
   const tags = Z.umlauf === false ? 1 : TAGLICHT;
 
   /* --- Strom ---------------------------------------------------------
@@ -3723,6 +3740,7 @@ function zeichneBewegliche(t, mitte, f, phase) {
         : (vorn ? fb["abend" + u] : fb["rabend" + u]);
       male(satz[idx], deck);
     }
+    if (sk > 1.35) kanten(fb, sx, sy, px, py, fb.laenge, fb.breite, vorn, hell);
   }
 
   /* Die Waermetauscher drehen sich anders herum: ihr Gelenk haelt sie
@@ -3754,8 +3772,82 @@ function zeichneBewegliche(t, mitte, f, phase) {
       male(wer === "tag" ? fb.kuehl
         : wer === "nacht" ? fb["knacht" + u] : fb["kabend" + u], deck);
     }
+    if (sk > 1.35) kanten(fb, sx, sy, px, py, fb.kLaenge, fb.kBreite, true, hell, true);
   }
   cx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+/* --- Schaerfe beim Heranfahren ---------------------------------------
+   Das gebackene Bild eines Fluegels ist an die Backstufe des Rumpfes
+   gebunden. Faehrt man weiter heran, wird es vergroessert und damit
+   weich. Einen Fluegel in voller Aufloesung mitzubacken kostete
+   vierzig Megabyte — dafuer ist der Gewinn zu klein.
+
+   Der Ausweg nutzt aus, WAS beim Vergroessern verloren geht: Verlaeufe
+   nicht, denn ein Verlauf hat keine feine Struktur. Verloren gehen
+   nur Kanten und Linien. Also werden genau die live nachgezogen — ein
+   paar Striche je Bauteil, in Geraetekoordinaten und damit immer genau
+   einen Bildpunkt breit. Weicher Verlauf plus scharfe Linie liest das
+   Auge als scharf.
+
+   Gezeichnet wird nicht im gestauchten Bauteilsystem, sondern die
+   Endpunkte werden von Hand dorthin gerechnet. Sonst zoege die
+   ungleiche Stauchung die Strichstaerke mit in die Laenge, und aus
+   einer Naht wuerde ein Keil. */
+function kanten(fb, sx, sy, px, py, laenge, breite, vorn, hell, weiss) {
+  const co = Math.cos(fb.winkel), si = Math.sin(fb.winkel);
+  const halb = breite / 2;
+  /* Bauteilkoordinaten: u laeuft von der Wurzel nach aussen, v quer. */
+  const P = (u, v) => [px + (u * co - v * si) * sx, py + (u * si + v * co) * sy];
+  const zug = (a, b) => { const A = P(a[0], a[1]), B = P(b[0], b[1]);
+    cx.moveTo(A[0], A[1]); cx.lineTo(B[0], B[1]); };
+
+  cx.setTransform(1, 0, 0, 1, 0, 0);
+  const dunkelheit = 0.35 + 0.65 * hell;
+
+  /* Die Naehte quer: beim Fluegel sechs Felder, beim Paneelpaket acht */
+  const felder = weiss ? 8 : 6;
+  cx.strokeStyle = weiss
+    ? `rgba(104,118,130,${0.5 * dunkelheit})`
+    : (vorn ? `rgba(214,158,112,${0.34 * dunkelheit})`
+            : `rgba(140,150,190,${0.3 * dunkelheit})`);
+  cx.lineWidth = 1;
+  cx.beginPath();
+  for (let i = 1; i < felder; i++) {
+    const d = (laenge * i) / felder;
+    zug([d, -halb], [d, halb]);
+  }
+  cx.stroke();
+
+  /* Die Dicke des Pakets: oben eine helle Kante, unten eine fast
+     schwarze. Das ist der Strich, der aus einer Flaeche ein Ding
+     macht — und genau er faellt beim Vergroessern als Erstes weg. */
+  cx.strokeStyle = `rgba(255,246,228,${(weiss ? 0.75 : 0.5) * dunkelheit})`;
+  cx.lineWidth = 1.2;
+  cx.beginPath(); zug([0, -halb], [laenge, -halb]); cx.stroke();
+  cx.strokeStyle = `rgba(10,12,18,${0.6 * dunkelheit})`;
+  cx.lineWidth = 1.2;
+  cx.beginPath(); zug([0, halb], [laenge, halb]); cx.stroke();
+
+  if (!weiss) {
+    /* Der Ausfahrmast in der Mitte, zwischen den beiden Teppichen */
+    cx.strokeStyle = `rgba(206,214,224,${0.8 * dunkelheit})`;
+    cx.lineWidth = Math.max(1, Math.abs(sx) * breite * 0.04);
+    cx.beginPath(); zug([0, 0], [laenge, 0]); cx.stroke();
+    /* Und das feine Zellraster, das dem Auge die Groesse verraet */
+    cx.strokeStyle = vorn
+      ? `rgba(28,14,8,${0.3 * dunkelheit})`
+      : `rgba(6,8,14,${0.34 * dunkelheit})`;
+    cx.lineWidth = 1;
+    cx.beginPath();
+    const spalten = 30;
+    for (let i = 1; i < spalten; i++) {
+      const d = (laenge * i) / spalten;
+      zug([d, -halb * 0.92], [d, -halb * 0.1]);
+      zug([d, halb * 0.1], [d, halb * 0.92]);
+    }
+    cx.stroke();
+  }
 }
 
 /* Die Nacht- und Abendfassung des scharfen Ausschnitts, erst beim
@@ -4699,6 +4791,26 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
   /* Farbring am Helm — Zugehoerigkeit auf einen Blick */
   cx.strokeStyle = farbe; cx.lineWidth = Math.max(0.8, helmR * 0.2);
   cx.beginPath(); cx.arc(0, helmY, helmR * 0.88, Math.PI * 0.2, Math.PI * 0.8); cx.stroke();
+
+  /* Die vier Helmlampen. Sie sitzen paarweise links und rechts an der
+     Helmschale, nicht vorn — vorn ist das Visier. Bei Tag sind sie
+     aus, im Erdschatten an, und dann sieht man von ihnen nur die
+     Lampe selbst und den Fleck, den sie auf das Bauteil wirft. Den
+     Weg dazwischen sieht man nicht: im Vakuum ist nichts, woran sich
+     Licht streuen koennte. */
+  if (nachts > 0.08) {
+    for (const seite of [-1, 1]) {
+      const lx = seite * helmR * 0.94, ly = helmY - helmR * 0.42;
+      cx.fillStyle = `rgba(250,252,255,${0.85 * nachts})`;
+      cx.beginPath();
+      cx.ellipse(lx, ly, helmR * 0.14, helmR * 0.1, 0, 0, Math.PI * 2);
+      cx.fill();
+      cx.fillStyle = `rgba(224,240,255,${0.16 * nachts})`;
+      cx.beginPath();
+      cx.arc(lx, ly, helmR * 0.42, 0, Math.PI * 2);
+      cx.fill();
+    }
+  }
 
   /* Kennleuchte. Im Erdschatten verschwindet ein weisser Anzug vor
      schwarzem Hintergrund fast vollstaendig — mit der Leuchte bleibt
@@ -5844,8 +5956,9 @@ function rahmen(jetzt) {
   KAM.y = lerp(KAM.y, KAM.zielY, eil);
 
   /* Die Stelle im Umlauf bestimmt das Licht fuer alles Weitere */
+  PHASE_UHR = ((PHASE_UHR + (dt / UMLAUF) * ZEIT.rate) % 1 + 1) % 1;
   const umlaufPhase = PHASE_TEST !== null ? PHASE_TEST
-    : (((t / UMLAUF) + PHASE_VERSATZ) % 1 + 1) % 1;
+    : ((PHASE_UHR + PHASE_VERSATZ) % 1 + 1) % 1;
   window.__PHASE_WERT = umlaufPhase;
   {
     const alle = alleAstronauten();
@@ -6170,6 +6283,29 @@ function rahmen(jetzt) {
       cx.beginPath();
       cx.ellipse(groesse * 0.08, 0, groesse * 0.42, groesse * 0.16, 0, 0, Math.PI * 2);
       cx.fill();
+
+      /* Helmlampen. Der Anzug hat vier davon, und im Erdschatten sind
+         sie das Einzige, womit man draussen noch etwas sieht — eine
+         Stunde Dunkelheit je anderthalb Stunden ist bei jedem
+         Aussenbordeinsatz dabei.
+
+         Im Vakuum ist der Strahl selbst unsichtbar: es gibt nichts,
+         woran sich Licht streuen koennte. Zu sehen ist deshalb NUR der
+         Lichtfleck auf dem Bauteil, nie der Kegel dorthin. Das ist der
+         Unterschied zwischen einem Scheinwerfer im Nebel und einem im
+         All — und der haeufigste Fehler in gezeichneter Raumfahrt. */
+      if (TAGLICHT < 0.6) {
+        const an = (1 - TAGLICHT / 0.6) * nah;
+        const lg = cx.createRadialGradient(groesse * 0.1, 0, 0,
+          groesse * 0.1, 0, groesse * 0.62);
+        lg.addColorStop(0, `rgba(238,246,255,${0.3 * an})`);
+        lg.addColorStop(0.45, `rgba(214,232,255,${0.13 * an})`);
+        lg.addColorStop(1, "rgba(200,222,255,0)");
+        cx.fillStyle = lg;
+        cx.beginPath();
+        cx.ellipse(groesse * 0.1, 0, groesse * 0.62, groesse * 0.22, 0, 0, Math.PI * 2);
+        cx.fill();
+      }
       cx.restore();
     }
 
@@ -8026,7 +8162,16 @@ const HILFE = [
     titel: "Tag und Nacht",
     text: "Die Station umrundet die Erde in 92 Minuten, davon 59 Prozent in der Sonne. Der Übergang "
       + "dauert 43 Sekunden und ist der schönste Moment des Umlaufs. Gerafft läuft ein Umlauf in knapp "
-      + "acht Minuten. Abschaltbar unter Hintergrund.",
+      + "acht Minuten. Unter Hintergrund kannst du an eine Stelle springen, die Zeit anhalten oder bis "
+      + "auf das Zwölffache beschleunigen — dann dauert ein Umlauf 38 Sekunden und man sieht die "
+      + "Solarflügel sich drehen.",
+  },
+  {
+    titel: "Der Lebenserhalt",
+    text: "Unter Stationswerte läuft mit, was eine bewohnte Station wirklich beschäftigt: Strom aus den "
+      + "Flügeln, Ladestand der Batterien, Kohlendioxid in der Kabine, Wärme im Kühlkreis, Höhe der "
+      + "Bahn und Kontakt zum Boden. Die Werte sind keine Zierde — sinkt der Ladestand, gehen in den "
+      + "Modulen die Lichter aus, und steigt das CO₂, bläst das Ventil ab.",
   },
   {
     titel: "Bedienung",
@@ -8146,8 +8291,7 @@ if (telemetrieKnopf) telemetrieKnopf.onclick = () => {
 for (const k of $$("#umlauf-sprung button")) {
   k.onclick = () => {
     const ziel = parseFloat(k.dataset.phase);
-    const jetzt = performance.now() / UMLAUF;
-    PHASE_VERSATZ = ((ziel - jetzt) % 1 + 1) % 1;
+    PHASE_VERSATZ = ((ziel - PHASE_UHR) % 1 + 1) % 1;
     if (Z.umlauf === false) {
       Z.umlauf = true;
       umlaufSchalter.classList.add("an");
@@ -8155,6 +8299,25 @@ for (const k of $$("#umlauf-sprung button")) {
     }
   };
 }
+
+/* Zeitraffer umschalten */
+function zeitText() {
+  const f = $("#zeit-text");
+  if (!f) return;
+  if (ZEIT.rate === 0) { f.textContent = "Angehalten. Licht, Flügelstellung und Werte stehen still."; return; }
+  const sek = UMLAUF / 1000 / ZEIT.rate;
+  const m = Math.floor(sek / 60), sr = Math.round(sek % 60);
+  f.textContent = "Ein Umlauf in " + m + ":" + String(sr).padStart(2, "0")
+    + " — " + (12 * ZEIT.rate) + "-fach gerafft.";
+}
+for (const k of $$("#zeit-raffer button")) {
+  k.onclick = () => {
+    ZEIT.rate = parseFloat(k.dataset.rate);
+    for (const o of $$("#zeit-raffer button")) o.classList.toggle("an", o === k);
+    zeitText();
+  };
+}
+zeitText();
 
 const umlaufSchalter = $("#umlauf-schalter");
 umlaufSchalter.onclick = () => {
@@ -8431,6 +8594,8 @@ window.__STBILD = () => STBILD;
 window.__FLBILD = () => FLBILD;
 window.__BEWEG = (v) => { BEWEGLICH = v; };
 window.__LEBEN = () => LEBEN;
+window.__FUNK = () => FUNK;
+window.__SICHTMAP = () => SICHT;
 window.__FRACHT = () => FRACHT;
 window.__SCHILDER = () => TEILSCHILDER;
 window.__ORTE = () => LETZTE_ORTE;
