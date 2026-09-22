@@ -9464,6 +9464,11 @@ function rahmen(jetzt) {
     winkel: ARMSPITZE.winkel,
   }]);
 
+  /* Gibt es gerade etwas zu sehen, dem die ganze Crew zusieht? Bisher
+     nur der Frachter, und nur waehrend er sich bewegt — angedockt ist
+     er nur noch ein weiteres Bauteil. */
+  let schauspiel = null;
+
   /* --- Der Frachter -------------------------------------------------
      Er fliegt an, dockt, bleibt eine Weile und faehrt wieder. Der
      Anflug dauert absichtlich lange: die letzten Meter legt ein
@@ -9495,6 +9500,8 @@ function rahmen(jetzt) {
     cx.translate(fx, fy);
     zeichneFrachter(cx, Rst, richtung + Math.PI, schub);
     cx.restore();
+    /* Wo er steht, merken: die Crew sieht ihm zu. */
+    if (FRACHT.lage === "anflug" || FRACHT.lage === "abflug") schauspiel = { x: fx, y: fy };
   }
   /* Nach dem Namen sortiert, damit dieselbe Mannschaft immer dieselbe
      Aufstellung ergibt — sonst springen die Figuren, sobald eine
@@ -9786,6 +9793,14 @@ function rahmen(jetzt) {
       if (d < nd) { nd = d; naechster = w; }
     }
     if (naechster) blick = naechster.sx < anker.x ? -1 : 1;
+    /* Kommt ein Schiff an oder faehrt es ab, sieht die ganze Crew
+       dorthin und nicht mehr zum Nachbarn. Das ist keine Freiheit,
+       die man sich nimmt: ein Anflug wird von aussen beobachtet, weil
+       jemand im Zweifel den Abbruch rufen muss. Und ein Schiff ist
+       weit genug weg, um es ueber die halbe Station zu sehen —
+       deshalb gilt hier keine Reichweitengrenze wie beim Nachbarn,
+       der nur auf Handzeichen-Entfernung zaehlt. */
+    if (schauspiel) blick = schauspiel.x < anker.x ? -1 : 1;
 
     const Hfig = groesse * v.wuchs * 2.1;      // Figurenhoehe
     const Mfig = Hfig / 1.9;                   // ein Meter im Figurenmass
