@@ -5343,12 +5343,23 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
     const sx = sd * schuB * 0.86, sy = schuY + rh * 0.16;
     let ex, ey, hx, hy;
     if (griff && !istRechts) {
-      /* Die linke Hand greift nach oben an den Handlauf, die Figur
-         haengt darunter. Das ist Warten im All: nicht schwebend,
+      /* Die linke Hand liegt am Handlauf, der Koerper treibt laengs
+         der Wand daneben. Das ist Warten im All: nicht schwebend,
          sondern festgehalten. Die rechte Hand bleibt frei und macht
-         das, was der Zustand verlangt. */
-      ex = sd * H * 0.15; ey = sy - H * 0.06;
-      hx = sd * H * 0.085; hy = schuY - H * 0.17;
+         das, was der Zustand verlangt.
+
+         Der Zielpunkt ist NICHT frei gewaehlt. Draussen wird der
+         Handlauf genau durch diesen Punkt gelegt — 0,26 H zur Seite,
+         0,1 H unter die Mitte, also auf Huefthoehe. Aendert sich einer
+         der beiden Werte, greift die Hand ins Leere, und zwar
+         sichtbar. Die zwei Zahlen gehoeren zusammen.
+
+         Der Ellbogen steht dabei nach aussen ab: mit einem Anzug an
+         den Armen bekommt man den Ellbogen nicht an den Koerper, und
+         genau dieser abgespreizte Winkel ist das, woran man einen
+         Anzug auf jedem Foto erkennt. */
+      ex = sd * H * 0.28; ey = sy + H * 0.07;
+      hx = sd * H * 0.26; hy = H * 0.1;
     } else if (zustand === "denkt" && istRechts) {
       /* Haelt eine Pruefliste auf Brusthoehe */
       ex = sd * H * 0.15; ey = sy + H * 0.13;
@@ -5439,6 +5450,53 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
       /* Der farbige Ring am Handgelenk statt eines farbigen Handschuhs */
       cx.strokeStyle = farbe; cx.lineWidth = Math.max(0.5, H * 0.009);
       cx.beginPath(); cx.arc(hx, hy, gr * 1.15, 0, Math.PI * 2); cx.stroke();
+    }
+    /* Die Greifhand UM das Rohr, nicht davor. Der Handlauf wird
+       draussen gezeichnet und liegt damit hinter der ganzen Figur —
+       eine Hand, die flach davor klebt, sieht aus wie angetupft.
+
+       In zwei Dimensionen loest man das so: ein kurzes Stueck des
+       Rohrs wird hier noch einmal ueber die Handflaeche gelegt, und
+       darueber kommen die Finger. Dann liegt der Daumen davor, das
+       Rohr dazwischen, der Handruecken dahinter — und das Auge liest
+       einen Griff.
+
+       Das Rohr laeuft dabei waagerecht durch die Figur: draussen liegt
+       es quer auf einem Staender, und die Figur steht aufrecht davor.
+       Also gehen die Finger senkrecht darueber. */
+    if (griff && !istRechts && mittel) {
+      const rd = H * 0.052;                   // Rohr, sichtbar dick
+      cx.save();
+      cx.beginPath(); cx.arc(hx, hy, gr * 1.04, 0, Math.PI * 2); cx.clip();
+      cx.strokeStyle = "rgba(34,37,44,.75)";
+      cx.lineWidth = rd * 1.3;
+      cx.beginPath(); cx.moveTo(hx - gr * 1.3, hy); cx.lineTo(hx + gr * 1.3, hy); cx.stroke();
+      cx.strokeStyle = "#c6c9cf";
+      cx.lineWidth = rd;
+      cx.beginPath(); cx.moveTo(hx - gr * 1.3, hy); cx.lineTo(hx + gr * 1.3, hy); cx.stroke();
+      cx.restore();
+      /* Drei Finger senkrecht ueber das Rohr, der Daumen von unten
+         dagegen — so schliesst sich die Faust wirklich. */
+      cx.lineCap = "round";
+      for (let f = -1; f <= 1; f++) {
+        const fx = hx + f * gr * 0.52;
+        cx.strokeStyle = "#ece8dc";
+        cx.lineWidth = gr * 0.4;
+        cx.beginPath();
+        cx.moveTo(fx, hy - gr * 0.72); cx.lineTo(fx - gr * 0.04, hy + gr * 0.52);
+        cx.stroke();
+        cx.strokeStyle = "rgba(74,72,67,.4)";
+        cx.lineWidth = Math.max(0.3, H * 0.006);
+        cx.beginPath();
+        cx.moveTo(fx + gr * 0.2, hy - gr * 0.7); cx.lineTo(fx + gr * 0.16, hy + gr * 0.5);
+        cx.stroke();
+      }
+      cx.strokeStyle = "#f2eee2";
+      cx.lineWidth = gr * 0.44;
+      cx.beginPath();
+      cx.moveTo(hx - gr * 0.8, hy + gr * 0.44);
+      cx.lineTo(hx + gr * 0.2, hy + gr * 0.3);
+      cx.stroke();
     }
     haende.push({ x: hx, y: hy, rechts: istRechts });
   }
@@ -5694,6 +5752,231 @@ function leinePunkt(von, bis, nx, ny, laenge, u, t, phase, hub, bogen) {
   const a = (welle * hub + (bogen || 0)) * rand * laenge;
   return { x: von.x + (bis.x - von.x) * u + nx * a,
            y: von.y + (bis.y - von.y) * u + ny * a };
+}
+
+/* --- Wovon haengt der Astronaut eigentlich? ---------------------------
+   Die Haltepunkte waren seit jeher gemerkt — Handlauf, Fussraste,
+   Greifzapfen —, aber an ihnen stand nichts. Die Figur griff nach oben
+   ins Leere und stand in einer Fussraste, die es nicht gab. Aus der
+   Ferne faellt das nicht auf; beim Heranfahren ist es das Erste, was
+   auffaellt, denn genau daran erkennt man, ob jemand ZUR Station
+   gehoert oder nur davor schwebt.
+
+   Alles hier steht in echten Massen. Ein Meter ist Rst/8,6, denn der
+   Stationsradius ist auf 8,6 Meter festgelegt — dieselbe Umrechnung
+   wie bei der Massstabsleiste, damit nichts auseinanderlaeuft:
+
+     Handlauf          0,53 m lang, 19 mm dick, 64 mm Abstand zur Wand
+     Fussraste (APFR)  Stiel gut einen halben Meter, Platte 0,36 m
+     Karabiner         rund 10 cm
+
+   Gezeichnet wird nur, was man auch sehen kann: unter gut zwei
+   Bildpunkten je Meter ist ein 19-Millimeter-Rohr ein Zwanzigstel
+   Bildpunkt, und das kostet Zeit, ohne etwas zu zeigen. */
+function halteZeug(c, ax, ay, winkel, art, M, stiel, zoom, t, phase, gx, gy, kipp) {
+  /* M ist ein Meter — und zwar der Meter DER FIGUR, nicht der der
+     Station. Die beiden sind nicht derselbe: die Figur wird um den
+     Faktor 1,62 groesser gezeichnet als wahr, damit man ihre
+     Ausruestung ueberhaupt erkennt. Wuerde das Eisen, an dem sie
+     haengt, im Stationsmass stehen, waere es neben ihr um genau
+     diesen Faktor zu klein — und eine Hand, die einen zu duennen
+     Handlauf umfasst, ist schlimmer als gar kein Handlauf.
+
+     Also erbt das Eisen die Luege der Figur. Es beruehrt sie, also
+     muss es zu ihr passen; die gebackenen Handlaeufe auf den
+     Modulwaenden beruehrt niemand und bleiben wahr. */
+  if (M * zoom < 2.2) return;
+  const fein = M * zoom > 7;
+  const d = dunkeln;                         // Nachtseite: Erdschein statt Sonne
+  c.save();
+  c.translate(ax, ay);
+  c.rotate(winkel);
+  /* Nach aussen zeigt im gedrehten Bezugssystem das negative y —
+     dieselbe Festlegung wie beim Kontaktschatten daneben. */
+
+  if (art === "fussraste") {
+    /* Die Fussraste ist der Arbeitsplatz im All. Man steigt mit den
+       Stiefeln in zwei Klemmen, dreht eine Vierteldrehung, und steht
+       fest genug, um mit beiden Haenden an einer Schraube zu drehen.
+       Ohne sie dreht sich der Mensch statt der Schraube.
+
+       Der Stiel hat unten ein Kugelgelenk, damit die Platte in jeden
+       Winkel gestellt werden kann — deswegen der Knoten dort und
+       nicht in der Mitte. */
+    /* Die Stiellaenge kommt von aussen: die Platte muss genau dort
+       stehen, wo die Stiefel stehen, sonst schwebt die Figur ueber
+       ihrer eigenen Fussraste. */
+    const sl = stiel || M * 0.55;
+    c.strokeStyle = d("rgba(38,42,50,.85)");
+    c.lineWidth = M * 0.075;
+    c.lineCap = "round";
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(M * 0.05, -sl); c.stroke();
+    c.strokeStyle = d("#b9bcc2");
+    c.lineWidth = M * 0.05;
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(M * 0.05, -sl); c.stroke();
+    /* Kugelgelenk am Fuss */
+    c.fillStyle = d("#8f939b");
+    c.beginPath(); c.arc(0, -M * 0.06, M * 0.085, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = d("rgba(26,28,34,.7)"); c.lineWidth = M * 0.02;
+    c.beginPath(); c.arc(0, -M * 0.06, M * 0.085, 0, Math.PI * 2); c.stroke();
+
+    /* Die Platte, leicht geneigt — so steht sie wirklich, damit der
+       Koerper zur Arbeit zeigt und nicht senkrecht vom Bauteil weg. */
+    c.save();
+    c.translate(M * 0.05, -sl);
+    c.rotate(-0.18);
+    const pw = M * 0.36, ph = M * 0.07;
+    c.fillStyle = d("#cfd2d6");
+    rundRect(c, -pw / 2, -ph, pw, ph, ph * 0.3); c.fill();
+    c.fillStyle = d("rgba(30,33,40,.45)");
+    rundRect(c, -pw / 2, -ph * 0.35, pw, ph * 0.35, ph * 0.2); c.fill();
+    c.strokeStyle = d("rgba(24,26,32,.75)"); c.lineWidth = Math.max(0.3, M * 0.018);
+    rundRect(c, -pw / 2, -ph, pw, ph, ph * 0.3); c.stroke();
+    /* Die zwei Stiefelklemmen. Gelb, weil alles, was im Anzug bedient
+       wird, gelb ist — mit Handschuh sieht man wenig, und die Farbe
+       ist die halbe Bedienung. */
+    c.fillStyle = d("#d8ad3c");
+    for (const sx of [-pw * 0.27, pw * 0.27]) {
+      rundRect(c, sx - M * 0.045, -ph - M * 0.055, M * 0.09, M * 0.06, M * 0.015);
+      c.fill();
+    }
+    if (fein) {
+      c.strokeStyle = d("rgba(26,28,34,.6)"); c.lineWidth = Math.max(0.3, M * 0.012);
+      for (const sx of [-pw * 0.27, pw * 0.27]) {
+        c.beginPath();
+        c.moveTo(sx, -ph - M * 0.055); c.lineTo(sx, -ph + M * 0.005);
+        c.stroke();
+      }
+      /* Haltebuegel an der Seite: daran zieht man sich hinein */
+      c.strokeStyle = d("#b9bcc2"); c.lineWidth = M * 0.03; c.lineCap = "round";
+      c.beginPath();
+      c.moveTo(pw * 0.46, -ph);
+      c.lineTo(pw * 0.56, -ph - M * 0.16);
+      c.lineTo(pw * 0.3, -ph - M * 0.2);
+      c.stroke();
+    }
+    c.restore();
+    c.restore();
+    return;
+  }
+
+  if (art === "arm") {
+    /* Greifzapfen: der Punkt, an dem der Arm zupackt. Ein Kegelstumpf
+       mit Kragen, damit die drei Draehte im Endstueck sicher fassen. */
+    c.fillStyle = d("#a9adb4");
+    c.beginPath();
+    c.moveTo(-M * 0.09, 0); c.lineTo(-M * 0.05, -M * 0.24);
+    c.lineTo(M * 0.05, -M * 0.24); c.lineTo(M * 0.09, 0);
+    c.closePath(); c.fill();
+    c.fillStyle = d("#d4d7db");
+    rundRect(c, -M * 0.13, -M * 0.3, M * 0.26, M * 0.07, M * 0.02); c.fill();
+    c.strokeStyle = d("rgba(26,28,34,.7)"); c.lineWidth = Math.max(0.3, M * 0.018);
+    rundRect(c, -M * 0.13, -M * 0.3, M * 0.26, M * 0.07, M * 0.02); c.stroke();
+    c.restore();
+    return;
+  }
+
+  /* Handlauf auf einem Staender. Am Gittertraeger gibt es keine Wand,
+     an die man einen Buegel schrauben koennte — dort steht er auf
+     einem Rohr, und genau deshalb kann ein Mensch davor aufrecht
+     stehen und ihn auf Huefthoehe fassen.
+
+     Gezeichnet wird von der Hand aus rueckwaerts: der Querlauf geht
+     durch den Greifpunkt, der Staender von dort senkrecht zurueck
+     aufs Bauteil. So kann die Hand gar nicht danebengreifen, egal wie
+     weit die Figur gerade forttreibt. */
+  c.restore();
+  if (gx === undefined) return;
+  c.save();
+  c.translate(gx, gy);
+  c.rotate(kipp);
+  /* Echte Masse waeren 0,53 m lang und 19 mm dick. Die Laenge bleibt;
+     die Dicke nicht. Die Figur ist um 1,62 ueberhoeht und hat dazu
+     bewusst stilisiert grosse Haende — neben denen wird ein
+     19-Millimeter-Rohr zum Draht, und eine Hand, die einen Draht
+     umfasst, haelt sich sichtbar an nichts fest. Also wird das Rohr
+     auf 45 Millimeter gezeichnet: dieselbe Luege wie bei der Figur,
+     an derselben Stelle, aus demselben Grund.
+
+     Der Abstand zur Wand bleibt bei den echten 64 Millimetern, denn
+     der ist keine Zierde — er ist genau so breit, dass eine Faust im
+     Handschuh dazwischenpasst, und ohne ihn koennte niemand
+     zugreifen. */
+  const hl = M * 0.53, hd = M * 0.045;
+  /* Der Staender: von der Hand zurueck zum Bauteil. Wie weit das ist,
+     weiss hier niemand — also wird es ausgerechnet, statt geraten.
+     Im Bezugssystem der Figur zeigt ihr Plus-y zum Bauteil. */
+  const zx = ax - gx, zy = ay - gy;
+  const tief = -zx * Math.sin(kipp) + zy * Math.cos(kipp);
+  /* Senkrecht nach unten, nicht schraeg zum Haltepunkt hin. Schraeg
+     lief der Staender quer durch die Beine der Figur — die Wand geht
+     seitlich ja weiter, also darf er auch daneben stehen. */
+  c.strokeStyle = d("rgba(28,31,38,.8)");
+  c.lineWidth = Math.max(0.6, hd * 2.1);
+  c.lineCap = "butt";
+  c.beginPath(); c.moveTo(0, tief); c.lineTo(0, hd * 0.4); c.stroke();
+  c.strokeStyle = d("#a9adb4");
+  c.lineWidth = Math.max(0.5, hd * 1.45);
+  c.beginPath(); c.moveTo(0, tief); c.lineTo(0, hd * 0.4); c.stroke();
+  c.strokeStyle = d("rgba(255,255,255,.4)");
+  c.lineWidth = Math.max(0.3, hd * 0.4);
+  c.beginPath();
+  c.moveTo(-hd * 0.4, tief); c.lineTo(-hd * 0.4, hd * 0.4);
+  c.stroke();
+  /* Fussplatte dort, wo der Staender auf dem Bauteil sitzt. Sie wird
+     in die Lage des Bauteils gedreht, nicht in die der Figur — sonst
+     steht sie schief auf der Wand, sobald die Figur pendelt. */
+  c.save();
+  c.translate(0, tief);
+  c.rotate(winkel - kipp);
+  c.fillStyle = d("rgba(96,101,110,.85)");
+  rundRect(c, -M * 0.1, -M * 0.05, M * 0.2, M * 0.05, M * 0.014); c.fill();
+  c.fillStyle = d("#b6bac1");
+  rundRect(c, -M * 0.09, -M * 0.058, M * 0.18, M * 0.04, M * 0.012); c.fill();
+  c.restore();
+
+  /* Der Querlauf durch den Greifpunkt */
+  c.strokeStyle = d("rgba(34,37,44,.8)");
+  c.lineWidth = Math.max(0.5, hd * 2.6);
+  c.lineCap = "round";
+  c.beginPath(); c.moveTo(-hl / 2, 0); c.lineTo(hl / 2, 0); c.stroke();
+  c.strokeStyle = d("#c6c9cf");
+  c.lineWidth = Math.max(0.4, hd * 1.9);
+  c.beginPath(); c.moveTo(-hl / 2, 0); c.lineTo(hl / 2, 0); c.stroke();
+  /* Glanzkante oben: ein Rohr ist keine Linie */
+  c.strokeStyle = d("rgba(255,255,255,.55)");
+  c.lineWidth = Math.max(0.3, hd * 0.6);
+  c.beginPath();
+  c.moveTo(-hl / 2, -hd * 0.5); c.lineTo(hl / 2, -hd * 0.5);
+  c.stroke();
+  if (fein) {
+    /* Der gelbe Ring markiert den Weg nach draussen. Wer im Anzug
+       unterwegs ist, folgt diesen Marken — das Sichtfeld im Helm ist
+       zu klein, um sich an der Form der Station zu orientieren. */
+    c.strokeStyle = d("#d8ad3c");
+    c.lineWidth = Math.max(0.4, hd * 1.9);
+    c.beginPath();
+    c.moveTo(hl * 0.26, 0); c.lineTo(hl * 0.44, 0);
+    c.stroke();
+    /* Karabiner der Sicherungsleine. Draussen ist man immer an zwei
+       Punkten gesichert; gezeichnet wird der eine, den man sieht. */
+    const kx = -hl * 0.33, ky = 0;
+    const wi = Math.sin(t * 0.00037 + phase) * 0.22;
+    c.save();
+    c.translate(kx, ky);
+    c.rotate(wi);
+    c.strokeStyle = d("#dfe3e9");
+    c.lineWidth = Math.max(0.4, M * 0.016);
+    c.beginPath();
+    c.ellipse(0, M * 0.055, M * 0.032, M * 0.058, 0, 0, Math.PI * 2);
+    c.stroke();
+    c.strokeStyle = d("rgba(216,173,60,.9)");
+    c.beginPath();
+    c.moveTo(-M * 0.03, M * 0.03); c.lineTo(-M * 0.012, M * 0.085);
+    c.stroke();
+    c.restore();
+  }
+  c.restore();
 }
 
 function zeichneLeine(von, bis, farbe, zustand, t, blitze, phase) {
@@ -7446,11 +7729,17 @@ function rahmen(jetzt) {
        ist, laesst sich ein Stueck treiben. Wer haengt, taumelt am Ende
        der Leine — das ist der einzige Zustand, in dem jemand wirklich
        frei im Raum ist. */
+    /* 1,0 heisst: die Sohlen liegen genau auf. Wer in der Fussraste
+       arbeitet, steht darin — 1,18 hiess, dass er 0,18 Figurenmasse
+       darueber schwebte, und ueber einer Platte zu schweben, in der
+       die eigenen Stiefel geklemmt sein sollen, ist genau der Fehler,
+       den diese Platte sichtbar machen sollte. */
+    const inRaste = (q.art === "fussraste" || q.art === "arm") && unterwegs <= 0.05;
     const weg = unterwegs > 0.05 ? 1.1
               : l.zustand === "fehler" ? 6.2
               : l.zustand === "fertig" ? 3.0
               : l.zustand === "ruht"   ? 1.6
-              : 1.18;
+              : inRaste ? 1.0 : 1.18;
     v.weg = lerp(v.weg === undefined ? weg : v.weg, weg, 1 - Math.pow(0.0025, dt / 1000));
 
     /* Im Schwerelosen bremst nichts. Wer frei treibt, driftet langsam
@@ -7471,10 +7760,104 @@ function rahmen(jetzt) {
       : (schwung < 1 ? schwung * 2 - 1 : 3 - schwung * 2) * frei * groesse * 0.9;
     const atem  = sparsam ? 0 : Math.sin(t * 0.0009 + v.phase) * groesse * 0.06;
 
-    const abstand = groesse * (1.05 * v.weg) + atem;
+    /* --- Wo genau steht die Figur? -----------------------------------
+       Bisher stand sie immer gleich: ein Stueck senkrecht vom Bauteil
+       weg, Kopf nach aussen. Nachgerechnet hiess das, dass NIEMAND
+       die Station beruehrt — die Sohlen lagen 0,19 Figurenmasse ueber
+       dem Haltepunkt, und der Greifarm zeigte nach oben ins Leere,
+       waehrend der Haltepunkt unter den Fuessen lag. Aus der Ferne
+       faellt das nicht auf, beim Heranfahren sofort.
+
+       Jetzt gibt es zwei Faelle, und sie sind wirklich verschieden:
+
+       In der FUSSRASTE steht man aufrecht auf einem Stiel. Kopf nach
+       aussen, beide Haende frei — das ist die Arbeitshaltung, und die
+       Figur muss mit den Sohlen auf der Platte stehen, nicht darueber
+       schweben. Also kommt die Stiellaenge zum Abstand dazu.
+
+       Am HANDLAUF geht das gar nicht. Ein Arm reicht 0,32 Figurenhoehen
+       weit; der Haltepunkt laege bei 0,59. Wer aufrecht davorsteht,
+       kann ihn nicht greifen — mit dieser Koerperrichtung ist ein
+       einhaendiger Griff geometrisch unmoeglich. Und so sieht es
+       draussen auch nicht aus: wer sich an einem Handlauf haelt, liegt
+       LAENGS der Wand und treibt daneben, nicht senkrecht davor.
+
+       Deshalb wird die Figur dort um einen rechten Winkel gedreht und
+       nicht mehr vom Haltepunkt aus gesetzt, sondern von der Hand aus:
+       die Greifhand kommt an den Haltepunkt, und der Koerper haengt
+       sich davon ab. Das ist herumgedreht gerechnet, aber es ist die
+       einzige Rechnung, bei der die Hand wirklich ankommt. */
+    /* Gibt es einen Kollegen in Rufweite? Dann dorthin schauen. Die
+       Reichweite ist knapp gewaehlt: gut fuenf Figurenbreiten, weiter
+       reicht im Anzug weder Blick noch Verstaendigung ueber
+       Handzeichen.
+
+       Gemessen wird vom HALTEPUNKT aus, nicht von der Figur: wohin sie
+       schaut, entscheidet mit darueber, wo sie steht — eine Figur, die
+       sich umdreht, greift mit der anderen Hand zu. Umgekehrt ginge es
+       nicht, das waere ein Kreis. Der Haltepunkt liegt hoechstens eine
+       Figurenhoehe daneben, fuer eine Frage nach "wer ist in der Naehe"
+       ist das genau genug. */
+    let blick = 1, nd = groesse * 5.5, naechster = null;
+    for (const o of liste) {
+      if (o.id === a.id) continue;
+      const w = SICHT.get(o.id);
+      if (!w) continue;
+      const d = Math.hypot(w.sx - anker.x, w.sy - anker.y);
+      if (d < nd) { nd = d; naechster = w; }
+    }
+    if (naechster) blick = naechster.sx < anker.x ? -1 : 1;
+
+    const Hfig = groesse * v.wuchs * 2.1;      // Figurenhoehe
+    const Mfig = Hfig / 1.9;                   // ein Meter im Figurenmass
+    const haltung = unterwegs > 0.05 ? "griff"
+                  : frei > 0.25 ? "frei"
+                  : (q.art === "fussraste" || q.art === "arm") ? "raste" : "griff";
+    const stiel = haltung === "raste" ? Mfig * 0.55 : 0;
+    const haelt = q.art === "handlauf" && frei < 0.2;
+    const pendeln = sparsam || !haelt ? 0
+      : Math.sin(t * 0.000571 + v.phase) * 0.157;
+    const taumeln = sparsam ? 0
+      : frei * ((t * 0.00021 + v.phase) % (Math.PI * 2));
+
+    const kipp = q.winkel + pendeln + taumeln;
+    /* Der Wuchs gehoert mit hinein: die halbe Figurenhoehe ist
+       1,05 · groesse · wuchs, nicht 1,05 · groesse. Ohne ihn stand die
+       groesste Figur zehn Prozent zu tief und die kleinste zehn
+       Prozent zu hoch — bei einer Platte unter den Fuessen sieht man
+       genau das. */
+    const abstand = groesse * v.wuchs * 1.05 * v.weg + atem + stiel;
     const x = anker.x + Math.cos(auf) * abstand - Math.sin(auf) * trift;
     const y = anker.y + Math.sin(auf) * abstand + Math.cos(auf) * trift;
     v.sx = x; v.sy = y;
+
+    /* --- Wo genau liegt die Greifhand? -------------------------------
+       Ein Arm reicht 0,32 Figurenhoehen weit, die Schulter sitzt bei
+       -0,26. Die Hand kommt damit hoechstens auf +0,06 — der
+       Haltepunkt unter den Fuessen liegt aber bei +0,59. Eine
+       aufrecht stehende Figur kann ihn also NIE greifen, ganz gleich
+       wie man rechnet.
+
+       Ein Versuch, die Figur dafuer um einen rechten Winkel zu drehen,
+       war geometrisch sauber und sah trotzdem falsch aus: sie lag quer
+       und wirkte umgefallen. Die aufrechte Haltung ist die richtige —
+       sie ist das Bild, das jeder von einem Aussenbordeinsatz kennt.
+
+       Also kommt der Handlauf dorthin, wo die Hand ist: auf einen
+       Staender, der vom Bauteil bis auf Huefthoehe hochsteht. Genau
+       so steht er am echten Gittertraeger auch, denn dort gibt es
+       keine Wand, an die man ihn schrauben koennte. Die Hand greift
+       ihn quer — und ein aufrecht Stehender, der eine waagerechte
+       Stange auf Huefthoehe haelt, ist eine Haltung, die jeder sofort
+       liest.
+
+       Die Zahlen hier und die in zeichneAstronaut sind dieselben. Sie
+       gehoeren zusammen; geht eine verloren, greift die Hand ins Leere.
+       Gespiegelt wird mit blick, denn die ganze Figur wird es auch. */
+    const grX = blick * -Hfig * 0.26, grY = Hfig * 0.1;
+    const kco = Math.cos(kipp), ksi = Math.sin(kipp);
+    const griffX = x + grX * kco - grY * ksi;
+    const griffY = y + grX * ksi + grY * kco;
 
     /* Impulse auf der Leine, solange gesendet wird */
     if (l.zustand === "sendet" || (l.zustand === "denkt" && a.typ === "agent")) {
@@ -7528,6 +7911,13 @@ function rahmen(jetzt) {
       cx.restore();
     }
 
+    /* Das Eisen, an dem die Figur haengt. Gezeichnet VOR der Figur:
+       die Hand liegt dann vor dem Rohr, und genau so greift man zu. */
+    halteZeug(cx, anker.x, anker.y, q.winkel,
+      unterwegs > 0.05 ? "handlauf" : q.art,
+      Mfig, stiel, KAM.zoom * kinoZoom, t, v.phase,
+      griffX, griffY, kipp);
+
     zeichneLeine(anker, { x, y }, a.farbe, l.zustand, t, l.blitze, v.phase);
 
     /* Wer mit einer Hand am Handlauf haengt, pendelt um diese Hand:
@@ -7544,36 +7934,12 @@ function rahmen(jetzt) {
        Und die Rate haengt an der Groesse: ein Astronaut dreht sich rund
        hundertachtzigmal schneller als die Station. Diese Staffelung
        ist der Massstab, den im All sonst nichts liefert. */
-    const haelt = q.art === "handlauf" && frei < 0.2;
-    const pendeln = sparsam || !haelt ? 0
-      : Math.sin(t * 0.000571 + v.phase) * 0.157;
-    const taumeln = sparsam ? 0
-      : frei * ((t * 0.00021 + v.phase) % (Math.PI * 2));
-    const kipp = q.winkel + pendeln + taumeln;
     const hervor = Z.gewaehlt === a.id || offeneDetailId === a.id;
-    /* Wer frei treibt, hat keine Haltung — wer an der Struktur haengt,
-       schon, und zwar je nach dem, woran er haengt. */
-    const haltung = unterwegs > 0.05 ? "griff"
-                  : frei > 0.25 ? "frei"
-                  : (q.art === "fussraste" || q.art === "arm") ? "raste" : "griff";
     /* Menschen sind nicht alle gleich gross. Belegt ist nur ein Wert:
        2,04 m ist die Koerperhoehe im Anzug fuer den groessten
        zugelassenen Menschen. Der Rest streut darum — und diese Streuung
        ist selbst ein Realismushinweis, weil eine Mannschaft aus
        Klonen sofort auffaellt. */
-    /* Gibt es einen Kollegen in Rufweite? Dann dorthin schauen. Die
-       Reichweite ist knapp gewaehlt: gut fuenf Figurenbreiten, weiter
-       reicht im Anzug weder Blick noch Verstaendigung ueber
-       Handzeichen. */
-    let blick = 1, nd = groesse * 5.5, naechster = null;
-    for (const o of liste) {
-      if (o.id === a.id) continue;
-      const w = SICHT.get(o.id);
-      if (!w) continue;
-      const d = Math.hypot(w.sx - x, w.sy - y);
-      if (d < nd) { nd = d; naechster = w; }
-    }
-    if (naechster) blick = naechster.sx < x ? -1 : 1;
 
     /* Die Werkzeugtasche. Draussen wird nichts in die Hand genommen,
        was nicht angebunden ist — ein losgelassener Schraubenschluessel
