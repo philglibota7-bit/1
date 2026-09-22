@@ -303,6 +303,7 @@ footer{
   width:9px; border-left:1px solid var(--edge2); border-bottom:1px solid var(--edge2);
   border-bottom-left-radius:5px;}
 .live-karte.kind.fertig .tut{color:var(--good);}
+.live-karte.abgebrochen .tut{color:#e79a8c;}
 /* Die Unteragenten im Detailfenster einer Sitzung */
 /* Was eine Sitzung zuletzt gesagt hat */
 .d-zitat{margin:2px 0 8px; padding:9px 12px 10px; border-left:2px solid var(--edge2);
@@ -11957,7 +11958,8 @@ function zeichneCrewListe() {
   for (const a of live) {
     const k = document.createElement("button");
     const kind = !!(a.elternId && daIds.has(a.elternId));
-    k.className = "live-karte" + (kind ? " kind" : "") + (a.berichtet ? " fertig" : "");
+    k.className = "live-karte" + (kind ? " kind" : "") + (a.berichtet ? " fertig" : "")
+      + (a.fehlerText ? " abgebrochen" : "");
     const z1 = document.createElement("div"); z1.className = "zeile1";
     const kug = document.createElement("span");
     kug.className = "kugel";
