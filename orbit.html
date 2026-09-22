@@ -9453,6 +9453,19 @@ function rahmen(jetzt) {
        darin. Im Bildtakt kommt dagegen jede gezeichnete Figur vorbei. */
     if (!a.heimwaerts) ZULETZT.set(a.id, a);
 
+    /* Laeuft jemand in die Reserve, gehoert das ins Bordbuch. Der
+       Punkt am Namensschild sagt, DASS etwas ist; das Bordbuch sagt,
+       seit wann. Gemeldet wird nur der Uebergang, nicht der Zustand —
+       sonst stuende dieselbe Zeile alle zwanzig Sekunden neu darin. */
+    const stand = anzugStand(a);
+    if (stand !== v.standVorher) {
+      if (stand === 1 && v.standVorher !== undefined)
+        bordbuch(a.name + " ist über der geplanten Einsatzdauer");
+      else if (stand === 2 && v.standVorher !== undefined)
+        bordbuch(a.name + " hat die Reserve aufgebraucht");
+      v.standVorher = stand;
+    }
+
     /* Erstmalig einen Platz beziehen.
 
        Wer schon da war, als die App aufging, ist einfach draussen: die
@@ -12150,8 +12163,11 @@ const HILFE = [
   {
     titel: "Bedienung",
     text: "Mausrad oder zwei Finger zoomen, Ziehen verschiebt, Doppelklick fährt heran. "
-      + "Tasten: L Log, C Crew, H Hintergrund, B Brücke, T Stationswerte, K Kinomodus, R Rundgang, "
-      + "Leertaste stellt die Kamera zurück, Plus und Minus zoomen, Escape schließt.",
+      + "Tasten: L Log, C Crew, H Hintergrund, B Brücke, T Stationswerte, K Kinomodus, R Rundgang. "
+      + "Pfeiltasten schieben das Bild (mit Umschalt weiter), Plus und Minus zoomen, "
+      + "N und P springen von Astronaut zu Astronaut (Tab auch, solange kein Knopf "
+      + "den Fokus hat), Leertaste stellt die Kamera zurück, "
+      + "Escape schließt.",
   },
   {
     titel: "Was es kostet",
@@ -12376,6 +12392,53 @@ document.addEventListener("keydown", (e) => {
   /* Plus und Minus zoomen, damit es auch ohne Mausrad geht */
   if (e.key === "+" || e.key === "=") { e.preventDefault(); zoomeAuf(W / 2, H / 2, 1.25); }
   if (e.key === "-" || e.key === "_") { e.preventDefault(); zoomeAuf(W / 2, H / 2, 1 / 1.25); }
+
+  /* --- Schieben mit den Pfeiltasten ---------------------------------
+     Zoomen ging ohne Maus, schieben nicht. Wer am Laptop ohne Maus
+     sitzt oder gar nicht zeigen kann, kam bisher heran, aber nicht
+     hinueber — und heranfahren, ohne sich bewegen zu koennen, ist
+     schlimmer als gar nicht heranfahren.
+
+     Ein Schritt ist ein Achtel der Bildbreite, also unabhaengig von
+     Schirm und Zoomstufe immer derselbe Anteil des Sichtbaren. Mit
+     Umschalt ein Viertel: das ist der Unterschied zwischen "das
+     Nachbarmodul ansehen" und "ans andere Ende des Traegers". */
+  const PFEIL = { ArrowLeft: [1, 0], ArrowRight: [-1, 0],
+                  ArrowUp: [0, 1], ArrowDown: [0, -1] };
+  const pf = PFEIL[e.key];
+  if (pf) {
+    e.preventDefault();
+    /* Beim Schieben nicht mehr mitfahren: wer selbst steuert, will
+       nicht von einem Astronauten weitergezogen werden. */
+    KAM.folgt = null;
+    const schritt = W * (e.shiftKey ? 0.25 : 0.125);
+    KAM.zielX += pf[0] * schritt;
+    KAM.zielY += pf[1] * schritt;
+    grenzenHalten();
+    zeigeZoomLeiste();
+    return;
+  }
+
+  /* --- Von Astronaut zu Astronaut -----------------------------------
+     N und P gehen vor und zurueck. Tab tut dasselbe, aber NUR wenn
+     gerade nichts anderes den Fokus hat: sonst waere die eine
+     Tastaturhilfe die naechste kaputt gemacht, denn Tab ist die Taste,
+     mit der man ueberhaupt erst zu den Knoepfen kommt. Wer also durch
+     die Bedienung wandert, wandert weiter; wer nur die Szene vor sich
+     hat, springt durch die Crew. */
+  const weiterTaste = taste === "n" ? 1 : taste === "p" ? -1
+    : (e.key === "Tab" && (!z || z === document.body)) ? (e.shiftKey ? -1 : 1) : 0;
+  if (weiterTaste) {
+    const alle = alleAstronauten().concat(heimkehrer()).filter(a => SICHT.has(a.id));
+    if (!alle.length) return;
+    e.preventDefault();
+    const jetzt = alle.findIndex(a => a.id === (KAM.folgt || offeneDetailId));
+    const naechst = alle[((jetzt < 0 ? (weiterTaste > 0 ? -1 : 0) : jetzt)
+      + weiterTaste + alle.length * 2) % alle.length];
+    detailOeffnen(naechst.id);
+    fahreZu(naechst.id, Math.max(2.4, KAM.zielZoom));
+    return;
+  }
 });
 
 /* --- Auftragsfeld --- */
