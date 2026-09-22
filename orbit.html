@@ -1309,6 +1309,7 @@ async function sessionLesen(pfad, groesse, name, erstellt) {
   if (pos > 0) zeilen.shift();          // erste Zeile ist angeschnitten
 
   let cwd = "", branch = "", modell = "", aufwand = "", sid = "", nutzung = null;
+  let auftrag = "";
   let letzteZeit = 0, letzteRolle = "";
   const schritte = [];
 
@@ -1319,6 +1320,25 @@ async function sessionLesen(pfad, groesse, name, erstellt) {
     try { d = JSON.parse(z); } catch { continue; }
 
     if (!cwd && d.cwd) { cwd = d.cwd; branch = d.gitBranch || ""; }
+    /* Der letzte Auftrag. Claude Code schreibt ihn als eigene Zeile
+       mit type "last-prompt" mit — die kuerzeste und sicherste Quelle
+       dafuer, was hier eigentlich verlangt wurde. Bisher zeigte die
+       App nur, WAS eine Sitzung tut, nie WOFUER. Genau das ist aber die
+       Frage, die man an eine fremde Sitzung zuerst hat.
+
+       Ohne diese Zeile faellt der Text aus dem juengsten
+       Benutzereintrag ein; dessen Inhalt kann ein Text oder eine Liste
+       von Bloecken sein. */
+    if (!auftrag && d.type === "last-prompt" && typeof d.lastPrompt === "string")
+      auftrag = d.lastPrompt;
+    if (!auftrag && d.type === "user") {
+      const c = (d.message || {}).content;
+      if (typeof c === "string") auftrag = c;
+      else if (Array.isArray(c)) {
+        const t = c.find(b => b && b.type === "text" && typeof b.text === "string");
+        if (t) auftrag = t.text;
+      }
+    }
     if (!sid && d.sessionId) sid = d.sessionId;
     if (!letzteZeit && d.timestamp) letzteZeit = Date.parse(d.timestamp) || 0;
     if (!letzteRolle && (d.type === "user" || d.type === "assistant")) letzteRolle = d.type;
@@ -1389,6 +1409,11 @@ async function sessionLesen(pfad, groesse, name, erstellt) {
     seit: letzteZeit,
     seitStart: erstellt || 0,
     modell, aufwand, nutzung,
+    /* Lange Auftraege werden hier schon gekuerzt: was drueber
+       hinausgeht, liest sowieso niemand in einem Fenster von
+       vierhundert Punkten Breite, und es wanderte sonst bei jedem
+       Takt durch den Speicher. */
+    auftrag: auftrag ? auftrag.replace(/\s+/g, " ").trim().slice(0, 300) : "",
     letzteRolle,
     schritte: schritte.slice(0, 8),
   };
@@ -11358,6 +11383,11 @@ function zeichneDetail(id) {
   /* --- Live-Quellen: wo und was --- */
   if (a.ort)    box.appendChild(zeile("Ort", a.ort, "pfad"));
   if (a.branch) box.appendChild(zeile("Branch", a.branch));
+  /* Erst wo, dann wofuer, dann was: der Auftrag gehoert vor die
+     Taetigkeit. Ein Werkzeugaufruf sagt, WAS gerade laeuft; der
+     Auftrag sagt, WOFUER — und das ist die Frage, die man an eine
+     fremde Sitzung zuerst hat. */
+  if (a.auftrag) box.appendChild(zeile("Auftrag", a.auftrag));
   if (a.taetigkeit) box.appendChild(zeile("Tut gerade", a.taetigkeit));
   if (a.seit)   box.appendChild(zeile("Zuletzt", vorZeit(a.seit) + "  ·  " + uhr(a.seit)));
 
@@ -12474,7 +12504,9 @@ const HILFE = [
     text: "◆ ist ein eigener Claude-Agent. ⌘ eine laufende Claude-Code-Sitzung, ▣ ein Projektordner, "
       + "▶ ein laufender Befehl, ⑂ ein GitHub-Repo. Die letzten vier gibt es nur im Mac-Programm — im "
       + "Browser darf eine Seite das Dateisystem nicht lesen. Unter Crew stehen alle untereinander, "
-      + "mit dem, was sie gerade tun; eine Zeile antippen fährt zu ihrer Figur.",
+      + "mit dem, was sie gerade tun; eine Zeile antippen fährt zu ihrer Figur. Im Detailfenster "
+      + "steht über der Tätigkeit der Auftrag — das, was du zuletzt verlangt hast. Erst wo, dann "
+      + "wofür, dann was.",
   },
   {
     titel: "Wer auf dich wartet",
