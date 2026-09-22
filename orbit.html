@@ -534,6 +534,33 @@ body.sicht #blende-detail{
    normale Takt und wuerde die Liste nur zupflastern. */
 .d-luecke{font-size:10px; color:var(--tx3); padding:1px 0 3px; letter-spacing:.02em;}
 .d-luecke b{color:var(--tx2); font-weight:600;}
+/* --- Die Anzuguhr ---
+   Ein Aussenbordeinsatz endet nicht, wenn die Arbeit fertig ist,
+   sondern wenn der knappste Vorrat im Anzug zur Neige geht. Deshalb
+   ist das hier ein Balken mit einer Marke darin und nicht nur eine
+   Zahl: die Marke sitzt bei 6,5 Stunden, dem geplanten Ende, und
+   dahinter liegt schraffiert die halbe Stunde Reserve. Man soll auf
+   einen Blick sehen, WO auf dem Einsatz jemand steht, nicht nur wie
+   lange er schon draussen ist. */
+.d-anzug{margin:3px 0 4px;}
+.d-uhr{position:relative; height:9px; border-radius:4px; overflow:hidden;
+  background:rgba(255,255,255,.07); border:1px solid var(--edge);}
+.d-uhr i{position:absolute; left:0; top:0; bottom:0; border-radius:4px 0 0 4px;
+  background:linear-gradient(90deg,#4f8d68,#74b48d); transition:width .5s var(--ease);}
+.d-uhr.warm i{background:linear-gradient(90deg,#c88a3e,#e0a24e);}
+.d-uhr.schlecht i{background:linear-gradient(90deg,#b8503f,#e07a6a);}
+/* Die Reserve: schraffiert, damit sie als Sperrzone liest und nicht
+   als weiterer Vorrat. */
+.d-uhr u{position:absolute; top:0; bottom:0; right:0; text-decoration:none;
+  background:repeating-linear-gradient(-45deg,
+    rgba(232,150,136,.62) 0 2px, rgba(20,14,14,.42) 2px 5px);
+  border-left:1.5px solid rgba(232,150,136,.85);}
+.d-vorrat{display:flex; flex-wrap:wrap; gap:3px 14px; margin-top:7px;}
+.d-vorrat span{font-size:10.5px; color:var(--tx3); letter-spacing:.02em;}
+.d-vorrat b{color:var(--tx2); font-weight:600; font-variant-numeric:tabular-nums;}
+.d-vorrat span.eng b{color:#e0a24e;}
+.d-vorrat span.leer b{color:var(--bad);}
+.d-fussnote{font-size:10.5px; color:var(--tx3); line-height:1.5; margin-top:8px;}
 .d-marke{display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:99px;
   background:var(--p2); border:1px solid var(--edge); font-size:11px; color:var(--tx2);}
 .d-marke.gut{background:rgba(116,180,141,.14); border-color:rgba(116,180,141,.3); color:var(--good);}
@@ -1225,7 +1252,7 @@ function taetigkeitAus(name, ein) {
 }
 
 /* Nur das Ende der Datei lesen — Protokolle werden schnell megabytegross */
-async function sessionLesen(pfad, groesse, name) {
+async function sessionLesen(pfad, groesse, name, erstellt) {
   const fenster = Math.min(groesse, 120 * 1024);
   const pos = Math.max(0, groesse - fenster);
   let roh;
@@ -1286,6 +1313,7 @@ async function sessionLesen(pfad, groesse, name) {
     taetigkeit: schritte.length ? schritte[0].text : "wartet auf Eingabe",
     werkzeug: schritte.length ? schritte[0].werkzeug : "",
     seit: letzteZeit,
+    seitStart: erstellt || 0,
     modell, aufwand,
     letzteRolle,
     schritte: schritte.slice(0, 8),
@@ -1353,14 +1381,18 @@ async function sammleSessions() {
       try { st = await Neutralino.filesystem.getStats(pfad); } catch { continue; }
       /* Sessions, die seit Stunden ruhen, gehoeren nicht in die Szene */
       if (jetzt - st.modifiedAt > Z.bruecke.sessionFensterMin * 60000) continue;
-      kandidaten.push({ pfad, groesse: st.size, mt: st.modifiedAt, name: d.entry });
+      /* createdAt ist der Beginn der Sitzung: die Datei entsteht mit
+         ihr. Das ist die Rueckfallebene fuer die Anzuguhr, wenn das
+         Sitzungsregister keine Startzeit fuehrt. */
+      kandidaten.push({ pfad, groesse: st.size, mt: st.modifiedAt,
+                        ct: st.createdAt || 0, name: d.entry });
     }
   }
   kandidaten.sort((a, b) => b.mt - a.mt);
 
   const raus = [];
   for (const k of kandidaten.slice(0, 6)) {
-    const info = await sessionLesen(k.pfad, k.groesse, k.name);
+    const info = await sessionLesen(k.pfad, k.groesse, k.name, k.ct);
     if (info) raus.push(info);
   }
 
@@ -1376,7 +1408,9 @@ async function sammleSessions() {
     s.wartetAuf = r.waitingFor || "";
     s.version = r.version;
     s.art = r.kind;
-    s.seitStart = r.startedAt || 0;
+    /* Nur ueberschreiben, wenn das Register wirklich etwas weiss —
+       sonst faellt die aus der Datei gelesene Startzeit weg. */
+    if (r.startedAt) s.seitStart = r.startedAt;
   }
   return raus;
 }
@@ -5777,7 +5811,7 @@ function roehre(c, punkte, d, koerper, glanz, umriss, fein) {
   if (fein) zieh(d * 0.13, -d * 0.27, -d * 0.28, "rgba(255,255,255,.55)");
 }
 
-function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltung, blick) {
+function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltung, blick, vorrat) {
   const ruhig = sparsam;
   const wippen = ruhig ? 0 : Math.sin(t * 0.0022 + phase) * 0.12;
   const armA = ruhig ? 0 : Math.sin(t * 0.0026 + phase) * 0.16;
@@ -6123,7 +6157,13 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
     /* Anzeigefeld und Stellraeder */
     cx.fillStyle = "#33322d";
     rundRect(cx, -schuB * 0.48, schuY + rh * 0.46, schuB * 0.72, rh * 0.15, H * 0.005); cx.fill();
-    cx.fillStyle = `rgba(150,225,185,${zustand === "ruht" ? 0.4 : 0.95})`;
+    /* Die Anzeige auf der Bedieneinheit. Gruen, solange der Vorrat im
+       Plan liegt; bernstein in der Reserve, rot darueber hinaus. Das
+       ist die einzige Stelle, an der die Anzuguhr an der Figur selbst
+       auftaucht — sichtbar erst aus der Naehe, und genau so soll es
+       sein: von weitem sagt es der Punkt am Namensschild. */
+    const ampel = vorrat >= 2 ? "224,122,106" : vorrat >= 1 ? "224,162,78" : "150,225,185";
+    cx.fillStyle = `rgba(${ampel},${zustand === "ruht" ? 0.4 : 0.95})`;
     cx.fillRect(-schuB * 0.42, schuY + rh * 0.49, schuB * 0.2, rh * 0.08);
     cx.fillStyle = "#8e8b81";
     for (let i = 0; i < 3; i++) {
@@ -9519,7 +9559,8 @@ function rahmen(jetzt) {
       cx.restore();
     }
 
-    zeichneAstronaut(x, y, groesse * v.wuchs, kipp, a.farbe, l.zustand, t, v.phase, hervor, haltung, blick);
+    zeichneAstronaut(x, y, groesse * v.wuchs, kipp, a.farbe, l.zustand, t, v.phase,
+      hervor, haltung, blick, anzugStand(a));
 
     /* Namensschild — gegen den Zoom herausgerechnet. Schrift gehoert zur
        Bedienung, nicht in die Szene: sonst wird sie beim Heranfahren
@@ -9538,6 +9579,7 @@ function rahmen(jetzt) {
       name: (TYP_ZEICHEN[a.typ] || "") + " " + a.name.toUpperCase(),
       unter,
       zustand: l.zustand,
+      vorrat: anzugStand(a),
     });
 
     /* Die Figur selbst ist ein Hindernis fuer Blasen */
@@ -9600,6 +9642,19 @@ function rahmen(jetzt) {
     cx.strokeText(sch.name, sch.x, sch.y);
     cx.fillStyle = sch.zustand === "ruht" ? "rgba(214,224,242,.62)" : "rgba(234,241,252,.95)";
     cx.fillText(sch.name, sch.x, sch.y);
+    /* Ein Punkt vor dem Namen, wenn der Anzug in die Reserve laeuft.
+       Er sitzt links neben der Schrift, deshalb muss sie gemessen
+       werden — die Schilder sind zentriert. Mehr als ein Punkt geht
+       hier nicht: in der Szene ist kein Platz fuer eine Zahl, und die
+       Zahl steht im Detailfenster. */
+    if (sch.vorrat) {
+      const bw = cx.measureText(sch.name).width;
+      cx.beginPath();
+      cx.arc(sch.x - bw / 2 - 7, sch.y + 5.5, 3.1, 0, Math.PI * 2);
+      cx.fillStyle = sch.vorrat >= 2 ? "rgba(224,122,106,.95)" : "rgba(224,162,78,.95)";
+      cx.fill();
+      cx.strokeStyle = "rgba(6,9,16,.6)"; cx.lineWidth = 1; cx.stroke();
+    }
     if (sch.unter) {
       cx.font = "9.5px -apple-system, system-ui, sans-serif";
       cx.strokeStyle = "rgba(6,9,16,.7)"; cx.lineWidth = 2.6;
@@ -10327,6 +10382,141 @@ function luecke(ms) {
   return (s / 3600).toFixed(1).replace(".", ",") + " Std.";
 }
 
+/* --- Der Anzug als Uhr ------------------------------------------------
+   Die Station hat einen Stoffwechsel, der an der Stelle im Umlauf
+   haengt. Ein Mensch draussen hat auch einen, und der haengt nur an
+   einer Zahl: wie lange er schon draussen ist.
+
+   Die Werte sind die des amerikanischen Anzugs (EMU) in der Fassung,
+   die auf der ISS benutzt wird:
+
+     Sauerstoff   Haupttank auf rund 8 Std. ausgelegt, dazu ein
+                  getrennter Notvorrat (SOP) von 30 Minuten
+     Strom        Langzeitbatterie, rund 7 Std. bei normaler Last
+     Kuehlwasser  gut 4,5 kg Speisewasser fuer den Sublimator, rund
+                  8 Std. — im Vakuum kann Waerme nur ueber verdampfendes
+                  Wasser weg, Luft zum Kuehlen gibt es nicht
+     CO2-Filter   METOX-Patrone, rund 7 Std., danach regeneriert sie
+                  im Ofen an Bord
+
+   Geplant wird ein Einsatz auf 6,5 Stunden. Der knappste Vorrat
+   (Batterie und Filter) reicht 7, also bleibt eine halbe Stunde
+   Reserve — und die ist der Grund fuer die 6,5 und nicht die Arbeit.
+   Der laengste Einsatz der Geschichte dauerte 8 Std. 56 Min.: Jim Voss
+   und Susan Helms am 11. Maerz 2001.
+
+   Was hier auf diese Uhr gelegt wird, ist die Laufzeit der Sitzung
+   oder des Prozesses — eine Entsprechung, keine Messung. Sie steht
+   unter dem Balken ausgeschrieben, damit niemand die Reserve fuer
+   eine Warnung seines Rechners haelt. */
+const ANZUG = {
+  geplant: 6.5 * 3600000,      // bis hierhin ist ein Einsatz geplant
+  reserve: 0.5 * 3600000,      // und so lang ist die Reserve dahinter
+  rekord: (8 * 60 + 56) * 60000,
+  /* Der knappste zuerst: was einen Einsatz beendet, soll vorne stehen.
+     Dass zwei Paare denselben Wert haben, ist keine Doppelung, sondern
+     die Aussage — Batterie und Filter gehen zuerst, Sauerstoff und
+     Kuehlwasser haetten noch eine Stunde uebrig. */
+  vorrat: [
+    ["Strom",  7.0 * 3600000],
+    ["CO₂",    7.0 * 3600000],
+    ["O₂",     8.0 * 3600000],
+    ["Wasser", 8.0 * 3600000],
+  ],
+};
+
+/* "01:12:34", "12:34" oder "2-03:45:12" — die Form, in der ps die
+   Laufzeit ausgibt. Tage stehen vor einem Bindestrich. */
+function etimeMs(t) {
+  if (!t) return 0;
+  const m = String(t).trim().match(/^(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+)$/);
+  if (!m) return 0;
+  const [, d, h, min, sek] = m;
+  return ((+(d || 0) * 24 + +(h || 0)) * 3600 + +min * 60 + +sek) * 1000;
+}
+
+/* Wie lange ist dieser Astronaut draussen? Nur echte Startzeiten
+   zaehlen: geraten wird hier nichts, und ohne Startzeit faellt die
+   ganze Uhr weg, statt eine zu erfinden. */
+function draussenSeit(a) {
+  if (a.seitStart) return Math.max(0, Date.now() - a.seitStart);
+  if (a.laufzeit) return etimeMs(a.laufzeit);
+  return 0;
+}
+
+/* Stunden und Minuten, wie man eine Einsatzdauer spricht: "6 Std.
+   28 Min.", darunter nur Minuten. Nicht dieselbe Form wie luecke():
+   dort geht es um eine Pause und "1,3 Std." reicht, hier um eine Uhr,
+   und eine Uhr zeigt Minuten. */
+function dauer(ms) {
+  const min = Math.floor(ms / 60000);
+  if (min < 60) return min + " Min.";
+  const h = Math.floor(min / 60);
+  return h + " Std. " + String(min % 60).padStart(2, "0") + " Min.";
+}
+
+/* 0 = im Plan, 1 = in der Reserve, 2 = darueber hinaus. Nur diese drei
+   Stufen, weil mehr in der Szene ohnehin nicht zu sehen waere. */
+function anzugStand(a) {
+  const d = draussenSeit(a);
+  if (!d) return 0;
+  if (d > ANZUG.geplant + ANZUG.reserve) return 2;
+  if (d > ANZUG.geplant) return 1;
+  return 0;
+}
+
+function anzugBlock(a) {
+  const drin = draussenSeit(a);
+  const box = document.createElement("div");
+  box.className = "d-anzug";
+
+  const ganz = ANZUG.geplant + ANZUG.reserve;
+  const u = Math.min(1, drin / ganz);
+  const ueber = drin > ANZUG.geplant;
+
+  const uhr = document.createElement("div");
+  uhr.className = "d-uhr" + (drin > ganz ? " schlecht" : ueber ? " warm" : "");
+  const fuell = document.createElement("i");
+  fuell.style.width = (u * 100).toFixed(1) + "%";
+  /* Die Reserve als Sperrzone ueber dem Balken — sie ist kein Vorrat,
+     sondern die Spanne, in der ein Einsatz abgebrochen wird. */
+  const res = document.createElement("u");
+  res.style.width = (ANZUG.reserve / ganz * 100).toFixed(1) + "%";
+  res.title = "Reserve: die letzte halbe Stunde";
+  uhr.append(fuell, res);
+  box.appendChild(uhr);
+
+  /* Die vier Vorraete einzeln. Sie laufen aus derselben Uhr, aber
+     unterschiedlich schnell leer, und welcher zuerst geht, ist genau
+     die Frage, die einen Einsatz beendet. */
+  const v = document.createElement("div");
+  v.className = "d-vorrat";
+  for (const [name, reicht] of ANZUG.vorrat) {
+    const rest = reicht - drin;
+    const sp = document.createElement("span");
+    sp.className = rest <= 0 ? "leer" : rest < ANZUG.reserve ? "eng" : "";
+    const b = document.createElement("b");
+    b.textContent = rest <= 0 ? "leer" : dauer(rest);
+    sp.append(document.createTextNode(name + " "), b);
+    v.appendChild(sp);
+  }
+  box.appendChild(v);
+
+  const fn = document.createElement("div");
+  fn.className = "d-fussnote";
+  fn.textContent = ueber
+    ? "Über der geplanten Dauer von 6,5 Std. — ein echter Einsatz wäre "
+      + "jetzt in der Reserve. Der längste der Geschichte dauerte 8 Std. "
+      + "56 Min. (Voss und Helms, 2001). Auf der Uhr liegt die Laufzeit "
+      + "dieser Sitzung, nicht ein gemessener Vorrat."
+    : "Ein Anzug (EMU) trägt 6,5 Std. geplant, dahinter eine halbe Stunde "
+      + "Reserve; Batterie und CO₂-Filter sind die knappsten davon. Auf "
+      + "der Uhr liegt die Laufzeit dieser Sitzung, nicht ein gemessener "
+      + "Vorrat.";
+  box.appendChild(fn);
+  return box;
+}
+
 function schrittStrahl(schritte, laeuft) {
   const box = document.createElement("div");
   box.className = "d-lauf";
@@ -10497,7 +10687,11 @@ function zeichneDetail(id) {
       box.appendChild(zeile("Zustand", a.letzteRolle === "user"
         ? "Claude antwortet gleich" : "wartet vermutlich auf dich"));
     }
-    if (a.seitStart) box.appendChild(zeile("Läuft seit", vorZeit(a.seitStart)));
+    if (draussenSeit(a)) {
+      box.appendChild(abschnitt("Außenbordeinsatz"));
+      box.appendChild(zeile("Draußen", dauer(draussenSeit(a))));
+      box.appendChild(anzugBlock(a));
+    }
     if (a.version) box.appendChild(zeile("Version", a.version + (a.art ? "  ·  " + a.art : "")));
     if (a.schritte && a.schritte.length) {
       /* "Arbeitsschritte" und nicht "Letzte Schritte": der oberste ist
@@ -10532,8 +10726,16 @@ function zeichneDetail(id) {
   }
 
   if (a.typ === "prozess") {
-    box.appendChild(zeile("Laufzeit", a.laufzeit || "—"));
     box.appendChild(zeile("Auslastung", a.cpu + " % CPU"));
+    /* Dieselbe Uhr wie bei einer Sitzung: ein Prozess hat eine echte
+       Laufzeit, und ps gibt sie her. */
+    if (draussenSeit(a)) {
+      box.appendChild(abschnitt("Außenbordeinsatz"));
+      box.appendChild(zeile("Draußen", dauer(draussenSeit(a))));
+      box.appendChild(anzugBlock(a));
+    } else {
+      box.appendChild(zeile("Laufzeit", a.laufzeit || "—"));
+    }
     box.appendChild(abschnitt("Vollständiger Befehl"));
     const pre = document.createElement("div");
     pre.className = "d-zeile";
@@ -11196,6 +11398,11 @@ function zeichneTelemetrie(t) {
      Station ist das der Anteil der erzeugten Leistung, der gerade
      abgenommen wird — hier ist es derselbe Gedanke. */
   const last = alle.length ? laufend / alle.length : 0;
+  /* Der laengste laufende Aussenbordeinsatz. Nur die zaehlen, deren
+     Startzeit wirklich bekannt ist — geraten wird auch hier nichts. */
+  const drinnen = alle.map(draussenSeit).filter(Boolean);
+  const laengster = drinnen.length ? Math.max(...drinnen) : 0;
+  const inReserve = alle.filter(a => anzugStand(a) > 0).length;
 
   /* Die Bilanz in einer Zahl: was die Fluegel liefern, minus was die
      Station zieht. Positiv heisst laden, negativ heisst zehren. */
@@ -11244,6 +11451,15 @@ function zeichneTelemetrie(t) {
     })(),
       TAGLICHT > 0.92 ? 0 : Math.pow(Math.abs(Math.sin(ph * Math.PI * 2)), 3.4)],
     ["BESATZUNG", alle.length + (laufend ? " · " + laufend + " arbeitet" : " · bereit")],
+    /* Wie lange ist der laengste Einsatz schon im Gang? Der Balken
+       misst gegen die geplanten 6,5 Stunden plus die halbe Stunde
+       Reserve — dieselbe Skala wie die Anzuguhr im Detailfenster. */
+    ["EINSATZ", laengster
+      ? dauer(laengster) + (inReserve ? " · " + inReserve + " in der Reserve" : "")
+      : "keine Startzeit bekannt",
+      laengster ? Math.min(1, laengster / (ANZUG.geplant + ANZUG.reserve)) : undefined,
+      laengster > ANZUG.geplant + ANZUG.reserve ? "schlecht"
+        : laengster > ANZUG.geplant ? "warm" : "gut"],
     ["AUSLASTUNG", Math.round(last * 100) + " %", last],
     ["FRACHT", FRACHT.lage === "gedockt" ? "angedockt"
       : FRACHT.lage === "anflug" ? "im Anflug"
@@ -12042,6 +12258,7 @@ if (!imProgramm() && !schonInstalliert()
 
 /* Haken fuer automatische Tests — im Betrieb ungenutzt */
 window.__BR_LIVE = () => BR.live;
+window.__DRAUSSEN = (a) => draussenSeit(a);
 window.__DETAIL = (id) => detailOeffnen(id);
 window.__HIMMEL = () => HIMMEL;
 window.__KAM = () => KAM;
