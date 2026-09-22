@@ -3397,7 +3397,7 @@ function stationBacken(Rpx) {
            abend: umfaerben(cv, ABENDSTUFEN, 2) };
 }
 
-function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler) {
+function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler, ohneSchein) {
   const saat = 17;
   const t = 0;
   /* 30 Grad aus der reinen Seitenansicht gedreht: alles, was in
@@ -3410,15 +3410,24 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler) {
   /* Schein: flach gedrueckt, weil die Station breit und niedrig ist.
      Ein runder Schein wuerde das gebackene Bild quadratisch machen und
      damit doppelt so viel Flaeche kosten wie noetig. */
-  c.save();
-  c.scale(1, 0.5);
-  const schein = c.createRadialGradient(0, 0, R * 0.3, 0, 0, R * 2.2);
-  schein.addColorStop(0, "rgba(150,186,234,.13)");
-  schein.addColorStop(0.5, "rgba(123,164,216,.05)");
-  schein.addColorStop(1, "rgba(123,164,216,0)");
-  c.fillStyle = schein;
-  c.beginPath(); c.arc(0, 0, R * 2.2, 0, Math.PI * 2); c.fill();
-  c.restore();
+  /* Der scharfe Nahausschnitt bekommt KEINEN Schein. Seine Leinwand
+     ist nur ein Drittel groesser als der Schirm; ein Schein, der sie
+     bis an den Rand fuellt, endet dort hart — und dann laeuft eine
+     gerade Kante quer durchs Bild, die nirgends hingehoert. Aus der
+     Naehe ist ohnehin kein Schein zu sehen: er kommt von Streulicht an
+     der ganzen Station, und die ist dann laengst ausserhalb des
+     Bildes. */
+  if (!ohneSchein) {
+    c.save();
+    c.scale(1, 0.5);
+    const schein = c.createRadialGradient(0, 0, R * 0.3, 0, 0, R * 2.2);
+    schein.addColorStop(0, "rgba(150,186,234,.13)");
+    schein.addColorStop(0.5, "rgba(123,164,216,.05)");
+    schein.addColorStop(1, "rgba(123,164,216,0)");
+    c.fillStyle = schein;
+    c.beginPath(); c.arc(0, 0, R * 2.2, 0, Math.PI * 2); c.fill();
+    c.restore();
+  }
 
   /* ---------- Gittertraeger: das Rueckgrat ---------- */
   /* Alle Masse als Vielfache des Moduldurchmessers, und der ist
@@ -3658,12 +3667,47 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler) {
   folie(c, md * 0.09, -md * 0.3, R * 0.42, md * 0.6, md * 0.18, saat + 21);
   c.fillStyle = "rgba(18,22,30,.85)";
   c.beginPath(); c.ellipse(md * 0.12, 0, md * 0.05, md * 0.17, 0, 0, Math.PI * 2); c.fill();
-  /* Zwei kleine Sonnensegel an der Kapsel */
+  /* Zwei kleine Sonnensegel an der Kapsel. Sie waren eine flache
+     dunkle Flaeche — aus der Entfernung unauffaellig, aus der Naehe
+     ein totes Rechteck mitten auf der Station. Jetzt haben sie, was
+     ein Solarpaneel hat: einen kurzen Ausleger, einen Verlauf quer
+     ueber die Zellen, das feine Zellraster und zwei Dickenkanten.
+     Dunkelblau und nicht schwarz — die Zellen der russischen Schiffe
+     sind blaeulich, nicht kupferrot wie die grossen Fluegel. */
   for (const s of [-1, 1]) {
-    c.fillStyle = "#171b28";
-    c.fillRect(R * 0.2, s * md * 0.3, R * 0.2, s * md * 0.22);
-    c.strokeStyle = "rgba(150,162,196,.3)"; c.lineWidth = 0.4;
-    c.strokeRect(R * 0.2, s * md * 0.3, R * 0.2, s * md * 0.22);
+    const px = R * 0.2, py = s * md * 0.3;
+    const pw = R * 0.2, ph = md * 0.22;
+    const oy = s > 0 ? py : py - ph;          // immer die obere Kante
+    /* Der Ausleger zur Kapsel */
+    c.strokeStyle = "rgba(186,194,206,.75)";
+    c.lineWidth = Math.max(0.4, md * 0.035);
+    c.beginPath();
+    c.moveTo(md * 0.1, s * md * 0.12);
+    c.lineTo(px + md * 0.02, oy + ph / 2);
+    c.stroke();
+
+    const pg = c.createLinearGradient(px, oy, px, oy + ph);
+    pg.addColorStop(0, "#39435e");
+    pg.addColorStop(0.34, "#222b41");
+    pg.addColorStop(0.72, "#151b2a");
+    pg.addColorStop(1, "#0c1019");
+    c.fillStyle = pg;
+    c.fillRect(px, oy, pw, ph);
+    /* Zellraster laengs */
+    c.strokeStyle = "rgba(120,136,176,.28)"; c.lineWidth = 0.4;
+    c.beginPath();
+    for (let i = 1; i < 9; i++) {
+      const xx = px + (pw * i) / 9;
+      c.moveTo(xx, oy); c.lineTo(xx, oy + ph);
+    }
+    c.moveTo(px, oy + ph / 2); c.lineTo(px + pw, oy + ph / 2);
+    c.stroke();
+    /* Die Dicke: oben eine helle Kante, unten eine fast schwarze */
+    c.strokeStyle = "rgba(210,222,244,.5)";
+    c.lineWidth = Math.max(0.4, ph * 0.06);
+    c.beginPath(); c.moveTo(px, oy); c.lineTo(px + pw, oy); c.stroke();
+    c.strokeStyle = "rgba(8,10,16,.7)";
+    c.beginPath(); c.moveTo(px, oy + ph); c.lineTo(px + pw, oy + ph); c.stroke();
   }
   c.restore();
 
@@ -4168,7 +4212,7 @@ function stationNahBacken(Rpx, mitte) {
   bild.width = bw; bild.height = bh;
   const c = bild.getContext("2d");
   c.translate(mitte.x + ox, mitte.y + oy);
-  stationStatisch(c, Rpx, null, null, null, null, null);
+  stationStatisch(c, Rpx, null, null, null, null, null, true);
   return { R: Rpx, mx: mitte.x, my: mitte.y, bild, ox, oy, bw, bh };
 }
 
@@ -5858,10 +5902,22 @@ function erdeMasse() {
 function erdeBacken() {
   const m = erdeMasse();
   const rand = 60;
+  /* Seitlicher Vorrat. Die Erde wandert beim Verschieben ein Stueck
+     mit — das ist die Staffelung, die Tiefe erzeugt. Nur: das Bild
+     war genau so breit wie der Schirm, und damit kam bei JEDER
+     Verschiebung sein Rand ins Bild: eine kerzengerade Kante quer
+     durch den Planeten, hinter der es schwarz weiterging. Also
+     bekommt es links und rechts Vorrat, und die Verschiebung wird auf
+     diesen Vorrat begrenzt.
+
+     Die Scheibe selbst ist dreimal so breit wie der Schirm; der
+     Vorrat zeigt also mehr von ihr und nicht etwa Leere. */
+  const seit = Math.ceil(W * 0.22);
   const oben = Math.max(0, Math.floor(m.oben - rand));
   const hoehe = Math.ceil(H - oben + rand);
+  const breite = W + seit * 2;
   const fein = 0.85;                   // fein genug, dass der Dunst nicht streift
-  const bw = Math.max(2, Math.round(W * fein));
+  const bw = Math.max(2, Math.round(breite * fein));
   const bh = Math.max(2, Math.round(hoehe * fein));
 
   const bild = document.createElement("canvas");
@@ -5887,7 +5943,7 @@ function erdeBacken() {
   const sdBild = saumCtx.createImageData(bw, bh);
   const sd = sdBild.data;
 
-  const rr = m.r * fein, mx = m.cx * fein, my = (m.cy - oben) * fein;
+  const rr = m.r * fein, mx = (m.cx + seit) * fein, my = (m.cy - oben) * fein;
 
   for (let y = 0; y < bh; y++) {
     for (let x = 0; x < bw; x++) {
@@ -6067,11 +6123,12 @@ function erdeBacken() {
      ist wieder da, wo sie vorher war. Das Hochziehen beim Kopieren
      kostet nichts Messbares, weil die Zielflaeche dieselbe bleibt. */
   const fertig = document.createElement("canvas");
-  fertig.width = Math.round(W * DPR * 0.5); fertig.height = Math.round(hoehe * DPR * 0.5);
+  fertig.width = Math.round(breite * DPR * 0.5); fertig.height = Math.round(hoehe * DPR * 0.5);
 
   ERDE.roh = bild; ERDE.lichter = lichter; ERDE.bild = fertig;
   ERDE.maske = maske; ERDE.saum = saum; ERDE.ring = ring;
   ERDE.breite = W; ERDE.hoehe = H; ERDE.oben = oben; ERDE.rand = rand;
+  ERDE.seit = seit; ERDE.bildBreite = breite;
   ERDE.termX = null; ERDE.schubGebacken = null;
 }
 
@@ -6128,9 +6185,16 @@ function erdeSchatten(termX, tags, lauf) {
 
   sonnenhoch(c, bw, bh, termX, tags, lauf);
 
-  const m = erdeMasse();
-  const breite = W * 0.34 * DPR;
-  const tx = termX * DPR;
+  /* Von Bildschirm- auf Scheibenkoordinaten. Die Scheibe wird in
+     halber Geraeteaufloesung zusammengesetzt und hat seitlich Vorrat —
+     beides muss hier hinein, sonst landet der Tagesrand woanders als
+     das Licht in der Szene. Genau das war eine Weile so: der Rand lag
+     beim doppelten x und damit ganz ausserhalb der Scheibe, und die
+     Tagseite war gleichmaessig hell statt zum Rand hin dunkler. */
+  const sk = bw / (ERDE.bildBreite || W);
+  const vorrat = ERDE.seit || 0;
+  const breite = W * 0.34 * sk;
+  const tx = (termX + vorrat) * sk;
   const sg = c.createLinearGradient(tx - breite, 0, tx + breite, 0);
   if (tags) {
     sg.addColorStop(0, "rgba(6,8,16,0)");
@@ -6177,9 +6241,10 @@ function sonnenhoch(c, bw, bh, termX, tags, lauf) {
   if (!tags) return;
   /* Ein gutes halbes Bild von der Daemmerungslinie entfernt steht die
      Sonne im Zenit. Sie wandert mit dem Tagesrand ueber die Scheibe. */
-  const gx = (termX - W * 0.62) * (bw / W);
+  const sk = bw / (ERDE.bildBreite || W);
+  const gx = (termX - W * 0.62 + (ERDE.seit || 0)) * sk;
   const gy = bh * 0.5;
-  const r = bw * 0.62;
+  const r = W * 0.62 * sk;
   if (gx < -r || gx > bw + r) return;
   const rg = c.createRadialGradient(gx, gy, 0, gx, gy, r);
   rg.addColorStop(0, "rgba(255,250,232,.3)");
@@ -6202,7 +6267,15 @@ function zeichneErde(t) {
   /* Die Erde steht naeher als die Sterne, aber viel weiter als die
      Station: sie wandert beim Verschieben ein Drittel mit und waechst
      beim Zoomen nicht. Genau diese Staffelung erzeugt die Tiefe. */
-  const dx = KAM.x * 0.3, dy = KAM.y * 0.3;
+  /* Beim Hineinzoomen darf die Erde WENIGER mitwandern, nicht mehr:
+     sie steht vierhundert Kilometer weit weg, die Station fuenfzig
+     Meter. Ohne das Teilen durch den Zoom laeuft sie beim Heranfahren
+     schneller davon als die Station selbst. Und alles zusammen wird
+     auf den seitlichen Vorrat begrenzt, damit ihr Rand nie ins Bild
+     kommt. */
+  const seit = ERDE.seit || 0;
+  const dx = klemm(KAM.x * 0.3 / Math.max(1, KAM.zoom), -seit, seit);
+  const dy = klemm(KAM.y * 0.3 / Math.max(1, KAM.zoom), -ERDE.rand, ERDE.rand);
 
   /* Der Tagesrand wandert einmal je Umlauf ueber die Scheibe. Bei Tag
      laeuft er von rechts heran, bei Nacht laeuft die Helligkeit von
@@ -6234,8 +6307,8 @@ function zeichneErde(t) {
   cx.save();
   cx.setTransform(1, 0, 0, 1, 0, 0);
   cx.drawImage(ERDE.bild, 0, 0, ERDE.bild.width, ERDE.bild.height,
-    Math.round(dx * DPR), Math.round((ERDE.oben + dy) * DPR),
-    Math.round(W * DPR), Math.round(hoehe * DPR));
+    Math.round((dx - seit) * DPR), Math.round((ERDE.oben + dy) * DPR),
+    Math.round((ERDE.bildBreite || W) * DPR), Math.round(hoehe * DPR));
 
   /* --- Polarlicht ----------------------------------------------------
      Von oben sieht man es nicht als Bogen am Himmel, sondern als
