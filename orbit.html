@@ -1743,6 +1743,42 @@ function zeichneSternschnuppe(t, dt) {
 const SONNE = { x: -0.72, y: -0.69 };         // Einfallsrichtung
 const ERDSCHEIN = "58,110,168";               // kuehles Blau von unten
 
+/* --- Eine Farbe im Erdschatten ---------------------------------------
+   Alles, was mitgebacken wird, bekommt seine Nachtfassung aus dem
+   fertigen Bild — mit "source-atop" ueber die ganze Station. Was
+   dagegen LIVE gezeichnet wird, hat kein solches Bild: die
+   Antennenschuessel, der Roboterarm, der Frachter. Die standen im
+   Erdschatten in voller Tagesfarbe da und leuchteten heller als alles
+   andere.
+
+   Im Schatten faellt kein Sonnenlicht mehr auf die Station, nur noch
+   der Erdschein von unten. Eine Farbe wird dort also nicht einfach
+   dunkler, sondern blauer — genau wie beim gebackenen Bild und beim
+   Anzug. Die Funktion nimmt Hex wie auch rgba, weil im gewachsenen
+   Code beides vorkommt. */
+function dunkeln(farbe) {
+  const n = 1 - TAGLICHT;
+  if (n < 0.02 || typeof farbe !== "string") return farbe;
+  let r, g, b, a = 1;
+  if (farbe[0] === "#") {
+    const h = farbe.length === 4
+      ? [farbe[1] + farbe[1], farbe[2] + farbe[2], farbe[3] + farbe[3]]
+      : [farbe.slice(1, 3), farbe.slice(3, 5), farbe.slice(5, 7)];
+    r = parseInt(h[0], 16); g = parseInt(h[1], 16); b = parseInt(h[2], 16);
+  } else {
+    const m = farbe.match(/rgba?\(([^)]+)\)/);
+    if (!m) return farbe;
+    const teile = m[1].split(",").map(Number);
+    r = teile[0]; g = teile[1]; b = teile[2];
+    if (teile.length > 3) a = teile[3];
+  }
+  if (!isFinite(r) || !isFinite(g) || !isFinite(b)) return farbe;
+  const k = 1 - n * 0.8;          // so viel bleibt von der Sonnenfarbe
+  const e = n * 0.8;              // so viel Erdschein kommt dazu
+  return "rgba(" + Math.round(r * k + 26 * e) + ","
+    + Math.round(g * k + 42 * e) + "," + Math.round(b * k + 70 * e) + "," + a + ")";
+}
+
 /* Hell-Dunkel-Verlauf laengs der Sonnenachse, fuer flache Platten */
 function sonnenlauf(c, x, y, w, h, hell, mitte, dunkel) {
   const g = c.createLinearGradient(
@@ -1758,12 +1794,17 @@ function sonnenlauf(c, x, y, w, h, hell, mitte, dunkel) {
 }
 
 /* Mehrlagige Isolationsfolie: golden, zerknittert, matt */
-function folie(c, x, y, w, h, r, saat) {
+/* Der Schalter "live" faerbt die Folie fuer den Erdschatten ein. Er
+   darf NUR gesetzt werden, wo live gezeichnet wird — im gebackenen
+   Bild waere die Nachtfarbe fuer immer eingebrannt, und zwar die, die
+   zufaellig beim Backen galt. */
+function folie(c, x, y, w, h, r, saat, live) {
+  const f = live ? dunkeln : (v) => v;
   const g = c.createLinearGradient(x, y, x, y + h);
-  g.addColorStop(0, "#f2cf85");
-  g.addColorStop(0.3, "#c1913d");
-  g.addColorStop(0.66, "#6d4f20");
-  g.addColorStop(1, "#231a0c");
+  g.addColorStop(0, f("#f2cf85"));
+  g.addColorStop(0.3, f("#c1913d"));
+  g.addColorStop(0.66, f("#6d4f20"));
+  g.addColorStop(1, f("#231a0c"));
   c.fillStyle = g;
   rundRect(c, x, y, w, h, r);
   c.fill();
@@ -1774,7 +1815,7 @@ function folie(c, x, y, w, h, r, saat) {
   for (let i = 0; i < 14; i++) {
     const t = streu(i, saat | 0, 7);
     const xx = x + t * w;
-    c.strokeStyle = i % 2 ? "rgba(255,235,180,.30)" : "rgba(40,26,6,.45)";
+    c.strokeStyle = f(i % 2 ? "rgba(255,235,180,.30)" : "rgba(40,26,6,.45)");
     c.beginPath();
     c.moveTo(xx, y);
     c.lineTo(xx + (streu(i, saat | 0, 11) - 0.5) * w * 0.12, y + h);
@@ -2418,18 +2459,18 @@ function zeichneFrachter(c, R, richtung, schub) {
 
   /* Solarpaneele — klein, dunkel, an kurzen Auslegern */
   for (const sd of [-1, 1]) {
-    c.strokeStyle = "rgba(176,182,192,.8)";
+    c.strokeStyle = dunkeln("rgba(176,182,192,.8)");
     c.lineWidth = Math.max(0.5, D * 0.08);
     c.beginPath();
     c.moveTo(-L * 0.2, sd * D * 0.45); c.lineTo(-L * 0.2, sd * D * 0.8);
     c.stroke();
     const pg = c.createLinearGradient(-L * 0.55, 0, L * 0.1, 0);
-    pg.addColorStop(0, "#151a28"); pg.addColorStop(0.5, "#2a3348");
-    pg.addColorStop(1, "#101420");
+    pg.addColorStop(0, dunkeln("#151a28")); pg.addColorStop(0.5, dunkeln("#2a3348"));
+    pg.addColorStop(1, dunkeln("#101420"));
     c.fillStyle = pg;
     c.fillRect(-L * 0.55, sd * D * 0.8 - (sd < 0 ? D * 0.5 : 0), L * 0.65, D * 0.5);
     const py = sd * D * 0.8 - (sd < 0 ? D * 0.5 : 0);
-    c.strokeStyle = "rgba(150,164,196,.35)"; c.lineWidth = 0.4;
+    c.strokeStyle = dunkeln("rgba(150,164,196,.35)"); c.lineWidth = 0.4;
     c.beginPath();
     for (let i = 1; i < 7; i++) {
       const xx = -L * 0.55 + (L * 0.65 * i) / 7;
@@ -2440,26 +2481,26 @@ function zeichneFrachter(c, R, richtung, schub) {
     /* Die Dicke des Paneels: eine helle Kante zur Sonne, eine fast
        schwarze auf der abgewandten Seite. Ohne die beiden Striche
        bleibt jede Flaeche ein Aufkleber. */
-    c.strokeStyle = "rgba(208,220,242,.5)";
+    c.strokeStyle = dunkeln("rgba(208,220,242,.5)");
     c.lineWidth = Math.max(0.4, D * 0.03);
     c.beginPath(); c.moveTo(-L * 0.55, py); c.lineTo(L * 0.1, py); c.stroke();
-    c.strokeStyle = "rgba(8,10,16,.7)";
+    c.strokeStyle = dunkeln("rgba(8,10,16,.7)");
     c.beginPath();
     c.moveTo(-L * 0.55, py + D * 0.5); c.lineTo(L * 0.1, py + D * 0.5);
     c.stroke();
   }
 
   /* Der Druckkoerper */
-  folie(c, -L * 0.5, -D / 2, L * 0.85, D, D * 0.3, 61);
+  folie(c, -L * 0.5, -D / 2, L * 0.85, D, D * 0.3, 61, true);
   /* Kopplungsstutzen vorn */
   c.fillStyle = sonnenlauf(c, L * 0.35, -D * 0.2, L * 0.16, D * 0.4,
-    "#eceada", "#8e8c84", "#16181c");
+    dunkeln("#eceada"), dunkeln("#8e8c84"), dunkeln("#16181c"));
   rundRect(c, L * 0.35, -D * 0.2, L * 0.16, D * 0.4, D * 0.06); c.fill();
-  c.fillStyle = "rgba(18,22,30,.9)";
+  c.fillStyle = dunkeln("rgba(18,22,30,.9)");
   c.beginPath(); c.ellipse(L * 0.51, 0, D * 0.05, D * 0.13, 0, 0, Math.PI * 2); c.fill();
 
   /* Positionslicht */
-  c.fillStyle = "rgba(255,120,100,.9)";
+  c.fillStyle = dunkeln("rgba(255,120,100,.9)");
   c.beginPath(); c.arc(-L * 0.46, -D * 0.4, D * 0.055, 0, Math.PI * 2); c.fill();
 
   /* Duesenblitze: nur kurz, und nur Eispartikel — der Strahl selbst
@@ -3784,18 +3825,49 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler, ohneSch
      Der Kontrast zum fensterarmen westlichen Teil ist echt. */
   c.save();
   c.translate(-R * 1.05, 0);
-  const rg2 = c.createLinearGradient(0, -md / 2, 0, md / 2);
-  rg2.addColorStop(0, "#a9a37c"); rg2.addColorStop(0.42, "#6e6a4c");
-  rg2.addColorStop(0.8, "#272719"); rg2.addColorStop(1, "#22303f");
+  /* Ein Zylinder, kein Kasten mit runden Ecken: die Endkappe ist eine
+     Ellipse, sonst liegt das Stueck flach auf dem Bild statt in der
+     Tiefe. Dieselbe Form wie bei den westlichen Modulen, nur in Olive
+     — die russischen Bauteile tragen eine andere Isolierdecke, und der
+     Farbunterschied ist auf jedem Foto zu sehen. */
+  const rl = R * 0.4, rh = md * 0.88, ry2 = -md * 0.44;
+  const rg2 = c.createLinearGradient(0, ry2, 0, ry2 + rh);
+  rg2.addColorStop(0, "#a9a37c"); rg2.addColorStop(0.17, "#c9c39a");
+  rg2.addColorStop(0.42, "#6e6a4c");
+  rg2.addColorStop(0.8, "#272719"); rg2.addColorStop(1, "#3c5470");
+  c.save();
+  zylinderPfad(c, -rl, ry2, rl, rh);
+  c.clip();
   c.fillStyle = rg2;
-  rundRect(c, -R * 0.4, -md * 0.44, R * 0.4, md * 0.88, md * 0.3); c.fill();
+  c.fillRect(-rl - md, ry2 - md, rl + md * 3, rh + md * 2);
+
+  /* Die Steppung der Decke. Anders als im westlichen Teil laufen die
+     Naehte hier in groben Feldern und nicht im Metermass — die Decken
+     sind aus wenigen grossen Bahnen genaeht. */
   c.strokeStyle = "rgba(38,38,26,.4)"; c.lineWidth = 0.4;
   c.beginPath();
-  for (let i = 1; i < 6; i++) {
-    const xx = -R * 0.4 + (R * 0.4 * i) / 6;
-    c.moveTo(xx, -md * 0.4); c.lineTo(xx, md * 0.4);
+  for (let i = 1; i < 7; i++) {
+    const xx = -rl + (rl * i) / 7;
+    c.moveTo(xx, ry2); c.lineTo(xx, ry2 + rh);
+  }
+  for (let i = 1; i < 4; i++) {
+    const yy = ry2 + (rh * i) / 4;
+    c.moveTo(-rl, yy); c.lineTo(0, yy);
   }
   c.stroke();
+  /* Ein paar Spanngurte quer darueber, die die Decke halten */
+  c.strokeStyle = "rgba(224,220,196,.28)"; c.lineWidth = Math.max(0.4, md * 0.035);
+  c.beginPath();
+  for (const f of [0.28, 0.72]) {
+    const xx = -rl + rl * f;
+    c.moveTo(xx, ry2); c.lineTo(xx, ry2 + rh);
+  }
+  c.stroke();
+  c.restore();
+  /* Die hintere Endkappe */
+  endkappe(c, -rl, 0, rh / 2);
+  c.strokeStyle = "rgba(30,30,20,.45)"; c.lineWidth = Math.max(0.3, md * 0.02);
+  zylinderPfad(c, -rl, ry2, rl, rh); c.stroke();
   /* Die beleuchteten Fenster werden nicht mitgebacken: sie pulsieren
      und werden spaeter live darueber gezeichnet. Hier merken wir uns
      nur, wo sie im fertigen Bild liegen. */
@@ -4011,22 +4083,22 @@ function zeichneAntenne(c, R, t) {
      faehrt mit fester Rate. */
   c.rotate(FUNK.zeiger);
   const sg = c.createLinearGradient(0, -R * 0.13, 0, R * 0.13);
-  sg.addColorStop(0, "#f2f0e6"); sg.addColorStop(0.6, "#8b8a80"); sg.addColorStop(1, "#17191d");
+  sg.addColorStop(0, dunkeln("#f2f0e6")); sg.addColorStop(0.6, dunkeln("#8b8a80")); sg.addColorStop(1, dunkeln("#17191d"));
   c.fillStyle = sg;
   c.beginPath(); c.ellipse(0, 0, R * 0.055, R * 0.13, 0, 0, Math.PI * 2); c.fill();
   /* Der Rand des Spiegels faengt Licht — er ist es, der aus der
      Ellipse eine Schale macht. Und darin die Ringe, an denen man
      sieht, dass es ein Parabolspiegel ist und keine Scheibe. */
-  c.strokeStyle = "rgba(244,244,238,.7)";
+  c.strokeStyle = dunkeln("rgba(244,244,238,.7)");
   c.lineWidth = Math.max(0.4, R * 0.008);
   c.beginPath(); c.ellipse(0, 0, R * 0.055, R * 0.13, 0, 0, Math.PI * 2); c.stroke();
-  c.strokeStyle = "rgba(120,120,112,.4)";
+  c.strokeStyle = dunkeln("rgba(120,120,112,.4)");
   c.lineWidth = Math.max(0.3, R * 0.004);
   for (const f of [0.66, 0.34]) {
     c.beginPath(); c.ellipse(0, 0, R * 0.055 * f, R * 0.13 * f, 0, 0, Math.PI * 2); c.stroke();
   }
   /* Drei Streben halten das Speisehorn im Brennpunkt */
-  c.strokeStyle = "rgba(190,204,224,.55)";
+  c.strokeStyle = dunkeln("rgba(190,204,224,.55)");
   c.lineWidth = Math.max(0.3, R * 0.005);
   c.beginPath();
   for (const sy of [-1, 0, 1]) {
@@ -4034,9 +4106,9 @@ function zeichneAntenne(c, R, t) {
     c.lineTo(R * 0.11, 0);
   }
   c.stroke();
-  c.strokeStyle = "rgba(190,204,224,.6)"; c.lineWidth = Math.max(0.4, R * 0.012);
+  c.strokeStyle = dunkeln("rgba(190,204,224,.6)"); c.lineWidth = Math.max(0.4, R * 0.012);
   c.beginPath(); c.moveTo(0, 0); c.lineTo(R * 0.11, 0); c.stroke();
-  c.fillStyle = "#c3cedd";
+  c.fillStyle = dunkeln("#c3cedd");
   c.beginPath(); c.arc(R * 0.11, 0, R * 0.019, 0, Math.PI * 2); c.fill();
   /* Die Sendeleuchte am Speisehorn: sie blinkt nur, wenn wirklich
      etwas uebertragen wird. Ein Dauerlicht waere eine Behauptung. */
@@ -4705,7 +4777,7 @@ function zeichneStation(t, cxp, cyp, R) {
   c.translate(R * 0.55, -R * 0.1);
   c.lineCap = "round";
   /* Fuss auf dem Traeger */
-  c.fillStyle = "#c2c9d2";
+  c.fillStyle = dunkeln("#c2c9d2");
   rundRect(c, -R * 0.06, -R * 0.05, R * 0.12, R * 0.1, R * 0.02); c.fill();
 
   /* Ein Armsegment ist keine Linie, sondern ein Rohr: hell oben,
@@ -4715,16 +4787,16 @@ function zeichneStation(t, cxp, cyp, R) {
      die Motoren stecken. Als zwei glatte Striche sah der Arm von
      nahem aus wie ein Zirkel. */
   const armRohr = (laenge, dicke) => {
-    c.strokeStyle = "rgba(20,24,30,.7)"; c.lineWidth = dicke * 1.16;
+    c.strokeStyle = dunkeln("rgba(20,24,30,.7)"); c.lineWidth = dicke * 1.16;
     c.beginPath(); c.moveTo(0, 0); c.lineTo(laenge, 0); c.stroke();
-    c.strokeStyle = "rgba(244,246,250,.95)"; c.lineWidth = dicke;
+    c.strokeStyle = dunkeln("rgba(244,246,250,.95)"); c.lineWidth = dicke;
     c.beginPath(); c.moveTo(0, 0); c.lineTo(laenge, 0); c.stroke();
-    c.strokeStyle = "rgba(14,18,24,.5)"; c.lineWidth = dicke * 0.34;
+    c.strokeStyle = dunkeln("rgba(14,18,24,.5)"); c.lineWidth = dicke * 0.34;
     c.beginPath(); c.moveTo(0, dicke * 0.3); c.lineTo(laenge, dicke * 0.3); c.stroke();
-    c.strokeStyle = "rgba(255,255,255,.8)"; c.lineWidth = dicke * 0.16;
+    c.strokeStyle = dunkeln("rgba(255,255,255,.8)"); c.lineWidth = dicke * 0.16;
     c.beginPath(); c.moveTo(0, -dicke * 0.3); c.lineTo(laenge, -dicke * 0.3); c.stroke();
     /* Zwei Ringe als Segmentnaht — ohne sie hat das Rohr keine Laenge */
-    c.strokeStyle = "rgba(120,130,146,.55)"; c.lineWidth = Math.max(0.3, dicke * 0.1);
+    c.strokeStyle = dunkeln("rgba(120,130,146,.55)"); c.lineWidth = Math.max(0.3, dicke * 0.1);
     for (const f of [0.34, 0.66]) {
       c.beginPath();
       c.moveTo(laenge * f, -dicke * 0.5); c.lineTo(laenge * f, dicke * 0.5);
@@ -4733,13 +4805,13 @@ function zeichneStation(t, cxp, cyp, R) {
   };
   const armGelenk = (d) => {
     const g = c.createLinearGradient(0, -d, 0, d);
-    g.addColorStop(0, "#eef1f6"); g.addColorStop(0.44, "#9aa4b2");
-    g.addColorStop(1, "#1d232c");
+    g.addColorStop(0, dunkeln("#eef1f6")); g.addColorStop(0.44, dunkeln("#9aa4b2"));
+    g.addColorStop(1, dunkeln("#1d232c"));
     c.fillStyle = g;
     rundRect(c, -d * 0.62, -d, d * 1.24, d * 2, d * 0.3); c.fill();
-    c.strokeStyle = "rgba(24,28,34,.55)"; c.lineWidth = Math.max(0.3, d * 0.1);
+    c.strokeStyle = dunkeln("rgba(24,28,34,.55)"); c.lineWidth = Math.max(0.3, d * 0.1);
     rundRect(c, -d * 0.62, -d, d * 1.24, d * 2, d * 0.3); c.stroke();
-    c.fillStyle = "rgba(88,100,118,.8)";
+    c.fillStyle = dunkeln("rgba(88,100,118,.8)");
     c.beginPath(); c.arc(0, 0, d * 0.3, 0, Math.PI * 2); c.fill();
   };
 
@@ -4755,12 +4827,12 @@ function zeichneStation(t, cxp, cyp, R) {
   /* Greifer — beim Halten geschlossen, sonst offen. Am echten Arm ist
      das ein Zylinder, in dem sich drei Draehte um einen Zapfen legen;
      von aussen sieht man den Zylinder und die Backen. */
-  c.fillStyle = "rgba(210,218,230,.92)";
+  c.fillStyle = dunkeln("rgba(210,218,230,.92)");
   rundRect(c, 0, -R * 0.03, R * 0.055, R * 0.06, R * 0.012); c.fill();
-  c.strokeStyle = "rgba(24,28,34,.5)"; c.lineWidth = Math.max(0.3, R * 0.005);
+  c.strokeStyle = dunkeln("rgba(24,28,34,.5)"); c.lineWidth = Math.max(0.3, R * 0.005);
   rundRect(c, 0, -R * 0.03, R * 0.055, R * 0.06, R * 0.012); c.stroke();
   c.lineWidth = R * 0.018;
-  c.strokeStyle = "rgba(206,218,234,.9)";
+  c.strokeStyle = dunkeln("rgba(206,218,234,.9)");
   const spreiz = haelt ? 0.018 : 0.045;
   c.beginPath();
   c.moveTo(R * 0.05, -R * spreiz); c.lineTo(R * 0.11, -R * spreiz * 0.4);
@@ -4772,14 +4844,14 @@ function zeichneStation(t, cxp, cyp, R) {
   if (haelt) {
     const pw = R * 0.19, ph = R * 0.13;
     c.fillStyle = sonnenlauf(c, R * 0.11, -ph / 2, pw, ph,
-      "#f2f0e6", "#93918a", "#171a1d");
+      dunkeln("#f2f0e6"), dunkeln("#93918a"), dunkeln("#171a1d"));
     rundRect(c, R * 0.11, -ph / 2, pw, ph, ph * 0.12); c.fill();
-    c.strokeStyle = "rgba(26,28,32,.6)"; c.lineWidth = Math.max(0.3, R * 0.006);
+    c.strokeStyle = dunkeln("rgba(26,28,32,.6)"); c.lineWidth = Math.max(0.3, R * 0.006);
     rundRect(c, R * 0.11, -ph / 2, pw, ph, ph * 0.12); c.stroke();
-    folie(c, R * 0.14, -ph * 0.3, pw * 0.4, ph * 0.6, ph * 0.1, 91);
+    folie(c, R * 0.14, -ph * 0.3, pw * 0.4, ph * 0.6, ph * 0.1, 91, true);
     /* Der Zapfen, an dem der Greifer die Palette packt. Ohne ihn
        schwebt sie neben der Hand statt in ihr. */
-    c.fillStyle = "rgba(180,188,200,.9)";
+    c.fillStyle = dunkeln("rgba(180,188,200,.9)");
     rundRect(c, R * 0.09, -R * 0.013, R * 0.03, R * 0.026, R * 0.006); c.fill();
   }
   c.restore();
@@ -4790,11 +4862,12 @@ function zeichneStation(t, cxp, cyp, R) {
     c.save();
     c.translate(R * (takt < 0.3 ? 1.28 : 0.62), -R * 0.34);
     const pw = R * 0.19, ph = R * 0.13;
-    c.fillStyle = sonnenlauf(c, 0, -ph / 2, pw, ph, "#f2f0e6", "#93918a", "#171a1d");
+    c.fillStyle = sonnenlauf(c, 0, -ph / 2, pw, ph,
+      dunkeln("#f2f0e6"), dunkeln("#93918a"), dunkeln("#171a1d"));
     rundRect(c, 0, -ph / 2, pw, ph, ph * 0.12); c.fill();
-    c.strokeStyle = "rgba(26,28,32,.6)"; c.lineWidth = Math.max(0.3, R * 0.006);
+    c.strokeStyle = dunkeln("rgba(26,28,32,.6)"); c.lineWidth = Math.max(0.3, R * 0.006);
     rundRect(c, 0, -ph / 2, pw, ph, ph * 0.12); c.stroke();
-    folie(c, R * 0.03, -ph * 0.3, pw * 0.4, ph * 0.6, ph * 0.1, 91);
+    folie(c, R * 0.03, -ph * 0.3, pw * 0.4, ph * 0.6, ph * 0.1, 91, true);
     c.restore();
   }
 
@@ -9710,6 +9783,7 @@ window.__Z = () => Z;
 window.__SCHUB = () => SCHUB;
 window.__SCHWING = () => SCHWINGUNG;
 window.__BEWEGSTAND = () => BEWEGSTAND;
+window.__STNAH = () => STNAH;
 window.__HIMMEL_STAND = () => ({ dx: HIMMEL.dx, dy: HIMMEL.dy, spiel: HIMMEL.spiel,
   bw: HIMMEL.bild ? HIMMEL.bild.width : 0, bh: HIMMEL.bild ? HIMMEL.bild.height : 0, rand: HIMMEL_RAND });
 window.__TRIFFT = (x, y) => trifftStruktur(x, y);
