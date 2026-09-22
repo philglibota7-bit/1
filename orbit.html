@@ -4129,6 +4129,50 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler, ohneSch
     c.stroke();
     c.restore();
   };
+  /* Die Schutzklappen. Jede Scheibe der Kuppel hat eine, und sie sind
+     das Auffaelligste an ihr: offen stehen sie wie Blueten vom Dom ab
+     und machen aus einem flachen Fensterkranz einen Koerper, der in
+     den Raum ragt. Ohne sie sieht die Kuppel aus wie eine aufgeklebte
+     Blende.
+
+     Sie sind kein Schmuck. Draussen fliegt Schutt, und Glas ist das
+     Einzige an der ganzen Station, was ein Einschlag sofort toeten
+     wuerde — also bleiben sie zu, ausser wenn wirklich jemand
+     hinaussieht. Genau deshalb steht in jedem Bild der Kuppel, das
+     man kennt, mindestens eine davon offen.
+
+     Gezeichnet wird eine offene Klappe als stark gestauchter Kreis:
+     man sieht sie fast von der Kante, weil sie nach aussen weg
+     zeigt. Zwei Gelenkarme halten sie. */
+  const blende = (sx, sy, sr, wnk) => {
+    const co = Math.cos(wnk), si = Math.sin(wnk);
+    const hx = sx + co * sr * 1.28, hy = sy + si * sr * 1.28;
+    const px = sx + co * sr * 2.15, py = sy + si * sr * 2.15;
+    const qx = -si, qy = co;                   // quer zur Oeffnungsrichtung
+    c.strokeStyle = "rgba(96,99,96,.85)";
+    c.lineWidth = Math.max(0.5, sr * 0.2);
+    c.beginPath();
+    for (const v of [-0.66, 0.66]) {
+      c.moveTo(hx + qx * sr * v, hy + qy * sr * v);
+      c.lineTo(px + qx * sr * v * 0.9, py + qy * sr * v * 0.9);
+    }
+    c.stroke();
+    c.save();
+    c.translate(px, py);
+    c.rotate(wnk);
+    c.scale(0.42, 1);
+    const bg2 = c.createLinearGradient(0, -sr * 1.2, 0, sr * 1.2);
+    bg2.addColorStop(0, "#efece1");
+    bg2.addColorStop(0.5, "#b0aea4");
+    bg2.addColorStop(1, "#4a4c50");
+    c.fillStyle = bg2;
+    c.beginPath(); c.arc(0, 0, sr * 1.22, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = "rgba(42,44,42,.6)";
+    c.lineWidth = Math.max(0.3, sr * 0.34);
+    c.stroke();
+    c.restore();
+  };
+
   /* Sechs Scheiben ringsherum. Sie liegen auf einem Ring UM das
      Mittelfenster, nicht auf einem Bogen daneben — vorher ueberdeckten
      sich die Rahmen gegenseitig und das Mittelfenster lag mitten
@@ -4139,6 +4183,14 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler, ohneSch
     scheibe(fx, fy, kr * 0.115);
     merkeFenster(c, fenster, fx, fy, kr * 0.115,
       "170,214,255", i, 0.0012, 0.55, 0.32);
+  }
+  /* Nicht alle stehen offen. Vier von sieben ist das Bild, das man
+     von der Kuppel kennt — zu, wenn niemand hinsieht, und die
+     geschlossenen liegen ohnehin auf der abgewandten Seite. */
+  for (const i of [0, 1, 4, 5]) {
+    const w = (i / 6) * Math.PI * 2;
+    const fx = Math.cos(w) * kr * 0.46, fy = kr * 0.5 + Math.sin(w) * kr * 0.38;
+    blende(fx, fy, kr * 0.115, w);
   }
   /* Das grosse Mittelfenster — achtzig Zentimeter, das groesste, das
      der Innendruck zulaesst. */
