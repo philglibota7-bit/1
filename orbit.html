@@ -2576,7 +2576,41 @@ function radiator(c, x, y, w, h, quer) {
   g.addColorStop(1, "#46607f");                 /* Erdschein von unten */
   c.fillStyle = g;
   c.fillRect(x, y, w, h);
-  /* Naehte im Ziehharmonika-Takt: acht Paneele */
+  /* Jedes Paneel ein bisschen anders hell. Acht Stueck, einzeln
+     gefertigt, einzeln montiert — und die Oberflaeche ist ein
+     Silberspiegel auf Wabenkern, kein Lack. Schon ein Prozent
+     Unterschied macht aus einer Platte acht Platten. */
+  for (let i = 0; i < 8; i++) {
+    const v = streu(i, 7, 313);
+    c.fillStyle = v > 0.5 ? `rgba(255,255,255,${(v - 0.5) * 0.14})`
+                          : `rgba(60,68,78,${(0.5 - v) * 0.12})`;
+    if (quer) c.fillRect(x + (w * i) / 8, y, w / 8, h);
+    else      c.fillRect(x, y + (h * i) / 8, w, h / 8);
+  }
+
+  /* Die Rohre. Ein Waermetauscher ist kein weisses Blech, sondern ein
+     Paket flacher Kanaele: Ammoniak laeuft hindurch, gibt seine Waerme
+     an die Flaeche ab und kommt kuehler zurueck. Von aussen sieht man
+     die Kanaele als feine Linien LAENGS ueber alle Paneele hinweg —
+     quer dazu liegen die Gelenke.
+
+     Das ist das Merkmal, an dem man einen Waermetauscher ueberhaupt
+     erkennt. Ohne die Linien ist es eine weisse Platte, und weisse
+     Platten gibt es an einer Station genug. */
+  c.save();
+  c.beginPath(); c.rect(x, y, w, h); c.clip();
+  c.strokeStyle = "rgba(146,158,170,.42)";
+  c.lineWidth = 0.35;
+  c.beginPath();
+  for (let i = 1; i < 14; i++) {
+    if (quer) { const yy = y + (h * i) / 14; c.moveTo(x, yy); c.lineTo(x + w, yy); }
+    else      { const xx = x + (w * i) / 14; c.moveTo(xx, y); c.lineTo(xx, y + h); }
+  }
+  c.stroke();
+  c.restore();
+
+  /* Naehte im Ziehharmonika-Takt: acht Paneele. Sie kommen NACH den
+     Rohren, denn das Gelenk liegt obenauf. */
   c.strokeStyle = "rgba(120,132,142,.75)";
   c.lineWidth = 0.5;
   c.beginPath();
@@ -2585,6 +2619,47 @@ function radiator(c, x, y, w, h, quer) {
     else      { const yy = y + (h * i) / 8; c.moveTo(x, yy); c.lineTo(x + w, yy); }
   }
   c.stroke();
+  /* Die Gelenkbeschlaege an den Enden jeder Naht */
+  /* Klein halten. Bei 0,055 der Breite waren das keine Beschlaege
+     mehr, sondern aufgemalte Balken — ein Gelenk an einem
+     Paneelpaket ist ein Scharnier von ein paar Zentimetern, nicht ein
+     Trager. */
+  const dick = Math.max(0.5, (quer ? h : w) * 0.03);
+  c.strokeStyle = "rgba(118,128,140,.5)";
+  c.lineWidth = dick;
+  c.beginPath();
+  for (let i = 1; i < 8; i++) {
+    if (quer) {
+      const xx = x + (w * i) / 8;
+      c.moveTo(xx, y + h * 0.1); c.lineTo(xx, y + h * 0.17);
+      c.moveTo(xx, y + h * 0.83); c.lineTo(xx, y + h * 0.9);
+    } else {
+      const yy = y + (h * i) / 8;
+      c.moveTo(x + w * 0.1, yy); c.lineTo(x + w * 0.17, yy);
+      c.moveTo(x + w * 0.83, yy); c.lineTo(x + w * 0.9, yy);
+    }
+  }
+  c.stroke();
+
+  /* Einschlagloecher. Die Waermetauscher bieten die groesste Flaeche
+     der ganzen Station und fangen entsprechend am meisten ab — an der
+     echten Station sitzt in einem Paneel ein Loch, das man auf Fotos
+     findet und das dort seit Jahren steht. Repariert wird so etwas
+     nicht: eine Flaeche mit Loechern strahlt fast genauso gut. */
+  const lang = quer ? w : h;
+  if (lang > 40) {
+    for (let i = 0; i < 3; i++) {
+      const u = 0.12 + streu(i, 3, 211) * 0.76;
+      const v = 0.22 + streu(i, 9, 227) * 0.5;
+      const px2 = quer ? x + w * u : x + w * v;
+      const py2 = quer ? y + h * v : y + h * u;
+      const r2 = Math.max(0.5, lang * 0.004);
+      c.fillStyle = "rgba(226,232,238,.8)";
+      c.beginPath(); c.arc(px2, py2, r2 * 2.2, 0, Math.PI * 2); c.fill();
+      c.fillStyle = "rgba(14,18,24,.85)";
+      c.beginPath(); c.arc(px2, py2, r2, 0, Math.PI * 2); c.fill();
+    }
+  }
   /* Die Dicke des Paneelpakets: oben eine gleissende Kante, unten die
      fast schwarze Unterseite. Das ist der ganze Unterschied zwischen
      einer Platte und einem Rechteck. */
