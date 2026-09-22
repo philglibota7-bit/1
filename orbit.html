@@ -73,6 +73,12 @@ button{background:none; border:none; cursor:pointer;}
   display:flex; flex-direction:column;
   transition:opacity .7s var(--ease);}
 #ui > *{pointer-events:auto;}
+/* Ueber der Linie des Pulses, die in die Szene gezeichnet wird: ein
+   unsichtbarer Knopf, der sagt, was sie ist, und die Crew oeffnet. */
+.puls-knopf{position:absolute; z-index:2; padding:0; border:0; border-radius:8px;
+  background:transparent; cursor:pointer;}
+.puls-knopf:hover{background:rgba(255,255,255,.045);}
+.puls-knopf:focus-visible{outline:2px solid var(--acc); outline-offset:2px;}
 body.kino #ui{opacity:0; pointer-events:none;}
 body.kino #vignette{background:radial-gradient(ellipse 74% 64% at 50% 46%, transparent 40%, rgba(0,0,0,.55) 100%);}
 
@@ -956,6 +962,9 @@ body.sicht #blende-detail{
 <div id="korn"></div>
 
 <div id="ui">
+  <button id="puls-knopf" class="puls-knopf" hidden
+    title="Puls der Crew — jeder Zacken ist ein echter Werkzeugaufruf einer Sitzung, die letzten anderthalb Minuten. Antippen öffnet die Crew."
+    aria-label="Puls der Crew: Werkzeugaufrufe der letzten anderthalb Minuten. Öffnet die Crew."></button>
   <header>
     <div class="marke">
       <div class="sat"></div>
@@ -12085,6 +12094,29 @@ function crewPulsMerken(a, v) {
 }
 
 function zeichneCrewPuls(liste) {
+  crewPulsMalen(liste);
+  pulsKnopfSetzen(PULS_LETZT);
+}
+
+/* Der Knopf wird nur angefasst, wenn sich seine Lage aendert — das hier
+   laeuft in jedem Bild, und ein Stil, der jedes Mal neu gesetzt wird,
+   laesst den Browser jedes Mal neu rechnen. */
+let PULS_KNOPF = "";
+function pulsKnopfSetzen(r) {
+  const k = document.getElementById("puls-knopf");
+  if (!k) return;
+  const soll = r ? [Math.round(r.x0 - 8), Math.round(r.y0 - 14),
+                    Math.round(r.x1 - r.x0 + 17 + r.textB), 28].join(",") : "";
+  if (soll === PULS_KNOPF) return;
+  PULS_KNOPF = soll;
+  k.hidden = !r;
+  if (!r) return;
+  const [x, y, w, h] = soll.split(",").map(Number);
+  k.style.left = x + "px"; k.style.top = y + "px";
+  k.style.width = w + "px"; k.style.height = h + "px";
+}
+
+function crewPulsMalen(liste) {
   PULS_LETZT = null;
   if (kinoAn) return;
   /* Nur wo es Sitzungen gibt — ohne Takt waere es eine Linie, die nie
@@ -12174,8 +12206,9 @@ function zeichneCrewPuls(liste) {
   cx.strokeStyle = "rgba(6,9,16,.5)"; cx.lineWidth = 3;
   cx.strokeText(text, x1 + 9, y0);
   cx.fillText(text, x1 + 9, y0);
+  const textB = cx.measureText(text).width;
   cx.restore();
-  PULS_LETZT = { x0, x1, y0, zacken: gezeichnet, proMin: n };
+  PULS_LETZT = { x0, x1, y0, zacken: gezeichnet, proMin: n, textB };
 }
 /* Was das Neuzusammensetzen der Erde wirklich kostet: die Bilddauer
    nach einem Bild, in dem es geschah, gegen die ohne. Beide gleiten. */
@@ -15440,6 +15473,7 @@ $("#s-loeschen").onclick = () => {
    ================================================================ */
 
 $("#btn-crew").onclick = () => blendeAuf("blende-crew");
+$("#puls-knopf").onclick = () => blendeAuf("blende-crew");
 $("#btn-wartet").onclick = () => naechsterWartender();
 $("#btn-vorf").onclick = () => vorfuehrungBeenden();
 $("#vorf-band").onclick = () => vorfuehrungBeenden();
