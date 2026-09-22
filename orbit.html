@@ -304,6 +304,14 @@ footer{
   border-bottom-left-radius:5px;}
 .live-karte.kind.fertig .tut{color:var(--good);}
 /* Die Unteragenten im Detailfenster einer Sitzung */
+/* Was eine Sitzung zuletzt gesagt hat */
+.d-zitat{margin:2px 0 8px; padding:9px 12px 10px; border-left:2px solid var(--edge2);
+  background:rgba(255,255,255,.03); border-radius:0 8px 8px 0; font-size:12.5px; line-height:1.55;
+  color:var(--tx2); white-space:pre-line; word-break:break-word; cursor:pointer;
+  display:-webkit-box; -webkit-line-clamp:8; -webkit-box-orient:vertical; overflow:hidden;}
+.d-zitat.offen{display:block; -webkit-line-clamp:unset;}
+.d-zitat.bericht{border-left-color:var(--good); color:var(--tx);}
+.d-zitat.fehler{border-left-color:var(--bad); color:#e79a8c; cursor:default;}
 .d-kind{display:flex; align-items:center; gap:9px; width:100%; text-align:left;
   padding:7px 9px; margin:0 0 5px; border-radius:9px; border:1px solid rgba(255,255,255,.06);
   background:rgba(255,255,255,.03); transition:background .15s;}
@@ -1523,6 +1531,7 @@ function taetigkeitAus(name, ein) {
     case "Agent":       return "delegiert: " + String(e.description || "").slice(0, 45);
     case "Skill":       return "nutzt Fähigkeit " + (e.skill || "");
     case "TodoWrite":   return "aktualisiert die Aufgabenliste";
+    case "StructuredOutput": return "liefert sein Ergebnis ab";
     default:            return name + " " + JSON.stringify(e).slice(0, 45);
   }
 }
@@ -1532,11 +1541,26 @@ function taetigkeitAus(name, ein) {
    Woerter seiner Aufgabe, so wie man einen Kollegen nach dem nennt,
    was er gerade macht. Hoechstens drei Woerter und 22 Zeichen: unter
    den Figuren steht er in einem Namensschild. */
+/* Ohne Fuellwoerter: "Die Tests fuer den Warenkorb durchsehen" hiess
+   sonst "Die Tests fuer" — drei Woerter, von denen eines etwas sagt. */
+const FUELLWOERTER = new Set(("der die das den dem des ein eine einen einem einer eines "
+  + "und oder für fuer von vom im in ins am an auf aus mit zu zum zur bei nach über ueber "
+  + "alle allen bitte dann noch auch nur so wie "
+  + "the a an and or of for to in on at by with from into all please").split(" "));
+
 function kurzeAufgabe(t) {
   if (!t) return "";
-  const w = t.replace(/[`*_#>\[\]]/g, " ").split(/\s+/).filter(Boolean).slice(0, 3);
-  const n = w.join(" ");
-  return n.length > 22 ? n.slice(0, 21) + "…" : n;
+  const erste = String(t).split("\n").find(z => z.trim()) || "";
+  const alle = erste.replace(/[`*_#>\[\]():,.;!?"„“]/g, " ").split(/\s+/).filter(Boolean);
+  let w = alle.filter(x => !FUELLWOERTER.has(x.toLowerCase()));
+  if (!w.length) w = alle;
+  /* So viele Woerter, wie in ein Namensschild passen — hoechstens drei */
+  let n = "";
+  for (const x of w.slice(0, 3)) {
+    if (n && (n + " " + x).length > 24) break;
+    n = n ? n + " " + x : x;
+  }
+  return n.length > 24 ? n.slice(0, 23) + "…" : n;
 }
 
 /* Die Aufgabe eines Unteragenten: sein allererster Benutzereintrag.
@@ -1555,38 +1579,92 @@ function ersterAuftrag(roh) {
       const b = c.find(x => x && x.type === "text" && typeof x.text === "string");
       if (b) txt = b.text;
     }
-    if (txt) return txt.replace(/\s+/g, " ").trim().slice(0, 300);
+    /* Bei den Agenten eines Arbeitsablaufs kommt zuerst ein Vorspann:
+       der weitergereichte Wunsch des Nutzers, dann der berechnete
+       Auftrag, eingerueckt hinter einem Absatz ueber seine Herkunft.
+       Der Auftrag ist der zweite, ohne Vorspann und Einrueckung —
+       nachgesehen an einem echten. */
+    if (/^\[Workflow harness — user request\]/.test(txt)) continue;
+    const vorspann = txt.match(/^\[Workflow harness — computed task\][\s\S]*?follows:[ \t]*\n/);
+    if (vorspann) txt = txt.slice(vorspann[0].length).replace(/^ {2}/gm, "");
+    if (txt.trim()) return txt.replace(/\s+/g, " ").trim().slice(0, 300);
   }
   return "";
 }
 
-async function sessionLesen(pfad, groesse, name, erstellt, elternName) {
-  const fenster = Math.min(groesse, 120 * 1024);
-  const pos = Math.max(0, groesse - fenster);
-  let roh;
-  try { roh = await Neutralino.filesystem.readFile(pfad, { pos, size: fenster }); }
-  catch { return null; }
+/* Eine Antwort fuer das Detailfenster: Absaetze bleiben, Leerraum
+   darin nicht, und mehr als siebenhundert Zeichen liest in einem
+   Fenster von vierhundert Punkten niemand. */
+function antwortKurz(t) {
+  const s = String(t || "").replace(/\r/g, "").replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n").trim();
+  return s.length <= 700 ? s : s.slice(0, 699).trimEnd() + "…";
+}
 
-  /* Bei einem Unteragenten steht die Aufgabe ganz vorn in der Datei —
-     und das Fenster oben liest nur das Ende. Also fuer die Aufgabe
-     einmal getrennt die ersten acht Kilobyte lesen. Bei einer Sitzung
-     lohnt das nicht: dort ist der letzte Auftrag der interessante,
-     und der steht hinten. */
-  let aufgabe = "";
-  if (elternName && pos > 0) {
-    try {
-      const kopf = await Neutralino.filesystem.readFile(pfad, { pos: 0, size: 8192 });
-      aufgabe = ersterAuftrag(kopf);
-    } catch { /* ohne Aufgabe geht es auch */ }
-  } else if (elternName) {
-    aufgabe = ersterAuftrag(roh);
+/* --- Einlesen mit Gedaechtnis -----------------------------------------
+   Ein Protokoll, das seit dem letzten Blick nicht gewachsen ist, muss
+   nicht neu gelesen werden — die meisten Sitzungen ruhen die meiste
+   Zeit. Gemerkt wird das Ergebnis des Einlesens, nicht die fertige
+   Figur: alles, was an der Uhr haengt (arbeitet, denkt, ruht, fertig),
+   wird bei jedem Durchlauf neu gerechnet. */
+const PROTOKOLLE = new Map();   // pfad -> { groesse, mt, daten }
+const AUFGABEN = new Map();     // pfad -> Aufgabe eines Unteragenten
+const METAS = new Map();        // pfad -> Inhalt der .meta.json (aendert sich nie)
+
+/* Ein Eintrag, den nicht das Modell geschrieben hat, sondern Claude Code
+   selbst: eine Fehlermeldung, etwa "You've hit your session limit".
+   Er traegt model "<synthetic>" und isApiErrorMessage — nachgesehen an
+   einem echten Protokoll, in dem ein Arbeitsablauf ins Limit lief. */
+function synthetisch(d) {
+  return d.isApiErrorMessage === true || ((d.message || {}).model === "<synthetic>");
+}
+
+/* Ein Ergebnis in Feldern lesbar machen: jedes Textfeld mit seinem
+   Namen, Listen als Anzahl. Die Felder hat sich der Arbeitsablauf
+   ausgedacht, also werden sie nicht uebersetzt. */
+function berichtAus(e) {
+  if (!e || typeof e !== "object") return String(e || "");
+  const teile = [];
+  for (const [k, v] of Object.entries(e)) {
+    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") teile.push(k + ": " + v);
+    else if (Array.isArray(v)) teile.push(k + ": " + v.length + (v.length === 1 ? " Eintrag" : " Einträge"));
+  }
+  return teile.join("\n\n") || JSON.stringify(e);
+}
+
+function textAus(c) {
+  if (typeof c === "string") return c;
+  if (!Array.isArray(c)) return "";
+  return c.filter(b => b && b.type === "text" && typeof b.text === "string").map(b => b.text).join("\n");
+}
+
+async function protokollLesen(pfad, groesse, mt) {
+  const alt = PROTOKOLLE.get(pfad);
+  if (alt && alt.groesse === groesse && alt.mt === mt) return alt.daten;
+
+  /* Das Fenster waechst, bis es wenigstens einen ganzen Eintrag des
+     Assistenten enthaelt. Mit 120 kB fest kam bei einem echten
+     Arbeitsablauf nichts heraus: die letzte Zeile war ein Schreibbefehl
+     von 90 kB, das Fenster schnitt ihn an, und uebrig blieben ein Anhang
+     und ein Werkzeugergebnis — kein Modell, kein Schritt, nichts. In der
+     Sitzungsdatei selbst sind einzelne Zeilen ueber 1,3 MB gross:
+     eingebettete Bilder. Also 120 kB, dann 600 kB, dann 3 MB. */
+  let fenster = Math.min(groesse, 120 * 1024), pos, roh;
+  for (;;) {
+    pos = Math.max(0, groesse - fenster);
+    try { roh = await Neutralino.filesystem.readFile(pfad, { pos, size: fenster }); }
+    catch { return null; }
+    const ganz = pos > 0 ? roh.slice(roh.indexOf("\n") + 1) : roh;
+    if (pos === 0 || fenster >= 3 * 1024 * 1024 || ganz.includes('"type":"assistant"')) break;
+    fenster = Math.min(groesse, fenster * 5);
   }
 
   const zeilen = roh.split("\n");
   if (pos > 0) zeilen.shift();          // erste Zeile ist angeschnitten
 
   let cwd = "", branch = "", modell = "", aufwand = "", sid = "", nutzung = null;
-  let auftrag = "", agentId = "";
+  let auftrag = "", agentId = "", antwort = "", fehlerText = "", bericht = "";
+  let assistentGesehen = false, strukturiert = false;
   let letzteZeit = 0, letzteRolle = "", letzterText = false;
   const schritte = [];
   /* Welche Unteragenten dieser Sitzung ihr Ergebnis schon abgeliefert
@@ -1611,17 +1689,15 @@ async function sessionLesen(pfad, groesse, name, erstellt, elternName) {
        Frage, die man an eine fremde Sitzung zuerst hat.
 
        Ohne diese Zeile faellt der Text aus dem juengsten
-       Benutzereintrag ein; dessen Inhalt kann ein Text oder eine Liste
-       von Bloecken sein. */
+       Benutzereintrag ein — aber nicht jeder Benutzereintrag ist von
+       einem Menschen. Eingefuegte Bilder, Meldungen des Programms in
+       spitzen Klammern und Eintraege, die Claude Code selbst als
+       "isMeta" markiert, zaehlen nicht. */
     if (!auftrag && d.type === "last-prompt" && typeof d.lastPrompt === "string")
       auftrag = d.lastPrompt;
-    if (!auftrag && d.type === "user") {
-      const c = (d.message || {}).content;
-      if (typeof c === "string") auftrag = c;
-      else if (Array.isArray(c)) {
-        const t = c.find(b => b && b.type === "text" && typeof b.text === "string");
-        if (t) auftrag = t.text;
-      }
+    if (!auftrag && d.type === "user" && !d.isMeta) {
+      const t = textAus((d.message || {}).content).trim();
+      if (t && !/^(<|\[Image|\[Workflow harness)/.test(t)) auftrag = t;
     }
     if (!sid && d.sessionId) sid = d.sessionId;
     if (!agentId && d.agentId) agentId = d.agentId;
@@ -1633,13 +1709,30 @@ async function sessionLesen(pfad, groesse, name, erstellt, elternName) {
       /* Endet das Protokoll mit Text vom Assistenten und ohne einen
          Werkzeugaufruf danach, ist sein Zug zu Ende. Bei einem
          Unteragenten heisst das: der Bericht ist abgegeben. Jeder Block
-         steht als eigene Zeile da, deshalb zaehlt nur die neueste. */
+         steht als eigene Zeile da, deshalb zaehlt nur die neueste.
+         Ist dieser Text aber eine Fehlermeldung von Claude Code selbst,
+         ist das kein Bericht, sondern ein Abbruch. */
       const c = (d.message || {}).content;
-      letzterText = d.type === "assistant" && Array.isArray(c)
+      if (d.type === "assistant" && synthetisch(d)) fehlerText = textAus(c).trim() || "Fehler";
+      else letzterText = d.type === "assistant" && Array.isArray(c)
         && c.some(b => b && b.type === "text") && !c.some(b => b && b.type === "tool_use");
     }
 
-    if (d.type === "assistant") {
+    /* Die Agenten eines Arbeitsablaufs liefern ihr Ergebnis nicht als
+       Text ab, sondern ueber das Werkzeug StructuredOutput — das ist ihr
+       Bericht. Danach steht nur noch die Quittung des Ablaufs im
+       Protokoll, deshalb zaehlt hier der neueste Eintrag des Assistenten
+       und nicht der neueste ueberhaupt. Ohne das stand bei ihnen
+       "StructuredOutput {...}" als Taetigkeit, als arbeiteten sie noch. */
+    if (!assistentGesehen && d.type === "assistant") {
+      assistentGesehen = true;
+      const c = (d.message || {}).content;
+      const so = Array.isArray(c)
+        ? c.find(b => b && b.type === "tool_use" && b.name === "StructuredOutput") : null;
+      if (so && !synthetisch(d)) { strukturiert = true; bericht = berichtAus(so.input); }
+    }
+
+    if (d.type === "assistant" && !synthetisch(d)) {
       const m = d.message || {};
       if (!modell && m.model) modell = m.model;
       if (!aufwand && d.effort) aufwand = d.effort;
@@ -1651,11 +1744,10 @@ async function sessionLesen(pfad, groesse, name, erstellt, elternName) {
          was der Dienst abgerechnet hat.
 
          Genommen wird nur der NEUESTE Eintrag, nicht die Summe ueber
-         alle. Die Datei wird nur zum Ende hin gelesen (120 kB), eine
-         Summe waere also ohnehin angeschnitten — und sie waere auch
-         die falsche Frage. Interessant ist nicht, wieviel diese
-         Sitzung insgesamt verbraucht hat, sondern wie voll sie
-         gerade ist.
+         alle. Die Datei wird nur zum Ende hin gelesen, eine Summe waere
+         also ohnehin angeschnitten — und sie waere auch die falsche
+         Frage. Interessant ist nicht, wieviel diese Sitzung insgesamt
+         verbraucht hat, sondern wie voll sie gerade ist.
 
          Die Feldnamen sind an einem echten Protokoll geprueft, nicht
          aus der Doku uebernommen. */
@@ -1672,6 +1764,11 @@ async function sessionLesen(pfad, groesse, name, erstellt, elternName) {
         if (!nutzung.kontext) nutzung = null;      // leere Eintraege nicht zaehlen
       }
       const inhalt = Array.isArray(m.content) ? m.content : [];
+      /* Was die Sitzung zuletzt gesagt hat — der neueste Text vom
+         Assistenten. Bei einem Unteragenten, der fertig ist, ist das
+         sein Bericht; bei einer Sitzung, die wartet, oft genau die
+         Erklaerung, worauf. */
+      if (!antwort) antwort = textAus(inhalt);
       for (let j = inhalt.length - 1; j >= 0; j--) {
         const b = inhalt[j];
         if (b && b.type === "tool_use" && schritte.length < 10) {
@@ -1684,18 +1781,58 @@ async function sessionLesen(pfad, groesse, name, erstellt, elternName) {
         }
       }
     }
-    if (cwd && sid && modell && schritte.length >= 10) break;
+    if (cwd && sid && modell && schritte.length >= 10 && antwort) break;
   }
 
-  if (!cwd) return null;
+  const daten = {
+    cwd, branch, modell, aufwand, sid, nutzung, agentId, letzteZeit, letzteRolle,
+    letzterText: letzterText || strukturiert, fehlerText: fehlerText ? antwortKurz(fehlerText) : "",
+    /* Lange Auftraege werden hier schon gekuerzt: was drueber
+       hinausgeht, liest sowieso niemand in einem Fenster von
+       vierhundert Punkten Breite, und es wanderte sonst bei jedem
+       Takt durch den Speicher. */
+    auftrag: auftrag ? auftrag.replace(/\s+/g, " ").trim().slice(0, 300) : "",
+    antwort: antwortKurz(bericht || antwort),
+    fertigeAgenten: [...fertigeAgenten],
+    schritte: schritte.slice(0, 8),
+  };
+  PROTOKOLLE.set(pfad, { groesse, mt, daten });
+  return daten;
+}
+
+/* Die Aufgabe eines Unteragenten steht ganz vorn in seiner Datei, das
+   Fenster oben liest aber das Ende. Also einmal getrennt den Anfang
+   lesen — und sich das merken: die Aufgabe aendert sich nie. Gemerkt
+   wird erst, wenn etwas gefunden wurde; eine Datei, die gerade erst
+   angelegt wird, hat ihre Aufgabe vielleicht noch nicht. */
+async function aufgabeLesen(pfad, groesse) {
+  if (AUFGABEN.has(pfad)) return AUFGABEN.get(pfad);
+  let kopf = "";
+  try { kopf = await Neutralino.filesystem.readFile(pfad, { pos: 0, size: Math.min(groesse, 64 * 1024) }); }
+  catch { return ""; }
+  const a = ersterAuftrag(kopf);
+  if (a) AUFGABEN.set(pfad, a);
+  return a;
+}
+
+async function sessionLesen(k, elternName) {
+  const p = await protokollLesen(k.pfad, k.groesse, k.mt);
+  if (!p || !p.cwd) return null;
+  const aufgabe = elternName ? await aufgabeLesen(k.pfad, k.groesse) : "";
+  const { cwd, branch, modell, aufwand, sid, nutzung, agentId, letzteZeit, letzteRolle,
+          letzterText, fehlerText, antwort, schritte } = p;
   const alter = Date.now() - letzteZeit;
-  const zustand = alter < 25000 ? "sendet" : alter < 300000 ? "denkt" : "ruht";
+  /* Ein Abbruch ist eine halbe Stunde lang ein Fehler — danach ist er
+     Geschichte, und eine Figur, die seit Stunden rot blinkt, sagt
+     nichts mehr, ausser dass sie da ist. */
+  const zustand = fehlerText && alter < 1800000 ? "fehler"
+                : alter < 25000 ? "sendet" : alter < 300000 ? "denkt" : "ruht";
 
   if (elternName) {
     /* Die sessionId eines Unteragenten ist die seiner Mutter-Sitzung —
        als Kennung waere sie also doppelt, und beide Figuren wuerden
        sich gegenseitig ueberschreiben. Die agentId ist eindeutig. */
-    const kennung = agentId || name.replace(/\.jsonl$/, "");
+    const kennung = agentId || k.name.replace(/\.jsonl$/, "");
     /* Fertig ist er — solange die Sitzung es nicht sicher sagt, siehe
        unten —, wenn sein Protokoll mit dem Bericht endet und seit einer
        Viertelminute nichts dazukam. Die Wartezeit, weil jeder Block als
@@ -1704,7 +1841,7 @@ async function sessionLesen(pfad, groesse, name, erstellt, elternName) {
        erzeugt ist, und bei einer grossen Datei dauert das. stop_reason
        hilft nicht; es wird im Protokoll nicht mitgeschrieben — an einem
        echten nachgesehen. */
-    const berichtet = letzterText && alter > 15000;
+    const berichtet = !fehlerText && letzterText && alter > 15000;
     return {
       id: "u:" + kennung,
       sid: kennung,
@@ -1714,45 +1851,47 @@ async function sessionLesen(pfad, groesse, name, erstellt, elternName) {
       farbe: farbeAusName(kennung),
       zustand: berichtet ? (alter < 300000 ? "fertig" : "ruht") : zustand,
       berichtet,
+      fehlerText,
+      antwort,
       ort: cwd,
       branch,
       auftrag: aufgabe,
       /* Wer berichtet hat, tut nichts mehr — sein letzter Werkzeugaufruf
          als "Taetigkeit" liesse ihn weiterarbeiten, in der Leiste wie
-         in der Blase. */
-      taetigkeit: berichtet ? "Bericht abgegeben"
-                : schritte.length ? schritte[0].text : "wartet",
+         in der Blase. Wer abgebrochen wurde, ebenso wenig. */
+      taetigkeit: fehlerText ? "abgebrochen: " + anfang(fehlerText, 60)
+                : berichtet ? "Bericht abgegeben"
+                : schritte.length ? schritte[0].text : "noch kein Schritt",
       werkzeug: schritte.length ? schritte[0].werkzeug : "",
       seit: letzteZeit,
-      seitStart: erstellt || 0,
+      seitStart: k.ct || 0,
       modell, aufwand, nutzung,
       letzteRolle,
-      schritte: schritte.slice(0, 8),
+      schritte,
     };
   }
 
   return {
-    id: "s:" + (sid || name),
+    id: "s:" + (sid || k.name),
     sid,
     typ: "session",
     name: (cwd.split("/").pop() || "Session"),
-    farbe: farbeAusName(sid || name),
+    farbe: farbeAusName(sid || k.name),
     zustand,
     ort: cwd,
     branch,
-    taetigkeit: schritte.length ? schritte[0].text : "wartet auf Eingabe",
+    taetigkeit: fehlerText ? "abgebrochen: " + anfang(fehlerText, 60)
+              : schritte.length ? schritte[0].text : "wartet auf Eingabe",
     werkzeug: schritte.length ? schritte[0].werkzeug : "",
     seit: letzteZeit,
-    seitStart: erstellt || 0,
+    seitStart: k.ct || 0,
     modell, aufwand, nutzung,
-    /* Lange Auftraege werden hier schon gekuerzt: was drueber
-       hinausgeht, liest sowieso niemand in einem Fenster von
-       vierhundert Punkten Breite, und es wanderte sonst bei jedem
-       Takt durch den Speicher. */
-    auftrag: auftrag ? auftrag.replace(/\s+/g, " ").trim().slice(0, 300) : "",
+    auftrag: p.auftrag,
     letzteRolle,
-    fertigeAgenten: [...fertigeAgenten],
-    schritte: schritte.slice(0, 8),
+    fehlerText,
+    antwort,
+    fertigeAgenten: p.fertigeAgenten,
+    schritte,
   };
 }
 
@@ -1832,8 +1971,10 @@ async function sammleSessions() {
   kandidaten.sort((a, b) => b.mt - a.mt);
 
   const raus = [];
+  const gelesen = new Set();
   for (const k of kandidaten.slice(0, 6)) {
-    const info = await sessionLesen(k.pfad, k.groesse, k.name, k.ct);
+    gelesen.add(k.pfad);
+    const info = await sessionLesen(k);
     if (!info) continue;
     raus.push(info);
     /* --- Und die Unteragenten dieser Sitzung -------------------------
@@ -1843,27 +1984,65 @@ async function sammleSessions() {
        Figur in die Szene — bisher war sie unsichtbar, obwohl oft drei
        davon gleichzeitig laufen.
 
-       Hoechstens drei je Sitzung und nur die frischen: die Ordner
-       sammeln ueber einen Arbeitstag Dutzende an, und alte
+       Nur die frischen, und hoechstens sechs je Sitzung (siehe unten):
+       die Ordner sammeln ueber einen Arbeitstag Dutzende an, und alte
        Protokolle sind kein laufender Einsatz. */
     const unterOrdner = k.pfad.replace(/\.jsonl$/, "") + "/subagents";
     let unterDateien;
     try { unterDateien = await Neutralino.filesystem.readDirectory(unterOrdner); }
     catch { continue; }
+    /* Die Agenten eines Arbeitsablaufs liegen eine Ebene tiefer, je Lauf
+       ein Ordner unter subagents/workflows/ — nachgesehen an einem
+       echten. Bisher waren sie deshalb unsichtbar, obwohl gerade dort
+       oft ein halbes Dutzend gleichzeitig arbeitet. Alte Laeufe werden
+       am Datum ihres Ordners erkannt und gar nicht erst geoeffnet. */
+    const ordnerListe = [[unterOrdner, unterDateien]];
+    if (unterDateien.some(u => u.entry === "workflows" && u.type === "DIRECTORY")) {
+      let laeufe = [];
+      try { laeufe = await Neutralino.filesystem.readDirectory(unterOrdner + "/workflows"); } catch {}
+      for (const w of laeufe) {
+        if (w.type !== "DIRECTORY" || w.entry.startsWith(".")) continue;
+        const wp = unterOrdner + "/workflows/" + w.entry;
+        try {
+          const wst = await Neutralino.filesystem.getStats(wp);
+          if (jetzt - wst.modifiedAt > Z.bruecke.sessionFensterMin * 60000) continue;
+          ordnerListe.push([wp, await Neutralino.filesystem.readDirectory(wp)]);
+        } catch { /* weg oder nicht lesbar */ }
+      }
+    }
     const unterKand = [];
-    for (const u of unterDateien) {
-      if (!u.entry.endsWith(".jsonl") || !u.entry.startsWith("agent-")) continue;
-      const up = unterOrdner + "/" + u.entry;
-      let ust;
-      try { ust = await Neutralino.filesystem.getStats(up); } catch { continue; }
-      if (jetzt - ust.modifiedAt > Z.bruecke.sessionFensterMin * 60000) continue;
-      unterKand.push({ pfad: up, groesse: ust.size, mt: ust.modifiedAt,
-                       ct: ust.createdAt || 0, name: u.entry });
+    for (const [ordner, eintraege] of ordnerListe) {
+      for (const u of eintraege) {
+        if (!u.entry.endsWith(".jsonl") || !u.entry.startsWith("agent-")) continue;
+        const up = ordner + "/" + u.entry;
+        let ust;
+        try { ust = await Neutralino.filesystem.getStats(up); } catch { continue; }
+        if (jetzt - ust.modifiedAt > Z.bruecke.sessionFensterMin * 60000) continue;
+        unterKand.push({ pfad: up, groesse: ust.size, mt: ust.modifiedAt,
+                         ct: ust.createdAt || 0, name: u.entry });
+      }
     }
     unterKand.sort((a, b) => b.mt - a.mt);
-    for (const u of unterKand.slice(0, 3)) {
-      const ui = await sessionLesen(u.pfad, u.groesse, u.name, u.ct, info.name);
+    /* Sechs statt drei: ein Arbeitsablauf schickt seine Agenten
+       gleichzeitig los, und drei davon zu zeigen hiesse, die Haelfte
+       der laufenden Arbeit zu verschweigen. */
+    for (const u of unterKand.slice(0, 6)) {
+      gelesen.add(u.pfad);
+      const ui = await sessionLesen(u, info.name);
       if (!ui) continue;
+      /* Neben jedem Protokoll liegt eine kleine .meta.json. Bei den
+         Agenten eines Arbeitsablaufs steht darin eine kurze
+         Beschreibung — ein besserer Name als die ersten Woerter des
+         Auftrags —, dazu Art und Phase. */
+      try {
+        const mp = u.pfad.replace(/\.jsonl$/, ".meta.json");
+        if (!METAS.has(mp)) METAS.set(mp, JSON.parse(await Neutralino.filesystem.readFile(mp)));
+        const meta = METAS.get(mp);
+        if (typeof meta.description === "string" && meta.description.trim())
+          ui.name = anfang(meta.description, 24);
+        if (typeof meta.agentType === "string") ui.agentArt = meta.agentType;
+        if (typeof meta.workflowPhase === "string") ui.phase = meta.workflowPhase;
+      } catch { /* ohne Beschreibung bleibt der Name aus dem Auftrag */ }
       ui.elternId = info.id;
       /* Hat die Sitzung sein Ergebnis schon bekommen, ist er fertig. Das
          ist sicherer als jede Vermutung aus seinem eigenen Protokoll. */
@@ -1899,6 +2078,11 @@ async function sammleSessions() {
      gab es nirgends. */
   const namen = new Map(raus.filter(s => s.typ === "session").map(s => [s.id, s.name]));
   for (const s of raus) if (s.elternId && namen.has(s.elternId)) s.eltern = namen.get(s.elternId);
+  /* Vergessen, was nicht mehr gelesen wird — sonst waechst das
+     Gedaechtnis ueber einen Arbeitstag mit jedem Unteragenten mit. */
+  for (const pf of PROTOKOLLE.keys()) if (!gelesen.has(pf)) PROTOKOLLE.delete(pf);
+  for (const pf of AUFGABEN.keys()) if (!gelesen.has(pf)) AUFGABEN.delete(pf);
+  for (const pf of METAS.keys()) if (!gelesen.has(pf.replace(/\.meta\.json$/, ".jsonl"))) METAS.delete(pf);
   return raus;
 }
 
@@ -10414,6 +10598,8 @@ function rahmen(jetzt) {
       if (vorher !== undefined && vorher !== a.zustand && !a.heimwaerts) {
         if (a.zustand === "winkt")       bordbuch(a.name + " wartet auf dich");
         else if (a.zustand === "fehler") bordbuch(a.name + " meldet einen Fehler");
+        else if (a.zustand === "fertig" && a.berichtet)
+          bordbuch(a.name + " hat an " + (a.eltern || "seine Sitzung") + " berichtet");
       }
     }
     /* Die Anzeigedaten hier merken und nicht erst beim Aufraeumen:
@@ -11770,6 +11956,7 @@ function zeichneCrewListe() {
    ================================================================ */
 
 let offeneDetailId = null;
+let zitatOffen = null;
 
 function vorZeit(ms) {
   if (!ms) return "—";
@@ -12132,6 +12319,7 @@ function zeichneDetail(id) {
   /* Ein Unteragent gehoert zu jemandem. Ohne diese Zeile steht er da
      wie eine eigene Sitzung, und man sucht vergeblich, wo er herkommt. */
   if (a.eltern) box.appendChild(zeile("Geschickt von", "⌘ " + a.eltern));
+  if (a.agentArt) box.appendChild(zeile("Agententyp", a.agentArt + (a.phase ? "  ·  Phase " + a.phase : "")));
   /* Erst wo, dann wofuer, dann was: der Auftrag gehoert vor die
      Taetigkeit. Ein Werkzeugaufruf sagt, WAS gerade laeuft; der
      Auftrag sagt, WOFUER — und das ist die Frage, die man an eine
@@ -12156,7 +12344,9 @@ function zeichneDetail(id) {
          Sitzung. "Wartet vermutlich auf dich" waere hier schlicht
          falsch, und zwar auf eine Weise, die einen zum Nachsehen
          bringt, wo es nichts nachzusehen gibt. */
-      box.appendChild(zeile("Zustand", a.berichtet
+      box.appendChild(zeile("Zustand", a.fehlerText
+        ? "abgebrochen, bevor er berichten konnte"
+        : a.berichtet
         ? "fertig — hat an " + (a.eltern || "seine Sitzung") + " berichtet"
         : a.zustand === "ruht"
         ? "fertig oder abgebrochen — meldet sich nicht mehr"
@@ -12164,6 +12354,29 @@ function zeichneDetail(id) {
     } else {
       box.appendChild(zeile("Zustand", a.letzteRolle === "user"
         ? "Claude antwortet gleich" : "wartet vermutlich auf dich"));
+    }
+    /* Das Zuletzt-Gesagte als Zitat. Beim fertigen Unteragenten heisst
+       es Bericht und ist gruen gerandet: es ist das Ergebnis, fuer das
+       er losgeschickt wurde. Acht Zeilen, ein Tipp zeigt alles — und
+       das bleibt so, auch wenn das Fenster im Takt der Bruecke neu
+       gezeichnet wird. */
+    /* Ein Abbruch durch Claude Code selbst — ein Limit, ein Fehler des
+       Dienstes. Das steht woertlich da, weil genau der Wortlaut sagt,
+       ob man warten muss ("resets 4:30pm") oder etwas tun. */
+    if (a.fehlerText) {
+      box.appendChild(abschnitt("Abgebrochen"));
+      const f = document.createElement("div");
+      f.className = "d-zitat fehler";
+      f.textContent = a.fehlerText;
+      box.appendChild(f);
+    }
+    if (a.antwort) {
+      box.appendChild(abschnitt(a.berichtet ? "Bericht" : "Zuletzt gesagt"));
+      const q = document.createElement("div");
+      q.className = "d-zitat" + (a.berichtet ? " bericht" : "") + (zitatOffen === a.id ? " offen" : "");
+      q.textContent = a.antwort;
+      q.onclick = () => { zitatOffen = zitatOffen === a.id ? null : a.id; q.classList.toggle("offen"); };
+      box.appendChild(q);
     }
     if (draussenSeit(a)) {
       box.appendChild(abschnitt("Außenbordeinsatz"));
