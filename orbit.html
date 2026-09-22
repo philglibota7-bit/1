@@ -311,6 +311,15 @@ footer{
 .live-karte .uhr{font-size:11px; color:var(--tx3); flex:0 0 auto;
   font-variant-numeric:tabular-nums;}
 .live-karte .uhr.eng{color:#e0a24e;}
+/* Der Plan einer Sitzung in einer Zeile */
+.live-karte .plan{display:flex; align-items:center; gap:8px; margin-top:5px; min-width:0;
+  font-size:11px; color:var(--tx2);}
+.live-karte .plan .balken{display:flex; gap:2px; width:52px; height:4px; flex:0 0 auto;}
+.live-karte .plan .balken i{flex:1 1 0; min-width:0; border-radius:2px; background:rgba(255,255,255,.14);}
+.live-karte .plan .balken i.completed{background:var(--good);}
+.live-karte .plan .balken i.in_progress{background:var(--lauf);}
+.live-karte .plan .tx{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-variant-numeric:tabular-nums;}
 /* Der kleine Takt vor der Uhr: zwanzig Minuten, eine Saeule je Minute */
 .mini-takt{display:inline-flex; align-items:flex-end; gap:1px; width:59px; height:13px;
   flex:0 0 auto; align-self:center; margin-left:4px;}
@@ -365,6 +374,26 @@ footer{
 .d-kind .st.fertig{color:var(--good);}
 .d-kind .st.aktiv{color:var(--lauf);}
 .d-kind .st.fehler{color:#e79a8c;}
+/* Die Aufgabenliste im Detail. Ohne Dauerpuls fuer die laufende:
+   eine endlose CSS-Animation im Bedienfeld kostete an anderer Stelle
+   schon einmal drei Viertel der Bildrate. */
+.d-plan .balken{display:flex; gap:3px; height:5px; margin:2px 0 9px;}
+.d-plan .balken i{flex:1 1 0; min-width:0; border-radius:3px; background:rgba(255,255,255,.12);}
+.d-plan .balken i.completed{background:var(--good);}
+.d-plan .balken i.in_progress{background:var(--lauf); box-shadow:0 0 0 2px rgba(123,164,216,.22);}
+.d-aufgabe{display:flex; align-items:baseline; gap:9px; padding:3px 0; min-width:0;
+  font-size:12.5px; line-height:1.45; color:var(--tx2);}
+.d-aufgabe .marke{flex:0 0 14px; text-align:center; font-size:11px; font-weight:700;}
+.d-aufgabe .t{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.d-aufgabe.completed{color:var(--tx3);}
+.d-aufgabe.completed .marke{color:var(--good);}
+.d-aufgabe.pending .marke::before{content:""; display:inline-block; width:7px; height:7px;
+  border-radius:50%; border:1.5px solid rgba(255,255,255,.32); vertical-align:-1px;}
+.d-aufgabe.in_progress{color:var(--tx); font-weight:600;}
+.d-aufgabe.in_progress .marke::before{content:""; display:inline-block; width:8px; height:8px;
+  border-radius:50%; background:var(--lauf); box-shadow:0 0 0 3px rgba(123,164,216,.22); vertical-align:-1px;}
+.d-aufgabe.blockiert .t{color:var(--tx3);}
+.d-aufgabe .w{flex:0 0 auto; font-size:10.5px; color:var(--tx3); font-variant-numeric:tabular-nums;}
 /* Die Dateien, die eine Sitzung geaendert hat — der Punkt in der Farbe
    des Schreibens wie im Zeitstrahl, hell, solange es keine Minute her ist */
 .d-dateien{margin:2px 0 4px;}
@@ -1555,7 +1584,23 @@ function zielAus(name, ein) {
     case "Agent":       return String(e.description || "").slice(0, 90);
     case "Skill":       return String(e.skill || "");
     case "TodoWrite":   return "Aufgabenliste";
-    default:            return JSON.stringify(e).slice(0, 90);
+    case "TaskCreate":  return String(e.subject || "neue Aufgabe").slice(0, 90);
+    case "TaskUpdate":  return "Aufgabe #" + e.taskId + (e.status === "completed" ? " erledigt"
+                             : e.status === "in_progress" ? " begonnen"
+                             : e.status === "deleted" ? " gestrichen" : "");
+    case "TaskList":    return "Aufgabenliste";
+    case "TaskGet":     return "Aufgabe #" + e.taskId;
+    case "AskUserQuestion": {
+      const f = Array.isArray(e.questions) && e.questions[0] && e.questions[0].question;
+      return f ? String(f).slice(0, 90) : "";
+    }
+    case "ExitPlanMode":  return "Plan";
+    case "ToolSearch":    return String(e.query || "").replace(/^select:/, "").slice(0, 90);
+    default: {
+      /* Wie oben: der erste kurze Text statt des rohen JSON */
+      const text = Object.values(e).find(v => typeof v === "string" && v.trim());
+      return text ? text.replace(/\s+/g, " ").slice(0, 90) : "";
+    }
   }
 }
 
@@ -1575,6 +1620,13 @@ const SCHRITTART = {
   Agent:        ["Delegiert",  "delegieren"],
   Skill:        ["Nutzt",      "delegieren"],
   TodoWrite:    ["Plant",      "plan"],
+  TaskCreate:   ["Plant",      "plan"],
+  TaskUpdate:   ["Plant",      "plan"],
+  TaskList:     ["Plant",      "plan"],
+  TaskGet:      ["Plant",      "plan"],
+  AskUserQuestion: ["Fragt",   "plan"],
+  ExitPlanMode: ["Legt vor",   "plan"],
+  EnterPlanMode:["Plant",      "plan"],
   Datei:        ["Gespeichert", "schreiben"],
 };
 
@@ -1594,8 +1646,32 @@ function taetigkeitAus(name, ein) {
     case "Agent":       return "delegiert: " + String(e.description || "").slice(0, 45);
     case "Skill":       return "nutzt Fähigkeit " + (e.skill || "");
     case "TodoWrite":   return "aktualisiert die Aufgabenliste";
+    /* Die Aufgabenliste der neueren Fassungen: jede Aenderung ist ein
+       eigener Aufruf, und bisher stand dann rohes JSON als Taetigkeit
+       da — in der Leiste, in der Blase, im Detail. */
+    case "TaskCreate":  return "plant: " + String(e.subject || "neue Aufgabe").slice(0, 55);
+    case "TaskUpdate":  return e.status === "completed" ? "hakt Aufgabe #" + e.taskId + " ab"
+                             : e.status === "in_progress" ? "beginnt Aufgabe #" + e.taskId
+                             : e.status === "deleted" ? "streicht Aufgabe #" + e.taskId
+                             : "ändert Aufgabe #" + e.taskId;
+    case "TaskList":    return "sieht die Aufgabenliste durch";
+    case "TaskGet":     return "liest Aufgabe #" + e.taskId;
+    case "AskUserQuestion": {
+      const f = Array.isArray(e.questions) && e.questions[0] && e.questions[0].question;
+      return f ? "fragt dich: " + String(f).slice(0, 55) : "stellt dir eine Frage";
+    }
+    case "ExitPlanMode":  return "legt dir den Plan vor";
+    case "EnterPlanMode": return "plant, bevor es losgeht";
+    case "ToolSearch":    return "lädt Werkzeuge nach";
     case "StructuredOutput": return "liefert sein Ergebnis ab";
-    default:            return name + " " + JSON.stringify(e).slice(0, 45);
+    default: {
+      /* Unbekannte Werkzeuge — dazu gehoert jedes aus einem MCP-Server:
+         der Name und der erste kurze Text aus der Eingabe, nicht das
+         rohe JSON, das in einer Blase niemand liest. */
+      const wer = name.startsWith("mcp__") ? name.slice(5).replace("__", " · ") : name;
+      const text = Object.values(e).find(v => typeof v === "string" && v.trim());
+      return wer + (text ? ": " + text.replace(/\s+/g, " ").slice(0, 50) : "");
+    }
   }
 }
 
@@ -1867,6 +1943,7 @@ async function protokollLesen(pfad, groesse, mt) {
      Protokoll (an einem echten nachgesehen), und die Datei ist dann
      unveraendert. Ausgepackt werden nur die Zeilen, um die es geht. */
   const schreibt = new Map(), erledigt = new Set();
+  let todos = null;
   for (const z of zeilen) {
     const m = /"timestamp":"([^"]+)"/.exec(z);
     if (!m) continue;
@@ -1875,6 +1952,17 @@ async function protokollLesen(pfad, groesse, mt) {
     if (z.includes('"type":"assistant"') && z.includes('"tool_use"')) {
       const n = z.split('"type":"tool_use"').length - 1;
       for (let k = 0; k < Math.max(1, n); k++) takt.push(zt);
+      /* Aeltere Fassungen von Claude Code fuehren die Aufgabenliste
+         ueber das Werkzeug TodoWrite: jeder Aufruf traegt die ganze
+         Liste, also gilt der juengste. */
+      if (z.includes('"name":"TodoWrite"')) {
+        let d = null;
+        try { d = JSON.parse(z); } catch {}
+        const c = d && Array.isArray((d.message || {}).content) ? d.message.content : [];
+        for (const b of c)
+          if (b && b.type === "tool_use" && b.name === "TodoWrite" && b.input && Array.isArray(b.input.todos))
+            todos = b.input.todos;
+      }
       if (SCHREIBZEILE.test(z)) {
         let d = null;
         try { d = JSON.parse(z); } catch {}
@@ -1909,6 +1997,11 @@ async function protokollLesen(pfad, groesse, mt) {
     takt: takt.slice(-600), abgedecktAb: pos > 0 ? abgedecktAb : 0,
     geaendert: [...geaendert.values()].sort((x, y) => y.zuletzt - x.zuletzt).slice(0, 12),
     geaendertZahl: geaendert.size,
+    todos: todos ? todos.filter(x => x && typeof x.content === "string").slice(0, 30).map((x, i) => ({
+      id: String(i + 1), titel: x.content,
+      aktiv: typeof x.activeForm === "string" && x.activeForm ? x.activeForm : x.content,
+      status: x.status === "completed" || x.status === "in_progress" ? x.status : "pending",
+      wartetAuf: [] })) : null,
     cwd, branch, modell, aufwand, sid, nutzung, agentId, letzteZeit, letzteRolle,
     letzterText: letzterText || strukturiert, fehlerText: fehlerText ? antwortKurz(fehlerText) : "",
     /* Lange Auftraege werden hier schon gekuerzt: was drueber
@@ -1922,6 +2015,68 @@ async function protokollLesen(pfad, groesse, mt) {
   };
   PROTOKOLLE.set(pfad, { groesse, mt, daten });
   return daten;
+}
+
+/* --- Die Aufgabenliste einer Sitzung ----------------------------------
+   Claude Code fuehrt fuer jede Sitzung eine Liste, und sie ist ihr
+   eigentlicher Fortschritt: was geplant ist, was erledigt, woran sie
+   gerade sitzt. Die Werkzeugaufrufe sagen, WAS sie tut; die Liste
+   sagt, WOFUER und wie weit.
+
+   Jede Aufgabe liegt als eigene Datei unter
+   ~/.claude/tasks/<sitzung>/<nummer>.json — nachgesehen an einer
+   echten: id, subject, description, activeForm, status (pending,
+   in_progress, completed), blocks, blockedBy. Eine geloeschte Aufgabe
+   ist eine geloeschte Datei.
+
+   Neu gelesen wird nur, wenn das Protokoll der Sitzung gewachsen ist:
+   jede Aenderung an der Liste ist ein Werkzeugaufruf und steht dort,
+   eine ruhende Sitzung kostet also nichts. Und je Datei nur, wenn sie
+   sich geaendert hat. */
+const AUFGABEN_JE_SITZUNG = new Map();   // sid -> { mt, liste }
+const AUFGABEN_DATEI = new Map();        // pfad -> { mt, groesse, daten }
+
+async function aufgabenLesen(sid, protokollMt) {
+  if (!sid || !BR.heim) return null;
+  const alt = AUFGABEN_JE_SITZUNG.get(sid);
+  if (alt && alt.mt === protokollMt) return alt.liste;
+  const ordner = BR.heim + "/.claude/tasks/" + sid;
+  let eintraege = null;
+  try { eintraege = await Neutralino.filesystem.readDirectory(ordner); } catch {}
+  let liste = null;
+  if (eintraege) {
+    liste = [];
+    for (const e of eintraege) {
+      if (e.type !== "FILE" || !/^\d+\.json$/.test(e.entry)) continue;
+      const pfad = ordner + "/" + e.entry;
+      let st;
+      try { st = await Neutralino.filesystem.getStats(pfad); } catch { continue; }
+      const bekannt = AUFGABEN_DATEI.get(pfad);
+      if (bekannt && bekannt.mt === st.modifiedAt && bekannt.groesse === st.size) {
+        if (bekannt.daten) liste.push(bekannt.daten);
+        continue;
+      }
+      let d = null;
+      try { d = JSON.parse(await Neutralino.filesystem.readFile(pfad)); } catch {}
+      /* "deleted" ist kein Stand, den man zeigt — gewoehnlich ist die
+         Datei dann ohnehin weg */
+      const daten = d && typeof d.subject === "string" && d.status !== "deleted" ? {
+        id: String(d.id || e.entry.replace(".json", "")),
+        titel: d.subject,
+        beschreibung: typeof d.description === "string" ? d.description.slice(0, 300) : "",
+        aktiv: typeof d.activeForm === "string" && d.activeForm ? d.activeForm : d.subject,
+        status: d.status === "completed" || d.status === "in_progress" ? d.status : "pending",
+        wartetAuf: Array.isArray(d.blockedBy) ? d.blockedBy.map(String) : [],
+      } : null;
+      AUFGABEN_DATEI.set(pfad, { mt: st.modifiedAt, groesse: st.size, daten });
+      if (daten) liste.push(daten);
+    }
+    liste.sort((x, y) => (+x.id || 0) - (+y.id || 0));
+  }
+  if (AUFGABEN_DATEI.size > 500) AUFGABEN_DATEI.clear();
+  if (AUFGABEN_JE_SITZUNG.size > 200) AUFGABEN_JE_SITZUNG.clear();
+  AUFGABEN_JE_SITZUNG.set(sid, { mt: protokollMt, liste });
+  return liste;
 }
 
 /* Die Aufgabe eines Unteragenten steht ganz vorn in seiner Datei, das
@@ -1997,9 +2152,11 @@ async function sessionLesen(k, elternName) {
     };
   }
 
+  const liste = await aufgabenLesen(sid, k.mt);
   return {
     takt: p.takt, abgedecktAb: p.abgedecktAb,
     geaendert: p.geaendert, geaendertZahl: p.geaendertZahl,
+    aufgaben: liste && liste.length ? liste : p.todos && p.todos.length ? p.todos : null,
     id: "s:" + (sid || k.name),
     sid,
     typ: "session",
@@ -2681,6 +2838,22 @@ function vorfuehrungTakt() {
   const schritteA = vorfSchritte(SCHRITTE_A, s, t0);
   /* Was sie geaendert hat: die Edits dieses Durchgangs, dazu drei aus
      der Vorgeschichte */
+  /* Ihr Plan: acht Aufgaben, die im Lauf des Durchgangs abgehakt
+     werden — die Gegenpruefung der Rundung wartet auf die Umstellung. */
+  const PLAN_A = [
+    ["1", "Preisberechnung lesen", "Liest die Preisberechnung", -600, 6, []],
+    ["2", "Aufrufe von berechnePreis prüfen lassen", "Lässt die Aufrufe prüfen", 10, 70, []],
+    ["3", "Rabattcodes in rabatt.ts anlegen", "Legt die Rabattcodes an", 12, 31, []],
+    ["4", "decimal.js installieren", "Installiert decimal.js", 31, 58, []],
+    ["5", "Preisberechnung auf decimal.js umstellen", "Stellt die Preisberechnung um", 58, 72, ["4"]],
+    ["6", "Tests der Kasse laufen lassen", "Lässt die Tests laufen", 74, 86, ["5"]],
+    ["7", "Rundung gegenprüfen lassen", "Lässt die Rundung gegenprüfen", 80, 97, ["5"]],
+    ["8", "README um Rabattcodes ergänzen", "Ergänzt die README", 92, 100, []],
+  ];
+  const aufgabenA = PLAN_A.map(([id, titel, aktiv, von, bis, vor]) => ({
+    id, titel, aktiv, wartetAuf: vor,
+    status: s >= bis ? "completed" : s >= von ? "in_progress" : "pending",
+  }));
   const geaendertA = [
     { pfad: ort + "/src/kasse/preis.ts", n: 2, zuletzt: t0 - 18 * 60000 },
     { pfad: ort + "/src/kasse/gutschein.ts", n: 3, zuletzt: t0 - 12 * 60000 },
@@ -2717,6 +2890,7 @@ function vorfuehrungTakt() {
       : "Ich stelle die Preisberechnung um und prüfe danach die Aufrufer.",
     letzteRolle: "assistant", schritte: schritteA, takt: taktA, abgedecktAb: 0,
     geaendert: geaendertA, geaendertZahl: geaendertA.length,
+    aufgaben: aufgabenA,
   };
 
   /* --- Die ruhige zweite Sitzung --- */
@@ -11674,9 +11848,14 @@ function rahmen(jetzt) {
     /* Unter dem Namen steht, was die Figur am besten einordnet. Bei
        einem Unteragenten ist das nicht sein Branch — den teilt er mit
        seiner Sitzung —, sondern wer ihn losgeschickt hat. */
+    /* Hat eine Sitzung eine Aufgabenliste, steht ihr Stand neben dem
+       Branch — so sieht man in der Szene, wie weit jede ist, ohne eine
+       einzige anzutippen. */
+    const plan = a.aufgaben && a.aufgaben.length
+      ? "  ·  " + a.aufgaben.filter(x => x.status === "completed").length + "/" + a.aufgaben.length : "";
     const unter = a.typ === "agent" ? (l.zustand !== "ruht" ? BESCHRIFTUNG[l.zustand] : "")
                 : a.typ === "unteragent" && a.eltern ? "von " + kuerzenVorn(a.eltern, 18)
-                : kuerzenVorn(a.branch || a.ort || "", 22);
+                : kuerzenVorn(a.branch || a.ort || "", plan ? 16 : 22) + plan;
     if (imBild) schilder.push({
       x: schirm.x,
       y: schirm.y,
@@ -12643,6 +12822,27 @@ function zeichneCrewListe() {
       : (a.taetigkeit || BESCHRIFTUNG[a.zustand] || "");
     if (a.zustand === "winkt" && !a.heimwaerts) tut.style.color = "#e0a24e";
     if (tut.textContent) k.appendChild(tut);
+    /* Der Plan in einer Zeile: ein kleiner Balken, wie weit, und was
+       gerade laeuft — das ist die Zeile, die sagt, wie weit eine
+       Sitzung ist, und nicht nur, was ihr letzter Handgriff war. */
+    if (a.aufgaben && a.aufgaben.length && !a.heimwaerts) {
+      const n = a.aufgaben.length;
+      const erledigt = a.aufgaben.filter(x => x.status === "completed").length;
+      /* Laufen mehrere — eine delegierte neben der eigenen —, ist die
+         zuletzt angefangene die, an der die Sitzung selbst sitzt */
+      const laeuft = a.aufgaben.filter(x => x.status === "in_progress").pop();
+      const pl = document.createElement("div"); pl.className = "plan";
+      const bal = document.createElement("span"); bal.className = "balken";
+      for (const x of a.aufgaben.slice(0, 16)) {
+        const i = document.createElement("i"); i.className = x.status; bal.appendChild(i);
+      }
+      const tx = document.createElement("span"); tx.className = "tx";
+      tx.textContent = erledigt + "/" + n + (laeuft ? "  ·  " + laeuft.aktiv
+        : erledigt === n ? "  ·  alles erledigt" : "");
+      pl.title = erledigt + " von " + n + " Aufgaben erledigt";
+      pl.append(bal, tx);
+      k.appendChild(pl);
+    }
     /* Beim Unteragenten stuende hier der Branch seiner Sitzung — die
        steht direkt darueber. */
     if ((a.branch || a.ort) && !kind) {
@@ -12910,7 +13110,11 @@ function schrittStrahl(schritte, laeuft) {
   /* Die Liste kommt neu zuerst. Genau so wird sie auch gelesen: was
      jetzt ist, steht oben. */
   schritte.forEach((sch, i) => {
-    const [wasRoh, art] = SCHRITTART[sch.werkzeug] || [sch.werkzeug || "Schritt", ""];
+    /* Ein Werkzeug aus einem MCP-Server heisst "mcp__github__…" — hier
+       steht der Server, der Rest steht als Ziel darunter */
+    const w = sch.werkzeug || "";
+    const [wasRoh, art] = SCHRITTART[w]
+      || [w.startsWith("mcp__") ? w.slice(5).split("__")[0] : w || "Schritt", ""];
     const d = document.createElement("div");
     d.className = "d-tritt" + (art ? " " + art : "")
       + (i === 0 && laeuft ? " jetzt" : "") + (i > 2 ? " alt" : "");
@@ -13012,6 +13216,44 @@ function taktBild(a) {
     f.textContent = "Weiter zurück reicht der gelesene Teil des Protokolls nicht — "
       + "gelesen wird vom Ende her, und diese Sitzung schreibt viel.";
     box.appendChild(f);
+  }
+  return box;
+}
+
+/* Die Aufgabenliste im Detail: oben ein Balken aus so vielen Stuecken,
+   wie es Aufgaben gibt — erledigt gruen, die laufende blau, der Rest
+   leer —, darunter die Liste. Bei der laufenden steht, was sie gerade
+   TUT ("Baut das Mac-Programm neu"), bei den anderen, was zu tun ist.
+   Wer auf eine offene Aufgabe wartet, sagt auf welche. */
+function aufgabenBlock(a) {
+  const L = a.aufgaben;
+  const box = document.createElement("div");
+  box.className = "d-plan";
+  const balken = document.createElement("div");
+  balken.className = "balken";
+  for (const x of L) {
+    const i = document.createElement("i");
+    i.className = x.status;
+    balken.appendChild(i);
+  }
+  box.appendChild(balken);
+  const offen = new Set(L.filter(x => x.status !== "completed").map(x => x.id));
+  for (const x of L) {
+    const vor = x.status === "pending" ? x.wartetAuf.filter(id => offen.has(id)) : [];
+    const z = document.createElement("div");
+    z.className = "d-aufgabe " + x.status + (vor.length ? " blockiert" : "");
+    z.title = x.titel + (x.beschreibung && x.beschreibung !== x.titel ? "\n\n" + x.beschreibung : "");
+    const m = document.createElement("span"); m.className = "marke";
+    if (x.status === "completed") m.textContent = "✓";
+    const t = document.createElement("span"); t.className = "t";
+    t.textContent = x.status === "in_progress" ? x.aktiv : x.titel;
+    z.append(m, t);
+    if (vor.length) {
+      const w = document.createElement("span"); w.className = "w";
+      w.textContent = "nach #" + vor.join(", #");
+      z.appendChild(w);
+    }
+    box.appendChild(z);
   }
   return box;
 }
@@ -13276,6 +13518,11 @@ function zeichneDetail(id) {
       q.textContent = a.antwort;
       q.onclick = () => { zitatOffen = zitatOffen === a.id ? null : a.id; q.classList.toggle("offen"); };
       box.appendChild(q);
+    }
+    if (a.aufgaben && a.aufgaben.length) {
+      const erledigt = a.aufgaben.filter(x => x.status === "completed").length;
+      box.appendChild(abschnitt("Aufgaben  ·  " + erledigt + " von " + a.aufgaben.length + " erledigt"));
+      box.appendChild(aufgabenBlock(a));
     }
     if (draussenSeit(a)) {
       box.appendChild(abschnitt("Außenbordeinsatz"));
