@@ -1642,8 +1642,19 @@ function zeichneSterne(t, kamX, kamY) {
   for (const s of sterne) {
     const x = ((s.x - kamX * s.tiefe) % W + W) % W;
     const y = ((s.y - kamY * s.tiefe) % H + H) % H;
-    const flimmern = sparsam ? 1 : 0.6 + 0.4 * Math.sin(t * 0.0013 * s.tempo + s.takt);
-    const a = s.hell * flimmern;
+    /* Sterne funkeln hier NICHT, und das ist der Punkt. Funkeln
+       entsteht, wenn Luftschichten unterschiedlicher Dichte das Licht
+       auf dem Weg zum Auge hin- und herbrechen. In vierhundert
+       Kilometern Hoehe ist davon nichts mehr uebrig: jeder Stern steht
+       als ruhiger, harter Punkt da, und genau diese Ruhe ist eines der
+       Dinge, die jeder beschreibt, der von oben hinausgesehen hat.
+
+       Vorher schwankte jeder Stern um vierzig Prozent seiner
+       Helligkeit. Das war die einzige Bewegung im Sternenfeld — und
+       es war eine, die es dort nicht gibt. Was bleibt, ist die
+       Verschiebung gegen den Himmel dahinter, und die ist echt. */
+    const a = s.hell;
+    const flimmern = 1;
     const [r, g, b] = s.farbe;
     const f = `rgba(${r},${g},${b},`;
 
@@ -3081,10 +3092,45 @@ function ereignisse(t, dt, ccx, ccy, Rst) {
       const streuung = (streu(k, 5, 17) - 0.5) * weit * 0.4;
       const px = v.x + v.rx * weit - v.ry * streuung;
       const py = v.y + v.ry * weit + v.rx * streuung;
-      cx.fillStyle = `rgba(232,244,255,${stoss * (1 - f) * 0.3 * TAGLICHT})`;
+      cx.fillStyle = `rgba(226,242,255,${stoss * Math.pow(1 - f, 2.2) * 0.46 * TAGLICHT})`;
       cx.beginPath();
-      cx.arc(px, py, Rst * (0.02 + f * 0.09), 0, Math.PI * 2);
+      cx.arc(px, py, Rst * (0.015 + f * 0.075), 0, Math.PI * 2);
       cx.fill();
+    }
+
+    /* Die einzelnen Kristalle. Das ist der Unterschied zwischen einer
+       Wolke im Vakuum und einer in der Luft: hier gibt es nichts, was
+       die Tropfen zusammenhaelt oder bremst. Was austritt, gefriert
+       binnen Sekundenbruchteilen und fliegt danach als Schwarm
+       einzelner Koerner geradeaus weiter — und weil jedes Korn
+       taumelt, blitzt seine Flaeche nur dann auf, wenn sie gerade
+       zur Sonne zeigt.
+
+       Dieses Flackern ist kein Effekt, sondern der einzige Grund,
+       warum man die Wolke ueberhaupt sieht. Sie leuchtet nicht, sie
+       spiegelt. Deshalb auch: nur bei Tag. Im Erdschatten blaest das
+       Ventil genauso ab, und man sieht nichts davon. */
+    if (TAGLICHT > 0.15) {
+      for (let k = 0; k < 76; k++) {
+        const f = (streu(k, 11, 29) + u * 1.25) % 1;
+        const weit = f * Rst * 1.5;
+        const q = (streu(k, 3, 41) - 0.5) * weit * 0.46;
+        const px = v.x + v.rx * weit - v.ry * q;
+        const py = v.y + v.ry * weit + v.rx * q;
+        /* Jedes Korn hat seinen eigenen Taumeltakt. Die Zahlen sind
+           teilerfremd gewaehlt, damit kein gemeinsamer Rhythmus
+           entsteht — ein Schwarm, der im Gleichtakt blinkt, sieht
+           nach Lichterkette aus. */
+        const takt = 0.004 + streu(k, 7, 13) * 0.017;
+        const blitz = Math.pow(
+          Math.max(0, Math.sin(v.alter * takt + streu(k, 5, 19) * 7)), 4.5);
+        const a = stoss * (1 - f * 0.7) * blitz * TAGLICHT;
+        if (a < 0.03) continue;
+        cx.fillStyle = `rgba(255,255,255,${Math.min(0.95, a)})`;
+        cx.beginPath();
+        cx.arc(px, py, Rst * (0.005 + streu(k, 13, 31) * 0.007), 0, Math.PI * 2);
+        cx.fill();
+      }
     }
   }
 
@@ -6712,6 +6758,111 @@ function sternfarbe(r) {
   return STERNKLASSEN[STERNKLASSEN.length - 1].f;
 }
 
+/* --- Sternbilder ------------------------------------------------------
+   Der Himmel war reiner Zufall — richtig verteilt, aber ohne ein
+   einziges Muster, das jemand wiedererkennt. Dabei ist es derselbe
+   Himmel: aus vierhundert Kilometern Hoehe stehen die Sterne genau
+   dort, wo sie auch vom Gartenstuhl aus stehen. Vierhundert Kilometer
+   sind gegen vierhundert Lichtjahre nichts.
+
+   Also bekommen ein paar Figuren ihren Platz. Nicht viele, und ohne
+   Verbindungslinien: Linien zwischen Sternen gibt es am Himmel nicht,
+   die stehen nur in Buechern. Wer Orion kennt, findet ihn; wer nicht,
+   sieht helle Sterne. Genau so soll es sein.
+
+   Die Lagen sind die echten, aus Rektaszension und Deklination
+   gerechnet. Die Helligkeiten sind echte Groessenklassen: kleinere
+   Zahl heisst heller, und zwar nicht linear — zweieinhalb
+   Groessenklassen sind ein Faktor zehn. Deshalb die Umrechnung ueber
+   eine Potenz und nicht ueber einen Abzug.
+
+   Ausgewaehlt sind vier, die von einer Bahn mit 51,6 Grad Neigung
+   wirklich alle zu sehen sind: der Grosse Wagen im Norden, das Kreuz
+   des Suedens im Sueden, Orion ueber dem Aequator und die Kassiopeia
+   gegenueber dem Wagen. */
+const STERNBILDER = [
+  /* Die Lagen sind aus Rektaszension und Deklination gerechnet, in Grad
+     vom Mittelpunkt der jeweiligen Figur aus, mit dem Kosinus der
+     Deklination fuer die Verkuerzung nach Norden und Sueden. Osten
+     liegt links, so wie auf jeder Sternkarte. Dahinter die
+     Groessenklasse.
+
+     Ein erster Versuch verteilte die Sterne in frei gewaehlten
+     Rechtecken. Orion war daran erkennbar, stand aber doppelt so hoch
+     wie breit, und der Grosse Wagen war viermal zu lang. Wer ein
+     Sternbild kennt, sieht so etwas sofort — also lieber einmal
+     ordentlich gerechnet. */
+  { name: "Orion", x: 0.19, y: 0.34, dreh: -0.14, sterne: [
+      [-5.00, -8.40, 0.50],   // Beteigeuze
+      [ 2.50, -7.35, 1.64],   // Bellatrix
+      [ 0.75, -0.70, 2.23],   // Mintaka
+      [-0.25,  0.20, 1.69],   // Alnilam
+      [-1.50,  0.95, 1.77],   // Alnitak
+      [-3.25,  8.67, 2.07],   // Saiph
+      [ 5.00,  7.20, 0.13] ] },   // Rigel
+  { name: "Grosser Wagen", x: 0.72, y: 0.27, dreh: 0.16, sterne: [
+      [ 11.18, -5.75, 1.79],  // Dubhe
+      [ 11.46, -0.38, 2.37],  // Merak
+      [  4.19,  2.30, 2.44],  // Phekda
+      [  1.26, -1.03, 3.31],  // Megrez
+      [ -4.19,  0.03, 1.77],  // Alioth
+      [ -8.38,  1.07, 2.23],  // Mizar
+      [-11.74,  6.68, 1.86] ] },  // Benetnasch
+  { name: "Kassiopeia", x: 0.42, y: 0.20, dreh: -0.34, sterne: [
+      [ 6.000,  0.85, 2.27],  // Caph
+      [ 2.125,  3.47, 2.24],  // Schedar
+      [ 0.000, -0.72, 2.15],  // Gamma
+      [-3.625, -0.23, 2.68],  // Ruchbah
+      [-7.125, -3.67, 3.37] ] },  // Segin
+  { name: "Kreuz des Suedens", x: 0.86, y: 0.62, dreh: 0.10, sterne: [
+      [ 0.375,  3.10, 0.77],  // Acrux
+      [-2.250, -0.32, 1.25],  // Mimosa
+      [-0.125, -2.88, 1.63],  // Gacrux
+      [ 1.875, -1.25, 2.79] ] },  // Delta Crucis
+];
+
+function backeSternbilder(c, breite, hoehe) {
+  /* Wie gross ist ein Grad auf diesem Schirm? Das legt zugleich das
+     Blickfeld fest. Zweiundsechzig Grad ueber die Hoehe ist ein
+     weiter, aber nicht verzerrter Blick — und dabei steht Orion rund
+     ein Viertel des Bildes hoch, so wie er auch ueber einem Feld
+     steht. */
+  const proGrad = hoehe / 62;
+  for (const sb of STERNBILDER) {
+    const co = Math.cos(sb.dreh), si = Math.sin(sb.dreh);
+    for (const [gx, gy, mag] of sb.sterne) {
+      /* Groessenklasse in Helligkeit: jede Klasse ist der Faktor
+         2,512 im Licht. Ein Stern der Klasse 3 ist gegen einen der
+         Klasse 0 also nur ein Sechzehntel so hell. Deshalb die
+         Potenz — ein linearer Abzug haette alle gleich aussehen
+         lassen. */
+      const licht = Math.pow(2.512, -mag / 2.6);
+      const rx = gx * proGrad, ry = gy * proGrad;
+      const px = sb.x * breite + rx * co - ry * si;
+      const py = sb.y * hoehe + rx * si + ry * co;
+      const gr = 0.9 + licht * 2.6;
+      /* Hof, Kern, und bei den hellsten die Beugungsspitzen */
+      const hg = c.createRadialGradient(px, py, 0, px, py, gr * 4.5);
+      hg.addColorStop(0, `rgba(226,238,255,${0.34 * licht})`);
+      hg.addColorStop(0.4, `rgba(206,224,255,${0.1 * licht})`);
+      hg.addColorStop(1, "rgba(200,220,255,0)");
+      c.fillStyle = hg;
+      c.beginPath(); c.arc(px, py, gr * 4.5, 0, Math.PI * 2); c.fill();
+      c.fillStyle = `rgba(248,250,255,${Math.min(1, 0.45 + licht)})`;
+      c.beginPath(); c.arc(px, py, gr, 0, Math.PI * 2); c.fill();
+      if (mag < 1.9) {
+        const l = gr * 5.5;
+        c.strokeStyle = `rgba(226,238,255,${0.34 * licht})`;
+        c.lineWidth = 0.7;
+        c.beginPath();
+        c.moveTo(px - l, py); c.lineTo(px + l, py);
+        c.moveTo(px, py - l); c.lineTo(px, py + l);
+        c.stroke();
+      }
+    }
+  }
+}
+
 function backeFerneSterne(breite, hoehe, thema) {
   const lw = document.createElement("canvas");
   lw.width = breite; lw.height = hoehe;
@@ -6722,7 +6873,10 @@ function backeFerneSterne(breite, hoehe, thema) {
 
   /* Milchstrassenband: eine schraege Verdichtung, wie am echten Himmel */
   const bandW = (rnd() * 0.6 - 0.3) + 0.35;
-  const anzahl = Math.round((breite * hoehe) / 620);
+  /* Etwas dichter als vorher, weil das Feld flacher geworden ist —
+     die Zahl der Sterne traegt jetzt, was vorher ihre Helligkeit
+     getragen hat. */
+  const anzahl = Math.round((breite * hoehe) / 470);
   for (let i = 0; i < anzahl; i++) {
     const x = rnd() * breite, y = rnd() * hoehe;
     /* Abstand zum Band bestimmt, wie wahrscheinlich hier ein Stern steht */
@@ -6733,11 +6887,24 @@ function backeFerneSterne(breite, hoehe, thema) {
     const r = f[0] * 0.78 + ton[0] * 0.22;
     const g = f[1] * 0.78 + ton[1] * 0.22;
     const b = f[2] * 0.78 + ton[2] * 0.22;
-    const hell = Math.pow(rnd(), 2.4);          // viele schwache, wenige helle
-    c.fillStyle = `rgba(${r | 0},${g | 0},${b | 0},${0.12 + hell * 0.7})`;
-    const gr = hell > 0.72 ? 1.5 : 1;
+    /* Viele schwache, wenige helle — aber vorher waren es viel zu
+       viele helle. Am echten Himmel stehen rund zwanzig Sterne ueber
+       der Groessenklasse 1,5 und einige tausend darunter; hier hatte
+       jeder hundertste den vollen Ausschlag. Die Folge: die Figuren,
+       die es zu erkennen gaebe, verschwanden im Rauschen, weil um sie
+       herum ein Dutzend ebenso heller Zufallssterne stand.
+
+       Mit der dritten statt der zweiten Potenz und einer Obergrenze
+       bei 0,62 bleibt das Feld dicht, aber flach — und die wenigen
+       wirklich hellen Sterne sind die, die auch am Himmel hell sind. */
+    const hell = Math.pow(rnd(), 3.4);
+    c.fillStyle = `rgba(${r | 0},${g | 0},${b | 0},${0.1 + hell * 0.52})`;
+    const gr = hell > 0.86 ? 1.5 : 1;
     c.fillRect(x, y, gr, gr);
   }
+  /* Zuletzt die Figuren darueber — sie sind die hellsten Sterne am
+     Himmel und gehoeren deshalb obenauf. */
+  backeSternbilder(c, breite, hoehe);
   return lw;
 }
 
