@@ -292,8 +292,8 @@ footer{
 .mini.gefahr:hover{background:rgba(224,122,106,.18); color:var(--bad);}
 .mini svg{width:14px; height:14px;}
 
-label.feld{display:block; margin-bottom:13px;}
-label.feld > span{display:block; font-size:11.5px; color:var(--tx3); margin-bottom:6px;
+label.feld, div.feld{display:block; margin-bottom:13px;}
+label.feld > span, div.feld > span{display:block; font-size:11.5px; color:var(--tx3); margin-bottom:6px;
   letter-spacing:.06em; text-transform:uppercase; font-weight:550;}
 .eingabe{
   width:100%; background:rgba(0,0,0,.28); border:1px solid var(--edge);
@@ -762,6 +762,8 @@ body.sicht #blende-detail{
 }
 
 .schalterliste{display:flex; flex-direction:column; gap:2px;}
+.b-hinweis{font-size:11.5px; color:var(--tx3); line-height:1.5; padding:4px 2px 0;}
+.b-hinweis:empty{display:none;}
 .schalter{display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:var(--r1);
   background:var(--p1); border:1px solid var(--edge); transition:all .2s var(--ease); text-align:left;}
 .schalter:hover{background:var(--p2);}
@@ -1060,6 +1062,10 @@ body.sicht #blende-detail{
     <label class="feld"><span>Welche Astronauten?</span>
       <div id="b-typen" class="schalterliste"></div></label>
 
+    <div class="feld"><span>Benachrichtigen</span>
+      <div id="b-melden" class="schalterliste"></div>
+      <div id="b-melden-hinweis" class="b-hinweis"></div></div>
+
     <label class="feld"><span>Beobachtete Projektordner</span>
       <div id="b-ordner"></div>
       <div style="display:flex; gap:8px; margin-top:8px">
@@ -1144,6 +1150,7 @@ let Z = {
   gewaehlt: null,     // ID des aktiven Agenten, null = ganze Crew
   thema: "orion",
   umlauf: true,       // Tag-Nacht-Wechsel im Orbit
+  melden: null,       // Mitteilungen; null = Voreinstellung: im Programm an, im Browser aus
   bruecke: {
     typen: { session: true, ordner: true, prozess: true, github: true },
     ordner: [],                 // beobachtete Projektordner
@@ -1166,6 +1173,7 @@ function laden() {
       Z.gewaehlt = d.gewaehlt ?? null;
       if (typeof d.thema === "string") Z.thema = d.thema;
       if (typeof d.umlauf === "boolean") Z.umlauf = d.umlauf;
+      if (typeof d.melden === "boolean") Z.melden = d.melden;
       /* Die Zeitraffung ist eine Einstellung wie der Hintergrund — wer
          sie auf das Zwoelffache gestellt hat, will das beim naechsten
          Mal nicht wieder suchen muessen. Angehalten wird NICHT
@@ -1204,7 +1212,7 @@ function sichern() {
       agenten: Z.agenten,
       log: Z.log.slice(0, 60),
       key: Z.key, maxTok: Z.maxTok, gewaehlt: Z.gewaehlt,
-      thema: Z.thema, umlauf: Z.umlauf, bruecke: Z.bruecke, rate: ZEIT.rate,
+      thema: Z.thema, umlauf: Z.umlauf, melden: Z.melden, bruecke: Z.bruecke, rate: ZEIT.rate,
     }));
   } catch (e) {
     /* Speicher voll oder privater Modus — die App laeuft trotzdem weiter */
@@ -1251,8 +1259,117 @@ function setzeZustand(id, zustand) {
     else if (zustand === "fertig") bordbuch(wer + " ist fertig");
     else if (zustand === "fehler") bordbuch(wer + " meldet einen Fehler");
     else if (zustand === "winkt") bordbuch(wer + " wartet auf dich");
+    /* Die eigenen Agenten melden sich, wenn sie fertig sind — eine
+       Mission mit hohem Aufwand dauert Minuten, und niemand sieht so
+       lange einem Astronauten zu. */
+    if (agentNach(id) && (zustand === "fertig" || zustand === "fehler"))
+      melden(wer + (zustand === "fertig" ? " ist fertig" : " meldet einen Fehler"),
+             zustand === "fertig" ? "Die Antwort steht im Log." : "Mehr dazu im Log.", id, zustand);
   }
   zeichneCrewLeiste();
+}
+
+/* ================================================================
+   2a — Meldungen
+   Ein Leitstand, den man ansehen muss, um zu merken, dass jemand
+   wartet, ist nur ein Bild. Wartet eine Sitzung auf dich, ist sie mit
+   ihrem Zug fertig, schlaegt ein GitHub-Lauf fehl oder ist einer der
+   eigenen Agenten fertig, meldet ORBIT das — aber nur, wenn es gerade
+   nicht vorn ist. Wer hinsieht, sieht es ohnehin.
+
+   Im Programm als Mitteilung des Systems, im Browser ueber dessen
+   Mitteilungen, sofern erlaubt. Dazu, unabhaengig davon, der
+   Fenstertitel: er nennt, wer gerade wartet. Das ist die eine Anzeige,
+   die auch dann noch stimmt, wenn Mitteilungen gesperrt sind.
+   ================================================================ */
+
+const MELDE_VORHER = new Map();     // Kennung -> zuletzt gesehener Stand
+const MELDE_ZULETZT = new Map();    // Kennung -> Zeitpunkt der letzten Meldung
+const MELDUNGEN = [];               // was gemeldet wurde, fuer die Pruefung
+const GRUNDTITEL = document.title;
+let titelZuletzt = GRUNDTITEL;
+
+function meldenAn() {
+  return Z.melden === null ? nativVorhanden() : !!Z.melden;
+}
+
+function anfang(t, n) {
+  const s = String(t || "").replace(/\s+/g, " ").trim();
+  return s.length <= n ? s : s.slice(0, n - 1).trimEnd() + "…";
+}
+
+function melden(titel, text, id, art) {
+  if (!meldenAn()) return;
+  if (!document.hidden && document.hasFocus()) return;
+  /* Hoechstens eine je Figur, Art und Minute: eine Sitzung, die
+     zwischen Warten und Arbeiten pendelt, soll nicht im Sekundentakt
+     klingeln. Je Art, weil "wartet" und "ist fertig" zwei verschiedene
+     Nachrichten sind — die zweite darf nicht verschluckt werden, nur
+     weil die erste eben erst kam. */
+  const jetzt = Date.now(), schl = id + ":" + (art || "");
+  if (jetzt - (MELDE_ZULETZT.get(schl) || 0) < 60000) return;
+  MELDE_ZULETZT.set(schl, jetzt);
+  MELDUNGEN.push({ titel, text, id, zeit: jetzt });
+  if (MELDUNGEN.length > 30) MELDUNGEN.shift();
+  if (nativVorhanden()) {
+    try { Neutralino.os.showNotification(titel, text || " ", "INFO").catch(() => {}); } catch {}
+    return;
+  }
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  try {
+    const n = new Notification(titel, { body: text, tag: "orbit-" + id, icon: "orbit-icon-192.png" });
+    n.onclick = () => { window.focus(); detailOeffnen(id); n.close(); };
+  } catch {
+    /* Auf dem Handy gibt es Mitteilungen nur ueber den Service Worker */
+    if (navigator.serviceWorker) navigator.serviceWorker.getRegistration()
+      .then(r => r && r.showNotification(titel, { body: text, tag: "orbit-" + id, icon: "orbit-icon-192.png" }))
+      .catch(() => {});
+  }
+}
+
+/* Nach jedem Durchlauf der Bruecke: wer hat sich veraendert? Die erste
+   Sichtung einer Figur meldet nichts — sonst klingelte beim Start fuer
+   jede Sitzung, die schon wartete, eine Mitteilung. */
+function meldungenPruefen() {
+  for (const a of BR.live) {
+    /* Bei Sitzungen zaehlt nur der Zustand aus dem Register. Der aus
+       Zeitstempeln geratene waere fuer eine Meldung zu unsicher: nach
+       fuenf Minuten Stille "fertig" zu melden hiesse raten. */
+    const stand = a.typ === "session" ? (a.status || "") : a.zustand;
+    const vorher = MELDE_VORHER.get(a.id);
+    MELDE_VORHER.set(a.id, stand);
+    if (vorher === undefined || vorher === stand) continue;
+    if (a.typ === "session") {
+      if (stand === "waiting")
+        melden(a.name + " " + (WARTET_TEXT[a.wartetAuf] || "wartet auf dich"),
+               anfang(a.auftrag, 110), a.id, "wartet");
+      /* Auch von "waiting" aus: im Hintergrund wird nur alle zehn
+         Sekunden nachgesehen, und die Arbeit nach einer Freigabe kann
+         kuerzer sein — dann sieht man das "busy" dazwischen nie. */
+      else if (stand === "idle" && (vorher === "busy" || vorher === "waiting"))
+        melden(a.name + " ist fertig", anfang(a.auftrag, 110) || "Die Sitzung wartet auf den nächsten Auftrag.", a.id, "fertig");
+    } else if (a.typ === "github" && (stand === "winkt" || stand === "fehler")) {
+      melden(a.name + ": " + a.taetigkeit, "GitHub Actions", a.id, stand);
+    }
+  }
+  if (MELDE_VORHER.size > BR.live.length + 30) {
+    const da = new Set(BR.live.map(x => x.id));
+    for (const k of MELDE_VORHER.keys()) if (!da.has(k)) MELDE_VORHER.delete(k);
+  }
+  titelSetzen();
+}
+
+function titelSetzen() {
+  const warten = BR.live.filter(a => a.zustand === "winkt");
+  const was = warten.length === 1 ? warten[0].name + " wartet"
+            : warten.length ? warten.length + " warten auf dich" : "";
+  const t = was ? "(" + warten.length + ") " + was + " · ORBIT" : GRUNDTITEL;
+  if (t === titelZuletzt) return;
+  titelZuletzt = t;
+  document.title = t;
+  if (nativVorhanden()) {
+    try { Neutralino.window.setTitle(was ? "ORBIT — " + was : "ORBIT").catch(() => {}); } catch {}
+  }
 }
 /* ================================================================
    2b — Die Bruecke zu echten Arbeitsablaeufen
@@ -2047,12 +2164,15 @@ function liveNeuBauen() {
     zeichneCrewListe();
   if (BR.live.map(x => x.id).join("|") !== vorher) aufraeumenSicht();
   if (offeneDetailId) zeichneDetail(offeneDetailId);
+  meldungenPruefen();
 }
 
 async function brueckeDurchlauf() {
   /* Liegt das Fenster im Hintergrund, muss weder git noch ps laufen —
-     das spart auf dem Laptop spuerbar Akku. */
-  if (document.hidden) return;
+     das spart auf dem Laptop spuerbar Akku. Nur wer benachrichtigt
+     werden will, bekommt einen schmalen Durchlauf: das Register der
+     Sitzungen, ein paar hundert Byte je Datei, alle zehn Sekunden. */
+  if (document.hidden) { hintergrundDurchlauf(); return; }
   githubDurchlauf();                     // eigener Riegel, laeuft nebenher
   if (BR.laeuft) return;                 // kein zweiter lokaler Durchlauf
   BR.laeuft = true;
@@ -2070,6 +2190,32 @@ async function brueckeDurchlauf() {
   } catch (e) {
     BR.letzterFehler = String(e && e.message || e);
     console.warn("Brücke:", e);
+  } finally {
+    BR.laeuft = false;
+  }
+  liveNeuBauen();
+}
+
+let hintergrundUm = 0;
+async function hintergrundDurchlauf() {
+  if (!meldenAn()) return;
+  githubDurchlauf();                     // eigener Takt, geht uebers Netz
+  if (!BR.aktiv || !Z.bruecke.typen.session || BR.laeuft) return;
+  const jetzt = Date.now();
+  if (jetzt - hintergrundUm < 10000) return;
+  hintergrundUm = jetzt;
+  BR.laeuft = true;
+  try {
+    const register = await sammleSitzungsregister();
+    for (const s of bruecke_sessions) {
+      const r = s.sid && register[s.sid];
+      if (!r) continue;
+      if (REGISTER_ZUSTAND[r.status]) s.zustand = REGISTER_ZUSTAND[r.status];
+      s.status = r.status;
+      s.wartetAuf = r.waitingFor || "";
+    }
+  } catch (e) {
+    BR.letzterFehler = String(e && e.message || e);
   } finally {
     BR.laeuft = false;
   }
@@ -12223,6 +12369,34 @@ function zeichneBrueckeLage() {
     tbox.appendChild(b);
   }
 
+  /* Benachrichtigen: ein Schalter. Im Browser braucht es dafuer die
+     Erlaubnis des Browsers, und die darf nur auf einen Klick hin
+     erfragt werden — also genau hier. */
+  const mbox = $("#b-melden");
+  mbox.innerHTML = "";
+  const mb = document.createElement("button");
+  mb.className = "schalter" + (meldenAn() ? " an" : "");
+  const mk = document.createElement("span"); mk.className = "kasten"; mk.textContent = "✓";
+  const mn = document.createElement("span"); mn.className = "bez";
+  mn.textContent = "Wenn jemand auf dich wartet oder fertig ist";
+  mb.append(mk, mn);
+  mb.onclick = async () => {
+    Z.melden = !meldenAn();
+    if (Z.melden && !nativVorhanden() && "Notification" in window
+        && Notification.permission === "default") {
+      try { await Notification.requestPermission(); } catch {}
+    }
+    sichern(); zeichneBrueckeLage();
+  };
+  mbox.appendChild(mb);
+  const mh = $("#b-melden-hinweis");
+  mh.textContent = !meldenAn() ? ""
+    : nativVorhanden() ? "Als Mitteilung des Systems, und nur, wenn ORBIT gerade nicht vorn ist."
+    : !("Notification" in window) ? "Dieser Browser kennt keine Mitteilungen — es bleibt der Titel des Tabs."
+    : Notification.permission === "denied" ? "Der Browser hat Mitteilungen gesperrt — es bleibt der Titel des Tabs."
+    : Notification.permission === "granted" ? "Als Mitteilung des Browsers, und nur, wenn ORBIT gerade nicht vorn ist."
+    : "Beim Einschalten fragt der Browser um Erlaubnis.";
+
   const obox = $("#b-ordner");
   obox.innerHTML = "";
   if (!Z.bruecke.ordner.length) {
@@ -13178,7 +13352,10 @@ const HILFE = [
       + "worauf er wartet. In der Crew-Liste und in der Leiste unten steht er ganz vorn, und im "
       + "Bordbuch steht, seit wann. Das ist die eine Auskunft, für die man so eine Anzeige aufmacht: "
       + "welche meiner Sitzungen hängt an mir? Sie kommt aus dem Sitzungsregister von Claude Code — "
-      + "geraten wird nichts.",
+      + "geraten wird nichts. Liegt ORBIT gerade nicht vorn, meldet es sich: wenn eine Sitzung auf "
+      + "dich wartet oder mit ihrem Zug fertig ist, ein GitHub-Lauf fehlschlägt oder einer deiner "
+      + "Agenten fertig ist. Der Fenstertitel nennt dazu immer, wer gerade wartet. Ein- und "
+      + "ausschalten unter Brücke.",
   },
   {
     titel: "Der Außenbordeinsatz",
@@ -13859,6 +14036,7 @@ window.__QUELLE = (liste) => { bruecke_sessions = liste || []; liveNeuBauen(); }
 window.__FRACHT = () => FRACHT;
 window.__SCHILDER = () => TEILSCHILDER;
 window.__FUNK = () => FUNK_LETZT;
+window.__MELDUNGEN = () => MELDUNGEN;
 window.__ORTE = () => LETZTE_ORTE;
 window.__AGENT_DAZU = (a) => { Z.agenten.push(a); zeichneCrewLeiste(); };
 window.__BUCH = () => BORDBUCH;

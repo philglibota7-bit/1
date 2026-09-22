@@ -17,6 +17,7 @@
     "os.execCommand",
     "os.getPath",
     "os.open",
+    "os.showNotification",
     "os.showFolderDialog",
     "filesystem.readDirectory",
     "filesystem.readFile",
