@@ -475,6 +475,65 @@ body.sicht #blende-detail{
 .d-schritt .wz{color:var(--acc); flex:0 0 auto; font-size:11px; font-weight:600;}
 .d-schritt .tx{color:var(--tx2); flex:1 1 auto; overflow:hidden; text-overflow:ellipsis;
   white-space:nowrap; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px;}
+
+/* --- Die Arbeitsschritte als Zeitstrahl -----------------------------
+   Vorher war das eine Tabelle: Uhrzeit, Werkzeugname, Text. Drei
+   Spalten nebeneinander, jede Zeile gleich schwer, der Text hinten
+   abgeschnitten. Man sah, DASS etwas passiert ist, aber nicht, was
+   gerade laeuft, in welcher Reihenfolge es lief und wo die Zeit
+   geblieben ist.
+
+   Jetzt ein senkrechter Strahl mit einem Punkt je Schritt. Der
+   oberste ist der aktuelle und sitzt hervorgehoben oben; nach unten
+   wird es aelter und blasser. Der Abstand zwischen zwei Punkten
+   steht als Zahl daneben — daran sieht man, wo es gehakt hat. */
+.d-lauf{position:relative; margin:2px 0 6px; padding-left:22px;}
+.d-lauf::before{content:""; position:absolute; left:4px; top:14px; bottom:16px; width:1px;
+  background:linear-gradient(180deg, var(--acc-deep) 0%, rgba(255,255,255,.12) 22%,
+    rgba(255,255,255,.12) 62%, rgba(255,255,255,0) 100%);}
+.d-tritt{position:relative; padding:6px 0 7px;}
+.d-tritt .pkt{position:absolute; left:-22px; top:9px; width:9px; height:9px; border-radius:50%;
+  background:var(--p0); border:1.5px solid rgba(255,255,255,.22); box-sizing:border-box;}
+.d-tritt.jetzt .pkt{background:var(--acc); border-color:var(--acc);
+  box-shadow:0 0 0 3px rgba(123,164,216,.18); animation:trittpuls 2.4s ease-in-out infinite;}
+@keyframes trittpuls{
+  0%,100%{box-shadow:0 0 0 3px rgba(123,164,216,.18);}
+  50%{box-shadow:0 0 0 5px rgba(123,164,216,.07);}}
+.d-tritt.alt{opacity:.62;}
+.d-tritt .kopf{display:flex; align-items:baseline; gap:8px;}
+.d-tritt .was{font-size:11px; font-weight:650; letter-spacing:.01em; color:var(--acc);}
+.d-tritt .wann{font-size:10px; color:var(--tx3); margin-left:auto; flex:0 0 auto;
+  font-variant-numeric:tabular-nums;}
+.d-tritt .ziel{margin-top:2px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:11.5px; line-height:1.45; color:var(--tx2); word-break:break-word;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+.d-tritt.jetzt .ziel{color:var(--tx);}
+/* Die Farbe sagt, um welche Art Arbeit es geht — Lesen, Schreiben,
+   Suchen, Ausfuehren. Auf einer Liste aus acht Zeilen findet man
+   damit das Schreiben, ohne zu lesen. */
+.d-tritt.lesen    .was{color:#7ba4d8;}
+.d-tritt.schreiben .was{color:#cfa456;}
+.d-tritt.befehl   .was{color:#a98fd0;}
+.d-tritt.suchen   .was{color:#5fb3a8;}
+.d-tritt.delegieren .was{color:#d98fb5;}
+.d-tritt.netz     .was{color:#6fb6c9;}
+.d-tritt.plan     .was{color:#98a1b4;}
+.d-tritt.lesen    .pkt{border-color:#7ba4d8;}
+.d-tritt.schreiben .pkt{border-color:#cfa456;}
+.d-tritt.befehl   .pkt{border-color:#a98fd0;}
+.d-tritt.suchen   .pkt{border-color:#5fb3a8;}
+.d-tritt.delegieren .pkt{border-color:#d98fb5;}
+.d-tritt.netz     .pkt{border-color:#6fb6c9;}
+.d-tritt.jetzt.schreiben .pkt{background:#cfa456; box-shadow:0 0 0 3px rgba(207,164,86,.18);}
+.d-tritt.jetzt.befehl .pkt{background:#a98fd0; box-shadow:0 0 0 3px rgba(169,143,208,.18);}
+.d-tritt.jetzt.suchen .pkt{background:#5fb3a8; box-shadow:0 0 0 3px rgba(95,179,168,.18);}
+.d-tritt.jetzt.delegieren .pkt{background:#d98fb5; box-shadow:0 0 0 3px rgba(217,143,181,.18);}
+.d-tritt.jetzt.netz .pkt{background:#6fb6c9; box-shadow:0 0 0 3px rgba(111,182,201,.18);}
+/* Die Lueckenmarke: wie lange zwischen zwei Schritten nichts
+   passiert ist. Erst ab drei Sekunden — alles darunter ist der
+   normale Takt und wuerde die Liste nur zupflastern. */
+.d-luecke{font-size:10px; color:var(--tx3); padding:1px 0 3px; letter-spacing:.02em;}
+.d-luecke b{color:var(--tx2); font-weight:600;}
 .d-marke{display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:99px;
   background:var(--p2); border:1px solid var(--edge); font-size:11px; color:var(--tx2);}
 .d-marke.gut{background:rgba(116,180,141,.14); border-color:rgba(116,180,141,.3); color:var(--good);}
@@ -1101,6 +1160,50 @@ const hochkomma = (t) => "'" + String(t).replace(/'/g, "'\\''") + "'";
 /* ---------- Quelle 1: laufende Claude-Code-Sessions ---------- */
 
 /* Aus einem Werkzeugaufruf eine kurze, lesbare Taetigkeit machen */
+/* Was genau wird gerade angefasst? Die Taetigkeit als ganzer Satz
+   ("liest orbit.html") steht am Astronauten; in der Schrittliste
+   stehen Verb und Gegenstand getrennt, weil man dort eine Spalte mit
+   Verben und eine mit Dateinamen viel schneller ueberfliegt als acht
+   ganze Saetze. */
+function zielAus(name, ein) {
+  const e = ein || {};
+  const datei = (p) => String(p || "").split("/").pop();
+  switch (name) {
+    case "Bash":        return String(e.command || "").replace(/\s+/g, " ").slice(0, 160);
+    case "Read":        return datei(e.file_path);
+    case "Edit":        return datei(e.file_path);
+    case "Write":       return datei(e.file_path);
+    case "NotebookEdit":return datei(e.notebook_path);
+    case "Glob":        return String(e.pattern || "");
+    case "Grep":        return String(e.pattern || "").slice(0, 80);
+    case "WebSearch":   return String(e.query || "").slice(0, 90);
+    case "WebFetch":    return String(e.url || "").replace(/^https?:\/\//, "").slice(0, 90);
+    case "Agent":       return String(e.description || "").slice(0, 90);
+    case "Skill":       return String(e.skill || "");
+    case "TodoWrite":   return "Aufgabenliste";
+    default:            return JSON.stringify(e).slice(0, 90);
+  }
+}
+
+/* Verb und Farbfamilie je Werkzeug. Die Farbe sagt, um welche Art
+   Arbeit es geht — auf einer Liste aus acht Zeilen findet man damit
+   das Schreiben, ohne zu lesen. */
+const SCHRITTART = {
+  Read:         ["Liest",      "lesen"],
+  Edit:         ["Ändert",     "schreiben"],
+  Write:        ["Schreibt",   "schreiben"],
+  NotebookEdit: ["Ändert",     "schreiben"],
+  Bash:         ["Führt aus",  "befehl"],
+  Glob:         ["Sucht",      "suchen"],
+  Grep:         ["Durchsucht", "suchen"],
+  WebSearch:    ["Sucht im Netz", "netz"],
+  WebFetch:     ["Lädt",       "netz"],
+  Agent:        ["Delegiert",  "delegieren"],
+  Skill:        ["Nutzt",      "delegieren"],
+  TodoWrite:    ["Plant",      "plan"],
+  Datei:        ["Gespeichert", "schreiben"],
+};
+
 function taetigkeitAus(name, ein) {
   const e = ein || {};
   const datei = (p) => String(p || "").split("/").pop();
@@ -1158,6 +1261,7 @@ async function sessionLesen(pfad, groesse, name) {
           schritte.push({
             werkzeug: b.name,
             text: taetigkeitAus(b.name, b.input),
+            ziel: zielAus(b.name, b.input),
             zeit: Date.parse(d.timestamp) || 0,
           });
         }
@@ -3065,53 +3169,40 @@ function massstabsleiste(Rpx) {
   cx.restore();
 }
 
+/* --- Die Bauteile bleiben antippbar, aber ohne Schild ---------------
+   Frueher schwebte ueber jedem Bauteil eine Tafel mit seinem Namen,
+   sobald man nah genug heranfuhr. Sie war der Wegweiser zu den
+   Erklaerungen — und sie lag quer ueber der Station. Acht bis zehn
+   dunkle Kaestchen mit Zeigestrichen auf einem Bild, das sonst nur
+   Blech und Erde zeigt: das ist Bedienung, die sich vor die Szene
+   stellt.
+
+   Also ist das Schild weg. Was bleibt, ist der Treffpunkt: jedes
+   Bauteil hat weiterhin seine Stelle, und wer dort hintippt, bekommt
+   die Tafel. Der Radius ist grosszuegig und waechst nicht mit dem
+   Zoom, damit ein Finger ihn auf jedem Schirm trifft.
+
+   Gefunden wird man jetzt ueber den Rundgang, den Knopf in der
+   Kurzanleitung — der faehrt die Bauteile der Reihe nach an und
+   zeigt dabei jede Tafel. Das war schon immer der bessere Weg
+   hinein. */
 function zeichneTeileSchilder(t, ccx, ccy, Rst, inSicht, kinoZoom) {
   if (kinoAn || sparsam) return null;
   const b = STBILD;
   if (!b || !b.teile || !b.teile.length) return null;
-  const staerke = klemm((KAM.zoom - 1.5) / 0.7, 0, 1);
-  if (staerke <= 0.01) return null;
 
   const treffer = [];
-  cx.save();
-  cx.setTransform(1, 0, 0, 1, 0, 0);
-  cx.scale(DPR, DPR);
   for (const q of b.teile) {
-    const d = TEILE[q.schluessel];
-    if (!d) continue;
+    if (!TEILE[q.schluessel]) continue;
     const p = inSicht(ccx + q.x * Rst, ccy + q.y * Rst);
-    if (p.x < -60 || p.x > W + 60 || p.y < -30 || p.y > H + 30) continue;
-    const auf = teilOffen === q.schluessel;
-
-    cx.font = "600 10.5px -apple-system, system-ui, sans-serif";
-    const bw = cx.measureText(d.name).width + 20;
-    const bh = 20;
-    const bx = p.x - bw / 2, by = p.y - bh - 9;
-
-    /* Ein feiner Strich vom Schild zum Bauteil, damit klar ist,
-       worauf es sich bezieht */
-    cx.strokeStyle = `rgba(190,210,240,${0.4 * staerke})`;
-    cx.lineWidth = 1;
-    cx.beginPath();
-    cx.moveTo(p.x, by + bh); cx.lineTo(p.x, p.y - 2);
-    cx.stroke();
-    cx.fillStyle = `rgba(190,210,240,${0.55 * staerke})`;
-    cx.beginPath(); cx.arc(p.x, p.y, 2, 0, Math.PI * 2); cx.fill();
-
-    cx.fillStyle = auf ? `rgba(58,74,104,${0.95 * staerke})`
-                       : `rgba(16,20,30,${0.78 * staerke})`;
-    rundRect(cx, bx, by, bw, bh, 7); cx.fill();
-    cx.strokeStyle = `rgba(150,176,214,${(auf ? 0.6 : 0.26) * staerke})`;
-    cx.lineWidth = 1;
-    rundRect(cx, bx, by, bw, bh, 7); cx.stroke();
-
-    cx.fillStyle = `rgba(226,236,250,${0.95 * staerke})`;
-    cx.textAlign = "center"; cx.textBaseline = "middle";
-    cx.fillText(d.name, p.x, by + bh / 2 + 0.5);
-
-    treffer.push({ schluessel: q.schluessel, bx, by, bw, bh });
+    if (p.x < -80 || p.x > W + 80 || p.y < -80 || p.y > H + 80) continue;
+    /* Ein Quadrat um die Stelle, in Bildschirmpunkten. Bei kleinem
+       Zoom ueberlappen sich die Felder zwangslaeufig; dann gewinnt
+       das naechstgelegene, und das entscheidet der Treffertest. */
+    const r = 30;
+    treffer.push({ schluessel: q.schluessel, bx: p.x - r, by: p.y - r,
+                   bw: r * 2, bh: r * 2, mx: p.x, my: p.y });
   }
-  cx.restore();
   return treffer;
 }
 
@@ -8990,13 +9081,21 @@ function rahmen(jetzt) {
      geschummelt — der Rest der Station stimmt auf den Zentimeter.
 
      Die Figur ist inzwischen deutlich feiner gezeichnet als frueher:
-     Visier, Ruecksack, Tasche, Kennleuchte. Das alles ist bei 1,34
-     nicht mehr zu sehen, also wird der Massstab angehoben, bis die
-     Details tragen. Der Preis ist ein etwas groesseres Luegenmass —
-     das ist die richtige Seite, auf der man irrt, denn eine Figur,
-     deren Ausruestung man nicht erkennt, ist kein Mensch, sondern ein
-     Punkt. */
-  const LESBAR = 1.62;
+     Visier, Ruecksack, Tasche, Kennleuchte, dazu Handlauf, Fussraste
+     und ein Karabiner an der Leine. Das alles ist bei 1,34 nicht mehr
+     zu sehen, also wird der Massstab angehoben, bis die Details
+     tragen. Der Preis ist ein groesseres Luegenmass — das ist die
+     richtige Seite, auf der man irrt, denn eine Figur, deren
+     Ausruestung man nicht erkennt, ist kein Mensch, sondern ein Punkt.
+
+     2,05 heisst: ein Mensch im Anzug erscheint so gross wie 1,8
+     Modulradien statt 0,88. Er ist damit knapp so hoch wie ein Modul
+     dick ist. Das ist sichtbar gelogen — aber es ist die eine Luege,
+     die diese Szene braucht, und sie steht hier ausgeschrieben statt
+     sich zu verstecken. Alles andere an der Station stimmt weiter auf
+     den Zentimeter, und der Massstabsbalken unten links misst die
+     Station, nicht die Figuren. */
+  const LESBAR = 2.05;
   const groesse = Math.max(15, (modulR * 0.88 * LESBAR) / 2.1);
 
   /* Im Kinomodus atmet die Kamera leicht — reicht fuer einen Loop */
@@ -10198,6 +10297,89 @@ function abschnitt(text) {
   return d;
 }
 
+/* --- Die Arbeitsschritte als Zeitstrahl ------------------------------
+   Vorher war das eine Tabelle: Uhrzeit, Werkzeugname, Text. Drei
+   Spalten nebeneinander, jede Zeile gleich schwer, der Text hinten
+   abgeschnitten. Man sah, DASS etwas passiert ist — aber nicht, was
+   gerade laeuft, in welcher Reihenfolge es lief und wo die Zeit
+   geblieben ist.
+
+   Drei Dinge machen daraus einen Ablauf:
+
+   Erstens die Richtung. Ein Strahl mit einem Punkt je Schritt, der
+   oberste hervorgehoben und mit eigenem Puls: DAS ist der Schritt,
+   der gerade laeuft. Nach unten wird es aelter und blasser.
+
+   Zweitens die Trennung von Verb und Gegenstand. "Liest" steht in
+   der Farbe seiner Art, "orbit.html" darunter in Schreibmaschine.
+   Acht Zeilen mit einer Spalte Verben und einer Spalte Dateinamen
+   ueberfliegt man; acht ganze Saetze liest man.
+
+   Drittens die Luecken. Zwischen zwei Schritten steht, wie lange
+   nichts passiert ist — aber erst ab drei Sekunden. Darunter ist es
+   der normale Takt und wuerde die Liste nur zupflastern. Genau diese
+   Zahl beantwortet die Frage, die man an so eine Liste wirklich hat:
+   wo haengt es? */
+function luecke(ms) {
+  const s = Math.round(ms / 1000);
+  if (s < 60) return s + " Sek.";
+  if (s < 3600) return Math.round(s / 60) + " Min.";
+  return (s / 3600).toFixed(1).replace(".", ",") + " Std.";
+}
+
+function schrittStrahl(schritte, laeuft) {
+  const box = document.createElement("div");
+  box.className = "d-lauf";
+  /* Die Liste kommt neu zuerst. Genau so wird sie auch gelesen: was
+     jetzt ist, steht oben. */
+  schritte.forEach((sch, i) => {
+    const [wasRoh, art] = SCHRITTART[sch.werkzeug] || [sch.werkzeug || "Schritt", ""];
+    const d = document.createElement("div");
+    d.className = "d-tritt" + (art ? " " + art : "")
+      + (i === 0 && laeuft ? " jetzt" : "") + (i > 2 ? " alt" : "");
+
+    const pkt = document.createElement("i"); pkt.className = "pkt";
+
+    const kopf = document.createElement("div"); kopf.className = "kopf";
+    const was = document.createElement("span"); was.className = "was";
+    was.textContent = wasRoh;
+    const wann = document.createElement("span"); wann.className = "wann";
+    /* Beim obersten Schritt ist die Uhrzeit uninteressant — wichtig
+       ist, wie lange er schon laeuft. Bei den aelteren umgekehrt. */
+    wann.textContent = i === 0 && laeuft ? "seit " + luecke(Date.now() - sch.zeit)
+                     : uhr(sch.zeit);
+    kopf.append(was, wann);
+
+    const ziel = document.createElement("div"); ziel.className = "ziel";
+    const txt = sch.ziel || sch.text || "";
+    ziel.textContent = txt;
+    ziel.title = txt;
+
+    d.append(pkt, kopf);
+    if (txt) d.append(ziel);
+    box.append(d);
+
+    /* Die Luecke zum naechstaelteren Schritt. Erst ab zehn Sekunden:
+       darunter ist es keine Pause, sondern nur die Laufzeit des
+       Werkzeugs, und eine Reihe gleicher "3 Sek."-Marken sagt nichts
+       ausser dass sie da ist. Eine Marke soll heissen: hier wurde
+       gewartet, nachgedacht, oder jemand ist weggegangen. */
+    const naechst = schritte[i + 1];
+    if (naechst && sch.zeit && naechst.zeit) {
+      const ms = sch.zeit - naechst.zeit;
+      if (ms >= 10000) {
+        const l = document.createElement("div");
+        l.className = "d-luecke";
+        const b = document.createElement("b"); b.textContent = luecke(ms);
+        l.append(document.createTextNode("↑ "), b,
+          document.createTextNode(" dazwischen"));
+        box.append(l);
+      }
+    }
+  });
+  return box;
+}
+
 function schrittZeile(sch) {
   const d = document.createElement("div");
   d.className = "d-schritt";
@@ -10318,8 +10500,11 @@ function zeichneDetail(id) {
     if (a.seitStart) box.appendChild(zeile("Läuft seit", vorZeit(a.seitStart)));
     if (a.version) box.appendChild(zeile("Version", a.version + (a.art ? "  ·  " + a.art : "")));
     if (a.schritte && a.schritte.length) {
-      box.appendChild(abschnitt("Letzte Schritte"));
-      a.schritte.forEach(sch => box.appendChild(schrittZeile(sch)));
+      /* "Arbeitsschritte" und nicht "Letzte Schritte": der oberste ist
+         der, der gerade laeuft, und der ist nicht "letzter". */
+      box.appendChild(abschnitt("Arbeitsschritte"));
+      box.appendChild(schrittStrahl(a.schritte,
+        a.zustand === "denkt" || a.zustand === "sendet"));
     }
   }
 
@@ -10328,8 +10513,15 @@ function zeichneDetail(id) {
     box.appendChild(zeile("Geändert", a.dirty ? a.dirty + " Dateien" : "nichts offen"));
     if (a.kopf) box.appendChild(zeile("Letzter Commit", a.kopf));
     if (a.dateien && a.dateien.length) {
+      /* Derselbe Strahl fuer die Dateien eines Ordners. Sie sind
+         zwar keine Werkzeugaufrufe, aber dieselbe Frage: was ist
+         zuletzt passiert, und in welcher Reihenfolge? Die
+         Zeitstempel sind hier allerdings alle gleich — der Ordner
+         meldet nur ein Datum —, also faellt die Lueckenmarke von
+         selbst weg. */
       box.appendChild(abschnitt("Zuletzt angefasst"));
-      a.dateien.forEach(f => box.appendChild(schrittZeile({ werkzeug: "", text: f, zeit: a.seit })));
+      box.appendChild(schrittStrahl(
+        a.dateien.map(f => ({ werkzeug: "Datei", ziel: f, zeit: a.seit })), false));
     }
     const hinweis = document.createElement("div");
     hinweis.className = "warnung"; hinweis.style.marginTop = "16px";
@@ -11323,8 +11515,8 @@ const HILFE = [
   {
     titel: "Die Station",
     text: "Sie ist nach echten Maßen gebaut: der Gitterträger misst 108,5 Meter, ein Mensch im Anzug ist "
-      + "ein Achtundfünfzigstel davon. Zoom hinein, dann bekommen die Bauteile Schilder — tipp eines an, "
-      + "und es erklärt sich selbst.",
+      + "ein Achtundfünfzigstel davon. Tipp ein Bauteil an, und es erklärt sich selbst — oder nimm oben "
+      + "den Rundgang, der fährt sie der Reihe nach an.",
   },
   {
     titel: "Tag und Nacht",
@@ -11720,20 +11912,24 @@ function zeigerLoslassen(ev) {
     /* Laeuft ein Rundgang, beendet jeder Tipp ihn — wer selbst
        weiterschauen will, soll nicht bis zum Ende warten muessen. */
     if (RUNDGANG.laeuft) { rundgangEnde(); return; }
-    /* Zuerst die Schilder: sie liegen ueber allem anderen */
-    for (const sch of TEILSCHILDER) {
-      if (ev.clientX >= sch.bx && ev.clientX <= sch.bx + sch.bw &&
-          ev.clientY >= sch.by && ev.clientY <= sch.by + sch.bh) {
-        teilZeigen(sch.schluessel);
-        return;
-      }
-    }
+    /* Ein Astronaut gewinnt immer gegen ein Bauteil: er steht davor,
+       und er ist das, worum es in dieser App geht. */
     const treffer = astronautBei(ev.clientX, ev.clientY);
     if (treffer) {
       detailOeffnen(treffer.id);
       if (KAM.zielZoom < 1.6) fahreZu(treffer.id, 2.4);
       return;
     }
+    /* Dann das naechstgelegene Bauteil. Das naechste, nicht das
+       erste: ohne Schilder ueberlappen sich die Felder, und wer
+       zwischen Kuppel und Modul tippt, meint das, was naeher liegt. */
+    let nah = null, ndist = 1e9;
+    for (const sch of TEILSCHILDER) {
+      const d = Math.hypot(sch.mx - ev.clientX, sch.my - ev.clientY);
+      if (d < 30 && d < ndist) { ndist = d; nah = sch; }
+    }
+    if (nah) { teilZeigen(nah.schluessel); return; }
+
     const oben = himmelBei(ev.clientX, ev.clientY);
     if (oben) { teilZeigen(oben.k, oben.name); return; }
     if (offeneDetailId || teilOffen) {
