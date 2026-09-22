@@ -11037,7 +11037,13 @@ function zeichneErde(t) {
       if (a3 <= 0.01) continue;
       cx.globalAlpha = a3;
       cx.beginPath();
-      cx.rect(x0 * DPR, my3 - rr3 * 1.03, (x1 - x0) * DPR + 1, rr3 * 0.06);
+      /* Auf ganze Bildpunkte, Kante an Kante. Vorher ueberlappten sich
+         die Streifen um einen Punkt, damit keine Luecke bleibt — aber
+         das Leuchten wird addiert, und so stand an jeder der
+         fuenfundzwanzig Naehte ein doppelt heller Strich: eine
+         Linealskala entlang des ganzen Horizonts. */
+      const xa = Math.round(x0 * DPR), xb = Math.round(x1 * DPR);
+      cx.rect(xa, my3 - rr3 * 1.03, xb - xa, rr3 * 0.06);
       cx.fill();
     }
     cx.globalAlpha = 1;
