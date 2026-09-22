@@ -229,6 +229,12 @@ footer{
   transition:all .22s var(--ease); max-width:210px;
 }
 .crew-chip:hover{border-color:var(--edge2);}
+.crew-chip{position:relative;}
+.crew-chip .chip-plan{position:absolute; left:16px; right:16px; bottom:4px; height:2px;
+  display:flex; gap:2px; pointer-events:none;}
+.crew-chip .chip-plan i{flex:1 1 0; min-width:0; border-radius:1px; background:rgba(255,255,255,.13);}
+.crew-chip .chip-plan i.completed{background:var(--good);}
+.crew-chip .chip-plan i.in_progress{background:var(--lauf);}
 .crew-chip.gewaehlt{border-color:var(--edge2); box-shadow:0 0 0 1px var(--edge2), 0 8px 24px rgba(0,0,0,.36);}
 .crew-chip .punkt{width:9px; height:9px; border-radius:50%; flex:0 0 auto; box-shadow:0 0 9px currentColor;}
 .crew-chip .nm{font-size:12.5px; font-weight:550; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
@@ -12550,6 +12556,18 @@ function zeichneCrewLeiste() {
     if (a.zustand === "winkt") zs.style.color = "#e0a24e";
     t.append(nm, zs);
     b.appendChild(t);
+    /* Der Plan als feiner Strich an der Unterkante: wie weit jede
+       Sitzung ist, ohne eine einzige zu oeffnen */
+    if (a.aufgaben && a.aufgaben.length) {
+      const pl = document.createElement("span");
+      pl.className = "chip-plan";
+      for (const x of a.aufgaben.slice(0, 16)) {
+        const i = document.createElement("i"); i.className = x.status; pl.appendChild(i);
+      }
+      b.title = a.aufgaben.filter(x => x.status === "completed").length + " von "
+        + a.aufgaben.length + " Aufgaben erledigt";
+      b.appendChild(pl);
+    }
     b.onclick = () => detailOeffnen(a.id);
     box.appendChild(b);
   }
