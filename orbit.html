@@ -6544,6 +6544,13 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
   const griff = haltung === "griff";
   const nachts = 1 - TAGLICHT;
   const tf = (hell, dunkel) => nachts < 0.01 ? hell : mischen(hell, dunkel, nachts * 0.82);
+  /* Dasselbe mit Deckkraft. mischen() kennt nur #rrggbb — ein
+     rgba()-Wert darin ergibt eine ungueltige Farbe, und die Leinwand
+     nimmt dann still die vorige weiter. */
+  const tfa = (hell, dunkel, a) => {
+    const f = tf(hell, dunkel);
+    return "rgba(" + [1, 3, 5].map(i => parseInt(f.slice(i, i + 2), 16)).join(",") + "," + a + ")";
+  };
   const WEISS = tf("#f1f1ee", "#243449");
   const HELL  = tf("#ffffff", "#33465f");
   const SCHATTEN = tf("#6f6c64", "#161e2c");
@@ -7113,48 +7120,127 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
   cx.beginPath(); cx.arc(0, helmY, helmR, 0, Math.PI * 2); cx.fill();
 
   /* Goldvisier: der einzige warme Farbfleck der ganzen Figur.
-     Halb heruntergeklappt — die Blende deckt die Frontoeffnung von
-     oben, das untere Drittel bleibt frei. */
-  const vg = cx.createLinearGradient(-helmR * 0.7, helmY - helmR * 0.7,
-                                      helmR * 0.7, helmY + helmR * 0.7);
-  vg.addColorStop(0, tf("#e8c06a", "#4a3f22"));
-  vg.addColorStop(0.3, tf("#c9962e", "#3a2f13"));
-  vg.addColorStop(0.62, tf("#6b4f18", "#1f1a0c"));
-  vg.addColorStop(1, tf("#2a2008", "#100c04"));
-  /* Das Visier ist ein OVAL in einer weissen Schale, kein Vollkreis.
-     Die Schutzschale liegt ueber Scheitel, Seiten und Kinn — auf jedem
-     Foto sieht man rundherum einen weissen Rand. Wer den Helm ganz
-     vergoldet, macht eine Christbaumkugel daraus. */
-  cx.fillStyle = vg;
+     Es faehrt mit dem Licht. Bei Tag ist es unten — ohne die
+     Goldschicht waere die Sonne im Vakuum blendend, und sie haelt das
+     Ultraviolett ab. Im Erdschatten schiebt die Crew es hoch, sonst
+     saehe sie im Licht der Helmlampen nichts; dann ist vorn nur noch
+     das klare Visier, und dahinter, dunkel, ein Gesicht unter der
+     Sprechkappe.
+
+     Jeder tut das zu seiner eigenen Zeit: der eine gleich beim
+     Eintritt in den Schatten, der andere erst, wenn er eine Hand frei
+     hat. Die Schwelle haengt deshalb an der Figur. Die Bewegung selbst
+     ist kurz, ein Griff an den Visierrahmen — sie dauert nur den
+     Bruchteil der Daemmerung, in dem nachts um 0,06 steigt. */
+  const eigen = Math.abs(Math.sin(phase * 12.9898 + 1.3) * 43758.5453) % 1;
+  const schwelle = 0.4 + eigen * 0.32;
+  const hoch = ruhig ? (nachts > 0.56 ? 1 : 0)
+                     : Math.min(1, Math.max(0, (nachts - schwelle) / 0.06));
+  const visHoch = hoch * hoch * (3 - 2 * hoch);
+  const oy = helmY + helmR * 0.07, orx = helmR * 0.6, ory = helmR * 0.66;
+
+  cx.save();
   cx.beginPath();
-  cx.ellipse(0, helmY + helmR * 0.07, helmR * 0.6, helmR * 0.66, 0, 0, Math.PI * 2);
-  cx.fill();
+  cx.ellipse(0, oy, orx, ory, 0, 0, Math.PI * 2);
+  cx.clip();
+
+  /* Hinter dem klaren Visier: der Helm ist innen dunkel. Ein Gesicht
+     sieht man nur, weil man weiss, wo es sein muss — ein hellerer
+     Fleck unter der weiss-braunen Sprechkappe, und nachts kaum das. */
+  if (visHoch > 0.001) {
+    const ig = cx.createRadialGradient(-orx * 0.25, oy - ory * 0.35, 0, 0, oy, ory * 1.15);
+    ig.addColorStop(0, tf("#3a4555", "#162030"));
+    ig.addColorStop(1, tf("#0a0d12", "#04060a"));
+    cx.fillStyle = ig;
+    cx.fillRect(-orx, oy - ory, orx * 2, ory * 2);
+    if (mittel) {
+      /* Nachts leuchtet nichts ins Gesicht; man ahnt es nur, weil das
+         Licht der eigenen Lampen von der Station zurueckkommt. */
+      cx.globalAlpha = nachts > 0.5 ? 0.8 : 1;
+      cx.fillStyle = tfa("#bc9274", "#706e74", 0.5);
+      cx.beginPath();
+      cx.ellipse(0, oy + ory * 0.12, orx * 0.4, ory * 0.42, 0, 0, Math.PI * 2);
+      cx.fill();
+      /* Die Kappe: weiss oben, braun an den Seiten ueber den Ohren */
+      cx.fillStyle = tfa("#765238", "#403a3a", 0.62);
+      cx.beginPath();
+      cx.ellipse(0, oy - ory * 0.08, orx * 0.52, ory * 0.46, 0, Math.PI * 1.02, Math.PI * 1.98);
+      cx.lineTo(orx * 0.5, oy + ory * 0.14);
+      cx.lineTo(orx * 0.38, oy + ory * 0.16);
+      cx.lineTo(orx * 0.4, oy - ory * 0.06);
+      cx.lineTo(-orx * 0.4, oy - ory * 0.06);
+      cx.lineTo(-orx * 0.38, oy + ory * 0.16);
+      cx.lineTo(-orx * 0.5, oy + ory * 0.14);
+      cx.closePath();
+      cx.fill();
+      cx.fillStyle = tfa("#e2ded4", "#747c8a", 0.56);
+      cx.beginPath();
+      cx.ellipse(0, oy - ory * 0.1, orx * 0.36, ory * 0.34, 0, Math.PI * 1.08, Math.PI * 1.92);
+      cx.closePath();
+      cx.fill();
+      cx.globalAlpha = 1;
+    }
+    /* Das klare Visier selbst: eine gewoelbte Scheibe, die das Licht
+       der Station spiegelt — ein kuehler Streifen oben links */
+    cx.strokeStyle = `rgba(200,222,255,${0.22 * visHoch})`;
+    cx.lineWidth = Math.max(0.5, helmR * 0.1);
+    cx.lineCap = "round";
+    cx.beginPath();
+    cx.ellipse(0, oy, orx * 0.78, ory * 0.8, 0, Math.PI * 1.1, Math.PI * 1.38);
+    cx.stroke();
+  }
+
+  /* Das Goldvisier, um visHoch nach oben in die Schale geschoben.
+     Seine Unterkante ist die Kante eines gewoelbten Schildes und
+     deshalb ein Bogen, keine Gerade. */
+  if (visHoch < 0.999) {
+    cx.save();
+    cx.translate(0, -visHoch * ory * 2.02);
+    const vg = cx.createLinearGradient(-helmR * 0.7, helmY - helmR * 0.7,
+                                        helmR * 0.7, helmY + helmR * 0.7);
+    vg.addColorStop(0, tf("#e8c06a", "#4a3f22"));
+    vg.addColorStop(0.3, tf("#c9962e", "#3a2f13"));
+    vg.addColorStop(0.62, tf("#6b4f18", "#1f1a0c"));
+    vg.addColorStop(1, tf("#2a2008", "#100c04"));
+    cx.fillStyle = vg;
+    cx.beginPath();
+    cx.ellipse(0, oy, orx, ory, 0, 0, Math.PI * 2);
+    cx.fill();
+    /* Im Visier spiegelt sich die Erde — eine blau-weisse Sichel. Das
+       ist das bekannteste Motiv der ganzen Raumfahrtfotografie und das
+       Einzige, was die Goldkugel endgueltig zum Helm macht. Nachts ist
+       die Erde darunter dunkel, und mit ihr die Spiegelung. */
+    const tagSp = 1 - nachts * 0.85;
+    const eg = cx.createLinearGradient(-helmR * 0.6, helmY + helmR * 0.7, helmR * 0.2, helmY - helmR * 0.2);
+    eg.addColorStop(0, `rgba(120,190,255,${0.62 * tagSp})`);
+    eg.addColorStop(0.45, `rgba(80,140,210,${0.4 * tagSp})`);
+    eg.addColorStop(1, "rgba(80,140,210,0)");
+    cx.fillStyle = eg;
+    cx.beginPath();
+    cx.arc(-helmR * 0.3, helmY + helmR * 0.62, helmR * 0.8, Math.PI * 1.15, Math.PI * 1.95);
+    cx.closePath(); cx.fill();
+    /* Der Sonnenfleck daneben — den gibt es nur, wo Sonne ist */
+    cx.fillStyle = `rgba(255,248,224,${0.55 * (1 - nachts)})`;
+    cx.beginPath(); cx.arc(helmR * 0.32, helmY - helmR * 0.26, helmR * 0.13, 0, Math.PI * 2); cx.fill();
+    /* Die Unterkante, solange das Visier unterwegs ist: ein heller
+       Goldstrich, an dem man die Bewegung ueberhaupt erst sieht */
+    if (visHoch > 0.02 && mittel) {
+      cx.strokeStyle = tfa("#ffe296", "#967e46", 0.75);
+      cx.lineWidth = Math.max(0.5, helmR * 0.06);
+      cx.beginPath();
+      cx.ellipse(0, oy, orx * 0.99, ory * 0.99, 0, Math.PI * 0.12, Math.PI * 0.88);
+      cx.stroke();
+    }
+    cx.restore();
+  }
+  cx.restore();
+
   /* Der Rahmen der Frontoeffnung */
   cx.strokeStyle = "rgba(226,222,210,.55)";
   cx.lineWidth = Math.max(0.4, helmR * 0.07);
   cx.beginPath();
-  cx.ellipse(0, helmY + helmR * 0.07, helmR * 0.6, helmR * 0.66, 0, 0, Math.PI * 2);
+  cx.ellipse(0, oy, orx, ory, 0, 0, Math.PI * 2);
   cx.stroke();
-
-  /* Im Visier spiegelt sich die Erde — eine blau-weisse Sichel. Das
-     ist das bekannteste Motiv der ganzen Raumfahrtfotografie und das
-     Einzige, was die Goldkugel endgueltig zum Helm macht. */
-  cx.save();
-  cx.beginPath();
-  cx.ellipse(0, helmY + helmR * 0.07, helmR * 0.6, helmR * 0.66, 0, 0, Math.PI * 2);
-  cx.clip();
-  const eg = cx.createLinearGradient(-helmR * 0.6, helmY + helmR * 0.7, helmR * 0.2, helmY - helmR * 0.2);
-  eg.addColorStop(0, "rgba(120,190,255,.62)");
-  eg.addColorStop(0.45, "rgba(80,140,210,.4)");
-  eg.addColorStop(1, "rgba(80,140,210,0)");
-  cx.fillStyle = eg;
-  cx.beginPath();
-  cx.arc(-helmR * 0.3, helmY + helmR * 0.62, helmR * 0.8, Math.PI * 1.15, Math.PI * 1.95);
-  cx.closePath(); cx.fill();
-  /* Der Sonnenfleck daneben */
-  cx.fillStyle = "rgba(255,248,224,.55)";
-  cx.beginPath(); cx.arc(helmR * 0.32, helmY - helmR * 0.26, helmR * 0.13, 0, Math.PI * 2); cx.fill();
-  cx.restore();
 
   if (mittel) {
     /* Die weisse Schutzschale liegt wie ein Helmdach ueber Scheitel
@@ -7180,15 +7266,28 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
       cx.fillStyle = ag;
       cx.beginPath(); cx.arc(0, helmY + helmR * 0.9, H * 0.28, 0, Math.PI * 2); cx.fill();
     }
-    cx.fillStyle = "rgba(255,250,228,.95)";
+    /* Die Lampen selbst: ein harter Punkt, und nur im Dunkeln ein
+       Schein darum. Der Schein ist eine Eigenschaft des Bildes, nicht
+       der Lampe — wie jeder Lichthof in dieser Szene hat er deshalb
+       eine feste Groesse in Bildpunkten, egal wie nah man herangeht.
+       Vorher war er eine flache Scheibe mit dem Helm als Massstab, und
+       aus der Naehe standen zwei graue Ohren am Helm. Bei Tag
+       ueberstrahlt die Sonne jede Helmlampe; dann bleibt nur der
+       Punkt. */
+    const pb = proBildpunkt(cx);
     for (const sd of [-1, 1]) {
-      cx.beginPath();
-      cx.arc(sd * helmR * 0.6, helmY - helmR * 0.62, helmR * 0.14, 0, Math.PI * 2);
-      cx.fill();
-      if (zustand !== "ruht" || nachts > 0.3) {
-        cx.fillStyle = `rgba(255,250,228,${0.13 + 0.2 * nachts})`;
-        cx.beginPath(); cx.arc(sd * helmR * 0.6, helmY - helmR * 0.62, helmR * (0.44 + nachts * 0.5), 0, Math.PI * 2); cx.fill();
-        cx.fillStyle = "rgba(255,250,228,.95)";
+      const lx = sd * helmR * 0.6, ly = helmY - helmR * 0.62;
+      const an = zustand !== "ruht" || nachts > 0.3;
+      cx.fillStyle = an ? "rgba(255,250,228,.95)" : tfa("#dedcd4", "#5c6a7e", 0.9);
+      cx.beginPath(); cx.arc(lx, ly, helmR * 0.14, 0, Math.PI * 2); cx.fill();
+      if (an && nachts > 0.05) {
+        const r = Math.max(helmR * 0.3, 10 * pb);
+        const g = cx.createRadialGradient(lx, ly, 0, lx, ly, r);
+        g.addColorStop(0, `rgba(255,250,230,${0.6 * nachts})`);
+        g.addColorStop(0.22, `rgba(255,246,214,${0.22 * nachts})`);
+        g.addColorStop(1, "rgba(255,246,214,0)");
+        cx.fillStyle = g;
+        cx.beginPath(); cx.arc(lx, ly, r, 0, Math.PI * 2); cx.fill();
       }
     }
   }
@@ -7215,9 +7314,14 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
       cx.beginPath();
       cx.ellipse(lx, ly, helmR * 0.14, helmR * 0.1, 0, 0, Math.PI * 2);
       cx.fill();
-      cx.fillStyle = `rgba(224,240,255,${0.16 * nachts})`;
+      const r = Math.max(helmR * 0.3, 8 * proBildpunkt(cx));
+      const g = cx.createRadialGradient(lx, ly, 0, lx, ly, r);
+      g.addColorStop(0, `rgba(236,246,255,${0.5 * nachts})`);
+      g.addColorStop(0.25, `rgba(224,240,255,${0.16 * nachts})`);
+      g.addColorStop(1, "rgba(224,240,255,0)");
+      cx.fillStyle = g;
       cx.beginPath();
-      cx.arc(lx, ly, helmR * 0.42, 0, Math.PI * 2);
+      cx.arc(lx, ly, r, 0, Math.PI * 2);
       cx.fill();
     }
   }
@@ -11796,110 +11900,6 @@ function zeichneDetail(id) {
   }
 }
 
-/* ================================================================
-   7c — Einstellungen der Bruecke
-   ================================================================ */
-
-const TYP_BESCHRIFTUNG = {
-  session: "Claude-Code-Sessions",
-  unteragent: "Unteragenten",
-  ordner:  "Projektordner / VS Code",
-  prozess: "Laufende Befehle",
-  github:  "GitHub Actions & Pull Requests",
-};
-
-function zeichneBrueckeLage() {
-  const box = $("#b-lage");
-  const zahl = (t) => BR.live.filter(x => x.typ === t).length;
-  if (BR.aktiv) {
-    box.innerHTML = '<div class="warnung" style="border-color:rgba(116,180,141,.3);'
-      + 'background:rgba(116,180,141,.09); color:#8ec9a5">'
-      + 'Läuft als Mac-Programm — Dateien und Prozesse sind lesbar.</div>';
-  } else {
-    box.innerHTML = '<div class="warnung">Läuft im Browser. Dort darf keine Seite das '
-      + 'Dateisystem oder laufende Programme lesen — Sessions, Ordner und Prozesse '
-      + 'bleiben deshalb leer. Nur GitHub funktioniert hier, weil das übers Netz geht. '
-      + 'Für alles andere ORBIT.app benutzen.</div>';
-  }
-  if (BR.letzterFehler) {
-    const f = document.createElement("div");
-    f.className = "warnung";
-    f.style.cssText = "border-color:rgba(224,122,106,.3);background:rgba(224,122,106,.09);color:#e79a8c";
-    f.textContent = "Letzter Fehler: " + BR.letzterFehler;
-    box.appendChild(f);
-  }
-
-  const tbox = $("#b-typen");
-  tbox.innerHTML = "";
-  for (const t of ["session", "ordner", "prozess", "github"]) {
-    const b = document.createElement("button");
-    b.className = "schalter" + (Z.bruecke.typen[t] ? " an" : "");
-    const k = document.createElement("span"); k.className = "kasten"; k.textContent = "✓";
-    const n = document.createElement("span"); n.className = "bez"; n.textContent = TYP_BESCHRIFTUNG[t];
-    const z = document.createElement("span"); z.className = "zahl"; z.textContent = zahl(t) || "";
-    b.append(k, n, z);
-    b.onclick = () => {
-      Z.bruecke.typen[t] = !Z.bruecke.typen[t];
-      sichern(); zeichneBrueckeLage(); brueckeDurchlauf();
-    };
-    tbox.appendChild(b);
-  }
-
-  const obox = $("#b-ordner");
-  obox.innerHTML = "";
-  if (!Z.bruecke.ordner.length) {
-    const leer = document.createElement("div");
-    leer.style.cssText = "font-size:12px;color:var(--tx3);padding:6px 2px";
-    leer.textContent = "Noch kein Ordner. Füge den Pfad eines Projekts hinzu, an dem du arbeitest.";
-    obox.appendChild(leer);
-  }
-  Z.bruecke.ordner.forEach((pf, i) => {
-    const d = document.createElement("div");
-    d.className = "ordner-zeile";
-    const t = document.createElement("span"); t.className = "pf"; t.textContent = pf; t.title = pf;
-    const w = document.createElement("button");
-    w.className = "mini gefahr"; w.innerHTML = "✕";
-    w.onclick = () => {
-      Z.bruecke.ordner.splice(i, 1);
-      bruecke_ordner = bruecke_ordner.filter(x => x.id !== "o:" + pf);
-      sichern(); zeichneBrueckeLage(); brueckeDurchlauf();
-    };
-    d.append(t, w);
-    obox.appendChild(d);
-  });
-}
-
-function ordnerDazu(pfad) {
-  const pf = String(pfad || "").trim().replace(/\/+$/, "");
-  if (!pf || Z.bruecke.ordner.includes(pf)) return;
-  Z.bruecke.ordner.push(pf);
-  sichern(); zeichneBrueckeLage();
-  BR.uhren.ordner = 0; brueckeDurchlauf();
-}
-
-/* ================================================================
-   7d — Hintergrund waehlen
-   ================================================================ */
-
-/* Einmal gerechnete Miniaturen, danach aus dem Speicher */
-const VORSCHAU = new Map();
-
-/* Eine echte kleine Fassung desselben Himmels — derselbe Rauschgenerator
-   wie beim grossen Bild, nur in klein. Vierzig Stueck kosten zusammen
-   weniger als ein einziger grosser Himmel. */
-function himmelVorschau(t) {
-  if (VORSCHAU.has(t.id)) return VORSCHAU.get(t.id);
-
-  const bw = 150, bh = 86;
-  const lw = document.createElement("canvas");
-  lw.width = bw; lw.height = bh;
-  const c = lw.getContext("2d");
-
-  c.fillStyle = t.raum;
-  c.fillRect(0, 0, bw, bh);
-
-  /* Ein paar Sterne */
-  let z = ((t.saat || 1) + 4242) >>> 0;
 /* --- GitHub: Pull Requests und Actions --------------------------------
    Vorher standen PRs und Laeufe als dieselbe Tabelle da wie frueher
    die Arbeitsschritte: Nummer, ein Wort, abgeschnittener Titel. Ob
@@ -12036,6 +12036,110 @@ function laufStrahl(laeufe) {
   return box;
 }
 
+/* ================================================================
+   7c — Einstellungen der Bruecke
+   ================================================================ */
+
+const TYP_BESCHRIFTUNG = {
+  session: "Claude-Code-Sessions",
+  unteragent: "Unteragenten",
+  ordner:  "Projektordner / VS Code",
+  prozess: "Laufende Befehle",
+  github:  "GitHub Actions & Pull Requests",
+};
+
+function zeichneBrueckeLage() {
+  const box = $("#b-lage");
+  const zahl = (t) => BR.live.filter(x => x.typ === t).length;
+  if (BR.aktiv) {
+    box.innerHTML = '<div class="warnung" style="border-color:rgba(116,180,141,.3);'
+      + 'background:rgba(116,180,141,.09); color:#8ec9a5">'
+      + 'Läuft als Mac-Programm — Dateien und Prozesse sind lesbar.</div>';
+  } else {
+    box.innerHTML = '<div class="warnung">Läuft im Browser. Dort darf keine Seite das '
+      + 'Dateisystem oder laufende Programme lesen — Sessions, Ordner und Prozesse '
+      + 'bleiben deshalb leer. Nur GitHub funktioniert hier, weil das übers Netz geht. '
+      + 'Für alles andere ORBIT.app benutzen.</div>';
+  }
+  if (BR.letzterFehler) {
+    const f = document.createElement("div");
+    f.className = "warnung";
+    f.style.cssText = "border-color:rgba(224,122,106,.3);background:rgba(224,122,106,.09);color:#e79a8c";
+    f.textContent = "Letzter Fehler: " + BR.letzterFehler;
+    box.appendChild(f);
+  }
+
+  const tbox = $("#b-typen");
+  tbox.innerHTML = "";
+  for (const t of ["session", "ordner", "prozess", "github"]) {
+    const b = document.createElement("button");
+    b.className = "schalter" + (Z.bruecke.typen[t] ? " an" : "");
+    const k = document.createElement("span"); k.className = "kasten"; k.textContent = "✓";
+    const n = document.createElement("span"); n.className = "bez"; n.textContent = TYP_BESCHRIFTUNG[t];
+    const z = document.createElement("span"); z.className = "zahl"; z.textContent = zahl(t) || "";
+    b.append(k, n, z);
+    b.onclick = () => {
+      Z.bruecke.typen[t] = !Z.bruecke.typen[t];
+      sichern(); zeichneBrueckeLage(); brueckeDurchlauf();
+    };
+    tbox.appendChild(b);
+  }
+
+  const obox = $("#b-ordner");
+  obox.innerHTML = "";
+  if (!Z.bruecke.ordner.length) {
+    const leer = document.createElement("div");
+    leer.style.cssText = "font-size:12px;color:var(--tx3);padding:6px 2px";
+    leer.textContent = "Noch kein Ordner. Füge den Pfad eines Projekts hinzu, an dem du arbeitest.";
+    obox.appendChild(leer);
+  }
+  Z.bruecke.ordner.forEach((pf, i) => {
+    const d = document.createElement("div");
+    d.className = "ordner-zeile";
+    const t = document.createElement("span"); t.className = "pf"; t.textContent = pf; t.title = pf;
+    const w = document.createElement("button");
+    w.className = "mini gefahr"; w.innerHTML = "✕";
+    w.onclick = () => {
+      Z.bruecke.ordner.splice(i, 1);
+      bruecke_ordner = bruecke_ordner.filter(x => x.id !== "o:" + pf);
+      sichern(); zeichneBrueckeLage(); brueckeDurchlauf();
+    };
+    d.append(t, w);
+    obox.appendChild(d);
+  });
+}
+
+function ordnerDazu(pfad) {
+  const pf = String(pfad || "").trim().replace(/\/+$/, "");
+  if (!pf || Z.bruecke.ordner.includes(pf)) return;
+  Z.bruecke.ordner.push(pf);
+  sichern(); zeichneBrueckeLage();
+  BR.uhren.ordner = 0; brueckeDurchlauf();
+}
+
+/* ================================================================
+   7d — Hintergrund waehlen
+   ================================================================ */
+
+/* Einmal gerechnete Miniaturen, danach aus dem Speicher */
+const VORSCHAU = new Map();
+
+/* Eine echte kleine Fassung desselben Himmels — derselbe Rauschgenerator
+   wie beim grossen Bild, nur in klein. Vierzig Stueck kosten zusammen
+   weniger als ein einziger grosser Himmel. */
+function himmelVorschau(t) {
+  if (VORSCHAU.has(t.id)) return VORSCHAU.get(t.id);
+
+  const bw = 150, bh = 86;
+  const lw = document.createElement("canvas");
+  lw.width = bw; lw.height = bh;
+  const c = lw.getContext("2d");
+
+  c.fillStyle = t.raum;
+  c.fillRect(0, 0, bw, bh);
+
+  /* Ein paar Sterne */
+  let z = ((t.saat || 1) + 4242) >>> 0;
   const rnd = () => { z = (Math.imul(z, 1664525) + 1013904223) >>> 0; return z / 4294967296; };
   const ton = hexZuRgb(t.sterne || "#ffffff");
   for (let i = 0; i < 90; i++) {
