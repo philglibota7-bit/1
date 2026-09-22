@@ -2851,6 +2851,24 @@ const TEILE = {
     lang: "Der Spiegel zeigt nicht zur Erde, sondern zu einem Relaissatelliten in 36 000 Kilometer Höhe — einem von dreien, die zusammen fast den ganzen Umlauf abdecken. Fast, nicht ganz: es bleiben Lücken, und in denen ist Funkstille. Man sieht der Schüssel an, ob gerade jemand zuhört, denn sie dreht sich mit.",
     zahl: "Rund 80 Prozent des Umlaufs besteht Kontakt. Der Weg zum Relaissatelliten und zurück dauert eine Viertelsekunde.",
   },
+  mond: {
+    name: "Mond",
+    kurz: "Genauso groß wie die Sonne — und das ist Zufall.",
+    lang: "Von hier oben geht er auf und unter wie die Sonne, einmal je Umlauf, nur zu einer anderen Zeit. Wie viel anders, hängt an einer einzigen Zahl: seinem Winkelabstand von der Sonne. Dieselbe Zahl bestimmt auch seine Gestalt — steht er dicht bei ihr, sieht man ihn fast von hinten und damit als dünne Sichel; steht er ihr gegenüber, ist Vollmond. Seine dunkle Seite ist dabei nie ganz schwarz: die Erde füllt von hier aus ein Drittel des Himmels und wirft genug Licht zurück, um sie zu zeigen.",
+    zahl: "Ein halbes Grad breit, also ein Zweihundertvierundsechzigstel des Erdhalbmessers — auf den Bildpunkt derselbe Winkel wie die Sonne. Er wandert 12,19 Grad am Tag von ihr weg; deshalb dauert ein Mondmonat 29½ Tage und nicht 27.",
+  },
+  sonne: {
+    name: "Sonne",
+    kurz: "Sechzehn Aufgänge am Tag.",
+    lang: "Dicht über der Erdkante geht ihr Licht streifend durch die ganze Lufthülle: Blau wird herausgestreut, Rot bleibt — dasselbe Abendrot wie vom Boden aus, nur dauert es hier 43 Sekunden statt einer halben Stunde. Die Luft bricht dabei den unteren Rand stärker als den oberen, und die Scheibe steht gestaucht als Ellipse auf der Kante. Davor kommt die Wulst: die Luft über dem Horizont leuchtet genau dort auf, wo sie herauskommt, lange bevor man die Scheibe selbst sieht.",
+    zahl: "Ein halbes Grad breit — winzig. Was sie groß erscheinen lässt, ist nicht ihre Scheibe, sondern der Schein darum herum. 59 Prozent des Umlaufs steht sie über dem Horizont.",
+  },
+  sternbild: {
+    name: "Sternbild",
+    kurz: "Derselbe Himmel wie von unten.",
+    lang: "Gegen vierhundert Lichtjahre sind vierhundert Kilometer nichts: die Sterne stehen von hier aus genau dort, wo sie auch vom Gartenstuhl aus stehen. Vier Figuren sind aus ihren echten Koordinaten gerechnet — Orion, der Große Wagen, die Kassiopeia und das Kreuz des Südens. Von einer Bahn mit 51,6 Grad Neigung sind sie wirklich alle zu sehen. Verbindungslinien gibt es nicht; die stehen nur in Büchern.",
+    zahl: "Die Helligkeiten sind echte Größenklassen: zweieinhalb Klassen sind ein Faktor zehn im Licht. Und sie funkeln nicht — dafür bräuchte es Luft, die das Licht bricht.",
+  },
   hafen: {
     name: "Kopplungsstutzen",
     kurz: "Hier docken Schiffe an.",
@@ -7879,6 +7897,7 @@ function sonnenStand(phase) {
 }
 
 function zeichneSonne(t, phase) {
+  HIMMELSKOERPER.sonne = null;
   if (sparsam) return;
   const st = sonnenStand(phase);
   if (!st) return;
@@ -7914,6 +7933,7 @@ function zeichneSonne(t, phase) {
 
   /* Ein Zweihundertvierundsechzigstel des Erdhalbmessers. */
   const rs = Math.max(3.2, m.r / 264);
+  HIMMELSKOERPER.sonne = { x: sx, y: sy, r: rs };
 
   /* Wie tief steht sie? Gemessen in eigenen Halbmessern ueber der
      Kante — das ist auch das Mass, in dem die Lufthuelle dick wird. */
@@ -8070,6 +8090,12 @@ function zeichneSonne(t, phase) {
    Zufall, dem wir die totale Sonnenfinsternis verdanken. */
 const MOND = { elong0: 118 };
 
+/* Wo Sonne und Mond gerade stehen, in Bildschirmkoordinaten. Wird in
+   jedem Bild neu gesetzt und beim Tippen gebraucht: beide sind nur
+   siebzehn Bildpunkte gross, also muss der Treffer grosszuegiger
+   geprueft werden als die Scheibe selbst. */
+const HIMMELSKOERPER = { sonne: null, mond: null };
+
 /* Wie weit reicht der sichtbare Himmel? Die Erde verdeckt von hier oben
    einen Kegel von rund 140 Grad. Was uebrig bleibt, ist der Bogen, auf
    dem Sonne und Mond ueberhaupt stehen koennen — und seine Breite
@@ -8097,6 +8123,7 @@ function mondStand(phase) {
 }
 
 function zeichneMond(t, phase) {
+  HIMMELSKOERPER.mond = null;
   if (sparsam) return;
   const st = mondStand(phase);
   if (!st) return;
@@ -8113,6 +8140,7 @@ function zeichneMond(t, phase) {
      ausserhalb des Schirms — sichtbar waren nur Auf- und Untergang. */
   const sy = rand - st.hoch * (rand - H * 0.07) + hdy;
   const rm = Math.max(3.2, m.r / 264);
+  HIMMELSKOERPER.mond = { x: sx, y: sy, r: rm };
 
   /* Der beleuchtete Anteil. Null bei Neumond, eins bei Vollmond. */
   const bog = st.elong * Math.PI / 180;
@@ -10788,6 +10816,14 @@ const HILFE = [
       + "Solarflügel sich drehen.",
   },
   {
+    titel: "Der Himmel",
+    text: "Sonne und Mond gehen hinter der Erdkante auf und unter, jeweils einmal je Umlauf. Beide sind "
+      + "ein halbes Grad breit — winzig, und das ist richtig so. Vier Sternbilder stehen an ihrem echten "
+      + "Platz: Orion, der Große Wagen, die Kassiopeia und das Kreuz des Südens. Alle drei lassen sich "
+      + "antippen. Dazu ziehen andere Satelliten durch, tagsüber schnell und nah, nachts langsam und "
+      + "selten — die nahen stehen dann im selben Erdschatten wie wir.",
+  },
+  {
     titel: "Der Lebenserhalt",
     text: "Unter Stationswerte läuft mit, was eine bewohnte Station wirklich beschäftigt: Strom aus den "
       + "Flügeln, Ladestand der Batterien, Kohlendioxid in der Kabine, Wärme im Kühlkreis, Höhe der "
@@ -10851,11 +10887,13 @@ if (hilfeKnopf) hilfeKnopf.onclick = () => { zeichneHilfe(); blendeAuf("blende-h
 
 /* Ein Bauteil erklaeren. Der Text steht in TEILE und ist bewusst in
    drei Stufen gebaut: ein Satz, ein Absatz, die Zahlen. */
-function teilZeigen(schluessel) {
+function teilZeigen(schluessel, name) {
   const d = TEILE[schluessel];
   if (!d) return;
   teilOffen = schluessel;
-  $("#teil-name").textContent = d.name;
+  /* Bei den Sternbildern steht in TEILE der gemeinsame Text, aber der
+     Name kommt von der Figur, die angetippt wurde. */
+  $("#teil-name").textContent = name || d.name;
   $("#teil-kurz").textContent = d.kurz;
   $("#teil-lang").textContent = d.lang;
   $("#teil-zahl").textContent = d.zahl;
@@ -11061,6 +11099,37 @@ function zeigeZoomLeiste() {
   $("#zoomleiste").classList.toggle("da", noetig);
 }
 
+/* --- Was steht hier oben? --------------------------------------------
+   Sonne, Mond und die vier Sternbilder sind antippbar wie jedes
+   Bauteil. Sie sind aber winzig — siebzehn Bildpunkte die Scheiben,
+   ein paar Punkte ein Stern —, also wird grosszuegig geprueft: rund
+   ein Fingerbreit. Getroffen wird in Bildschirmkoordinaten, denn all
+   das wird ohne Kameraabbildung gezeichnet.
+
+   Geprueft wird erst nach den Astronauten, damit eine Figur, die
+   gerade vor dem Mond steht, gewinnt. */
+function himmelBei(px, py) {
+  const reich = 34;
+  for (const [k, q] of [["sonne", HIMMELSKOERPER.sonne], ["mond", HIMMELSKOERPER.mond]]) {
+    if (!q) continue;
+    if (Math.hypot(q.x - px, q.y - py) < Math.max(reich, q.r * 3)) return { k };
+  }
+  if (!HIMMEL.bild) return null;
+  const bW = W + HIMMEL_RAND * 2, bH = H + HIMMEL_RAND * 2;
+  const dx = HIMMEL.dx || 0, dy = HIMMEL.dy || 0;
+  for (const sb of STERNBILDER) {
+    const sx = sb.x * bW - HIMMEL_RAND + dx;
+    const sy = sb.y * bH - HIMMEL_RAND + dy;
+    /* Die Figur ist so gross wie ihre Sterne reichen; ein fester
+       Radius um ihre Mitte traefe bei Orion die Fuesse nicht. */
+    const proGrad = bH / 62;
+    let weit = 0;
+    for (const [gx, gy] of sb.sterne) weit = Math.max(weit, Math.hypot(gx, gy));
+    if (Math.hypot(sx - px, sy - py) < weit * proGrad + 26) return { k: "sternbild", name: sb.name };
+  }
+  return null;
+}
+
 function astronautBei(px, py) {
   /* In Szenenkoordinaten suchen, sonst trifft man beim Zoomen daneben */
   const p = zeigerZuSzene(px, py);
@@ -11144,7 +11213,11 @@ function zeigerLoslassen(ev) {
     if (treffer) {
       detailOeffnen(treffer.id);
       if (KAM.zielZoom < 1.6) fahreZu(treffer.id, 2.4);
-    } else if (offeneDetailId || teilOffen) {
+      return;
+    }
+    const oben = himmelBei(ev.clientX, ev.clientY);
+    if (oben) { teilZeigen(oben.k, oben.name); return; }
+    if (offeneDetailId || teilOffen) {
       /* Ins Leere getippt: das Detailfenster zu. Frueher uebernahm das
          der Schleier, aber der laesst jetzt Zeiger durch. */
       blendeZu();
