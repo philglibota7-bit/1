@@ -132,6 +132,28 @@ header{
   border-radius:999px; font-size:11.5px; font-weight:600; color:#e8b066; white-space:nowrap;
   background:rgba(207,164,86,.12); border:1px solid rgba(207,164,86,.35); transition:background .15s;}
 .wartet-pille.da{display:inline-flex;}
+/* Solange die Vorfuehrung laeuft, sagt es dieser Knopf — und beendet sie */
+.vorf-pille{display:none; align-items:center; gap:7px; margin-left:6px; padding:5px 11px;
+  border-radius:999px; font-size:11.5px; font-weight:650; color:#cdb8f0; white-space:nowrap;
+  background:rgba(169,143,208,.14); border:1px solid rgba(169,143,208,.4);}
+.vorf-pille.da{display:inline-flex;}
+.vorf-pille b{font-weight:500; color:rgba(205,184,240,.7); border-left:1px solid rgba(169,143,208,.35);
+  padding-left:7px;}
+.vorf-pille:hover{background:rgba(169,143,208,.24);}
+/* Auf schmalen Schirmen ist in der Kopfzeile kein Platz — dort steht
+   die Vorfuehrung als eigenes Band darunter. Gekennzeichnet sein muss
+   sie immer, auch auf dem kleinsten Telefon. */
+.vorf-band{display:none; position:absolute; top:calc(60px + env(safe-area-inset-top)); left:50%;
+  transform:translateX(-50%); align-items:center; gap:8px; padding:6px 13px; border-radius:999px;
+  font-size:12px; font-weight:650; color:#cdb8f0; white-space:nowrap; z-index:6;
+  background:rgba(22,16,36,.82); border:1px solid rgba(169,143,208,.45);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);}
+.vorf-band b{font-weight:500; color:rgba(205,184,240,.7); border-left:1px solid rgba(169,143,208,.35);
+  padding-left:8px;}
+@media (max-width:620px){
+  .vorf-pille.da{display:none;}
+  .vorf-band.da{display:inline-flex;}
+}
 .wartet-pille:hover{background:rgba(207,164,86,.22);}
 .wartet-pille i{width:7px; height:7px; border-radius:50%; background:#e0a24e; flex:0 0 auto;
   animation:pillenpuls 2.8s ease-in-out infinite;}
@@ -304,6 +326,9 @@ footer{
   border-bottom-left-radius:5px;}
 .live-karte.kind.fertig .tut{color:var(--good);}
 .live-karte.abgebrochen .tut{color:#e79a8c;}
+.vorf-hinweis{border:1px dashed rgba(169,143,208,.4); border-radius:var(--r1); padding:12px 13px;
+  margin:4px 0 10px;}
+.vorf-hinweis p{font-size:12px; line-height:1.55; color:var(--tx2); margin:0 0 10px;}
 /* Die Unteragenten im Detailfenster einer Sitzung */
 /* Der Takt der letzten Stunde */
 .d-takt .saeulen{display:flex; align-items:flex-end; gap:2px; height:46px; margin-top:2px;
@@ -849,6 +874,7 @@ body.sicht #blende-detail{
         <small>AGENTEN-LEITSTAND</small>
       </div>
       <button class="wartet-pille" id="btn-wartet" title="Zum Nächsten, der auf dich wartet (W)"><i></i><span></span></button>
+      <button class="vorf-pille" id="btn-vorf" title="Vorführung mit Beispieldaten beenden">Vorführung<b>beenden</b></button>
     </div>
     <button class="kopf-knopf" id="btn-log" title="Missions-Log">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
@@ -874,6 +900,7 @@ body.sicht #blende-detail{
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>
     </button>
   </header>
+  <button class="vorf-band" id="vorf-band" title="Vorführung beenden">Vorführung mit Beispieldaten<b>beenden</b></button>
 
   <!-- ---------- Stationswerte ---------- -->
   <div id="telemetrie" class="glas" hidden>
@@ -2494,11 +2521,232 @@ function liveNeuBauen() {
   meldungenPruefen();
 }
 
+/* ================================================================
+   2c — Die Vorfuehrung
+   Im Browser — und damit auch auf dem Handy — bleibt alles leer, was
+   aus der eigenen Arbeit kommt: keine Seite darf dort Dateien oder
+   Prozesse lesen. Man sah also nie, wofuer ORBIT eigentlich da ist.
+
+   Die Vorfuehrung spielt einen Arbeitsablauf mit Beispieldaten durch,
+   zweieinhalb Minuten, dann von vorn: eine Sitzung arbeitet, schickt
+   zwei Unteragenten los, wartet auf eine Freigabe, macht weiter und
+   ist fertig; die Unteragenten berichten; ein Pull Request wird gruen.
+   Alles, was die echte Bruecke liefert, liefert sie auch — in denselben
+   Feldern, damit Szene, Liste, Detail und Meldungen genau so laufen.
+
+   Und sie sagt, was sie ist: oben steht "Vorfuehrung", in jedem
+   Detailfenster "Beispieldaten". Was wie echte Arbeit aussieht, ohne
+   es zu sein, darf nicht fuer echte gehalten werden koennen.
+   ================================================================ */
+
+const VORF = { an: false, t0: 0, uhr: null };
+const VORF_DAUER = 150;          // Sekunden je Durchgang
+
+function vorfuehrungStarten() {
+  if (VORF.an) return;
+  VORF.an = true;
+  VORF.t0 = Date.now();
+  bordbuch("Vorführung beginnt — alles Folgende sind Beispieldaten");
+  vorfuehrungTakt();
+  VORF.uhr = setInterval(vorfuehrungTakt, 1000);
+  vorfuehrungKnopf();
+}
+
+function vorfuehrungBeenden() {
+  if (!VORF.an) return;
+  VORF.an = false;
+  clearInterval(VORF.uhr);
+  bruecke_sessions = []; bruecke_ordner = []; bruecke_prozesse = []; bruecke_github = [];
+  bordbuch("Vorführung beendet");
+  liveNeuBauen();
+  vorfuehrungKnopf();
+  brueckeDurchlauf();
+}
+
+function vorfuehrungKnopf() {
+  for (const id of ["btn-vorf", "vorf-band"]) {
+    const k = document.getElementById(id);
+    if (k) k.classList.toggle("da", VORF.an);
+  }
+}
+
+/* Ein Schritt im Protokoll der Beispielsitzung: wann (Sekunde im
+   Durchgang), welches Werkzeug, womit. */
+function vorfSchritte(liste, s, t0) {
+  return liste.filter(x => x[0] <= s).reverse().slice(0, 8).map(([sek, wz, ein]) => ({
+    werkzeug: wz, text: taetigkeitAus(wz, ein), ziel: zielAus(wz, ein), zeit: t0 + sek * 1000,
+  }));
+}
+
+function vorfuehrungTakt() {
+  if (!VORF.an) return;
+  const jetzt = Date.now();
+  /* Ein neuer Durchgang beginnt, wenn der alte vorbei ist — die Zeit
+     laeuft dann wieder von null, und wer weg war, steigt neu aus. */
+  if (jetzt - VORF.t0 > VORF_DAUER * 1000) VORF.t0 = jetzt;
+  const t0 = VORF.t0, s = (jetzt - t0) / 1000;
+  const um = (sek) => t0 + sek * 1000;
+  const ort = "/Users/du/Projekte/webshop";
+  const gemeinsam = { vorfuehrung: true, ort, branch: "feature/rabatt" };
+
+  /* --- Die Sitzung "webshop-kasse" --- */
+  const SCHRITTE_A = [
+    [2, "Read", { file_path: ort + "/src/kasse/preis.ts" }],
+    [6, "Grep", { pattern: "berechnePreis" }],
+    [10, "Agent", { description: "Aufrufe von berechnePreis prüfen" }],
+    [12, "Agent", { description: "Tests für den Warenkorb durchsehen" }],
+    [20, "Edit", { file_path: ort + "/src/kasse/rabatt.ts" }],
+    [31, "Bash", { command: "npm install decimal.js" }],
+    [56, "Bash", { command: "npm install decimal.js" }],
+    [63, "Edit", { file_path: ort + "/src/kasse/preis.ts" }],
+    [74, "Bash", { command: "npm test -- kasse" }],
+    [80, "Agent", { description: "Rundung gegenprüfen" }],
+    [92, "Edit", { file_path: ort + "/README.md" }],
+  ];
+  const phaseA = s < 32 ? "busy" : s < 55 ? "waiting" : s < 100 ? "busy" : "idle";
+  const phaseAb = s < 32 ? 0 : s < 55 ? 32 : s < 100 ? 55 : 100;
+  const schritteA = vorfSchritte(SCHRITTE_A, s, t0);
+  /* Eine Stunde Vorgeschichte fuer den Takt: gleichmaessig mit einer
+     Pause in der Mitte — so sieht eine echte Stunde aus. */
+  const taktA = [];
+  for (let m = 58; m > 0; m -= 1.3) if (m < 34 || m > 41) taktA.push(t0 - m * 60000);
+  for (const x of SCHRITTE_A) if (x[0] <= s) taktA.push(um(x[0]));
+  const A = {
+    ...gemeinsam, id: "s:vorf-a", sid: "vorf-a", typ: "session", name: "webshop-kasse",
+    farbe: "#7ba4d8", zustand: REGISTER_ZUSTAND[phaseA], status: phaseA,
+    wartetAuf: phaseA === "waiting" ? "permission prompt" : "", statusSeit: um(phaseAb),
+    auftrag: "Rabattcodes in der Kasse einbauen und die Preisberechnung dafür auf decimal.js umstellen",
+    taetigkeit: schritteA.length ? schritteA[0].text : "liest sich ein",
+    werkzeug: schritteA.length ? schritteA[0].werkzeug : "",
+    seit: schritteA.length ? schritteA[0].zeit : t0, seitStart: t0 - 52 * 60000,
+    modell: "claude-opus-5", aufwand: "high",
+    nutzung: { kontext: Math.round(41800 + s * 430), zwischen: Math.round((41800 + s * 430) * 0.71),
+               aus: 1450, denken: 1120 },
+    antwort: phaseA === "waiting"
+      ? "Für die Rundung auf Cent brauche ich decimal.js. Darf ich es installieren?"
+      : phaseA === "idle" ? "Die Rabattcodes funktionieren. Alle 48 Tests sind grün, die doppelte Rundung ist raus."
+      : "Ich stelle die Preisberechnung um und prüfe danach die Aufrufer.",
+    letzteRolle: "assistant", schritte: schritteA, takt: taktA, abgedecktAb: 0,
+  };
+
+  /* --- Die ruhige zweite Sitzung --- */
+  const B = {
+    ...gemeinsam, id: "s:vorf-b", sid: "vorf-b", typ: "session", name: "blog-texte",
+    ort: "/Users/du/Projekte/blog", branch: "main", farbe: "#b98ad0",
+    zustand: "ruht", status: "idle", statusSeit: t0 - 21 * 60000,
+    auftrag: "Einen Artikel über den Umbau der Kasse schreiben",
+    taetigkeit: "wartet auf Eingabe", werkzeug: "", seit: t0 - 21 * 60000, seitStart: t0 - 95 * 60000,
+    modell: "claude-sonnet-5", aufwand: "medium",
+    nutzung: { kontext: 23100, zwischen: 19800, aus: 900, denken: 0 },
+    antwort: "Der Entwurf steht in posts/kasse.md. Soll ich ihn kürzen?",
+    letzteRolle: "assistant",
+    schritte: [
+      { werkzeug: "Write", text: "schreibt kasse.md", ziel: "posts/kasse.md", zeit: t0 - 21 * 60000 },
+      { werkzeug: "Read", text: "liest notizen.md", ziel: "notizen.md", zeit: t0 - 26 * 60000 },
+    ],
+    takt: [t0 - 26 * 60000, t0 - 24 * 60000, t0 - 21 * 60000], abgedecktAb: 0,
+  };
+
+  /* --- Die Unteragenten --- */
+  const unter = [];
+  const kind = (o) => ({ ...gemeinsam, typ: "unteragent", eltern: "webshop-kasse", elternId: "s:vorf-a",
+                         modell: "claude-opus-5", aufwand: "high", agentArt: "general-purpose", ...o });
+  if (s >= 10) {
+    const fertig = s >= 70;
+    const st = vorfSchritte([[14, "Grep", { pattern: "berechnePreis(" }],
+      [22, "Read", { file_path: ort + "/src/korb/summe.ts" }], [38, "Read", { file_path: ort + "/src/kasse/preis.ts" }],
+      [52, "Grep", { pattern: "Math.round" }]], s, t0);
+    unter.push(kind({ id: "u:vorf-1", sid: "vorf-1", name: "Aufrufe berechnePreis", farbe: "#d98fb5",
+      auftrag: "Alle Aufrufe von berechnePreis finden und prüfen, ob irgendwo doppelt gerundet wird",
+      zustand: fertig ? "fertig" : "sendet", berichtet: fertig,
+      antwort: fertig ? "Sieben Aufrufe. Zwei runden doppelt: kasse/preis.ts:88 und korb/summe.ts:41." : "",
+      taetigkeit: fertig ? "Bericht abgegeben" : (st[0] ? st[0].text : "liest sich ein"),
+      werkzeug: st[0] ? st[0].werkzeug : "", seit: fertig ? um(70) : (st[0] ? st[0].zeit : um(10)),
+      seitStart: um(10), schritte: st, takt: st.map(x => x.zeit), abgedecktAb: 0 }));
+  }
+  if (s >= 12) {
+    const fertig = s >= 28;
+    const st = vorfSchritte([[15, "Glob", { pattern: "tests/**/korb*.test.ts" }],
+      [19, "Read", { file_path: ort + "/tests/korb.test.ts" }]], s, t0);
+    unter.push(kind({ id: "u:vorf-2", sid: "vorf-2", name: "Tests Warenkorb", farbe: "#5fb3a8",
+      auftrag: "Die Tests für den Warenkorb durchsehen: prüfen sie den Rabatt?",
+      zustand: fertig ? "fertig" : "sendet", berichtet: fertig,
+      antwort: fertig ? "Drei Tests prüfen den Rabatt nicht. Vorschlag: korb.test.ts um 10 % und 100 % Rabatt ergänzen." : "",
+      taetigkeit: fertig ? "Bericht abgegeben" : (st[0] ? st[0].text : "liest sich ein"),
+      werkzeug: st[0] ? st[0].werkzeug : "", seit: fertig ? um(28) : (st[0] ? st[0].zeit : um(12)),
+      seitStart: um(12), schritte: st, takt: st.map(x => x.zeit), abgedecktAb: 0 }));
+  }
+  if (s >= 80) {
+    const fertig = s >= 97;
+    const st = vorfSchritte([[83, "Read", { file_path: ort + "/src/kasse/preis.ts" }],
+      [89, "Bash", { command: "npm test -- rundung" }]], s, t0);
+    unter.push(kind({ id: "u:vorf-3", sid: "vorf-3", name: "pruefung:rundung", farbe: "#cfa456",
+      agentArt: "workflow-subagent", phase: "Pruefen",
+      auftrag: "Gegenprüfen, ob die neue Rundung bei 0,005 € richtig aufrundet",
+      zustand: fertig ? "fertig" : "sendet", berichtet: fertig,
+      antwort: fertig ? "urteil: rundet kaufmännisch, 0,005 € wird zu 0,01 €\n\nfaelle: 6 Einträge" : "",
+      taetigkeit: fertig ? "Bericht abgegeben" : (st[0] ? st[0].text : "liest sich ein"),
+      werkzeug: st[0] ? st[0].werkzeug : "", seit: fertig ? um(97) : (st[0] ? st[0].zeit : um(80)),
+      seitStart: um(80), schritte: st, takt: st.map(x => x.zeit), abgedecktAb: 0 }));
+  }
+
+  /* --- GitHub: ein PR, dessen Tests laufen und dann gruen werden --- */
+  const testsFertig = s >= 66;
+  const laeufe = [
+    { name: "Tests", titel: "Kasse: Rabattcodes einlösen", zweig: "feature/rabatt", anlass: "pull_request",
+      stand: testsFertig ? "gruen" : "laeuft", versuch: 1, zeit: um(40), ende: testsFertig ? um(66) : 0, url: "" },
+    { name: "Lint", titel: "Kasse: Rabattcodes einlösen", zweig: "feature/rabatt", anlass: "pull_request",
+      stand: "gruen", versuch: 1, zeit: um(40), ende: um(52), url: "" },
+    { name: "Deploy", titel: "Merge pull request #8", zweig: "main", anlass: "push",
+      stand: "gruen", versuch: 1, zeit: t0 - 26 * 3600000, ende: t0 - 26 * 3600000 + 74000, url: "" },
+  ];
+  const G = {
+    vorfuehrung: true, id: "g:vorf/webshop", typ: "github", name: "webshop", farbe: "#e0765a",
+    zustand: testsFertig ? "ruht" : "sendet", ort: "du/webshop", branch: "main",
+    taetigkeit: testsFertig ? "2 offene Pull Requests" : "Tests läuft",
+    seit: t0 - 40 * 60000, url: "",
+    prs: [
+      { nr: 12, titel: "Kasse: Rabattcodes einlösen, auch mehrere pro Bestellung", entwurf: false, url: "",
+        zweig: "feature/rabatt", von: "du", geaendert: um(40),
+        pruefung: laeufe.slice(0, 2), stand: testsFertig ? "gruen" : "laeuft" },
+      { nr: 9, titel: "Versandkosten nach Gewicht", entwurf: true, url: "", zweig: "feature/versand",
+        von: "du", geaendert: t0 - 3 * 86400000, pruefung: [], stand: null },
+    ],
+    laeufe, schritte: [],
+  };
+
+  /* --- Ein Entwicklungsserver und der Projektordner --- */
+  const lauf = 48 * 60 + 12 + Math.floor(s);
+  const P = {
+    vorfuehrung: true, id: "p:vorf", typ: "prozess", name: "vite", farbe: "#74b48d", zustand: "denkt",
+    ort: "PID 4711", taetigkeit: "node node_modules/.bin/vite --port 5173", seit: 0,
+    laufzeit: String(Math.floor(lauf / 60)).padStart(2, "0") + ":" + String(lauf % 60).padStart(2, "0"),
+    cpu: "3.1", args: "node " + ort + "/node_modules/.bin/vite --port 5173", schritte: [],
+  };
+  const geaendert = [SCHRITTE_A[4], SCHRITTE_A[7], SCHRITTE_A[10]].filter(x => x[0] <= s);
+  const O = {
+    vorfuehrung: true, id: "o:vorf", typ: "ordner", name: "webshop", farbe: "#6fb6c9", ort, branch: "feature/rabatt",
+    zustand: geaendert.length && s - geaendert[geaendert.length - 1][0] < 90 ? "sendet" : "ruht",
+    taetigkeit: geaendert.length ? "speichert " + geaendert[geaendert.length - 1][2].file_path.split("/").pop() : "alles eingecheckt",
+    seit: geaendert.length ? um(geaendert[geaendert.length - 1][0]) : t0 - 30 * 60000,
+    dirty: geaendert.length, dateien: geaendert.map(x => x[2].file_path.slice(ort.length + 1)).reverse(),
+    kopf: "Kasse: Gutscheinfeld ergänzt", vscode: true,
+    schritte: geaendert.map(x => ({ werkzeug: "Datei", text: x[2].file_path.slice(ort.length + 1), zeit: um(x[0]) })).reverse(),
+  };
+
+  bruecke_sessions = [A, B, ...unter];
+  bruecke_github = [G];
+  bruecke_prozesse = [P];
+  bruecke_ordner = [O];
+  liveNeuBauen();
+}
+
 async function brueckeDurchlauf() {
   /* Liegt das Fenster im Hintergrund, muss weder git noch ps laufen —
      das spart auf dem Laptop spuerbar Akku. Nur wer benachrichtigt
      werden will, bekommt einen schmalen Durchlauf: das Register der
      Sitzungen, ein paar hundert Byte je Datei, alle zehn Sekunden. */
+  if (VORF.an) return;                   // die Vorfuehrung liefert selbst
   if (document.hidden) { hintergrundDurchlauf(); return; }
   githubDurchlauf();                     // eigener Riegel, laeuft nebenher
   if (BR.laeuft) return;                 // kein zweiter lokaler Durchlauf
@@ -12040,8 +12288,22 @@ function zeichneCrewListe() {
   if (live.length) {
     const t = document.createElement("div");
     t.className = "d-abschnitt"; t.style.marginTop = "4px";
-    t.textContent = "Aus deiner Arbeit";
+    t.textContent = VORF.an ? "Aus der Vorführung — Beispieldaten" : "Aus deiner Arbeit";
     box.appendChild(t);
+  } else if (!BR.aktiv) {
+    /* Im Browser bleibt dieser Teil leer — und ohne Hinweis sieht man
+       nie, wofuer er da ist. */
+    const h = document.createElement("div");
+    h.className = "vorf-hinweis";
+    const t = document.createElement("p");
+    t.textContent = "Im Mac-Programm stehen hier deine laufenden Claude-Code-Sitzungen, "
+      + "ihre Unteragenten, Projektordner und Befehle. Im Browser darf keine Seite sie lesen.";
+    const k = document.createElement("button");
+    k.className = "knopf leer";
+    k.textContent = "Vorführung ansehen — mit Beispieldaten";
+    k.onclick = () => { vorfuehrungStarten(); blendeZu(); };
+    h.append(t, k);
+    box.appendChild(h);
   }
   for (const a of live) {
     const k = document.createElement("button");
@@ -12475,6 +12737,11 @@ function zeichneDetail(id) {
   marke.textContent = TYP_NAME[a.typ] + " · " + (a.fehlerText && a.typ === "unteragent" ? "abgebrochen"
     : a.berichtet ? "hat berichtet" : (BESCHRIFTUNG[a.zustand] || a.zustand));
   box.appendChild(zeile("Art", marke));
+  if (a.vorfuehrung) {
+    const q = zeile("Quelle", "Beispieldaten der Vorführung — nichts davon ist echt");
+    q.querySelector(".w").style.color = "#cdb8f0";
+    box.appendChild(q);
+  }
 
   if (a.typ === "agent") {
     const ag = a.agent;
@@ -12876,6 +13143,13 @@ function zeichneBrueckeLage() {
       + 'Dateisystem oder laufende Programme lesen — Sessions, Ordner und Prozesse '
       + 'bleiben deshalb leer. Nur GitHub funktioniert hier, weil das übers Netz geht. '
       + 'Für alles andere ORBIT.app benutzen.</div>';
+    /* Damit man trotzdem sieht, wofuer das hier ist */
+    const v = document.createElement("button");
+    v.className = "knopf " + (VORF.an ? "leer" : "voll");
+    v.style.margin = "10px 0 4px";
+    v.textContent = VORF.an ? "Vorführung beenden" : "Vorführung ansehen — mit Beispieldaten";
+    v.onclick = () => { VORF.an ? vorfuehrungBeenden() : (vorfuehrungStarten(), blendeZu()); zeichneBrueckeLage(); };
+    box.appendChild(v);
   }
   if (BR.letzterFehler) {
     const f = document.createElement("div");
@@ -13251,6 +13525,8 @@ $("#s-loeschen").onclick = () => {
 
 $("#btn-crew").onclick = () => blendeAuf("blende-crew");
 $("#btn-wartet").onclick = () => naechsterWartender();
+$("#btn-vorf").onclick = () => vorfuehrungBeenden();
+$("#vorf-band").onclick = () => vorfuehrungBeenden();
 
 $("#btn-himmel").onclick = () => {
   $("#himmel-suche").value = "";
@@ -13874,7 +14150,8 @@ const HILFE = [
     text: "◆ ist ein eigener Claude-Agent. ⌘ eine laufende Claude-Code-Sitzung, ▣ ein Projektordner, "
       + "▶ ein laufender Befehl, ⑂ ein GitHub-Repo, ↳ ein Unteragent, den eine Sitzung losgeschickt "
       + "hat. Die letzten fünf gibt es nur im Mac-Programm — im "
-      + "Browser darf eine Seite das Dateisystem nicht lesen. Unter Crew stehen alle untereinander, "
+      + "Browser darf eine Seite das Dateisystem nicht lesen; dort zeigt eine Vorführung mit "
+      + "Beispieldaten, wie es aussieht (unter Crew oder Brücke). Unter Crew stehen alle untereinander, "
       + "mit dem, was sie gerade tun; eine Zeile antippen fährt zu ihrer Figur. Im Detailfenster "
       + "steht über der Tätigkeit der Auftrag — das, was du zuletzt verlangt hast. Erst wo, dann "
       + "wofür, dann was.",
