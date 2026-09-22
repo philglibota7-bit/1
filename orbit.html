@@ -305,6 +305,14 @@ footer{
 .live-karte.kind.fertig .tut{color:var(--good);}
 .live-karte.abgebrochen .tut{color:#e79a8c;}
 /* Die Unteragenten im Detailfenster einer Sitzung */
+/* Der Takt der letzten Stunde */
+.d-takt .saeulen{display:flex; align-items:flex-end; gap:2px; height:46px; margin-top:2px;
+  padding:0 1px; border-bottom:1px solid rgba(255,255,255,.1);}
+.d-takt .saeulen i{flex:1 1 0; min-width:0; border-radius:2px 2px 0 0;
+  background:linear-gradient(180deg, var(--lauf), rgba(123,164,216,.35));}
+.d-takt .saeulen i.leer{background:rgba(255,255,255,.12);}
+.d-takt .achse{display:flex; justify-content:space-between; font-size:10px; color:var(--tx3);
+  margin-top:4px; font-variant-numeric:tabular-nums;}
 /* Was eine Sitzung zuletzt gesagt hat */
 .d-zitat{margin:2px 0 8px; padding:9px 12px 10px; border-left:2px solid var(--edge2);
   background:rgba(255,255,255,.03); border-radius:0 8px 8px 0; font-size:12.5px; line-height:1.55;
@@ -323,6 +331,7 @@ footer{
 .d-kind .st{font-size:11px; color:var(--tx3); margin-left:auto; flex:0 0 auto;}
 .d-kind .st.fertig{color:var(--good);}
 .d-kind .st.aktiv{color:var(--lauf);}
+.d-kind .st.fehler{color:#e79a8c;}
 
 .mini{width:28px; height:28px; border-radius:7px; background:var(--p2); color:var(--tx3);
   display:flex; align-items:center; justify-content:center; flex:0 0 auto; transition:all .2s var(--ease);}
@@ -1785,7 +1794,26 @@ async function protokollLesen(pfad, groesse, mt) {
     if (cwd && sid && modell && schritte.length >= 10 && antwort) break;
   }
 
+  /* Der Takt: wann hat diese Sitzung Werkzeuge aufgerufen? Dafuer
+     genuegt ein schneller Blick ueber alle gelesenen Zeilen, ohne sie
+     auszupacken — Zeit und Werkzeugaufruf stehen im Klartext darin.
+     Dazu, ab wann ueberhaupt gelesen wurde: was davor liegt, ist nicht
+     "nichts los", sondern unbekannt. */
+  const takt = [];
+  let abgedecktAb = 0;
+  for (const z of zeilen) {
+    const m = /"timestamp":"([^"]+)"/.exec(z);
+    if (!m) continue;
+    const zt = Date.parse(m[1]) || 0;
+    if (!abgedecktAb || (zt && zt < abgedecktAb)) abgedecktAb = zt;
+    if (z.includes('"type":"assistant"') && z.includes('"tool_use"')) {
+      const n = z.split('"type":"tool_use"').length - 1;
+      for (let k = 0; k < Math.max(1, n); k++) takt.push(zt);
+    }
+  }
+
   const daten = {
+    takt: takt.slice(-600), abgedecktAb: pos > 0 ? abgedecktAb : 0,
     cwd, branch, modell, aufwand, sid, nutzung, agentId, letzteZeit, letzteRolle,
     letzterText: letzterText || strukturiert, fehlerText: fehlerText ? antwortKurz(fehlerText) : "",
     /* Lange Auftraege werden hier schon gekuerzt: was drueber
@@ -1844,6 +1872,7 @@ async function sessionLesen(k, elternName) {
        echten nachgesehen. */
     const berichtet = !fehlerText && letzterText && alter > 15000;
     return {
+      takt: p.takt, abgedecktAb: p.abgedecktAb,
       id: "u:" + kennung,
       sid: kennung,
       typ: "unteragent",
@@ -1873,6 +1902,7 @@ async function sessionLesen(k, elternName) {
   }
 
   return {
+    takt: p.takt, abgedecktAb: p.abgedecktAb,
     id: "s:" + (sid || k.name),
     sid,
     typ: "session",
@@ -12330,6 +12360,65 @@ function schrittStrahl(schritte, laeuft) {
   return box;
 }
 
+/* --- Der Takt ------------------------------------------------------------
+   Dreissig Saeulen: wie viele Werkzeuge je Abschnitt aufgerufen wurden.
+   Die Schritte darunter sagen, WAS zuletzt geschah; der Takt, WIE die
+   Zeit verlief — ob die Sitzung gleichmaessig arbeitete, stockte oder
+   seit zwanzig Minuten steht.
+
+   Er zeigt eine Stunde, wenn der gelesene Teil des Protokolls eine
+   Stunde zurueckreicht, sonst genau so weit, wie er reicht. Bei einer
+   dichten Sitzung mit eingebetteten Bildern sind das manchmal nur
+   Minuten — eine Stunde, deren grosser Teil als "unbekannt" schraffiert
+   ist, sah aus wie ein kaputtes Bild. Dass es nicht weiter zurueckgeht,
+   steht dann darunter. */
+function taktBild(a) {
+  const jetzt = Date.now(), STUNDE = 3600000, N = 30;
+  const ab = a.abgedecktAb && a.abgedecktAb > jetzt - STUNDE ? a.abgedecktAb : jetzt - STUNDE;
+  const spanne = Math.max(60000, jetzt - ab), B = spanne / N;
+  const voll = spanne >= STUNDE - 1000;
+  const zaehl = new Array(N).fill(0);
+  for (const zt of a.takt) {
+    const i = Math.floor((zt - (jetzt - spanne)) / B);
+    if (i >= 0 && i < N) zaehl[i]++;
+  }
+  const hoechst = Math.max(1, ...zaehl);
+  const summe = zaehl.reduce((x, y) => x + y, 0);
+  const box = document.createElement("div");
+  box.className = "d-takt";
+  const kopf = document.createElement("div");
+  kopf.className = "d-abschnitt";
+  kopf.textContent = (voll ? "Takt der letzten Stunde" : "Takt seit " + uhr(jetzt - spanne))
+    + "  ·  " + summe + (summe === 1 ? " Aufruf" : " Aufrufe");
+  box.appendChild(kopf);
+  const reihe = document.createElement("div");
+  reihe.className = "saeulen";
+  for (let i = 0; i < N; i++) {
+    const von = jetzt - spanne + i * B;
+    const s = document.createElement("i");
+    s.style.height = (zaehl[i] ? 12 + 88 * zaehl[i] / hoechst : 3) + "%";
+    if (!zaehl[i]) s.className = "leer";
+    s.title = uhr(von) + ": " + zaehl[i] + (zaehl[i] === 1 ? " Aufruf" : " Aufrufe");
+    reihe.appendChild(s);
+  }
+  box.appendChild(reihe);
+  const achse = document.createElement("div");
+  achse.className = "achse";
+  for (const t of [voll ? "vor 60 Min." : uhr(jetzt - spanne),
+                   voll ? "vor 30 Min." : uhr(jetzt - spanne / 2), "jetzt"]) {
+    const s = document.createElement("span"); s.textContent = t; achse.appendChild(s);
+  }
+  box.appendChild(achse);
+  if (!voll) {
+    const f = document.createElement("div");
+    f.className = "d-fussnote";
+    f.textContent = "Weiter zurück reicht der gelesene Teil des Protokolls nicht — "
+      + "gelesen wird vom Ende her, und diese Sitzung schreibt viel.";
+    box.appendChild(f);
+  }
+  return box;
+}
+
 function externOeffnen(url) {
   try {
     if (nativVorhanden()) Neutralino.os.open(url);
@@ -12546,8 +12635,8 @@ function zeichneDetail(id) {
         nm.textContent = "↳ " + u.name;
         const st = document.createElement("span");
         const aktiv = u.zustand === "sendet" || u.zustand === "denkt";
-        st.className = "st" + (u.berichtet ? " fertig" : aktiv ? " aktiv" : "");
-        st.textContent = u.berichtet ? "hat berichtet" : aktiv ? "arbeitet" : "still";
+        st.className = "st" + (u.berichtet ? " fertig" : u.fehlerText ? " fehler" : aktiv ? " aktiv" : "");
+        st.textContent = u.berichtet ? "hat berichtet" : u.fehlerText ? "abgebrochen" : aktiv ? "arbeitet" : "still";
         r.title = u.auftrag || u.name;
         r.append(kg, nm, st);
         r.onclick = () => {
@@ -12560,6 +12649,7 @@ function zeichneDetail(id) {
     if (a.schritte && a.schritte.length) {
       /* "Arbeitsschritte" und nicht "Letzte Schritte": der oberste ist
          der, der gerade laeuft, und der ist nicht "letzter". */
+      if (a.takt && a.takt.length) box.appendChild(taktBild(a));
       box.appendChild(abschnitt("Arbeitsschritte"));
       box.appendChild(schrittStrahl(a.schritte,
         a.zustand === "denkt" || a.zustand === "sendet"));
