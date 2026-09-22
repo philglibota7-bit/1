@@ -1591,6 +1591,10 @@ function groesseAnpassen() {
   cx.setTransform(DPR, 0, 0, DPR, 0, 0);
   sterneStreuen();
   himmelSpaeterBacken();
+  /* Laeuft gerade ein Rundgang, zielt er noch auf die alte
+     Fenstergroesse. Neu anpeilen, sonst steht man bis zum naechsten
+     Halt neben dem Bauteil. */
+  if (typeof rundgangPeilen === "function") rundgangPeilen();
 }
 
 function sterneStreuen() {
@@ -4759,11 +4763,21 @@ function zeichneStation(t, cxp, cyp, R) {
      und einem Betrieb. */
   const blink = Math.sin(t * 0.0031) > 0.72;
   const lichter = [[tr * 0.98, 0, "224,122,106"], [-tr * 0.98, 0, "116,180,141"], [0, -R * 0.5, "255,255,255"]];
-  if (STATIONSALARM) {
-    const w = 0.5 + 0.5 * Math.sin(t * 0.007);
-    c.fillStyle = `rgba(255,176,64,${0.35 + 0.6 * w})`;
+  /* Die Warnleuchte gilt nicht mehr nur der Crew. Seit die Station
+     einen Stoffwechsel hat, kann auch der klemmen — leere Batterien,
+     zu viel Kohlendioxid, ein Kuehlkreis am Anschlag. Und wenn Schrott
+     zu nah kommt, ist das kein gelber, sondern ein roter Fall: dann
+     wird gerechnet, ob ausgewichen werden muss, und das ist der einzige
+     Zustand, in dem es wirklich eilt. Rot blinkt entsprechend
+     schneller. */
+  const eilig = KONJ.lage === "warnung" || KONJ.lage === "manoever";
+  if (STATIONSALARM || LEBEN.alarm || eilig) {
+    const takt = eilig ? 0.014 : 0.007;
+    const ton = eilig ? "255,96,72" : "255,176,64";
+    const w = 0.5 + 0.5 * Math.sin(t * takt);
+    c.fillStyle = `rgba(${ton},${0.35 + 0.6 * w})`;
     c.beginPath(); c.arc(0, -R * 0.66, R * 0.04, 0, Math.PI * 2); c.fill();
-    c.fillStyle = `rgba(255,176,64,${0.14 * w})`;
+    c.fillStyle = `rgba(${ton},${0.14 * w})`;
     c.beginPath(); c.arc(0, -R * 0.66, R * 0.3 * (0.6 + w * 0.7), 0, Math.PI * 2); c.fill();
   }
   for (const [lx, ly, ton] of lichter) {
@@ -8660,6 +8674,11 @@ function kino(an) {
   $("#btn-kino").classList.toggle("an", an);
   if (an) {
     blendeZu();
+    /* Der Rundgang und die Kinofahrt steuern beide dieselbe Kamera.
+       Liefen sie zugleich, zoege jeder in eine andere Richtung — und
+       die Rundgangstafel bliebe im Kinomodus stehen, obwohl der gerade
+       alles ausblenden soll. */
+    rundgangEnde();
     KAM.folgt = null;
     KINOFAHRT.von = performance.now();
     KINOFAHRT.zx = KAM.zielX; KINOFAHRT.zy = KAM.zielY; KINOFAHRT.zz = KAM.zielZoom;
@@ -8739,6 +8758,27 @@ function rundgangEnde() {
   kameraZurueck();
 }
 
+/* Die Kamera auf den laufenden Halt ausrichten. Steht in einer
+   eigenen Funktion, weil sie auch nach dem Aendern der Fenstergroesse
+   gebraucht wird — sonst zielte der Rundgang bis zum naechsten Halt
+   auf eine Stelle, die es in der neuen Groesse nicht mehr gibt. */
+function rundgangPeilen() {
+  if (!RUNDGANG.laeuft || !STBILD) return;
+  const schluessel = RUNDGANG.weg[RUNDGANG.i];
+  const ort = STBILD.teile.find(q => q.schluessel === schluessel);
+  if (!ort) return;
+  /* Die Fluegelspitzen liegen weit draussen; dort lohnt weniger
+     Zoom, sonst sieht man nur Teppich. Die Module vertragen mehr. */
+  const weit = Math.hypot(ort.x, ort.y);
+  KAM.zielZoom = klemm(weit > 3 ? 1.9 : 3.4, ZOOM_MIN, ZOOM_MAX);
+  const Rst = LETZTES_RST || 100;
+  const sx = W / 2 + ort.x * Rst;
+  const sy = H * (H / W > 1.3 ? 0.46 : 0.43) + ort.y * Rst;
+  KAM.zielX = (W / 2 - sx) * KAM.zielZoom;
+  KAM.zielY = (H / 2 - sy) * KAM.zielZoom;
+  grenzenHalten();
+}
+
 function rundgangTakt(t) {
   if (!RUNDGANG.laeuft || !STBILD) return;
   if (t > RUNDGANG.bis) {
@@ -8755,18 +8795,7 @@ function rundgangTakt(t) {
       $("#rg-name").textContent = teil.name;
       $("#rg-text").textContent = teil.kurz + "  " + teil.zahl;
     }
-    if (ort) {
-      /* Die Fluegelspitzen liegen weit draussen; dort lohnt weniger
-         Zoom, sonst sieht man nur Teppich. Die Module vertragen mehr. */
-      const weit = Math.hypot(ort.x, ort.y);
-      KAM.zielZoom = klemm(weit > 3 ? 1.9 : 3.4, ZOOM_MIN, ZOOM_MAX);
-      const Rst = LETZTES_RST || 100;
-      const sx = W / 2 + ort.x * Rst;
-      const sy = H * (H / W > 1.3 ? 0.46 : 0.43) + ort.y * Rst;
-      KAM.zielX = (W / 2 - sx) * KAM.zielZoom;
-      KAM.zielY = (H / 2 - sy) * KAM.zielZoom;
-      grenzenHalten();
-    }
+    rundgangPeilen();
   }
   const u = klemm((t - RUNDGANG.von) / RUNDGANG.halt, 0, 1);
   const balken = $("#rg-fort");
