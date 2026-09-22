@@ -9673,6 +9673,12 @@ function rahmen(jetzt) {
        interpoliert: ziehen, halten, ziehen. */
     let q = plaetze[v.platz];
     let unterwegs = 0;
+    /* Und wer gerade unterwegs ist, haelt an, wo er ist. Angehalten
+       heisst nicht abgebrochen: die Startzeit wandert mit, damit die
+       Fahrt danach genau dort weitergeht, wo sie stand. Mitten
+       zwischen zwei Griffen weiterzuziehen, waehrend die Station
+       schiebt, ist das eine, was man draussen sicher nicht tut. */
+    if (SCHUB.laeuft && v.ziel !== null) v.losUm += dt;
     if (v.ziel !== null) {
       const u = Math.min(1, (t - v.losUm) / v.dauer);
       const stufe = Math.min(v.griffe, Math.floor(u * v.griffe));
@@ -9721,7 +9727,18 @@ function rahmen(jetzt) {
        die eigenen Stiefel geklemmt sein sollen, ist genau der Fehler,
        den diese Platte sichtbar machen sollte. */
     const inRaste = (q.art === "fussraste" || q.art === "arm") && unterwegs <= 0.05;
-    const weg = unterwegs > 0.05 ? 1.1
+    /* Waehrend ein Triebwerk laeuft, haelt sich draussen jeder fest.
+       Das ist keine Ausschmueckung, sondern Vorschrift: an einer
+       Station, die beschleunigt, ist ein treibender Anzug nicht mehr
+       im Ruhezustand mit ihr, und ein paar Zentimeter je Sekunde
+       reichen, um eine Leine straff zu ziehen.
+
+       Weil der Abstand zur Struktur weich nachgefuehrt wird, zieht
+       sich die Crew dabei sichtbar heran — die Bewegung kommt von
+       selbst heraus und muss nicht eigens gezeichnet werden. */
+    const festhalten = SCHUB.laeuft;
+    const weg = festhalten ? 1.0
+              : unterwegs > 0.05 ? 1.1
               : l.zustand === "fehler" ? 6.2
               : l.zustand === "fertig" ? 3.0
               : l.zustand === "ruht"   ? 1.6
@@ -9804,7 +9821,7 @@ function rahmen(jetzt) {
 
     const Hfig = groesse * v.wuchs * 2.1;      // Figurenhoehe
     const Mfig = Hfig / 1.9;                   // ein Meter im Figurenmass
-    const haltung = unterwegs > 0.05 ? "griff"
+    const haltung = festhalten || unterwegs > 0.05 ? "griff"
                   : frei > 0.25 ? "frei"
                   : (q.art === "fussraste" || q.art === "arm") ? "raste" : "griff";
     const stiel = haltung === "raste" ? Mfig * 0.55 : 0;
