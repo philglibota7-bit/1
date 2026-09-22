@@ -381,6 +381,16 @@ footer{
 .heute .spur{position:relative; flex:1 1 auto; height:7px; border-radius:4px; background:rgba(255,255,255,.05);}
 .heute .spur i{position:absolute; top:0; bottom:0; border-radius:4px; opacity:.72;}
 .heute .spur i.lebt{opacity:1; box-shadow:0 0 0 1px rgba(255,255,255,.55);}
+.heute .zeile{cursor:pointer; border-radius:6px;}
+.heute .zeile:focus-visible{outline:2px solid var(--acc); outline-offset:2px;}
+.heute .spur i.gewaehlt{opacity:1; box-shadow:0 0 0 2px #fff, 0 0 10px rgba(255,255,255,.35);}
+.heute .wahl{margin:8px 0 2px 86px; padding:8px 10px; border-radius:10px; font-size:11.5px; line-height:1.45;
+  color:var(--tx2); background:rgba(255,255,255,.04); border-left:3px solid var(--f, var(--acc));}
+.heute .wahl b{color:var(--tx); font-weight:600;}
+.heute .wahl .auftrag{margin-top:4px; overflow-wrap:anywhere;}
+.heute .wahl .was{display:block; font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--tx3);}
+.heute .wahl .zur-figur{width:auto; height:30px; margin-top:8px; padding:0 14px; font-size:12px;}
+@media (max-width:460px){ .heute .wahl{margin-left:0;} }
 .d-kind{display:flex; align-items:center; gap:9px; width:100%; text-align:left;
   padding:7px 9px; margin:0 0 5px; border-radius:9px; border:1px solid rgba(255,255,255,.06);
   background:rgba(255,255,255,.03); transition:background .15s;}
@@ -2373,6 +2383,25 @@ async function projektDateien(ordner, jetzt, fenster) {
    Durchlauf. */
 let HEUTE = [];
 const KOPF_ORT = new Map();      // pfad -> cwd aus den ersten Zeilen
+const KOPF_AUFTRAG = new Map();  // pfad -> womit die Sitzung begann
+let HEUTE_WAHL = null;           // die angetippte Sitzung im Tagesbogen
+
+/* Womit eine Sitzung begann: der erste Eintrag, den ein Mensch
+   geschrieben hat — nach denselben Regeln wie beim Auftrag. Er steht in
+   denselben ersten Zeilen wie der Ordner, kostet also keinen weiteren
+   Lesezugriff. Die letzte Zeile ist dort oft angeschnitten; die wird
+   einfach uebergangen. */
+function ersterAuftrag(kopf) {
+  for (const z of kopf.split("\n")) {
+    if (!z.includes('"type":"user"')) continue;
+    let d;
+    try { d = JSON.parse(z); } catch { continue; }
+    if (d.type !== "user" || d.isMeta) continue;
+    const t = textAus((d.message || {}).content).trim();
+    if (t && !/^(<|\[Image|\[Workflow harness)/.test(t)) return t.slice(0, 400);
+  }
+  return "";
+}
 
 async function heuteSammeln() {
   const mitternacht = new Date(); mitternacht.setHours(0, 0, 0, 0);
@@ -2392,6 +2421,7 @@ async function heuteSammeln() {
             { pos: 0, size: Math.max(1, Math.min(f.groesse || 16384, 16384)) });
           const m = /"cwd":"((?:[^"\\]|\\.)*)"/.exec(kopf);
           if (m) ort = JSON.parse('"' + m[1] + '"');
+          KOPF_AUFTRAG.set(f.pfad, ersterAuftrag(kopf));
         } catch {}
         KOPF_ORT.set(f.pfad, ort);
       }
@@ -2399,10 +2429,11 @@ async function heuteSammeln() {
       const name = ort.split("/").pop() || ort;
       if (!nachProjekt.has(name)) nachProjekt.set(name, []);
       nachProjekt.get(name).push({ von: Math.max(ab, Math.min(f.ct || f.mt, f.mt)), bis: f.mt,
-                                   sid: f.name.replace(/\.jsonl$/, "") });
+                                   sid: f.name.replace(/\.jsonl$/, ""),
+                                   auftrag: KOPF_AUFTRAG.get(f.pfad) || "" });
     }
   }
-  if (KOPF_ORT.size > 2000) KOPF_ORT.clear();
+  if (KOPF_ORT.size > 2000) { KOPF_ORT.clear(); KOPF_AUFTRAG.clear(); }
   /* Die Farben der Reihe nach und nicht aus dem Namen: bei acht Farben
      traefen sich sonst schon drei Projekte oft genug auf einer */
   HEUTE = [...nachProjekt.entries()].map(([name, segmente]) => ({
@@ -2427,6 +2458,11 @@ function offenGesamt(stuecke) {
 function zeichneHeute() {
   const box = document.getElementById("b-heute");
   if (!box) return;
+  /* Der Bogen wird bei jedem Durchlauf der Bruecke neu gebaut. Steht
+     der Tastaturfokus auf einer seiner Zeilen, soll er dort bleiben und
+     nicht alle paar Sekunden ins Leere fallen. */
+  const fokusZeile = box.contains(document.activeElement)
+    ? [...box.querySelectorAll(".zeile")].indexOf(document.activeElement) : -1;
   box.innerHTML = "";
   if (!HEUTE.length) return;
   const jetzt = Date.now();
@@ -2458,9 +2494,19 @@ function zeichneHeute() {
   }
   wrap.appendChild(achse);
 
+  /* Die Balken sind nur sieben Punkte hoch, kurze Sitzungen kaum
+     breiter — zu klein, um sie mit dem Finger zu treffen. Also nimmt
+     die ganze Zeile den Tipp an und waehlt die Sitzung, die der Stelle
+     am naechsten liegt. Mit der Tastatur: Eingabe waehlt die juengste
+     der Zeile, links und rechts blaettern darin. */
+  let gewaehlt = null;
   for (const p of HEUTE) {
     const z = document.createElement("div");
     z.className = "zeile";
+    z.tabIndex = 0;
+    z.setAttribute("role", "button");
+    z.setAttribute("aria-label", p.name + ": " + p.segmente.length
+      + (p.segmente.length === 1 ? " Sitzung" : " Sitzungen") + " heute");
     const nm = document.createElement("span");
     nm.className = "nm"; nm.textContent = p.name; nm.title = p.name;
     const spur = document.createElement("span");
@@ -2470,19 +2516,84 @@ function zeichneHeute() {
       i.style.left = pos(sg.von) + "%";
       i.style.width = Math.max(0.8, pos(sg.bis) - pos(sg.von)) + "%";
       i.style.background = p.farbe;
-      if (lebend.has(sg.sid)) i.className = "lebt";
+      i.className = (lebend.has(sg.sid) ? "lebt" : "") + (HEUTE_WAHL === sg.sid ? " gewaehlt" : "");
+      if (HEUTE_WAHL === sg.sid) gewaehlt = { p, sg };
       i.title = p.name + ": " + uhr(sg.von) + " bis " + (lebend.has(sg.sid) ? "jetzt" : uhr(sg.bis));
       spur.appendChild(i);
     }
+    const waehle = (sg) => { HEUTE_WAHL = HEUTE_WAHL === sg.sid ? null : sg.sid; zeichneHeute(); };
+    z.onclick = (ev) => {
+      const r = spur.getBoundingClientRect();
+      const t = t0 + ((ev.clientX - r.left) / Math.max(1, r.width)) * spanne;
+      let best = null, abst = Infinity;
+      for (const sg of p.segmente) {
+        const a = t < sg.von ? sg.von - t : t > sg.bis ? t - sg.bis : 0;
+        if (a < abst) { abst = a; best = sg; }
+      }
+      if (best) waehle(best);
+    };
+    z.onkeydown = (ev) => {
+      const i = p.segmente.findIndex(sg => sg.sid === HEUTE_WAHL);
+      let n = null;
+      if (ev.key === "Enter" || ev.key === " ") n = i >= 0 ? i : p.segmente.length - 1;
+      else if (ev.key === "ArrowLeft" && i > 0) n = i - 1;
+      else if (ev.key === "ArrowRight" && i >= 0 && i < p.segmente.length - 1) n = i + 1;
+      if (n === null) return;
+      ev.preventDefault();
+      if (ev.key === "Enter" || ev.key === " ") waehle(p.segmente[n]);
+      else { HEUTE_WAHL = p.segmente[n].sid; zeichneHeute(); }
+    };
     z.append(nm, spur);
     wrap.appendChild(z);
   }
+  if (gewaehlt) wrap.appendChild(heuteWahl(gewaehlt.p, gewaehlt.sg, lebend.has(gewaehlt.sg.sid)));
   const f = document.createElement("div");
   f.className = "d-fussnote";
   f.textContent = "Von der ersten bis zur letzten Zeile einer Sitzung — offen, nicht unbedingt "
-    + "gearbeitet. Hell umrandet: läuft gerade.";
+    + "gearbeitet. Hell umrandet: läuft gerade. Antippen zeigt, worum es ging.";
   wrap.appendChild(f);
   box.appendChild(wrap);
+  if (fokusZeile >= 0) {
+    const z = box.querySelectorAll(".zeile")[fokusZeile];
+    if (z) z.focus();
+  }
+}
+
+/* Was zu einer angetippten Sitzung des Tages dasteht: Projekt, von wann
+   bis wann, wie lange — und wofuer. Bei einer laufenden der Auftrag, an
+   dem sie gerade sitzt, samt Sprung zu ihrer Figur; bei einer
+   beendeten, womit sie begann. */
+function heuteWahl(p, sg, lebt) {
+  const w = document.createElement("div");
+  w.className = "wahl";
+  w.style.setProperty("--f", p.farbe);
+  const kopf = document.createElement("div");
+  const b = document.createElement("b");
+  b.textContent = p.name;
+  kopf.append(b, document.createTextNode("  ·  " + uhr(sg.von) + " – " + (lebt ? "jetzt" : uhr(sg.bis))
+    + "  ·  " + dauer((lebt ? Date.now() : sg.bis) - sg.von)));
+  w.appendChild(kopf);
+  const live = lebt ? (BR.live || []).find(x => x.typ === "session" && x.sid === sg.sid) : null;
+  const text = (live && live.auftrag) || sg.auftrag;
+  if (text) {
+    const q = document.createElement("div");
+    q.className = "auftrag";
+    const was = document.createElement("span");
+    was.className = "was";
+    was.textContent = live && live.auftrag ? "Auftrag" : "Begann mit";
+    const t = document.createElement("span");
+    t.textContent = "„" + (text.length > 220 ? text.slice(0, 219) + "…" : text) + "“";
+    q.append(was, t);
+    w.appendChild(q);
+  }
+  if (live) {
+    const k = document.createElement("button");
+    k.className = "knopf leer zur-figur";
+    k.textContent = "Zur Figur";
+    k.onclick = (ev) => { ev.stopPropagation(); blendeZu(); fahreZu("s:" + sg.sid, 2.2); };
+    w.appendChild(k);
+  }
+  return w;
 }
 
 async function sammleSessions() {
@@ -3220,15 +3331,18 @@ function vorfuehrungTakt() {
      Was vor Mitternacht laege, faellt weg wie am echten Tag auch. */
   const mitternacht = new Date(jetzt); mitternacht.setHours(0, 0, 0, 0);
   const tag = [
-    ["orbit", -480, -405, "vorf-o1"], ["webshop", -420, -330, "vorf-w1"],
-    ["webshop", -290, -250, "vorf-w2"], ["blog", -95, -21, "vorf-b"], ["webshop", -52, 0, "vorf-a"],
-  ].map(([name, von, bis, sid]) => ({ name, von: Math.max(mitternacht.getTime(), t0 + von * 60000),
-                                      bis: bis ? t0 + bis * 60000 : jetzt, sid }))
+    ["orbit", -480, -405, "vorf-o1", "Die Gewitter auf der Nachtseite sollen die echte Wolkendecke ausleuchten, nicht nur einen Fleck"],
+    ["webshop", -420, -330, "vorf-w1", "Mengenrabatt im Warenkorb: ab drei Stück zehn Prozent, mit Tests"],
+    ["webshop", -290, -250, "vorf-w2", "Die Checkout-Tests sind seit gestern rot — bitte herausfinden, warum"],
+    ["blog", -95, -21, "vorf-b", "Einen Artikel über die neue Kasse schreiben, kurz und ohne Marketingsprache"],
+    ["webshop", -52, 0, "vorf-a", "Rabattcodes in der Kasse einbauen"],
+  ].map(([name, von, bis, sid, auftrag]) => ({ name, von: Math.max(mitternacht.getTime(), t0 + von * 60000),
+                                      bis: bis ? t0 + bis * 60000 : jetzt, sid, auftrag }))
    .filter(x => x.bis > x.von);
   const projekte = new Map();
   for (const x of tag) {
     if (!projekte.has(x.name)) projekte.set(x.name, []);
-    projekte.get(x.name).push({ von: x.von, bis: x.bis, sid: x.sid });
+    projekte.get(x.name).push({ von: x.von, bis: x.bis, sid: x.sid, auftrag: x.auftrag });
   }
   HEUTE = [...projekte.entries()].map(([name, segmente], i) => ({ name, farbe: FARBEN[i % FARBEN.length], segmente }));
   liveNeuBauen();
