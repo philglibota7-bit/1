@@ -325,6 +325,7 @@ footer{
   flex:0 0 auto; align-self:center; margin-left:4px;}
 .mini-takt i{flex:1 1 0; min-width:0; border-radius:1px 1px 0 0; background:var(--lauf);}
 .mini-takt i.leer{height:1px; background:rgba(255,255,255,.16); border-radius:0;}
+.mini-takt i.vorher{height:0; background:none;}
 .mini-takt i.unbekannt{height:1px; background:none; border-radius:0;
   background-image:linear-gradient(90deg, rgba(255,255,255,.2) 50%, transparent 50%);}
 .live-karte.kind .mini-takt{opacity:.8;}
@@ -13037,6 +13038,8 @@ function draussenSeit(a) {
    und eine Uhr zeigt Minuten. */
 function dauer(ms) {
   const min = Math.floor(ms / 60000);
+  /* "0 Min." las sich wie ein Fehler */
+  if (min < 1) return "< 1 Min.";
   if (min < 60) return min + " Min.";
   const h = Math.floor(min / 60);
   return h + " Std. " + String(min % 60).padStart(2, "0") + " Min.";
@@ -13326,8 +13329,12 @@ function miniTakt(a) {
   for (let i = 0; i < N; i++) {
     const s = document.createElement("i");
     const von = jetzt - SPANNE + i * B;
-    /* "Nichts getan" nur fuer eine Minute, die ganz gelesen ist */
+    /* "Nichts getan" nur fuer eine Minute, die ganz gelesen ist — und
+       in der es die Sitzung schon gab. Ein Unteragent, der seit einer
+       halben Minute laeuft, hatte vorher nicht neunzehn stille Minuten;
+       da war er noch gar nicht. */
     if (zaehl[i]) s.style.height = Math.round(22 + 78 * Math.min(1, zaehl[i] / hoechst)) + "%";
+    else if (a.seitStart && von + B <= a.seitStart) s.className = "vorher";
     else s.className = a.abgedecktAb && von < a.abgedecktAb ? "unbekannt" : "leer";
     box.appendChild(s);
   }
