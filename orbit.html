@@ -9422,11 +9422,24 @@ function rahmen(jetzt) {
      wandern zwei Astronauten zur selben Fussraste und stehen
      ineinander. */
   const vergeben = new Set();
+  /* Wer teilt sich einen Platz? Bei mehr Astronauten als Plaetzen
+     laesst sich das nicht vermeiden — sechs Sitzungen, acht Prozesse,
+     dazu Ordner, Repos und eigene Agenten kommen leicht ueber die
+     zwanzig Stellen, die die Station hergibt. Dann sollen sie
+     nebeneinander stehen und nicht ineinander. Gezaehlt wird jedes
+     Bild neu, denn waehrend einer Fahrt wechselt die Belegung. */
+  const belegung = new Map();              // Platz -> Liste von IDs
   for (const a of liste) {
     const v = SICHT.get(a.id);
     if (!v) continue;
     if (v.platz !== undefined) vergeben.add(v.platz);
     if (v.ziel !== undefined && v.ziel !== null) vergeben.add(v.ziel);
+    /* Nur wer wirklich steht, teilt sich eine Stelle. Wer unterwegs
+       ist, ist ohnehin irgendwo dazwischen. */
+    if (v.platz !== undefined && (v.ziel === undefined || v.ziel === null)) {
+      if (!belegung.has(v.platz)) belegung.set(v.platz, []);
+      belegung.get(v.platz).push(a.id);
+    }
   }
 
   liste.forEach((a, i) => {
@@ -9450,7 +9463,14 @@ function rahmen(jetzt) {
        zu seinem Platz. Das ist der einzige Weg nach draussen, und es
        ist der Moment, in dem die Station bewohnt wirkt. */
     if (v.platz === undefined) {
-      const heim = reihe.indexOf(a.id) % plaetze.length;
+      /* Der Wunschplatz faellt aus der Reihenfolge der IDs, damit
+         dieselbe Figur immer wieder dieselbe Stelle bekommt. Ist er
+         schon vergeben, wird vorwaerts gesucht: blind Modulo zu
+         rechnen hiess, dass ab dem einundzwanzigsten Astronauten zwei
+         Figuren exakt uebereinander standen. */
+      let heim = reihe.indexOf(a.id) % plaetze.length;
+      for (let k = 0; k < plaetze.length && vergeben.has(heim); k++)
+        heim = (heim + 1) % plaetze.length;
       const schl = plaetze.findIndex(q => q.marke === "schleuse");
       const ausstieg = t > 4000 && schl >= 0 && schl !== heim
                        && !vergeben.has(schl) && !vergeben.has(heim) && !sparsam;
@@ -9565,7 +9585,18 @@ function rahmen(jetzt) {
       }
     }
 
-    const anker = { x: ccx + q.x * Rst, y: ccy + q.y * Rst };
+    /* Teilen sich mehrere eine Stelle, ruecken sie quer zur Flaeche
+       auseinander — entlang des Handlaufs, nicht von ihm weg. Genau
+       so macht man das auch draussen: zwei Leute an einer Stelle
+       haengen nebeneinander am selben Rohr. */
+    let quer = 0;
+    const mit = belegung.get(v.platz);
+    if (mit && mit.length > 1 && (v.ziel === undefined || v.ziel === null)) {
+      const rang = mit.indexOf(a.id);
+      quer = (rang - (mit.length - 1) / 2) * groesse * v.wuchs * 1.5;
+    }
+    const anker = { x: ccx + q.x * Rst + Math.cos(q.winkel) * quer,
+                    y: ccy + q.y * Rst + Math.sin(q.winkel) * quer };
     /* Vom Bauteil weg zeigt die Senkrechte auf seine Oberflaeche */
     const auf = q.winkel - Math.PI / 2;
 
@@ -9827,6 +9858,7 @@ function rahmen(jetzt) {
     schilder.push({
       x: klemm(schirm.x, 54, W - 54),
       y: schirm.y,
+      id: a.id,
       name: (TYP_ZEICHEN[a.typ] || "") + " " + a.name.toUpperCase(),
       unter,
       zustand: l.zustand,
@@ -9877,6 +9909,42 @@ function rahmen(jetzt) {
      schieben, dass es das vorige nicht mehr beruehrt. Das verschiebt
      im schlimmsten Fall ein Schild um einige Punkte — besser, als zwei
      Namen ineinander zu setzen. */
+  /* --- Wie viele Namen vertraegt ein Bild? ---------------------------
+     Bei vierundzwanzig Astronauten schob die Ausweichregel unten alle
+     Schilder untereinander, bis eine Spalte aus zwoelf Namen quer
+     ueber die Module lief — dazu zwoelfmal derselbe Branch darunter.
+     Das war keine Beschriftung mehr, sondern eine Liste, die zufaellig
+     auf der Station lag.
+
+     Also zwei Grenzen. Erstens: nur so viele Schilder, wie nebeneinander
+     Platz haben. Wer arbeitet, wird zuerst gezeigt, dann wer fertig ist,
+     zuletzt wer ruht — und die verfolgte Figur immer. Zweitens: ab acht
+     Schildern faellt die zweite Zeile weg. Sie ist bei Sitzungen
+     ohnehin meist derselbe Branch, und Platz kostet sie doppelt. Bis
+     sieben bleibt sie stehen: eine Crew aus drei bis sechs Leuten ist
+     der Normalfall, und dort ist der Branch die nuetzlichste Zeile im
+     ganzen Bild.
+
+     Wer alle Namen braucht, hat die Crew-Liste; wer einen bestimmten
+     sucht, faehrt heran. Ein Bild, in dem nichts mehr zu sehen ist,
+     hilft bei beidem nicht. */
+  const RANG = { fehler: 0, sendet: 1, denkt: 2, fertig: 3, ruht: 4 };
+  schilder.sort((a, b) => (RANG[a.zustand] ?? 5) - (RANG[b.zustand] ?? 5));
+  const maxSchilder = W < 620 ? 5 : W < 1100 ? 8 : 11;
+  if (schilder.length > maxSchilder) {
+    const behalten = schilder.slice(0, maxSchilder);
+    /* Die verfolgte Figur darf nie herausfallen — sie ist die einzige,
+       deren Namen man gerade sicher sucht. */
+    if (KAM.folgt) {
+      const gesucht = schilder.find(q => q.id === KAM.folgt);
+      if (gesucht && !behalten.includes(gesucht)) behalten[behalten.length - 1] = gesucht;
+    }
+    schilder.length = 0;
+    schilder.push(...behalten);
+  }
+  const knapp = schilder.length > 7;
+  if (knapp) for (const q of schilder) q.unter = "";
+
   schilder.sort((a, b) => a.y - b.y);
   const SCHILDHOEHE = 25;
   for (let i = 0; i < schilder.length; i++) {
