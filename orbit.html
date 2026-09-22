@@ -11726,6 +11726,139 @@ function kameraNachfuehren() {
 
 const SICHT = new Map();     // agentId -> { r, winkel, sx, sy }
 let letzteZeit = performance.now();
+
+/* --- Der Puls der Crew -----------------------------------------------
+   Ein Leitstand hat einen Monitor, auf dem man sieht, ob etwas lebt,
+   ohne irgendwo hinzusehen. Hier ist es eine Linie wie auf einem EKG,
+   oben neben dem Namen: jeder Zacken ist ein echter Werkzeugaufruf
+   einer Sitzung oder eines Unteragenten, in dessen Farbe, und zwar zu
+   der Zeit, zu der er im Protokoll steht — die letzten anderthalb
+   Minuten. Daneben die Aufrufe der letzten Minute. Ruht alles, ist die
+   Linie flach; arbeiten drei Sitzungen gleichzeitig, sieht man es an
+   den Farben.
+
+   Gezeichnet wird sie in die Szene und nicht als eigenes Element mit
+   einer Animation: eine laufende CSS-Animation in der Kopfzeile hat
+   hier schon einmal die Bildrate von sechzig auf vierzehn gedrueckt,
+   weil sie die ganze Bedienebene neu malen liess. In der Szene kostet
+   sie ein paar Linien in einem Bild, das ohnehin neu entsteht. */
+const PULS_FENSTER = 90000;
+const CREWPULS = [];                 // { zeit, farbe }
+let PULS_ORT = { um: -1e9, ok: false, x: 0, y: 0, platz: 0 };
+let PULS_LETZT = null;               // fuer die Tests: was zuletzt gezeichnet wurde
+
+function crewPulsMerken(a, v) {
+  if (!Array.isArray(a.takt) || !a.takt.length || v.pulsTakt === a.takt) return;
+  v.pulsTakt = a.takt;
+  /* Beim ersten Mal wird nachgeholt, was noch im Fenster liegt — sonst
+     stuende der Monitor nach dem Start anderthalb Minuten leer da,
+     obwohl die Sitzungen laengst arbeiten. */
+  const grenze = Date.now() - PULS_FENSTER;
+  const bis = v.pulsBis === undefined ? grenze : v.pulsBis;
+  let neu = bis;
+  for (const zt of a.takt) {
+    if (zt > bis && zt > grenze) {
+      CREWPULS.push({ zeit: zt, farbe: a.farbe });
+      if (zt > neu) neu = zt;
+    }
+  }
+  v.pulsBis = neu;
+  if (CREWPULS.length > 600) CREWPULS.splice(0, CREWPULS.length - 600);
+}
+
+function zeichneCrewPuls(liste) {
+  PULS_LETZT = null;
+  if (kinoAn) return;
+  /* Nur wo es Sitzungen gibt — ohne Takt waere es eine Linie, die nie
+     etwas sagt. */
+  if (!liste.some(a => Array.isArray(a.takt))) return;
+  const j = performance.now();
+  if (j - PULS_ORT.um > 500) {
+    const m = document.querySelector(".marke");
+    const k = document.querySelector("header .kopf-knopf");
+    const r = m && m.offsetParent ? m.getBoundingClientRect() : null;
+    const kr = k ? k.getBoundingClientRect() : null;
+    PULS_ORT = { um: j, ok: !!(r && r.width && kr),
+                 x: r ? r.right + 18 : 0, y: r ? r.top + r.height / 2 : 0,
+                 platz: r && kr ? kr.left - r.right - 36 : 0 };
+  }
+  /* Rechts daneben stehen noch die Aufrufe je Minute — ohne Platz fuer
+     beides lieber gar nichts, statt es in die Knoepfe zu quetschen. */
+  if (!PULS_ORT.ok || PULS_ORT.platz < 150) return;
+  const B = Math.min(150, PULS_ORT.platz - (PULS_ORT.platz >= 260 ? 104 : 56));
+  const x0 = PULS_ORT.x, x1 = x0 + B, y0 = PULS_ORT.y + 1;
+  const jetzt = Date.now();
+  while (CREWPULS.length && CREWPULS[0].zeit < jetzt - PULS_FENSTER) CREWPULS.shift();
+  /* Nachgeladenes kommt nicht immer der Reihe nach */
+  CREWPULS.sort((a, b) => a.zeit - b.zeit);
+
+  cx.save();
+  cx.lineJoin = "round"; cx.lineCap = "round";
+  const zacke = (x) => {
+    cx.moveTo(x - 3.2, y0);
+    cx.lineTo(x - 1.6, y0 + 1.8);
+    cx.lineTo(x, y0 - 8.5);
+    cx.lineTo(x + 1.5, y0 + 3.2);
+    cx.lineTo(x + 3, y0);
+  };
+  const ortVon = (e) => x1 - ((jetzt - e.zeit) / PULS_FENSTER) * B;
+  /* Erst ein dunkler Saum unter allem — wie bei den Namen. Die Linie
+     liegt ueber der Szene, und vor einem sonnigen Modul oder Fluegel
+     waere ein Strich von einem Punkt Breite sonst nicht zu sehen. */
+  cx.strokeStyle = "rgba(6,9,16,.42)"; cx.lineWidth = 3.4;
+  cx.beginPath(); cx.moveTo(x0 + B * 0.2, y0); cx.lineTo(x1, y0);
+  for (const e of CREWPULS) {
+    const x = ortVon(e);
+    if (e.zeit <= jetzt && x >= x0 + 2) { cx.moveTo(x - 3.2, y0); zacke(x); }
+  }
+  cx.stroke();
+  /* Die Grundlinie, zum alten Ende hin ausblendend */
+  const gl = cx.createLinearGradient(x0, 0, x1, 0);
+  gl.addColorStop(0, "rgba(182,208,246,0)");
+  gl.addColorStop(0.25, "rgba(182,208,246,.22)");
+  gl.addColorStop(1, "rgba(182,208,246,.4)");
+  cx.strokeStyle = gl; cx.lineWidth = 1;
+  cx.beginPath(); cx.moveTo(x0, y0); cx.lineTo(x1, y0); cx.stroke();
+
+  /* Die Zacken: kurz runter, hoch, tief, zurueck — die Form eines
+     Herzschlags, ein paar Punkte breit. */
+  let gezeichnet = 0, frisch = 0;
+  for (const e of CREWPULS) {
+    const alter = jetzt - e.zeit;
+    if (alter < 0) continue;
+    const x = x1 - (alter / PULS_FENSTER) * B;
+    if (x < x0 + 2) continue;
+    const a = Math.min(1, (x - x0) / (B * 0.25)) * 0.95;
+    cx.strokeStyle = e.farbe; cx.globalAlpha = a; cx.lineWidth = 1.3;
+    cx.beginPath();
+    zacke(x);
+    cx.stroke();
+    gezeichnet++;
+    if (alter < 1200) frisch = Math.max(frisch, 1 - alter / 1200);
+  }
+  cx.globalAlpha = 1;
+  /* Der Schreibpunkt am rechten Ende: glimmt, und leuchtet auf, wenn
+     gerade ein Aufruf eingetroffen ist. */
+  cx.fillStyle = `rgba(214,230,255,${0.45 + frisch * 0.5})`;
+  cx.beginPath(); cx.arc(x1, y0, 1.6 + frisch * 1.4, 0, Math.PI * 2); cx.fill();
+  if (frisch > 0) {
+    cx.fillStyle = `rgba(182,208,246,${frisch * 0.25})`;
+    cx.beginPath(); cx.arc(x1, y0, 5 + frisch * 3, 0, Math.PI * 2); cx.fill();
+  }
+  /* Aufrufe der letzten Minute */
+  const n = CREWPULS.filter(e => jetzt - e.zeit <= 60000 && e.zeit <= jetzt).length;
+  cx.font = "600 10.5px -apple-system, system-ui, sans-serif";
+  cx.textBaseline = "middle";
+  cx.fillStyle = n ? "rgba(214,226,244,.78)" : "rgba(160,176,200,.5)";
+  /* Mit Platz ausgeschrieben — "8/min" allein sagt nicht, wovon */
+  const lang = PULS_ORT.platz >= 260;
+  const text = lang ? n + (n === 1 ? " Aufruf" : " Aufrufe") + "/min" : n + "/min";
+  cx.strokeStyle = "rgba(6,9,16,.5)"; cx.lineWidth = 3;
+  cx.strokeText(text, x1 + 9, y0);
+  cx.fillText(text, x1 + 9, y0);
+  cx.restore();
+  PULS_LETZT = { x0, x1, y0, zacken: gezeichnet, proMin: n };
+}
 /* Was das Neuzusammensetzen der Erde wirklich kostet: die Bilddauer
    nach einem Bild, in dem es geschah, gegen die ohne. Beide gleiten. */
 const ERDKOSTEN = { mit: 16.7, ohne: 16.7, eben: false, schwelle: 22 };
@@ -12530,6 +12663,7 @@ function rahmen(jetzt) {
        Sichtung holt nichts nach. */
     let puls = 0;
     const taktDa = Array.isArray(a.takt);
+    crewPulsMerken(a, v);
     if (taktDa && a.takt.length) {
       const letzter = Math.max(a.takt[0], a.takt[a.takt.length - 1]);
       if (v.taktBis === undefined) v.taktBis = letzter;
@@ -12810,6 +12944,7 @@ function rahmen(jetzt) {
     BLASEN_LETZT.push({ text: bl.text, bx: box.bx, by: box.by, bw: box.bw, bh: box.bh });
   }
 
+  zeichneCrewPuls(liste);
   requestAnimationFrame(rahmen);
 }
 
@@ -15637,7 +15772,9 @@ const HILFE = [
       + "mit der Liste darunter — bei der laufenden steht, was sie gerade tut. Denselben Stand zeigen "
       + "die Crew-Liste als Zeile, die Leiste unten als feiner Strich, das Namensschild in der Szene "
       + "und aus der Nähe die Prüfliste am linken Unterarm. Der kleine Takt vor der Dauer zeigt die "
-      + "letzten zwanzig Minuten, eine Säule je Minute: je höher, desto mehr Werkzeugaufrufe. Im "
+      + "letzten zwanzig Minuten, eine Säule je Minute: je höher, desto mehr Werkzeugaufrufe. Oben "
+      + "neben dem Namen läuft der Puls der ganzen Crew: jeder Zacken ein echter Aufruf, in der Farbe "
+      + "seiner Sitzung, die letzten anderthalb Minuten, daneben die Aufrufe je Minute. Im "
       + "Detailfenster stehen dazu der Takt der letzten Stunde, die Arbeitsschritte und welche "
       + "Dateien die Sitzung geändert hat. Im Mac-Programm öffnet es die Sitzung oder den Ordner "
       + "direkt in VS Code oder im Finder.",
@@ -16377,6 +16514,7 @@ window.__BUCH = () => BORDBUCH;
 window.__LOGPUSH = (e) => { Z.log.unshift(e); zeichneLog(); };
 window.__PHASE = (ph) => { PHASE_TEST = ph; };
 window.__GEWITTER = () => GEWITTER;
+window.__CREWPULS = () => ({ ereignisse: CREWPULS.length, letzt: PULS_LETZT, ort: PULS_ORT });
 window.__BLITZ = () => {
   const oben = erdeMasse().oben, unten = bedienRand().unten;
   const z = GEWITTER.zellen.filter(q => q.sicht > 0.9 && !q.blitz && q.sy > oben + 20 && q.sy < unten - 12)
