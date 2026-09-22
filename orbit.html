@@ -842,12 +842,12 @@ body.sicht #blende-detail{
    Blenden. Seit die Fluegel das halbe Bild fuellen, steht die Anzeige
    fast immer vor etwas Hellem — und eine Zahl, die man nur vor
    schwarzem Himmel lesen kann, ist keine Anzeige. */
-#telemetrie{position:fixed; left:16px; top:74px; z-index:30; width:230px;
+#telemetrie{position:fixed; left:16px; top:calc(74px + env(safe-area-inset-top)); z-index:30; width:230px;
   padding:12px 13px 11px; border-radius:var(--r2); font-size:11.5px;
   background:rgba(9,12,19,.76);
   backdrop-filter:blur(16px) saturate(1.15);
   -webkit-backdrop-filter:blur(16px) saturate(1.15);
-  max-height:calc(100dvh - 208px); overflow-y:auto; overscroll-behavior:contain;
+  max-height:calc(100dvh - 208px - env(safe-area-inset-top)); overflow-y:auto; overscroll-behavior:contain;
   scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.16) transparent;
   animation:tmrein .25s var(--ease);}
 #telemetrie::-webkit-scrollbar{width:5px;}
@@ -907,8 +907,13 @@ body.sicht #blende-detail{
    Es ist deshalb nicht verloren: es hat einen eigenen Reiter im Log,
    und der zeigt alle vierzig Eintraege statt der fuenf juengsten. */
 @media (max-width:620px){
-  #telemetrie{left:10px; top:64px; width:204px; font-size:11px;
-    padding:10px 11px 9px; max-height:calc(100dvh - 206px);}
+  #telemetrie{left:10px; top:calc(64px + env(safe-area-inset-top)); width:204px; font-size:11px;
+    padding:10px 11px 9px; max-height:calc(100dvh - 206px - env(safe-area-inset-top));}
+  /* Laeuft die Vorfuehrung, haengt unter dem Kopf ihr Band. Die Anzeige
+     lag darueber und deckte "Vorfuehrung mit Beispieldaten" halb zu —
+     ausgerechnet den Hinweis, dass nichts davon echt ist. */
+  body.vorf #telemetrie{top:calc(100px + env(safe-area-inset-top));
+    max-height:calc(100dvh - 242px - env(safe-area-inset-top));}
   #tm-uhr{margin:2px 0 4px;}
   #tm-puls{margin:2px 0 7px;}
   .tm-zeile{padding:2px 0; gap:7px;}
@@ -3114,6 +3119,7 @@ function vorfuehrungKnopf() {
     const k = document.getElementById(id);
     if (k) k.classList.toggle("da", VORF.an);
   }
+  document.body.classList.toggle("vorf", VORF.an);
 }
 
 /* Ein Schritt im Protokoll der Beispielsitzung: wann (Sekunde im
