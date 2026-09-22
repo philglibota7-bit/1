@@ -12054,6 +12054,80 @@ function kameraNachfuehren() {
 const SICHT = new Map();     // agentId -> { r, winkel, sx, sy }
 let letzteZeit = performance.now();
 
+/* --- Abgehakt --------------------------------------------------------
+   Hakt eine Sitzung eine Aufgabe ihrer Liste ab, steigt ueber ihrer
+   Figur fuer drei Sekunden ein kleines gruenes Haekchen mit dem Namen
+   der Aufgabe auf, und ins Bordbuch kommt, was erledigt ist. Der Stand
+   stand bisher in Liste, Schild und Aermel; jetzt sieht man auch den
+   Moment, in dem er sich aendert. Sind alle erledigt, sagt das Haekchen
+   das. Die erste Sichtung feiert nichts nach, und eine Aufgabe, die
+   wieder aufgemacht wird, darf beim naechsten Abhaken wieder feiern. */
+const HAKEN = [];                    // { id, text, um, alle }
+
+/* Bei einem Pfad ist das Ende wichtig, bei einer Aufgabe der Anfang */
+function kuerzenHinten(s, n) {
+  const t = String(s).replace(/\s+/g, " ").trim();
+  return t.length <= n ? t : t.slice(0, n - 1).trimEnd() + "…";
+}
+
+function hakenPruefen(a, v, t) {
+  if (!Array.isArray(a.aufgaben) || !a.aufgaben.length || a.heimwaerts) return;
+  const fertig = a.aufgaben.filter(x => x.status === "completed");
+  if (!v.abgehakt) { v.abgehakt = new Set(fertig.map(x => x.id)); return; }
+  for (const id of [...v.abgehakt]) if (!fertig.some(x => x.id === id)) v.abgehakt.delete(id);
+  const neu = fertig.filter(x => !v.abgehakt.has(x.id));
+  neu.forEach((x, i) => {
+    v.abgehakt.add(x.id);
+    const alle = fertig.length === a.aufgaben.length && i === neu.length - 1;
+    HAKEN.push({ id: a.id, text: x.titel || "Aufgabe", um: t + i * 700, alle, n: a.aufgaben.length });
+    bordbuch(a.name + " hat „" + kuerzenHinten(x.titel || "eine Aufgabe", 60) + "“ erledigt");
+    if (alle) bordbuch(a.name + " hat alle " + a.aufgaben.length + " Aufgaben erledigt");
+  });
+  if (HAKEN.length > 24) HAKEN.splice(0, HAKEN.length - 24);
+}
+
+function zeichneHaken(t) {
+  if (kinoAn || !HAKEN.length) return;
+  const DAUER = 3200;
+  const stapel = new Map();
+  cx.save();
+  cx.font = "600 11px -apple-system, system-ui, sans-serif";
+  cx.textBaseline = "middle";
+  for (let i = HAKEN.length - 1; i >= 0; i--) {
+    const h = HAKEN[i];
+    const u = (t - h.um) / DAUER;
+    if (u > 1) { HAKEN.splice(i, 1); continue; }
+    if (u < 0) continue;
+    const v = SICHT.get(h.id);
+    if (!v || !v.hakenOrt) continue;
+    const ebene = stapel.get(h.id) || 0;
+    stapel.set(h.id, ebene + 1);
+    const a = Math.min(1, u * 7) * Math.min(1, (1 - u) * 3.5);
+    const steig = sparsam ? 0 : u * 20;
+    const text = h.alle ? "Alle " + h.n + " Aufgaben erledigt" : kuerzenHinten(h.text, 30);
+    const tb = cx.measureText(text).width;
+    const hoch = 22, breit = tb + hoch + 12;
+    const x = Math.round(v.hakenOrt.x - breit / 2), y = Math.round(v.hakenOrt.y - hoch - steig - ebene * (hoch + 4));
+    if (x + breit < 0 || x > W || y + hoch < 0 || y > H) continue;
+    cx.globalAlpha = a;
+    cx.fillStyle = h.alle ? "rgba(18,52,32,.92)" : "rgba(10,24,17,.84)";
+    rundRect(cx, x, y, breit, hoch, hoch / 2); cx.fill();
+    cx.strokeStyle = h.alle ? "rgba(120,214,146,.95)" : "rgba(84,168,106,.7)";
+    cx.lineWidth = 1;
+    rundRect(cx, x + 0.5, y + 0.5, breit - 1, hoch - 1, hoch / 2); cx.stroke();
+    /* Der Kreis mit dem Haken */
+    const kx = x + hoch / 2, ky = y + hoch / 2, kr = hoch / 2 - 3.5;
+    cx.fillStyle = "rgba(84,188,112,.95)";
+    cx.beginPath(); cx.arc(kx, ky, kr, 0, Math.PI * 2); cx.fill();
+    cx.strokeStyle = "#f2fff6"; cx.lineWidth = 1.7; cx.lineCap = "round"; cx.lineJoin = "round";
+    cx.beginPath(); cx.moveTo(kx - kr * 0.45, ky + kr * 0.02); cx.lineTo(kx - kr * 0.1, ky + kr * 0.38);
+    cx.lineTo(kx + kr * 0.5, ky - kr * 0.36); cx.stroke();
+    cx.fillStyle = "rgba(214,244,224,.96)";
+    cx.fillText(text, x + hoch + 4, ky + 0.5);
+  }
+  cx.restore();
+}
+
 /* --- Der Puls der Crew -----------------------------------------------
    Ein Leitstand hat einen Monitor, auf dem man sieht, ob etwas lebt,
    ohne irgendwo hinzusehen. Hier ist es eine Linie wie auf einem EKG,
@@ -13042,6 +13116,8 @@ function rahmen(jetzt) {
                      ? [a.aufgaben.filter(x => x.status === "completed").length, a.aufgaben.length] : null };
     const mitte = inSicht(x, y);
     const rSchirm = groesse * v.wuchs * 1.7 * KAM.zoom * kinoZoom;
+    hakenPruefen(a, v, t);
+    v.hakenOrt = inSicht(x, y - groesse * v.wuchs * 1.3);
     /* Wer ganz ausserhalb des Bildes treibt, bekommt weder Schild noch
        Blase. Beide wurden an den Rand geklemmt und standen dort ohne
        ihre Figur, halb abgeschnitten und ueber den Knoepfen. Wohin es
@@ -13295,6 +13371,7 @@ function rahmen(jetzt) {
     BLASEN_LETZT.push({ text: bl.text, bx: box.bx, by: box.by, bw: box.bw, bh: box.bh });
   }
 
+  zeichneHaken(t);
   zeichneCrewPuls(liste);
   requestAnimationFrame(rahmen);
 }
@@ -16124,7 +16201,8 @@ const HILFE = [
       + "mit der Liste darunter — bei der laufenden steht, was sie gerade tut. Denselben Stand zeigen "
       + "die Crew-Liste als Zeile, die Leiste unten als feiner Strich, das Namensschild in der Szene "
       + "und aus der Nähe die Prüfliste am linken Unterarm. Der kleine Takt vor der Dauer zeigt die "
-      + "letzten zwanzig Minuten, eine Säule je Minute: je höher, desto mehr Werkzeugaufrufe. Oben "
+      + "letzten zwanzig Minuten, eine Säule je Minute: je höher, desto mehr Werkzeugaufrufe. Hakt eine Sitzung eine Aufgabe ab, steigt über "
+      + "ihrer Figur kurz ein grünes Häkchen auf, und im Bordbuch steht, was erledigt ist. Oben "
       + "neben dem Namen läuft der Puls der ganzen Crew: jeder Zacken ein echter Aufruf, in der Farbe "
       + "seiner Sitzung, die letzten anderthalb Minuten, daneben die Aufrufe je Minute. Im "
       + "Detailfenster stehen dazu der Takt der letzten Stunde, die Arbeitsschritte und welche "
@@ -16874,6 +16952,7 @@ window.__BUCH = () => BORDBUCH;
 window.__LOGPUSH = (e) => { Z.log.unshift(e); zeichneLog(); };
 window.__PHASE = (ph) => { PHASE_TEST = ph; };
 window.__GEWITTER = () => GEWITTER;
+window.__HAKEN = () => HAKEN;
 window.__KOBOLD = () => {
   const z = GEWITTER.zellen.filter(q => q.sicht > 0.9 && q.randNah)
     .sort((a, b) => Math.abs(a.sx - W / 2) - Math.abs(b.sx - W / 2))[0];
