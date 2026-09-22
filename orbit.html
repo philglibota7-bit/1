@@ -1423,8 +1423,15 @@ async function sessionLesen(pfad, groesse, name, erstellt, elternName) {
 
   let cwd = "", branch = "", modell = "", aufwand = "", sid = "", nutzung = null;
   let auftrag = "", agentId = "";
-  let letzteZeit = 0, letzteRolle = "";
+  let letzteZeit = 0, letzteRolle = "", letzterText = false;
   const schritte = [];
+  /* Welche Unteragenten dieser Sitzung ihr Ergebnis schon abgeliefert
+     haben. Die Sitzung schreibt es mit, sobald es ankommt — mit der
+     agentId im toolUseResult. Nachgesehen an einem echten Protokoll,
+     dort bei einem abgezweigten Skill; beim Agent-Werkzeug wird dasselbe
+     Feld angenommen. Fehlt es, bleibt die Vermutung aus dem Protokoll
+     des Unteragenten selbst. */
+  const fertigeAgenten = new Set();
 
   for (let i = zeilen.length - 1; i >= 0; i--) {
     const z = zeilen[i].trim();
@@ -1454,8 +1461,19 @@ async function sessionLesen(pfad, groesse, name, erstellt, elternName) {
     }
     if (!sid && d.sessionId) sid = d.sessionId;
     if (!agentId && d.agentId) agentId = d.agentId;
+    if (d.toolUseResult && typeof d.toolUseResult.agentId === "string")
+      fertigeAgenten.add(d.toolUseResult.agentId);
     if (!letzteZeit && d.timestamp) letzteZeit = Date.parse(d.timestamp) || 0;
-    if (!letzteRolle && (d.type === "user" || d.type === "assistant")) letzteRolle = d.type;
+    if (!letzteRolle && (d.type === "user" || d.type === "assistant")) {
+      letzteRolle = d.type;
+      /* Endet das Protokoll mit Text vom Assistenten und ohne einen
+         Werkzeugaufruf danach, ist sein Zug zu Ende. Bei einem
+         Unteragenten heisst das: der Bericht ist abgegeben. Jeder Block
+         steht als eigene Zeile da, deshalb zaehlt nur die neueste. */
+      const c = (d.message || {}).content;
+      letzterText = d.type === "assistant" && Array.isArray(c)
+        && c.some(b => b && b.type === "text") && !c.some(b => b && b.type === "tool_use");
+    }
 
     if (d.type === "assistant") {
       const m = d.message || {};
@@ -1514,6 +1532,15 @@ async function sessionLesen(pfad, groesse, name, erstellt, elternName) {
        als Kennung waere sie also doppelt, und beide Figuren wuerden
        sich gegenseitig ueberschreiben. Die agentId ist eindeutig. */
     const kennung = agentId || name.replace(/\.jsonl$/, "");
+    /* Fertig ist er — solange die Sitzung es nicht sicher sagt, siehe
+       unten —, wenn sein Protokoll mit dem Bericht endet und seit einer
+       Viertelminute nichts dazukam. Die Wartezeit, weil jeder Block als
+       eigene Zeile geschrieben wird: ein Satz vor dem naechsten
+       Werkzeugaufruf steht allein am Ende, bis der Aufruf fertig
+       erzeugt ist, und bei einer grossen Datei dauert das. stop_reason
+       hilft nicht; es wird im Protokoll nicht mitgeschrieben — an einem
+       echten nachgesehen. */
+    const berichtet = letzterText && alter > 15000;
     return {
       id: "u:" + kennung,
       sid: kennung,
@@ -1521,11 +1548,16 @@ async function sessionLesen(pfad, groesse, name, erstellt, elternName) {
       name: kurzeAufgabe(aufgabe) || "Agent",
       eltern: elternName,
       farbe: farbeAusName(kennung),
-      zustand,
+      zustand: berichtet ? (alter < 300000 ? "fertig" : "ruht") : zustand,
+      berichtet,
       ort: cwd,
       branch,
       auftrag: aufgabe,
-      taetigkeit: schritte.length ? schritte[0].text : "wartet",
+      /* Wer berichtet hat, tut nichts mehr — sein letzter Werkzeugaufruf
+         als "Taetigkeit" liesse ihn weiterarbeiten, in der Leiste wie
+         in der Blase. */
+      taetigkeit: berichtet ? "Bericht abgegeben"
+                : schritte.length ? schritte[0].text : "wartet",
       werkzeug: schritte.length ? schritte[0].werkzeug : "",
       seit: letzteZeit,
       seitStart: erstellt || 0,
@@ -1555,6 +1587,7 @@ async function sessionLesen(pfad, groesse, name, erstellt, elternName) {
        Takt durch den Speicher. */
     auftrag: auftrag ? auftrag.replace(/\s+/g, " ").trim().slice(0, 300) : "",
     letzteRolle,
+    fertigeAgenten: [...fertigeAgenten],
     schritte: schritte.slice(0, 8),
   };
 }
@@ -1666,7 +1699,16 @@ async function sammleSessions() {
     unterKand.sort((a, b) => b.mt - a.mt);
     for (const u of unterKand.slice(0, 3)) {
       const ui = await sessionLesen(u.pfad, u.groesse, u.name, u.ct, info.name);
-      if (ui) raus.push(ui);
+      if (!ui) continue;
+      ui.elternId = info.id;
+      /* Hat die Sitzung sein Ergebnis schon bekommen, ist er fertig. Das
+         ist sicherer als jede Vermutung aus seinem eigenen Protokoll. */
+      if (!ui.berichtet && info.fertigeAgenten.includes(ui.sid)) {
+        ui.berichtet = true;
+        ui.zustand = Date.now() - ui.seit < 300000 ? "fertig" : "ruht";
+        ui.taetigkeit = "Bericht abgegeben";
+      }
+      raus.push(ui);
     }
   }
 
@@ -1686,6 +1728,13 @@ async function sammleSessions() {
        sonst faellt die aus der Datei gelesene Startzeit weg. */
     if (r.startedAt) s.seitStart = r.startedAt;
   }
+  /* Erst jetzt stehen die Namen fest: das Register benennt Sitzungen
+     um, "webshop-kasse" statt des Ordnernamens. Ein Unteragent soll
+     den Namen tragen, unter dem man seine Sitzung in der Szene sieht —
+     vorher stand bei ihm "von webshop", und eine Figur dieses Namens
+     gab es nirgends. */
+  const namen = new Map(raus.filter(s => s.typ === "session").map(s => [s.id, s.name]));
+  for (const s of raus) if (s.elternId && namen.has(s.elternId)) s.eltern = namen.get(s.elternId);
   return raus;
 }
 
@@ -6432,6 +6481,87 @@ function zeichneStation(t, cxp, cyp, R) {
   c.restore();
 }
 
+/* --- Funkstrecke zwischen Sitzung und Unteragent ---------------------
+   Ein Unteragent gehoert zu einer Sitzung, und in der Szene sah man das
+   nicht: zwei Figuren irgendwo an der Station. Jetzt verbindet sie ein
+   duenner Bogen — die Funkstrecke, ueber die der Auftrag hinaus- und
+   der Bericht zurueckgeht.
+
+   Sie ist Bedienung, nicht Szene: Funk sieht man im All so wenig wie
+   einen Lichtstrahl. Deshalb liegt sie in Bildpunkten ueber der Szene
+   wie die Namensschilder, ist schmal, gestrichelt und blass, und wird
+   erst hell, wenn eine der beiden Figuren gewaehlt ist. Sie beginnt am
+   Rand der Figur, nicht in ihrer Mitte — eine Linie quer durch einen
+   Menschen hindurch liest sich als Spiess.
+
+   Die Punkte darauf laufen dorthin, wohin gerade geredet wird: zum
+   Unteragenten, solange er arbeitet, und zurueck zur Sitzung, wenn er
+   fertig ist und berichtet. Ruht er, steht die Strecke still. */
+let FUNK_LETZT = [];
+function zeichneFunk(punkte, t) {
+  const gezeichnet = [];
+  let offen = false;
+  for (const [id, k] of punkte) {
+    if (!k.eltern) continue;
+    const p = punkte.get(k.eltern);
+    if (!p) continue;
+    const dx = k.x - p.x, dy = k.y - p.y, d = Math.hypot(dx, dy);
+    if (d < p.r + k.r + 12) continue;
+    if (!offen) { cx.save(); cx.setTransform(DPR, 0, 0, DPR, 0, 0); offen = true; }
+    const ux = dx / d, uy = dy / d;
+    const ax = p.x + ux * p.r, ay = p.y + uy * p.r;
+    const ex = k.x - ux * k.r, ey = k.y - uy * k.r;
+    const l = Math.hypot(ex - ax, ey - ay);
+    /* Ein flacher Bogen, immer nach oben gewoelbt. Eine gerade Linie
+       sieht aus wie eine Leine — und Leinen gibt es in dieser Szene
+       wirklich. */
+    let nx = -uy, ny = ux;
+    if (ny > 0) { nx = -nx; ny = -ny; }
+    const bx = (ax + ex) / 2 + nx * l * 0.14, by = (ay + ey) / 2 + ny * l * 0.14;
+    const hin = k.zustand === "sendet" || k.zustand === "denkt";
+    const zurueck = k.zustand === "fertig";
+    const hell = p.hervor || k.hervor;
+    const deck = hell ? 0.85 : hin || zurueck ? 0.45 : 0.22;
+    const bogen = () => { cx.beginPath(); cx.moveTo(ax, ay); cx.quadraticCurveTo(bx, by, ex, ey); };
+    /* Erst ein dunkler Saum, dann die Linie — wie bei den Namen. Ohne
+       den Saum verschwand sie ueber den hellen Modulen ganz, und im
+       Schwarz war sie bei einem Viertel Deckkraft nur noch zu ahnen. */
+    cx.setLineDash([]);
+    cx.strokeStyle = `rgba(6,9,16,${deck * 0.6})`;
+    cx.lineWidth = hell ? 3.4 : 2.8;
+    bogen(); cx.stroke();
+    cx.strokeStyle = `rgba(182,208,246,${deck})`;
+    cx.lineWidth = hell ? 1.4 : 1.1;
+    cx.setLineDash([3, 4]);
+    bogen(); cx.stroke();
+    cx.setLineDash([]);
+    if (!sparsam && (hin || zurueck)) {
+      /* Drei Punkte mit fester Geschwindigkeit in Bildpunkten: eine
+         lange Strecke dauert laenger als eine kurze, wie bei einem
+         Signal, das unterwegs ist. An den Enden blenden sie aus. */
+      const dauer = Math.max(0.7, l / 80);
+      for (let j = 0; j < 3; j++) {
+        let u = ((t / 1000) / dauer + j / 3) % 1;
+        if (zurueck) u = 1 - u;
+        const q = 1 - u;
+        const px = q * q * ax + 2 * q * u * bx + u * u * ex;
+        const py = q * q * ay + 2 * q * u * by + u * u * ey;
+        const rand = Math.min(1, Math.min(u, 1 - u) * 7);
+        cx.beginPath();
+        cx.arc(px, py, hell ? 2.4 : 2, 0, Math.PI * 2);
+        cx.fillStyle = `rgba(226,238,255,${rand * (hell ? 1 : 0.8)})`;
+        cx.fill();
+        cx.strokeStyle = `rgba(6,9,16,${rand * 0.55})`;
+        cx.lineWidth = 1;
+        cx.stroke();
+      }
+    }
+    gezeichnet.push({ von: k.eltern, zu: id, richtung: zurueck ? "zurueck" : hin ? "hin" : "still", hell });
+  }
+  if (offen) cx.restore();
+  FUNK_LETZT = gezeichnet;
+}
+
 /* --- Ein Astronaut ---------------------------------------------------
    Nachempfunden dem EMU-Anzug. Entscheidend ist nicht die Menge an
    Details, sondern der Umriss: ein Raumanzug ist kein Mensch in weisser
@@ -9972,6 +10102,7 @@ function rahmen(jetzt) {
   const blasen = [];
   const hindernisse = [];
   const schilder = [];
+  const funkPunkte = new Map();
   /* Kleinkram wie Werkzeugtaschen lohnt erst ab einer gewissen
      Figurgroesse — darunter ist es ein Fleck und kostet trotzdem. */
   const mittelgross = groesse >= 15 && !sparsam;
@@ -10529,6 +10660,10 @@ function rahmen(jetzt) {
 
     zeichneAstronaut(x, y, groesse * v.wuchs, kipp, a.farbe, l.zustand, t, v.phase,
       hervor, haltung, blick, anzugStand(a));
+    const mitte = inSicht(x, y);
+    funkPunkte.set(a.id, { x: mitte.x, y: mitte.y,
+      r: groesse * v.wuchs * 1.7 * KAM.zoom * kinoZoom,
+      zustand: l.zustand, eltern: a.elternId, hervor });
 
     /* Namensschild — gegen den Zoom herausgerechnet. Schrift gehoert zur
        Bedienung, nicht in die Szene: sonst wird sie beim Heranfahren
@@ -10585,6 +10720,7 @@ function rahmen(jetzt) {
   /* Blasen ab hier ohne Kameraabbildung: sie gehoeren zur Bedienung und
      sollen in jeder Zoomstufe gleich gross und gleich scharf sein. */
   cx.restore();
+  zeichneFunk(funkPunkte, t);
   for (const b of blasen) { const s2 = inSicht(b.x, b.y); b.x = s2.x; b.y = s2.y; }
   for (const h of hindernisse) {
     const s2 = inSicht(h.bx + h.bw / 2, h.by + h.bh / 2);
@@ -11804,7 +11940,9 @@ function zeichneDetail(id) {
          Sitzung. "Wartet vermutlich auf dich" waere hier schlicht
          falsch, und zwar auf eine Weise, die einen zum Nachsehen
          bringt, wo es nichts nachzusehen gibt. */
-      box.appendChild(zeile("Zustand", a.zustand === "ruht"
+      box.appendChild(zeile("Zustand", a.berichtet
+        ? "fertig — hat an " + (a.eltern || "seine Sitzung") + " berichtet"
+        : a.zustand === "ruht"
         ? "fertig oder abgebrochen — meldet sich nicht mehr"
         : "arbeitet und berichtet an " + (a.eltern || "seine Sitzung")));
     } else {
@@ -13720,6 +13858,7 @@ window.__HEIM = () => HEIM;
 window.__QUELLE = (liste) => { bruecke_sessions = liste || []; liveNeuBauen(); };
 window.__FRACHT = () => FRACHT;
 window.__SCHILDER = () => TEILSCHILDER;
+window.__FUNK = () => FUNK_LETZT;
 window.__ORTE = () => LETZTE_ORTE;
 window.__AGENT_DAZU = (a) => { Z.agenten.push(a); zeichneCrewLeiste(); };
 window.__BUCH = () => BORDBUCH;
