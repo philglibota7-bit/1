@@ -1944,6 +1944,61 @@ const WARTET_TEXT = {
   "goal proposal": "wartet auf deine Zustimmung zum Ziel",
 };
 
+/* --- Wo sind die Sitzungen? ---------------------------------------------
+   Alle drei Sekunden jede Sitzungsdatei jedes Projekts einzeln
+   abzufragen, hiess bei fuenfzig Projekten mit je zwanzig alten
+   Sitzungen tausend Dateiabfragen im Takt — fuer eine Handvoll, die
+   gerade laeuft. Jetzt merkt sich die Bruecke je Projektordner, was
+   darin liegt:
+
+   - Ein Ordner, dessen Datum gleich geblieben ist, hat keine neue Datei
+     bekommen. Das Datum eines Ordners aendert sich beim Anlegen und
+     Loeschen, nicht beim Anhaengen. Er wird nicht neu gelistet.
+   - Darin werden nur die Dateien neu abgefragt, die zuletzt frisch
+     waren. Die anderen ruhen.
+   - Einmal je Minute wird trotzdem alles abgefragt: eine alte Sitzung,
+     die jemand wieder aufnimmt, waechst, ohne dass sich ihr Ordner
+     aendert — sie taucht so spaetestens nach einer Minute auf. */
+const PROJEKT_STAND = new Map();   // ordner -> { mt, um, dateien: [{ pfad, name, groesse, mt, ct }] }
+
+async function projektDateien(ordner, jetzt, fenster) {
+  /* Ohne Datum des Ordners — falls das Dateisystem es fuer Ordner nicht
+     hergibt — wird eben jedes Mal voll gelesen wie frueher. Ein Projekt
+     deshalb ganz zu uebergehen waere der schlechtere Fehler. */
+  let mtOrdner = -1;
+  try { mtOrdner = (await Neutralino.filesystem.getStats(ordner)).modifiedAt ?? -1; } catch {}
+  let stand = PROJEKT_STAND.get(ordner);
+  if (!stand || mtOrdner < 0 || stand.mt !== mtOrdner || jetzt - stand.um > 60000) {
+    let eintraege;
+    try { eintraege = await Neutralino.filesystem.readDirectory(ordner); }
+    catch { PROJEKT_STAND.delete(ordner); return []; }
+    const dateien = [];
+    for (const d of eintraege) {
+      if (!d.entry.endsWith(".jsonl")) continue;
+      const pfad = ordner + "/" + d.entry;
+      try {
+        const s = await Neutralino.filesystem.getStats(pfad);
+        /* createdAt ist der Beginn der Sitzung: die Datei entsteht mit
+           ihr. Das ist die Rueckfallebene fuer die Anzuguhr, wenn das
+           Sitzungsregister keine Startzeit fuehrt. */
+        dateien.push({ pfad, name: d.entry, groesse: s.size, mt: s.modifiedAt, ct: s.createdAt || 0 });
+      } catch { /* inzwischen weg */ }
+    }
+    stand = { mt: mtOrdner, um: jetzt, dateien };
+    PROJEKT_STAND.set(ordner, stand);
+  } else {
+    for (const f of stand.dateien) {
+      if (jetzt - f.mt > fenster) continue;     // ruht — erst beim naechsten vollen Blick wieder
+      try {
+        const s = await Neutralino.filesystem.getStats(f.pfad);
+        f.groesse = s.size; f.mt = s.modifiedAt;
+      } catch { f.mt = 0; }
+    }
+  }
+  /* Sessions, die seit Stunden ruhen, gehoeren nicht in die Szene */
+  return stand.dateien.filter(f => jetzt - f.mt <= fenster);
+}
+
 async function sammleSessions() {
   const basis = BR.heim + "/.claude/projects";
   let projekte;
@@ -1951,26 +2006,16 @@ async function sammleSessions() {
   catch { return []; }
 
   const jetzt = Date.now();
+  const fenster = Z.bruecke.sessionFensterMin * 60000;
   const kandidaten = [];
+  const ordner = new Set();
   for (const pr of projekte) {
     if (pr.type !== "DIRECTORY") continue;
-    let dateien;
-    try { dateien = await Neutralino.filesystem.readDirectory(basis + "/" + pr.entry); }
-    catch { continue; }
-    for (const d of dateien) {
-      if (!d.entry.endsWith(".jsonl")) continue;
-      const pfad = basis + "/" + pr.entry + "/" + d.entry;
-      let st;
-      try { st = await Neutralino.filesystem.getStats(pfad); } catch { continue; }
-      /* Sessions, die seit Stunden ruhen, gehoeren nicht in die Szene */
-      if (jetzt - st.modifiedAt > Z.bruecke.sessionFensterMin * 60000) continue;
-      /* createdAt ist der Beginn der Sitzung: die Datei entsteht mit
-         ihr. Das ist die Rueckfallebene fuer die Anzuguhr, wenn das
-         Sitzungsregister keine Startzeit fuehrt. */
-      kandidaten.push({ pfad, groesse: st.size, mt: st.modifiedAt,
-                        ct: st.createdAt || 0, name: d.entry });
-    }
+    const o = basis + "/" + pr.entry;
+    ordner.add(o);
+    for (const f of await projektDateien(o, jetzt, fenster)) kandidaten.push({ ...f });
   }
+  for (const o of PROJEKT_STAND.keys()) if (!ordner.has(o)) PROJEKT_STAND.delete(o);
   kandidaten.sort((a, b) => b.mt - a.mt);
 
   const raus = [];
