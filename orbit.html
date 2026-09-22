@@ -604,6 +604,7 @@ body.sicht #blende-detail{
   background:var(--p2); border:1px solid var(--edge); font-size:11px; color:var(--tx2);}
 .d-marke.gut{background:rgba(116,180,141,.14); border-color:rgba(116,180,141,.3); color:var(--good);}
 .d-marke.schlecht{background:rgba(224,122,106,.14); border-color:rgba(224,122,106,.3); color:var(--bad);}
+.d-marke.wartet{background:rgba(224,162,78,.14); border-color:rgba(224,162,78,.34); color:#e0a24e;}
 
 /* --- Stationswerte ---
    Die Zahlen kommen nicht aus der Szene, sondern aus der Arbeit: was
@@ -1183,6 +1184,7 @@ function setzeZustand(id, zustand) {
     if (zustand === "denkt" && vorher === "ruht") bordbuch(wer + " beginnt eine Mission");
     else if (zustand === "fertig") bordbuch(wer + " ist fertig");
     else if (zustand === "fehler") bordbuch(wer + " meldet einen Fehler");
+    else if (zustand === "winkt") bordbuch(wer + " wartet auf dich");
   }
   zeichneCrewLeiste();
 }
@@ -1396,7 +1398,12 @@ async function sammleSitzungsregister() {
   return raus;
 }
 
-const REGISTER_ZUSTAND = { busy: "sendet", waiting: "denkt", idle: "ruht" };
+/* "waiting" hiess frueher "denkt" — und damit sah eine Sitzung, die auf
+   eine Freigabe von DIR wartet, genauso aus wie eine, die gerade
+   nachdenkt. Das ist die eine Auskunft, fuer die man so eine Anzeige
+   ueberhaupt aufmacht: welche meiner Sitzungen haengt an mir? Also
+   bekommt sie einen eigenen Zustand, und die Figur winkt. */
+const REGISTER_ZUSTAND = { busy: "sendet", waiting: "winkt", idle: "ruht" };
 const WARTET_TEXT = {
   "permission prompt": "wartet auf deine Freigabe",
   "input needed": "wartet auf deine Eingabe",
@@ -6156,8 +6163,13 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
   /* ---------- Statusring und Schein ---------- */
   if (zustand !== "ruht") {
     const ton = zustand === "fehler" ? "224,122,106"
+              : zustand === "winkt"  ? "224,162,78"
               : zustand === "fertig" ? "116,180,141" : "123,164,216";
-    const p = 0.45 + 0.55 * Math.sin(t * (zustand === "fehler" ? 0.012 : 0.004));
+    /* Der Fehler blinkt schnell, das Winken langsam: schnell heisst
+       "etwas ist schiefgegangen", langsam heisst "hier, ich brauche
+       dich". Zwei verschiedene Dringlichkeiten, zwei Takte. */
+    const p = 0.45 + 0.55 * Math.sin(t * (zustand === "fehler" ? 0.012
+                                        : zustand === "winkt" ? 0.0028 : 0.004));
     cx.strokeStyle = `rgba(${ton},${0.26 + 0.38 * p})`;
     cx.lineWidth = 1.5;
     cx.beginPath(); cx.arc(0, 0, H * 0.74 + p * H * 0.08, 0, Math.PI * 2); cx.stroke();
@@ -6482,6 +6494,15 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
       /* Daumen hoch */
       ex = sd * H * 0.21; ey = sy + H * 0.06;
       hx = sd * H * 0.2;  hy = sy - H * 0.12;
+    } else if (zustand === "winkt" && istRechts) {
+      /* Winken: der Arm steht hoch ueber der Schulter und schwenkt hin
+         und her. Weiter als 0,3 H ueber die Schulter kommt er nicht —
+         ein Anzug hat ein Schultergelenk und keinen Gummiarm, und
+         gerade die BEGRENZTE Bewegung ist das, was ein Winken im Anzug
+         von einem Winken am Strand unterscheidet. */
+      const schwenk = ruhig ? 0 : Math.sin(t * 0.0042 + phase) * 0.55;
+      ex = sd * H * 0.24; ey = sy - H * 0.04;
+      hx = sd * H * (0.2 + schwenk * 0.12); hy = sy - H * 0.3;
     } else if (zustand === "fehler") {
       ex = sd * H * 0.2;  ey = sy + H * 0.09 + sw * H * 0.04;
       hx = sd * H * 0.27; hy = sy + H * 0.02 + sw * H * 0.06;
@@ -9248,7 +9269,8 @@ function kameraNachfuehren() {
 }
 
 const SICHT = new Map();     // agentId -> { r, winkel, sx, sy }
-const ZUSTAND_RADIUS = { ruht: 1.0, denkt: 0.74, sendet: 0.86, fertig: 1.09, fehler: 1.17 };
+const ZUSTAND_RADIUS = { ruht: 1.0, denkt: 0.74, sendet: 0.86, fertig: 1.09,
+                         fehler: 1.17, winkt: 1.02 };
 let letzteZeit = performance.now();
 let kinoAn = false;
 
@@ -9543,8 +9565,19 @@ function rahmen(jetzt) {
   liste.forEach((a, i) => {
     const v = sicht(a.id, i, n, 0);
     const l = lauf(a.id);
-    /* Live-Astronauten bringen ihren Zustand selbst mit */
-    if (a.typ !== "agent") l.zustand = a.zustand;
+    /* Live-Astronauten bringen ihren Zustand selbst mit. Der Uebergang
+       gehoert ins Bordbuch — bisher tat das nur setzeZustand(), und das
+       laeuft nur fuer die selbst angelegten Agenten. Eine Sitzung, die
+       auf eine Freigabe wartet, stand damit nirgends im Verlauf, und
+       gerade die will man spaeter wiederfinden. */
+    if (a.typ !== "agent") {
+      const vorher = l.zustand;
+      l.zustand = a.zustand;
+      if (vorher !== undefined && vorher !== a.zustand && !a.heimwaerts) {
+        if (a.zustand === "winkt")       bordbuch(a.name + " wartet auf dich");
+        else if (a.zustand === "fehler") bordbuch(a.name + " meldet einen Fehler");
+      }
+    }
     /* Die Anzeigedaten hier merken und nicht erst beim Aufraeumen:
        aufraeumenSicht() laeuft nur, wenn sich die Liste aendert, und
        zu dem Zeitpunkt ist die verschwundene Figur schon nicht mehr
@@ -9741,6 +9774,9 @@ function rahmen(jetzt) {
               : unterwegs > 0.05 ? 1.1
               : l.zustand === "fehler" ? 6.2
               : l.zustand === "fertig" ? 3.0
+              /* Wer winkt, will gesehen werden: er lehnt sich ein
+                 Stueck heraus, bleibt aber an der Struktur. */
+              : l.zustand === "winkt"  ? 2.1
               : l.zustand === "ruht"   ? 1.6
               : inRaste ? 1.0 : 1.18;
     v.weg = lerp(v.weg === undefined ? weg : v.weg, weg, 1 - Math.pow(0.0025, dt / 1000));
@@ -10009,7 +10045,8 @@ function rahmen(jetzt) {
        die aktuelle Taetigkeit. */
     const blasentext = a.typ === "agent"
       ? (l.zustand === "denkt" || l.zustand === "sendet" ? l.gedanke : "")
-      : (l.zustand === "sendet" || l.zustand === "fehler" ? a.taetigkeit : "");
+      : (l.zustand === "sendet" || l.zustand === "fehler" ? a.taetigkeit
+       : l.zustand === "winkt" ? (WARTET_TEXT[a.wartetAuf] || "wartet auf dich") : "");
     if (blasentext) {
       blasen.push({ x, y: y - groesse * 1.9, text: blasentext,
                     farbe: a.farbe, seit: l.seit || a.seit || 0 });
@@ -10064,7 +10101,7 @@ function rahmen(jetzt) {
      Wer alle Namen braucht, hat die Crew-Liste; wer einen bestimmten
      sucht, faehrt heran. Ein Bild, in dem nichts mehr zu sehen ist,
      hilft bei beidem nicht. */
-  const RANG = { fehler: 0, sendet: 1, denkt: 2, fertig: 3, ruht: 4 };
+  const RANG = { fehler: 0, winkt: 1, sendet: 2, denkt: 3, fertig: 4, ruht: 5 };
   schilder.sort((a, b) => (RANG[a.zustand] ?? 5) - (RANG[b.zustand] ?? 5));
   const maxSchilder = W < 620 ? 5 : W < 1100 ? 8 : 11;
   if (schilder.length > maxSchilder) {
@@ -10124,6 +10161,7 @@ function rahmen(jetzt) {
       cx.strokeStyle = "rgba(6,9,16,.7)"; cx.lineWidth = 2.6;
       cx.strokeText(sch.unter, sch.x, sch.y + 13);
       cx.fillStyle = sch.zustand === "fehler" ? "rgba(240,150,134,.95)"
+                   : sch.zustand === "winkt"  ? "rgba(236,182,106,.95)"
                    : sch.zustand === "fertig" ? "rgba(140,206,166,.95)"
                    : sch.zustand === "ruht"   ? "rgba(176,188,208,.65)"
                    : "rgba(150,188,238,.95)";
@@ -10158,7 +10196,8 @@ function rahmen(jetzt) {
   requestAnimationFrame(rahmen);
 }
 
-const BESCHRIFTUNG = { denkt: "denkt", sendet: "sendet", fertig: "fertig", fehler: "Fehler" };
+const BESCHRIFTUNG = { denkt: "denkt", sendet: "sendet", fertig: "fertig",
+                       fehler: "Fehler", winkt: "wartet auf dich" };
 
 /* Lange Pfade vorne kuerzen — hinten steht das Wichtige */
 function kuerzenVorn(t, laenge) {
@@ -10452,7 +10491,8 @@ function abbrechen(agentId) {
    7 — Oberflaeche zeichnen
    ================================================================ */
 
-const ZUSTAND_TEXT = { ruht: "bereit", denkt: "denkt nach", sendet: "antwortet", fertig: "fertig", fehler: "Fehler" };
+const ZUSTAND_TEXT = { ruht: "bereit", denkt: "denkt nach", sendet: "antwortet",
+                       fertig: "fertig", fehler: "Fehler", winkt: "wartet auf dich" };
 
 function zeichneCrewLeiste() {
   const box = $("#crew-leiste");
@@ -10512,8 +10552,13 @@ function zeichneCrewLeiste() {
   neu.onclick = () => agentBearbeiten(null);
   box.appendChild(neu);
 
-  /* Live-Astronauten: nicht beauftragbar, aber antippbar fuer Details */
-  for (const a of BR.live) {
+  /* Live-Astronauten: nicht beauftragbar, aber antippbar fuer Details.
+     Wer auf dich wartet, steht vorn — die Leiste laeuft auf schmalen
+     Schirmen seitlich aus dem Bild, und was hinten liegt, sieht man
+     nur beim Wischen. */
+  const vorn = BR.live.slice().sort((a, b) =>
+    (a.zustand === "winkt" ? 0 : 1) - (b.zustand === "winkt" ? 0 : 1));
+  for (const a of vorn) {
     const b = document.createElement("button");
     b.className = "crew-chip" + (offeneDetailId === a.id ? " gewaehlt" : "");
     b.style.opacity = a.zustand === "ruht" ? ".62" : "1";
@@ -10526,8 +10571,14 @@ function zeichneCrewLeiste() {
     const nm = document.createElement("span"); nm.className = "nm";
     nm.textContent = (TYP_ZEICHEN[a.typ] || "") + " " + a.name;
     const zs = document.createElement("span"); zs.className = "zust";
-    zs.textContent = a.taetigkeit ? kuerzen(a.taetigkeit, 26) : TYP_NAME[a.typ];
+    /* Wer wartet, sagt worauf. Die letzte Taetigkeit waere hier die
+       falsche Auskunft: sie ist vorbei, und was jetzt zaehlt, ist dass
+       jemand an dir haengt. */
+    zs.textContent = a.zustand === "winkt"
+      ? kuerzen(WARTET_TEXT[a.wartetAuf] || "wartet auf dich", 26)
+      : a.taetigkeit ? kuerzen(a.taetigkeit, 26) : TYP_NAME[a.typ];
     if (a.zustand === "fehler") zs.style.color = "var(--bad)";
+    if (a.zustand === "winkt") zs.style.color = "#e0a24e";
     t.append(nm, zs);
     b.appendChild(t);
     b.onclick = () => detailOeffnen(a.id);
@@ -10539,7 +10590,8 @@ function zeichneCrewLeiste() {
   $("#btn-log").classList.toggle("an", laufend > 0);
 
   /* Der Punkt im Logo pulsiert genau dann, wenn irgendwo gearbeitet wird */
-  const regt = laufend > 0 || BR.live.some(x => x.zustand === "sendet" || x.zustand === "denkt");
+  const regt = laufend > 0 || BR.live.some(x =>
+    x.zustand === "sendet" || x.zustand === "denkt" || x.zustand === "winkt");
   document.querySelector(".marke .sat").classList.toggle("aktiv", regt);
 }
 
@@ -10784,7 +10836,13 @@ function zeichneCrewListe() {
      im Detailfenster — sie faerbt sich, wenn jemand in die Reserve
      laeuft, und das ist die Zeile, die man in einer langen Liste
      zuerst sehen will. */
-  const live = (BR.live || []).concat(heimkehrer());
+  /* Wer auf dich wartet, steht oben. In einer Liste aus zehn laufenden
+     Sitzungen ist genau das die eine Zeile, fuer die man sie aufmacht;
+     danach kommt, was gerade arbeitet, und zuletzt was ruht. */
+  const WARTERANG = { winkt: 0, fehler: 1, sendet: 2, denkt: 3, fertig: 4, ruht: 5 };
+  const live = (BR.live || []).concat(heimkehrer())
+    .slice()
+    .sort((a, b) => (WARTERANG[a.zustand] ?? 9) - (WARTERANG[b.zustand] ?? 9));
   if (live.length) {
     const t = document.createElement("div");
     t.className = "d-abschnitt"; t.style.marginTop = "4px";
@@ -10812,7 +10870,9 @@ function zeichneCrewListe() {
     k.appendChild(z1);
     const tut = document.createElement("div"); tut.className = "tut";
     tut.textContent = a.heimwaerts ? "auf dem Rückweg zur Schleuse"
+      : a.zustand === "winkt" ? (WARTET_TEXT[a.wartetAuf] || "wartet auf dich")
       : (a.taetigkeit || BESCHRIFTUNG[a.zustand] || "");
+    if (a.zustand === "winkt" && !a.heimwaerts) tut.style.color = "#e0a24e";
     if (tut.textContent) k.appendChild(tut);
     if (a.branch || a.ort) {
       const wo = document.createElement("div"); wo.className = "wo";
@@ -11149,6 +11209,7 @@ function zeichneDetail(id) {
   /* Kopfzeile: Art und Zustand */
   const marke = document.createElement("span");
   marke.className = "d-marke " + (a.zustand === "fehler" ? "schlecht"
+                                : a.zustand === "winkt" ? "wartet"
                                 : a.zustand === "sendet" ? "gut" : "");
   marke.textContent = TYP_NAME[a.typ] + " · " + (BESCHRIFTUNG[a.zustand] || a.zustand);
   box.appendChild(zeile("Art", marke));
@@ -12310,6 +12371,15 @@ const HILFE = [
       + "▶ ein laufender Befehl, ⑂ ein GitHub-Repo. Die letzten vier gibt es nur im Mac-Programm — im "
       + "Browser darf eine Seite das Dateisystem nicht lesen. Unter Crew stehen alle untereinander, "
       + "mit dem, was sie gerade tun; eine Zeile antippen fährt zu ihrer Figur.",
+  },
+  {
+    titel: "Wer auf dich wartet",
+    text: "Hängt eine Sitzung an dir — eine Freigabe, eine Eingabe, ein offener Dialog —, dann winkt "
+      + "ihr Astronaut. Bernsteinfarbener Ring, langsamer Takt, erhobener Arm, und in der Blase steht, "
+      + "worauf er wartet. In der Crew-Liste und in der Leiste unten steht er ganz vorn, und im "
+      + "Bordbuch steht, seit wann. Das ist die eine Auskunft, für die man so eine Anzeige aufmacht: "
+      + "welche meiner Sitzungen hängt an mir? Sie kommt aus dem Sitzungsregister von Claude Code — "
+      + "geraten wird nichts.",
   },
   {
     titel: "Der Außenbordeinsatz",
