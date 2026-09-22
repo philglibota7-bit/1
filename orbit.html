@@ -3412,6 +3412,27 @@ function aufraeumenSicht() {
   }
 }
 
+/* Der kurze Einsatzbericht beim Einsteigen. Nach jedem echten
+   Aussenbordeinsatz wird festgehalten, wie lange er gedauert hat und
+   was davon geschafft ist. Hier dasselbe, aus dem, was die Sitzung
+   selbst mitgeschrieben hat: von ihrer ersten bis zu ihrer letzten
+   Zeile, und wie viele Punkte ihrer Aufgabenliste erledigt sind.
+   Geschaetzt wird nichts — fehlt eine Angabe, fehlt sie auch hier. */
+function einsatzBericht(a) {
+  if (!a) return "";
+  const teile = [];
+  if (a.seitStart) {
+    const ende = a.seit && a.seit > a.seitStart ? a.seit : Date.now();
+    teile.push(dauer(ende - a.seitStart) + " im Einsatz");
+  }
+  if (Array.isArray(a.aufgaben) && a.aufgaben.length) {
+    const erl = a.aufgaben.filter(x => x.status === "completed").length;
+    teile.push(erl === a.aufgaben.length ? "alle " + erl + " Aufgaben erledigt"
+                                         : erl + " von " + a.aufgaben.length + " Aufgaben erledigt");
+  }
+  return teile.length ? " · " + teile.join(" · ") : "";
+}
+
 /* Die, die gerade zur Schleuse zurueckhangeln. Sie stehen in keiner
    Quelle mehr, sollen aber weiter gezeichnet werden. */
 function heimkehrer() {
@@ -12604,7 +12625,7 @@ function rahmen(jetzt) {
   for (const [k, h] of Array.from(HEIM.entries())) {
     const v = SICHT.get(k);
     if (!v || !v.fertigHeim) continue;
-    bordbuch(h.figur.name + " ist eingestiegen");
+    bordbuch(h.figur.name + " ist eingestiegen" + einsatzBericht(ZULETZT.get(k)));
     SICHT.delete(k); LAUF.delete(k); HEIM.delete(k); ZULETZT.delete(k);
   }
 
