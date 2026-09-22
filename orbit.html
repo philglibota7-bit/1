@@ -10834,6 +10834,27 @@ function zeichneTelemetrie(t) {
       + simZeit(MISSION.simSek)],
     ["PHASE", Z.umlauf === false ? "aus"
       : (tags ? "Tag" : "Erdschatten") + " · " + zeitKurz(rest)],
+    /* Mond und Polarlicht gehoeren hierher und nicht in einen eigenen
+       Abschnitt: beide sagen, WO im Umlauf wir gerade stehen, genau wie
+       die Phase darueber. Ein eigener Abschnitt haette sie ausserdem
+       unter die Rollkante geschoben. */
+    ["MOND", (() => {
+      const m = mondStand(ph);
+      if (!m) return "hinter der Erde";
+      const el = ((MOND.elong0 + MISSION.simSek / 86400 * 12.19) % 360 + 360) % 360;
+      const k = Math.round((1 - Math.cos(el * Math.PI / 180)) / 2 * 100);
+      if (k < 4) return "Neumond";
+      if (k > 96) return "Vollmond";
+      /* Der Name sagt, wohin es geht; die Zahl, wie weit es ist. */
+      return (el < 180 ? "zunehmend" : "abnehmend") + " · " + k + " %";
+    })()],
+    ["POLARLICHT", (() => {
+      const br = Math.pow(Math.abs(Math.sin(ph * Math.PI * 2)), 3.4);
+      if (TAGLICHT > 0.92) return "überstrahlt";
+      if (br < 0.04) return "außer Sicht";
+      return br > 0.55 ? "über dem Horizont" : "schwach";
+    })(),
+      TAGLICHT > 0.92 ? 0 : Math.pow(Math.abs(Math.sin(ph * Math.PI * 2)), 3.4)],
     ["BESATZUNG", alle.length + (laufend ? " · " + laufend + " arbeitet" : " · bereit")],
     ["AUSLASTUNG", Math.round(last * 100) + " %", last],
     ["FRACHT", FRACHT.lage === "gedockt" ? "angedockt"
