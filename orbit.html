@@ -969,6 +969,12 @@ function laden() {
       Z.gewaehlt = d.gewaehlt ?? null;
       if (typeof d.thema === "string") Z.thema = d.thema;
       if (typeof d.umlauf === "boolean") Z.umlauf = d.umlauf;
+      /* Die Zeitraffung ist eine Einstellung wie der Hintergrund — wer
+         sie auf das Zwoelffache gestellt hat, will das beim naechsten
+         Mal nicht wieder suchen muessen. Angehalten wird NICHT
+         gemerkt: eine App, die nach dem Neuladen still steht, wirkt
+         kaputt. */
+      if (typeof d.rate === "number" && [1, 4, 12].includes(d.rate)) ZEIT.rate = d.rate;
       if (d.bruecke && typeof d.bruecke === "object") {
         Z.bruecke = Object.assign(Z.bruecke, d.bruecke);
         Z.bruecke.typen = Object.assign({ session: true, ordner: true, prozess: true, github: true },
@@ -1001,7 +1007,7 @@ function sichern() {
       agenten: Z.agenten,
       log: Z.log.slice(0, 60),
       key: Z.key, maxTok: Z.maxTok, gewaehlt: Z.gewaehlt,
-      thema: Z.thema, umlauf: Z.umlauf, bruecke: Z.bruecke,
+      thema: Z.thema, umlauf: Z.umlauf, bruecke: Z.bruecke, rate: ZEIT.rate,
     }));
   } catch (e) {
     /* Speicher voll oder privater Modus — die App laeuft trotzdem weiter */
@@ -9149,7 +9155,7 @@ const HILFE = [
   {
     titel: "Bedienung",
     text: "Mausrad oder zwei Finger zoomen, Ziehen verschiebt, Doppelklick fährt heran. "
-      + "Tasten: L Log, C Crew, H Hintergrund, B Brücke, T Stationswerte, K Kinomodus, "
+      + "Tasten: L Log, C Crew, H Hintergrund, B Brücke, T Stationswerte, K Kinomodus, R Rundgang, "
       + "Leertaste stellt die Kamera zurück, Plus und Minus zoomen, Escape schließt.",
   },
   {
@@ -9311,9 +9317,20 @@ for (const k of $$("#zeit-raffer button")) {
     ZEIT.rate = parseFloat(k.dataset.rate);
     for (const o of $$("#zeit-raffer button")) o.classList.toggle("an", o === k);
     zeitText();
+    if (ZEIT.rate) sichern();
   };
 }
-zeitText();
+/* Den gemerkten Stand am Knopf anzeigen. Das muss NACH dem Laden
+   passieren, nicht beim Aufbau der Bedienung — sonst steht am Knopf
+   der Grundwert, waehrend die Uhr schon mit dem gemerkten laeuft.
+   Genau das war hier eine Weile so. */
+function zeitKnopfStand() {
+  for (const o of $$("#zeit-raffer button")) {
+    o.classList.toggle("an", parseFloat(o.dataset.rate) === ZEIT.rate);
+  }
+  zeitText();
+}
+zeitKnopfStand();
 
 const umlaufSchalter = $("#umlauf-schalter");
 umlaufSchalter.onclick = () => {
@@ -9336,6 +9353,10 @@ const TASTEN = {
 };
 
 document.addEventListener("keydown", (e) => {
+  if (e.key === "r" || e.key === "R") {
+    if (RUNDGANG.laeuft) rundgangEnde(); else rundgangStart();
+    return;
+  }
   if (e.key === "Escape") {
     if (RUNDGANG.laeuft) rundgangEnde();
     else if (kinoAn) kino(false);
@@ -9516,6 +9537,10 @@ window.addEventListener("orientationchange", () => setTimeout(groesseAnpassen, 1
    10 — Start
    ================================================================ */
 laden();
+/* Alles, was den gemerkten Zustand an der Bedienung anzeigt, gehoert
+   hierher — nach dem Laden. */
+zeitKnopfStand();
+if (umlaufSchalter) umlaufSchalter.classList.toggle("an", Z.umlauf !== false);
 themaAnwenden();
 groesseAnpassen();
 himmelBacken();
@@ -9604,6 +9629,8 @@ window.__KONJ = () => KONJ;
 window.__NARBEN = () => NARBEN;
 window.__TEIL = (k) => teilZeigen(k);
 window.__RUNDGANG = () => RUNDGANG;
+window.__ZEIT = () => ZEIT;
+window.__Z = () => Z;
 window.__TRIFFT = (x, y) => trifftStruktur(x, y);
 window.__MISSION = () => MISSION;
 window.__ERDE = () => ERDE;
