@@ -2560,6 +2560,9 @@ function vorfuehrungBeenden() {
   bordbuch("Vorführung beendet");
   liveNeuBauen();
   vorfuehrungKnopf();
+  /* Die echte Bruecke sofort wieder fragen — auch GitHub, das sonst
+     erst nach seinem Takt von anderthalb Minuten wiederkaeme. */
+  BR.uhren = { sessions: 0, ordner: 0, prozesse: 0, github: 0 };
   brueckeDurchlauf();
 }
 
