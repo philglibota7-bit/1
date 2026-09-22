@@ -4601,42 +4601,80 @@ function zeichneStation(t, cxp, cyp, R) {
   /* Fuss auf dem Traeger */
   c.fillStyle = "#c2c9d2";
   rundRect(c, -R * 0.06, -R * 0.05, R * 0.12, R * 0.1, R * 0.02); c.fill();
+
+  /* Ein Armsegment ist keine Linie, sondern ein Rohr: hell oben,
+     dunkel unten, mit einer schmalen Glanzkante. Und an jedem Ende
+     sitzt ein Gelenk, das dicker ist als das Rohr — an der echten
+     Station sind das die auffaelligsten Teile des Arms, weil in ihnen
+     die Motoren stecken. Als zwei glatte Striche sah der Arm von
+     nahem aus wie ein Zirkel. */
+  const armRohr = (laenge, dicke) => {
+    c.strokeStyle = "rgba(20,24,30,.7)"; c.lineWidth = dicke * 1.16;
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(laenge, 0); c.stroke();
+    c.strokeStyle = "rgba(244,246,250,.95)"; c.lineWidth = dicke;
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(laenge, 0); c.stroke();
+    c.strokeStyle = "rgba(14,18,24,.5)"; c.lineWidth = dicke * 0.34;
+    c.beginPath(); c.moveTo(0, dicke * 0.3); c.lineTo(laenge, dicke * 0.3); c.stroke();
+    c.strokeStyle = "rgba(255,255,255,.8)"; c.lineWidth = dicke * 0.16;
+    c.beginPath(); c.moveTo(0, -dicke * 0.3); c.lineTo(laenge, -dicke * 0.3); c.stroke();
+    /* Zwei Ringe als Segmentnaht — ohne sie hat das Rohr keine Laenge */
+    c.strokeStyle = "rgba(120,130,146,.55)"; c.lineWidth = Math.max(0.3, dicke * 0.1);
+    for (const f of [0.34, 0.66]) {
+      c.beginPath();
+      c.moveTo(laenge * f, -dicke * 0.5); c.lineTo(laenge * f, dicke * 0.5);
+      c.stroke();
+    }
+  };
+  const armGelenk = (d) => {
+    const g = c.createLinearGradient(0, -d, 0, d);
+    g.addColorStop(0, "#eef1f6"); g.addColorStop(0.44, "#9aa4b2");
+    g.addColorStop(1, "#1d232c");
+    c.fillStyle = g;
+    rundRect(c, -d * 0.62, -d, d * 1.24, d * 2, d * 0.3); c.fill();
+    c.strokeStyle = "rgba(24,28,34,.55)"; c.lineWidth = Math.max(0.3, d * 0.1);
+    rundRect(c, -d * 0.62, -d, d * 1.24, d * 2, d * 0.3); c.stroke();
+    c.fillStyle = "rgba(88,100,118,.8)";
+    c.beginPath(); c.arc(0, 0, d * 0.3, 0, Math.PI * 2); c.fill();
+  };
+
   c.rotate(a1);
-  /* Zweifarbig: helle Sonnenseite, fast schwarze Unterseite */
-  c.strokeStyle = "rgba(246,248,252,.95)"; c.lineWidth = R * 0.045;
-  c.beginPath(); c.moveTo(0, 0); c.lineTo(R * 0.78, 0); c.stroke();
-  c.strokeStyle = "rgba(16,20,26,.75)"; c.lineWidth = R * 0.016;
-  c.beginPath(); c.moveTo(0, R * 0.016); c.lineTo(R * 0.78, R * 0.016); c.stroke();
-  c.fillStyle = "#8ea0b8";
-  c.beginPath(); c.arc(0, 0, R * 0.04, 0, Math.PI * 2); c.fill();
+  armGelenk(R * 0.046);
+  armRohr(R * 0.78, R * 0.045);
   c.translate(R * 0.78, 0);
   c.rotate(a2);
-  c.strokeStyle = "rgba(242,246,252,.92)"; c.lineWidth = R * 0.038;
-  c.beginPath(); c.moveTo(0, 0); c.lineTo(R * 0.55, 0); c.stroke();
-  c.strokeStyle = "rgba(16,20,26,.75)"; c.lineWidth = R * 0.013;
-  c.beginPath(); c.moveTo(0, R * 0.013); c.lineTo(R * 0.55, R * 0.013); c.stroke();
-  c.fillStyle = "#8ea0b8";
-  c.beginPath(); c.arc(0, 0, R * 0.036, 0, Math.PI * 2); c.fill();
-  /* Greifer — beim Halten geschlossen, sonst offen */
+  armGelenk(R * 0.042);
+  armRohr(R * 0.55, R * 0.038);
   c.translate(R * 0.55, 0);
+  armGelenk(R * 0.034);
+  /* Greifer — beim Halten geschlossen, sonst offen. Am echten Arm ist
+     das ein Zylinder, in dem sich drei Draehte um einen Zapfen legen;
+     von aussen sieht man den Zylinder und die Backen. */
+  c.fillStyle = "rgba(210,218,230,.92)";
+  rundRect(c, 0, -R * 0.03, R * 0.055, R * 0.06, R * 0.012); c.fill();
+  c.strokeStyle = "rgba(24,28,34,.5)"; c.lineWidth = Math.max(0.3, R * 0.005);
+  rundRect(c, 0, -R * 0.03, R * 0.055, R * 0.06, R * 0.012); c.stroke();
   c.lineWidth = R * 0.018;
   c.strokeStyle = "rgba(206,218,234,.9)";
   const spreiz = haelt ? 0.018 : 0.045;
   c.beginPath();
-  c.moveTo(0, -R * spreiz); c.lineTo(R * 0.06, -R * spreiz * 0.4);
-  c.moveTo(0, R * spreiz);  c.lineTo(R * 0.06, R * spreiz * 0.4);
+  c.moveTo(R * 0.05, -R * spreiz); c.lineTo(R * 0.11, -R * spreiz * 0.4);
+  c.moveTo(R * 0.05, R * spreiz);  c.lineTo(R * 0.11, R * spreiz * 0.4);
   c.stroke();
 
   /* Die Palette. Sie haengt am Greifer, solange er sie haelt, und
      liegt sonst dort, wo sie zuletzt abgesetzt wurde. */
   if (haelt) {
     const pw = R * 0.19, ph = R * 0.13;
-    c.fillStyle = sonnenlauf(c, R * 0.06, -ph / 2, pw, ph,
+    c.fillStyle = sonnenlauf(c, R * 0.11, -ph / 2, pw, ph,
       "#f2f0e6", "#93918a", "#171a1d");
-    rundRect(c, R * 0.06, -ph / 2, pw, ph, ph * 0.12); c.fill();
+    rundRect(c, R * 0.11, -ph / 2, pw, ph, ph * 0.12); c.fill();
     c.strokeStyle = "rgba(26,28,32,.6)"; c.lineWidth = Math.max(0.3, R * 0.006);
-    rundRect(c, R * 0.06, -ph / 2, pw, ph, ph * 0.12); c.stroke();
-    folie(c, R * 0.09, -ph * 0.3, pw * 0.4, ph * 0.6, ph * 0.1, 91);
+    rundRect(c, R * 0.11, -ph / 2, pw, ph, ph * 0.12); c.stroke();
+    folie(c, R * 0.14, -ph * 0.3, pw * 0.4, ph * 0.6, ph * 0.1, 91);
+    /* Der Zapfen, an dem der Greifer die Palette packt. Ohne ihn
+       schwebt sie neben der Hand statt in ihr. */
+    c.fillStyle = "rgba(180,188,200,.9)";
+    rundRect(c, R * 0.09, -R * 0.013, R * 0.03, R * 0.026, R * 0.006); c.fill();
   }
   c.restore();
 
