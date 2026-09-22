@@ -12111,25 +12111,38 @@ function zeichneHaken(t) {
     stapel.set(h.id, ebene + 1);
     const a = Math.min(1, u * 7) * Math.min(1, (1 - u) * 3.5);
     const steig = sparsam ? 0 : u * 20;
-    const text = h.alle ? "Alle " + h.n + " Aufgaben erledigt" : kuerzenHinten(h.text, 30);
+    const bericht = h.art === "bericht";
+    const text = bericht ? "Bericht von " + kuerzenHinten(h.text, 26)
+      : h.alle ? "Alle " + h.n + " Aufgaben erledigt" : kuerzenHinten(h.text, 30);
     const tb = cx.measureText(text).width;
     const hoch = 22, breit = tb + hoch + 12;
     const x = Math.round(v.hakenOrt.x - breit / 2), y = Math.round(v.hakenOrt.y - hoch - steig - ebene * (hoch + 4));
     if (x + breit < 0 || x > W || y + hoch < 0 || y > H) continue;
     cx.globalAlpha = a;
-    cx.fillStyle = h.alle ? "rgba(18,52,32,.92)" : "rgba(10,24,17,.84)";
+    cx.fillStyle = bericht ? "rgba(12,18,30,.86)" : h.alle ? "rgba(18,52,32,.92)" : "rgba(10,24,17,.84)";
     rundRect(cx, x, y, breit, hoch, hoch / 2); cx.fill();
-    cx.strokeStyle = h.alle ? "rgba(120,214,146,.95)" : "rgba(84,168,106,.7)";
+    cx.strokeStyle = bericht ? (h.farbe || "#9ab") : h.alle ? "rgba(120,214,146,.95)" : "rgba(84,168,106,.7)";
     cx.lineWidth = 1;
     rundRect(cx, x + 0.5, y + 0.5, breit - 1, hoch - 1, hoch / 2); cx.stroke();
-    /* Der Kreis mit dem Haken */
     const kx = x + hoch / 2, ky = y + hoch / 2, kr = hoch / 2 - 3.5;
-    cx.fillStyle = "rgba(84,188,112,.95)";
-    cx.beginPath(); cx.arc(kx, ky, kr, 0, Math.PI * 2); cx.fill();
-    cx.strokeStyle = "#f2fff6"; cx.lineWidth = 1.7; cx.lineCap = "round"; cx.lineJoin = "round";
-    cx.beginPath(); cx.moveTo(kx - kr * 0.45, ky + kr * 0.02); cx.lineTo(kx - kr * 0.1, ky + kr * 0.38);
-    cx.lineTo(kx + kr * 0.5, ky - kr * 0.36); cx.stroke();
-    cx.fillStyle = "rgba(214,244,224,.96)";
+    cx.lineWidth = 1.7; cx.lineCap = "round"; cx.lineJoin = "round";
+    if (bericht) {
+      /* Ein Pfeil, der ankommt: der Bericht geht an die Sitzung */
+      cx.fillStyle = h.farbe || "#9ab";
+      cx.beginPath(); cx.arc(kx, ky, kr, 0, Math.PI * 2); cx.fill();
+      cx.strokeStyle = "#0b1018";
+      cx.beginPath(); cx.moveTo(kx - kr * 0.5, ky); cx.lineTo(kx + kr * 0.45, ky);
+      cx.moveTo(kx + kr * 0.05, ky - kr * 0.4); cx.lineTo(kx + kr * 0.45, ky); cx.lineTo(kx + kr * 0.05, ky + kr * 0.4);
+      cx.stroke();
+    } else {
+      /* Der Kreis mit dem Haken */
+      cx.fillStyle = "rgba(84,188,112,.95)";
+      cx.beginPath(); cx.arc(kx, ky, kr, 0, Math.PI * 2); cx.fill();
+      cx.strokeStyle = "#f2fff6";
+      cx.beginPath(); cx.moveTo(kx - kr * 0.45, ky + kr * 0.02); cx.lineTo(kx - kr * 0.1, ky + kr * 0.38);
+      cx.lineTo(kx + kr * 0.5, ky - kr * 0.36); cx.stroke();
+    }
+    cx.fillStyle = bericht ? "rgba(226,234,246,.96)" : "rgba(214,244,224,.96)";
     cx.fillText(text, x + hoch + 4, ky + 0.5);
   }
   cx.restore();
@@ -12599,12 +12612,21 @@ function rahmen(jetzt) {
        gerade die will man spaeter wiederfinden. */
     if (a.typ !== "agent") {
       const vorher = l.zustand;
+      /* Ein neuer Lauf beginnt als "ruht" — der erste Wechsel danach ist
+         also keiner, den man gesehen hat, sondern die erste Sichtung. */
+      const erstmals = !l.gesehen;
+      l.gesehen = true;
       l.zustand = a.zustand;
       if (vorher !== undefined && vorher !== a.zustand && !a.heimwaerts) {
         if (a.zustand === "winkt")       bordbuch(a.name + " wartet auf dich");
         else if (a.zustand === "fehler") bordbuch(a.name + " meldet einen Fehler");
-        else if (a.zustand === "fertig" && a.berichtet)
+        else if (a.zustand === "fertig" && a.berichtet) {
           bordbuch(a.name + " hat an " + (a.eltern || "seine Sitzung") + " berichtet");
+          /* Und ueber der Sitzung, die den Bericht bekommt, steht kurz, von
+             wem — in der Farbe des Unteragenten. */
+          if (a.elternId && !erstmals)
+            HAKEN.push({ id: a.elternId, art: "bericht", text: a.name, farbe: a.farbe, um: t });
+        }
       }
     }
     /* Eine Verdichtung gehoert ins Bordbuch — einmal, und nicht bei der
