@@ -3796,24 +3796,78 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler, ohneSch
   c.lineTo(kr, 0);
   c.closePath();
   c.fill();
-  /* Der Kranz aus Streben zwischen den Fenstern */
+  /* Der Kranz aus Streben zwischen den Fenstern. Sie laufen vom
+     Mittelfenster nach aussen, wie die Speichen eines Rades — so ist
+     die Kuppel gebaut: ein rundes Fenster in der Mitte, sechs
+     ringsherum, und dazwischen die tragenden Rippen. */
+  c.save();
+  /* Auf die Kuppel beschnitten — ohne das ragen die Rippen ueber ihren
+     Rand hinaus und stehen frei im All. */
+  c.beginPath();
+  c.moveTo(-kr, 0);
+  c.lineTo(-kr * 0.66, kr * 0.82);
+  c.quadraticCurveTo(0, kr * 1.02, kr * 0.66, kr * 0.82);
+  c.lineTo(kr, 0);
+  c.closePath();
+  c.clip();
   c.strokeStyle = "rgba(60,62,58,.5)";
   c.lineWidth = Math.max(0.4, kr * 0.06);
   c.beginPath();
   for (let i = 0; i < 6; i++) {
-    const w = Math.PI * (0.08 + 0.84 * i / 5);
-    c.moveTo(Math.cos(w) * kr * 0.28, Math.sin(w) * kr * 0.28);
-    c.lineTo(Math.cos(w) * kr * 0.95, Math.sin(w) * kr * 0.8);
+    const w = (i / 6) * Math.PI * 2 + Math.PI / 6;
+    c.moveTo(Math.cos(w) * kr * 0.2, kr * 0.5 + Math.sin(w) * kr * 0.16);
+    c.lineTo(Math.cos(w) * kr * 0.92, kr * 0.5 + Math.sin(w) * kr * 0.74);
   }
   c.stroke();
+  c.restore();
+  /* Die Scheiben selbst. Sie waren nur als Leuchtpunkte gemerkt und
+     lagen damit als weiche blaue Flecken auf der Kuppel — bei Nacht
+     richtig, bei Tag nicht. Eine Scheibe bei Tag ist DUNKEL: man
+     sieht in einen Raum, in dem weniger Licht steht als draussen.
+     Dazu ein Metallrahmen und ein schmaler Glanzstreifen, in dem sich
+     die Erde spiegelt. Erst der Streifen macht aus dem Loch ein
+     Fenster.
+
+     Jede Scheibe der Kuppel ist ausserdem siebenfach: vier Lagen
+     Glas, dazwischen Vakuum, davor eine Schutzblende. Von aussen
+     sieht man davon den dicken, tiefen Rahmen. */
+  const scheibe = (sx, sy, sr) => {
+    c.fillStyle = "rgba(190,192,186,.9)";
+    c.beginPath(); c.arc(sx, sy, sr * 1.34, 0, Math.PI * 2); c.fill();
+    c.fillStyle = "rgba(56,58,56,.8)";
+    c.beginPath(); c.arc(sx, sy, sr * 1.12, 0, Math.PI * 2); c.fill();
+    const gg = c.createLinearGradient(sx - sr, sy - sr, sx + sr, sy + sr);
+    gg.addColorStop(0, "#39485c");
+    gg.addColorStop(0.42, "#1b2430");
+    gg.addColorStop(1, "#0c1118");
+    c.fillStyle = gg;
+    c.beginPath(); c.arc(sx, sy, sr, 0, Math.PI * 2); c.fill();
+    /* Der Glanzstreifen: schraeg, schmal, und nur auf einer Seite */
+    c.save();
+    c.beginPath(); c.arc(sx, sy, sr, 0, Math.PI * 2); c.clip();
+    c.strokeStyle = "rgba(214,236,255,.5)";
+    c.lineWidth = Math.max(0.4, sr * 0.3);
+    c.beginPath();
+    c.moveTo(sx - sr * 1.2, sy + sr * 0.2);
+    c.lineTo(sx + sr * 0.3, sy - sr * 1.3);
+    c.stroke();
+    c.restore();
+  };
+  /* Sechs Scheiben ringsherum. Sie liegen auf einem Ring UM das
+     Mittelfenster, nicht auf einem Bogen daneben — vorher ueberdeckten
+     sich die Rahmen gegenseitig und das Mittelfenster lag mitten
+     darin. */
   for (let i = 0; i < 6; i++) {
-    const w = Math.PI * (0.16 + 0.68 * i / 5);
-    merkeFenster(c, fenster, Math.cos(w) * kr * 0.64, Math.sin(w) * kr * 0.56, kr * 0.15,
+    const w = (i / 6) * Math.PI * 2;
+    const fx = Math.cos(w) * kr * 0.46, fy = kr * 0.5 + Math.sin(w) * kr * 0.38;
+    scheibe(fx, fy, kr * 0.115);
+    merkeFenster(c, fenster, fx, fy, kr * 0.115,
       "170,214,255", i, 0.0012, 0.55, 0.32);
   }
   /* Das grosse Mittelfenster — achtzig Zentimeter, das groesste, das
      der Innendruck zulaesst. */
-  merkeFenster(c, fenster, 0, kr * 0.44, kr * 0.28, "190,228,255", 0, 0.0009, 0.62, 0.26);
+  scheibe(0, kr * 0.5, kr * 0.2);
+  merkeFenster(c, fenster, 0, kr * 0.5, kr * 0.2, "190,228,255", 0, 0.0009, 0.62, 0.26);
   c.strokeStyle = "rgba(232,238,246,.55)"; c.lineWidth = Math.max(0.5, kr * 0.05);
   c.beginPath();
   c.moveTo(-kr, 0);
@@ -3821,19 +3875,35 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler, ohneSch
   c.quadraticCurveTo(0, kr * 1.02, kr * 0.66, kr * 0.82);
   c.lineTo(kr, 0);
   c.stroke();
-  merkeTeil(c, teile, 0, kr * 0.6, "kuppel");
+  merkeTeil(c, teile, 0, kr * 0.95, "kuppel");
   c.restore();
 
   c.restore();  /* Modulstapel zurueck */
 
   /* Die Antennenschuessel wird nicht mehr mitgebacken — sie folgt der
-     Bodenstation und muss sich dafuer drehen koennen. Nur der Sockel
-     bleibt hier stehen. */
+     Bodenstation und muss sich dafuer drehen koennen. Was hier bleibt,
+     ist alles, was sich NICHT dreht: der Ausleger vom Traeger herauf
+     und das Gehaeuse des Drehgelenks. Ohne das schwebte die Schuessel
+     frei neben der Station, und aus der Naehe sah man das sofort. */
   c.save();
   c.translate(-R * 1.5, -R * 0.24);
+  /* Der Ausleger hinunter zum Traeger */
+  c.strokeStyle = "rgba(198,204,212,.85)";
+  c.lineWidth = Math.max(0.5, R * 0.028);
+  c.beginPath(); c.moveTo(0, 0); c.lineTo(0, R * 0.22); c.stroke();
+  c.strokeStyle = "rgba(40,44,50,.5)";
+  c.lineWidth = Math.max(0.3, R * 0.01);
+  c.beginPath(); c.moveTo(R * 0.012, 0); c.lineTo(R * 0.012, R * 0.22); c.stroke();
+  /* Die Fussplatte auf dem Traeger */
+  c.fillStyle = sonnenlauf(c, -R * 0.045, R * 0.18, R * 0.09, R * 0.06,
+    "#e4e2d8", "#8a8880", "#191b1f");
+  rundRect(c, -R * 0.045, R * 0.18, R * 0.09, R * 0.06, R * 0.012); c.fill();
+  /* Das Gehaeuse des Drehgelenks */
   c.fillStyle = sonnenlauf(c, -R * 0.05, -R * 0.05, R * 0.1, R * 0.1,
     "#e8e6dc", "#8d8c84", "#181a1e");
   rundRect(c, -R * 0.05, -R * 0.05, R * 0.1, R * 0.1, R * 0.02); c.fill();
+  c.strokeStyle = "rgba(30,32,36,.5)"; c.lineWidth = Math.max(0.3, R * 0.006);
+  rundRect(c, -R * 0.05, -R * 0.05, R * 0.1, R * 0.1, R * 0.02); c.stroke();
   merkeTeil(c, teile, 0, -R * 0.2, "antenne");
   c.restore();
 
@@ -3856,6 +3926,26 @@ function zeichneAntenne(c, R, t) {
   sg.addColorStop(0, "#f2f0e6"); sg.addColorStop(0.6, "#8b8a80"); sg.addColorStop(1, "#17191d");
   c.fillStyle = sg;
   c.beginPath(); c.ellipse(0, 0, R * 0.055, R * 0.13, 0, 0, Math.PI * 2); c.fill();
+  /* Der Rand des Spiegels faengt Licht — er ist es, der aus der
+     Ellipse eine Schale macht. Und darin die Ringe, an denen man
+     sieht, dass es ein Parabolspiegel ist und keine Scheibe. */
+  c.strokeStyle = "rgba(244,244,238,.7)";
+  c.lineWidth = Math.max(0.4, R * 0.008);
+  c.beginPath(); c.ellipse(0, 0, R * 0.055, R * 0.13, 0, 0, Math.PI * 2); c.stroke();
+  c.strokeStyle = "rgba(120,120,112,.4)";
+  c.lineWidth = Math.max(0.3, R * 0.004);
+  for (const f of [0.66, 0.34]) {
+    c.beginPath(); c.ellipse(0, 0, R * 0.055 * f, R * 0.13 * f, 0, 0, Math.PI * 2); c.stroke();
+  }
+  /* Drei Streben halten das Speisehorn im Brennpunkt */
+  c.strokeStyle = "rgba(190,204,224,.55)";
+  c.lineWidth = Math.max(0.3, R * 0.005);
+  c.beginPath();
+  for (const sy of [-1, 0, 1]) {
+    c.moveTo(0, sy * R * 0.11);
+    c.lineTo(R * 0.11, 0);
+  }
+  c.stroke();
   c.strokeStyle = "rgba(190,204,224,.6)"; c.lineWidth = Math.max(0.4, R * 0.012);
   c.beginPath(); c.moveTo(0, 0); c.lineTo(R * 0.11, 0); c.stroke();
   c.fillStyle = "#c3cedd";
