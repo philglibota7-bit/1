@@ -2753,6 +2753,71 @@ function gittertraeger(c, x1, x2, y, hoehe, saat, plaetze) {
   c.moveTo(x1 + laenge * 0.1, y - hoehe * 0.06); c.lineTo(x2 - laenge * 0.1, y - hoehe * 0.06);
   c.moveTo(x1 + laenge * 0.1, y + hoehe * 0.06); c.lineTo(x2 - laenge * 0.1, y + hoehe * 0.06);
   c.stroke();
+
+  /* --- Ammoniakleitungen und Kabelstrang ------------------------------
+     Der Traeger ist nicht nur Tragwerk, er ist auch die Rohrleitung der
+     Station. Die Waerme der Module muss zu den Waermetauschern an
+     seinen Enden, und sie geht dorthin in fluessigem Ammoniak durch zwei
+     dick isolierte Leitungen, die ueber die ganze Laenge mitlaufen:
+     eine warme hin, eine kalte zurueck. Daneben liegt der Kabelstrang,
+     der den Strom der Fluegel zu den Modulen bringt.
+
+     Auf jedem Foto der echten Station sind diese Leitungen das, was den
+     Traeger von einem Baugeruest unterscheidet — ein Baugeruest hat
+     Streben, eine Station hat Leitungen. Sie laufen laengs und machen
+     damit genau das sichtbar, wofuer der Traeger da ist: er verbindet
+     die Enden miteinander.
+
+     Gezeichnet als Roehre in drei Lagen (Umriss, Koerper, Glanzgrat),
+     mit Schellen an jedem Feldknoten — ohne die Schellen haengt eine
+     Leitung im Nichts, und eine Leitung, die nirgends befestigt ist,
+     sieht aufgemalt aus. */
+  if (hoehe > 4) {
+    const leitungen = [
+      [y + hoehe * 0.27, hoehe * 0.115, "#eceee8", "#9aa0a2"],   // warm hin
+      [y + hoehe * 0.40, hoehe * 0.105, "#e4e8ea", "#8f989c"],   // kalt zurueck
+    ];
+    const vonX = x1 + laenge * 0.06, bisX = x2 - laenge * 0.06;
+    for (const [ly, ld, hell, dunkel] of leitungen) {
+      c.lineCap = "round";
+      c.strokeStyle = "rgba(22,26,30,.65)";
+      c.lineWidth = ld * 1.18;
+      c.beginPath(); c.moveTo(vonX, ly); c.lineTo(bisX, ly); c.stroke();
+      c.strokeStyle = dunkel;
+      c.lineWidth = ld;
+      c.beginPath(); c.moveTo(vonX, ly); c.lineTo(bisX, ly); c.stroke();
+      c.strokeStyle = hell;
+      c.lineWidth = ld * 0.44;
+      c.beginPath(); c.moveTo(vonX, ly - ld * 0.2); c.lineTo(bisX, ly - ld * 0.2); c.stroke();
+      c.strokeStyle = "rgba(255,255,255,.5)";
+      c.lineWidth = Math.max(0.3, ld * 0.14);
+      c.beginPath(); c.moveTo(vonX, ly - ld * 0.3); c.lineTo(bisX, ly - ld * 0.3); c.stroke();
+    }
+    /* Der Kabelstrang: duenner, dunkler, ungeordneter — er ist nicht
+       isoliert, sondern nur gebuendelt. */
+    c.lineCap = "butt";
+    c.strokeStyle = "rgba(52,56,62,.85)";
+    c.lineWidth = Math.max(0.4, hoehe * 0.055);
+    c.beginPath(); c.moveTo(vonX, y + hoehe * 0.47); c.lineTo(bisX, y + hoehe * 0.47); c.stroke();
+    c.strokeStyle = "rgba(126,132,140,.55)";
+    c.lineWidth = Math.max(0.25, hoehe * 0.02);
+    c.beginPath();
+    c.moveTo(vonX, y + hoehe * 0.455); c.lineTo(bisX, y + hoehe * 0.455);
+    c.stroke();
+
+    /* Die Schellen. An jedem zweiten Feldknoten, damit sie nicht zu
+       einem durchgehenden Band werden. */
+    c.fillStyle = "rgba(188,194,202,.9)";
+    c.strokeStyle = "rgba(26,30,34,.55)";
+    c.lineWidth = Math.max(0.25, hoehe * 0.014);
+    for (let i = 0; i <= felder; i += 2) {
+      const xx = x1 + (laenge * i) / felder;
+      if (xx < vonX || xx > bisX) continue;
+      const sb = hoehe * 0.075, sh = hoehe * 0.28;
+      rundRect(c, xx - sb / 2, y + hoehe * 0.2, sb, sh, sb * 0.3);
+      c.fill(); c.stroke();
+    }
+  }
 }
 
 /* Solarfluegel: ZWEI schmale Zellteppiche links und rechts von einem
