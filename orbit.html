@@ -9942,6 +9942,14 @@ function erdeBacken() {
   const bd = c.createImageData(bw, bh);
   const d = bd.data;
 
+  /* Die Wolkendecke allein, als Licht: nachts ist sie unsichtbar, bis
+     ein Blitz sie von innen ausleuchtet — dann sieht man genau ihre
+     Tuerme und Kanten. */
+  const wolkenLicht = document.createElement("canvas");
+  wolkenLicht.width = bw; wolkenLicht.height = bh;
+  const wlCtx = wolkenLicht.getContext("2d");
+  const wlBild = wlCtx.createImageData(bw, bh);
+  const wl = wlBild.data;
   const lichter = document.createElement("canvas");
   lichter.width = bw; lichter.height = bh;
   const lc = lichter.getContext("2d");
@@ -9960,6 +9968,8 @@ function erdeBacken() {
   const sd = sdBild.data;
 
   const rr = m.r * fein, mx = (m.cx + seit) * fein, my = (m.cy - oben) * fein;
+  /* Wo die Wolken am dicksten sind — dort stehen die Gewitter */
+  const gewitterOrte = [];
 
   for (let y = 0; y < bh; y++) {
     for (let x = 0; x < bw; x++) {
@@ -10081,6 +10091,11 @@ function erdeBacken() {
       const band = 0.5 + 0.5 * Math.sin(sy * 5.2 + nahtlos(0.9, 0, 0, 211, 3) * 4);
       const w = vnaht(2.3, 40, -15, 157, 5) * (0.45 + 0.55 * band);
       const wolke = Math.max(0, (w - 0.42) / 0.58);
+      /* Gewitter wachsen nur aus dicken Wolken. Gemerkt wird jede
+         fuenfte Spalte und Zeile: eine Zelle ist ohnehin Dutzende
+         Bildpunkte gross, und so bleibt die Liste kurz. */
+      if (wolke > (land ? 0.22 : 0.3) && x % 5 === 0 && y % 5 === 0)
+        gewitterOrte.push({ x, y, dick: wolke, land });
 
       /* Der Schatten der Wolken auf dem Boden. Das ist der eine Kniff,
          der eine gemalte Kugel in eine fotografierte verwandelt: eine
@@ -10120,6 +10135,9 @@ function erdeBacken() {
         r = r * (1 - a) + hellW * a;
         g = g * (1 - a) + (hellW + 4) * a;
         b = b * (1 - a) + (hellW + 9) * a;
+        /* Die Kaemme leuchten heller als die Taeler dazwischen */
+        wl[i] = 206; wl[i + 1] = 220; wl[i + 2] = 255;
+        wl[i + 3] = Math.round(255 * a * (0.5 + 0.5 * kamm));
       }
 
       /* Streifender Blick am Rand: die Atmosphaere legt sich als
@@ -10196,6 +10214,7 @@ function erdeBacken() {
   c.putImageData(bd, 0, 0);
   maske.getContext("2d").putImageData(mdBild, 0, 0);
   saumCtx.putImageData(sdBild, 0, 0);
+  wlCtx.putImageData(wlBild, 0, 0);
 
   /* Der Lufthauch ueber der Kante wird mitgebacken. Live gezeichnet
      waere er ein Farbverlauf ueber einen Kreis von ueber zweitausend
@@ -10266,10 +10285,314 @@ function erdeBacken() {
   fertig.width = Math.round(breite * DPR * 0.5); fertig.height = Math.round(hoehe * DPR * 0.5);
 
   ERDE.roh = bild; ERDE.lichter = lichter; ERDE.bild = fertig;
+  ERDE.wolkenLicht = wolkenLicht;
   ERDE.maske = maske; ERDE.saum = saum; ERDE.ring = ring;
   ERDE.breite = W; ERDE.hoehe = H; ERDE.oben = oben; ERDE.rand = rand;
   ERDE.seit = seit; ERDE.bildBreite = breite;
   ERDE.termX = null; ERDE.schubGebacken = null;
+  /* Nur was zwischen Erdkante und Fussleiste liegt, ist je zu sehen */
+  const unten = Math.min(H, bedienRand().unten || H);
+  GEWITTER.zellen = gewitterWaehlen(gewitterOrte, bw,
+    (m.oben + 3 - oben) * fein, (unten - 6 - oben) * fein);
+}
+
+/* --- Gewitter --------------------------------------------------------
+   Auf jedem Nachtflug zucken unten die Wolken auf. Den Blitz selbst
+   sieht man von oben kaum — man sieht die Wolke, die er von innen
+   ausleuchtet: einen weichen, blaeulich weissen Fleck von zehn,
+   zwanzig Kilometern, der fuer eine Zehntelsekunde aufflammt, oft
+   zwei-, drei-, viermal hintereinander. Das sind die Folgeentladungen
+   im selben Kanal, je vierzig bis achtzig Millisekunden auseinander.
+   Blitze in der Wolke selbst leuchten weicher und laenger nach als
+   die zum Boden.
+
+   Weltweit blitzt es rund vierundvierzigmal in der Sekunde, gut drei
+   Viertel davon ueber Land, und dort am meisten am spaeten Nachmittag
+   und fruehen Abend. Deshalb sieht man die meisten kurz nach dem
+   Sonnenuntergang und kaum welche vor dem Aufgang. Ueber dem Meer
+   blitzt es gleichmaessiger und viel seltener.
+
+   Und eine Zelle steht selten allein. Oft zuendet sie ihre Nachbarn,
+   und dann laeuft das Leuchten wie eine Kette ueber das ganze
+   Wolkenfeld — genau das, was die Zeitraffer von der Station zeigen.
+
+   Die Zellen sitzen fest in den dicksten Wolken der Scheibe und
+   ziehen mit dem Boden vorbei. Gezeichnet wird nur, was im Dunkeln
+   liegt: bei Tag ueberstrahlt die Sonne jeden Blitz. */
+const GEWITTER = { zellen: [], uhr: 0, n: 0, letzte: null };
+
+function gewitterWaehlen(orte, rw, yVon, yBis) {
+  /* Die dicksten zuerst, mit Mindestabstand — zwei Gewittertuerme
+     stehen nicht ineinander. Aber nicht einfach die dicksten der
+     ganzen Scheibe: die liegen alle im selben grossen Wolkenfeld, und
+     der Rest des Umlaufs bliebe ohne ein einziges Gewitter. Also in
+     sechzehn Streifen, je hoechstens drei, und nur wo die Wolke
+     wirklich dick ist — klare Streifen bleiben klar. */
+  const ABSTAND = 15, NACHBAR = 64;        // Bildpunkte der rohen Scheibe
+  const abst2 = (a, b) => {
+    let du = Math.abs(a.x - b.x);
+    du = Math.min(du, rw - du);            // die Scheibe setzt sich seitlich fort
+    return du * du + (a.y - b.y) * (a.y - b.y);
+  };
+  /* Ueber Land reicht eine duennere Wolke: dort heizt der Boden die
+     Luft von unten, und aus einem Haufen wird schneller ein Turm als
+     ueber dem kuehlen Meer. */
+  const STREIFEN = 16;
+  const je = Array.from({ length: STREIFEN }, () => []);
+  for (const o of orte)
+    if (o.y >= yVon && o.y <= yBis && o.dick >= (o.land ? 0.3 : 0.4))
+      je[Math.min(STREIFEN - 1, Math.floor(o.x / rw * STREIFEN))].push(o);
+  const zellen = [];
+  const rang = (o) => o.dick + (o.land ? 0.2 : 0);
+  for (const liste of je) {
+    liste.sort((a, b) => rang(b) - rang(a));
+    let hier = 0;
+    for (const o of liste) {
+      if (hier >= 3) break;
+      if (zellen.some(z => abst2(z, o) < ABSTAND * ABSTAND)) continue;
+      hier++;
+      const i = zellen.length;
+      zellen.push({
+        x: o.x, y: o.y, dick: o.dick, land: o.land,
+        /* Wie reif die Zelle ist: manche stehen voll im Saft, andere
+           fangen gerade an oder fallen schon in sich zusammen. */
+        kraft: 0.2 + streu(i, 7, 613) * 0.8,
+        blitz: null, kette: null, nachbarn: [], sicht: 0, sx: 0, sy: 0, quetsch: 1,
+      });
+    }
+  }
+  for (const a of zellen)
+    for (const b of zellen)
+      if (a !== b && abst2(a, b) < NACHBAR * NACHBAR) a.nachbarn.push(b);
+  return zellen;
+}
+
+function gewitterZuenden(z, um, tiefe) {
+  /* Meist ein oder zwei Schlaege, selten vier. Der erste ist der
+     hellste; die folgenden laufen durch den schon offenen Kanal und
+     sind schwaecher. */
+  const n = 1 + Math.floor(Math.random() * Math.random() * 4.6);
+  const schlaege = [];
+  let s = um;
+  for (let k = 0; k < n; k++) {
+    schlaege.push({ um: s, a: (k ? 0.5 : 1) * (0.6 + Math.random() * 0.4) });
+    s += 40 + Math.random() * 45;
+  }
+  const innen = Math.random() < 0.6;       // in der Wolke oder zum Boden
+  const w = Math.random() * Math.PI * 2;
+  z.blitz = {
+    schlaege, innen, ende: s + (innen ? 700 : 420),
+    /* Nie zweimal dieselbe Stelle: der Blitz springt in der Zelle
+       herum, und die Wolke leuchtet jedesmal etwas anders. */
+    ox: Math.cos(w) * 5 * Math.random(), oy: Math.sin(w) * 5 * Math.random(),
+    beulen: [0, 1, 2].map(() => ({ w: Math.random() * Math.PI * 2,
+                                   d: 0.45 + Math.random() * 0.6,
+                                   r: 0.45 + Math.random() * 0.4 })),
+  };
+  GEWITTER.n++;
+  GEWITTER.letzte = { x: z.sx, y: z.sy, um };
+  /* Die Kette: jeder Nachbar kann mitgerissen werden, je weiter die
+     Kette schon gelaufen ist, desto seltener. */
+  if (tiefe < 3)
+    for (const nb of z.nachbarn)
+      if (!nb.blitz && !nb.kette && Math.random() < 0.22 / (tiefe + 1))
+        nb.kette = { um: um + 110 + Math.random() * 360, tiefe: tiefe + 1 };
+}
+
+function blitzHelle(b, t) {
+  let h = 0;
+  const tau = b.innen ? 150 : 72;
+  for (const s of b.schlaege) {
+    if (t < s.um) break;
+    h += s.a * Math.exp(-(t - s.um) / tau);
+  }
+  return b.innen ? h * 0.75 : h;
+}
+
+function zeichneGewitter(t, dx, dy, zieh, hoehe, termX, tags) {
+  const zellen = GEWITTER.zellen;
+  if (!zellen.length || !ERDE.roh || ERDE.schubGebacken === null) return;
+  const dt = GEWITTER.uhr ? Math.min(250, Math.max(0, t - GEWITTER.uhr)) : 0;
+  GEWITTER.uhr = t;
+  /* Die Scheibe wird nur alle paar Bildpunkte neu zusammengesetzt.
+     Die Zellen muessen an genau DEM Stand haengen, der gerade zu sehen
+     ist, sonst rutschen sie zwischen zwei Durchgaengen ueber die
+     Wolken, in denen sie stecken. */
+  const bw = ERDE.bild.width, rw = ERDE.roh.width, rh = ERDE.roh.height;
+  const versatz = ERDE.schubGebacken / bw;
+  const links = dx - (ERDE.seit || 0) * zieh;
+  const breite = (ERDE.bildBreite || W) * zieh;
+  const oben = ERDE.oben * (ERDE.hoehe ? H / ERDE.hoehe : 1) + dy;
+  const m = erdeMasse();
+  const kmx = m.cx + dx, kmy = m.cy + dy;
+  /* Wo der Tagesrand gerade auf dem Schirm steht, und wie weit das
+     Licht darueber hinaus noch reicht — dieselben Masse wie bei den
+     Stadtlichtern. */
+  const rand = termX + dx, kante = W * 0.09, weich = W * 0.12;
+  /* Hoehere Zeitraffung macht mehr Blitze, aber nicht im selben Mass —
+     bei zwoelffachem Tempo waere es sonst ein Stroboskop. Angehalten
+     blitzt nichts neu. */
+  const tempo = ZEIT.rate > 0 ? Math.sqrt(ZEIT.rate) : 0;
+  /* Steht die Station selbst in der Sonne, ist die Kamera auf Tag
+     belichtet, und dieselben Blitze wirken blasser. */
+  const belicht = 1 - TAGLICHT * 0.6;
+  let aktiv = 0;
+  for (const z of zellen) {
+    let f = (z.x / rw - versatz) % 1;
+    if (f < 0) f += 1;
+    const X = links + f * breite, Y = oben + (z.y / rh) * hoehe;
+    z.sx = X; z.sy = Y;
+    const ab = Math.hypot(X - kmx, Y - kmy);
+    const nacht = tags ? klemm((X - rand - kante) / weich, 0, 1)
+                       : klemm((rand - kante - X) / weich, 0, 1);
+    z.sicht = ab < m.r - 3 && X > -60 && X < W + 60 && Y < H + 30 ? nacht : 0;
+    /* Am Rand der Scheibe sieht man streifend auf die Wolken — der
+       Fleck wird flach, so wie jede Wolke dort. */
+    const k = ab / m.r;
+    z.quetsch = klemm(Math.sqrt(Math.max(0, 1 - k * k)) * 1.7, 0.22, 0.8);
+    if (z.kette && t >= z.kette.um) {
+      const kt = z.kette;
+      z.kette = null;
+      if (z.sicht > 0 && !z.blitz && tempo > 0) gewitterZuenden(z, kt.um, kt.tiefe);
+    }
+    if (z.blitz && t > z.blitz.ende) z.blitz = null;
+    if (!z.blitz && z.sicht > 0 && tempo > 0 && dt > 0) {
+      /* Blitze je Sekunde. Ueber Land haengt es an der Tageszeit
+         unten: gleich hinter dem Abendrand ist frueher Abend, je
+         weiter davon weg, desto spaeter die Nacht. Vor dem Aufgang
+         ist es ruhig. */
+      const abend = tags ? klemm(1 - (X - rand) / (W * 1.8), 0.25, 1) : 0.25;
+      const rate = (z.land ? 0.6 * abend : 0.12) * z.kraft * tempo;
+      if (Math.random() < rate * dt / 1000) gewitterZuenden(z, t, 0);
+    }
+    if (z.blitz) aktiv++;
+  }
+  if (!aktiv) return;
+
+  cx.save();
+  cx.globalCompositeOperation = "lighter";
+  /* Nur auf der Scheibe — der Fleck liegt in der Wolke, nicht davor */
+  cx.beginPath();
+  cx.arc(kmx * DPR, kmy * DPR, m.r * DPR, 0, Math.PI * 2);
+  cx.clip();
+  const ab = { links, breite, oben, hoehe, versatz, rw, rh };
+  for (const z of zellen) {
+    const b = z.blitz;
+    if (!b || z.sicht <= 0) continue;
+    const a = Math.min(1.1, blitzHelle(b, t)) * z.sicht * belicht;
+    if (a < 0.015) continue;
+    /* So gross wie das Wolkendach, das er ausleuchtet: zwanzig bis
+       vierzig Kilometer. Ein Blitz in der Wolke leuchtet breiter und
+       weicher als einer zum Boden. */
+    const R = (13 + z.dick * 14) * (b.innen ? 1.3 : 1);
+    const q = z.quetsch;
+    const X = z.sx + b.ox, Y = z.sy + b.oy * q;
+    /* Erst das Streulicht: ein weicher Schein, der nicht an einzelnen
+       Wolken haengt — das Licht, das die ganze Luftsaeule streut. */
+    cx.save();
+    cx.translate(X * DPR, Y * DPR);
+    cx.scale(DPR, DPR * q);
+    const schein = cx.createRadialGradient(0, 0, 0, 0, 0, R * 1.8);
+    schein.addColorStop(0, `rgba(150,176,255,${a * 0.2})`);
+    schein.addColorStop(0.45, `rgba(122,150,240,${a * 0.07})`);
+    schein.addColorStop(1, "rgba(100,130,230,0)");
+    cx.fillStyle = schein;
+    cx.beginPath(); cx.arc(0, 0, R * 1.8, 0, Math.PI * 2); cx.fill();
+    cx.restore();
+    /* Dann die Wolke selbst, von innen erleuchtet */
+    const bild = blitzWolke(b, R, q, X, Y, ab);
+    if (bild) {
+      cx.globalAlpha = Math.min(1, a);
+      cx.drawImage(bild.c, 0, 0, bild.w, bild.h,
+        Math.round((X - R) * DPR), Math.round((Y - R * q) * DPR), bild.w, bild.h);
+      cx.globalAlpha = 1;
+    }
+    /* Und die Stelle, an der der Kanal durch die Wolkenobergrenze
+       leuchtet: klein, fast weiss, bei einem Schlag zum Boden hart,
+       bei einem in der Wolke nur angedeutet. */
+    cx.save();
+    cx.translate(X * DPR, Y * DPR);
+    cx.scale(DPR, DPR * q);
+    const kern = cx.createRadialGradient(0, 0, 0, 0, 0, R * 0.38);
+    kern.addColorStop(0, `rgba(244,247,255,${a * (b.innen ? 0.28 : 0.6)})`);
+    kern.addColorStop(0.5, `rgba(214,226,255,${a * (b.innen ? 0.1 : 0.22)})`);
+    kern.addColorStop(1, "rgba(190,206,255,0)");
+    cx.fillStyle = kern;
+    cx.beginPath(); cx.arc(0, 0, R * 0.38, 0, Math.PI * 2); cx.fill();
+    cx.restore();
+  }
+  cx.restore();
+}
+
+/* Die erleuchtete Wolke: der Ausschnitt der Wolkendecke unter dem Blitz,
+   mal einem Lichtfeld, das von der Mitte nach aussen abfaellt. Das
+   Lichtfeld ist nicht rund — die Wolke hat Tuerme und Taeler, und das
+   Licht quillt an den duennen Stellen heraus. Deshalb drei Beulen um
+   die Mitte, bei jedem Blitz woanders. Zwei kleine Zettel, die fuer
+   jeden Blitz wiederverwendet werden. */
+const BLITZ_ZETTEL = { wolke: null, licht: null };
+function blitzWolke(b, R, q, X, Y, ab) {
+  const kr = ERDE.wolkenLicht;
+  if (!kr) return null;
+  const w = Math.max(2, Math.ceil(2 * R * DPR)), h = Math.max(2, Math.ceil(2 * R * q * DPR));
+  if (!BLITZ_ZETTEL.wolke) {
+    BLITZ_ZETTEL.wolke = document.createElement("canvas");
+    BLITZ_ZETTEL.licht = document.createElement("canvas");
+  }
+  const cw = BLITZ_ZETTEL.wolke, cl = BLITZ_ZETTEL.licht;
+  for (const c of [cw, cl]) {
+    if (c.width < w) c.width = w;
+    if (c.height < h) c.height = h;
+  }
+  const gw = cw.getContext("2d"), gl = cl.getContext("2d");
+  gw.setTransform(1, 0, 0, 1, 0, 0); gl.setTransform(1, 0, 0, 1, 0, 0);
+  gw.globalCompositeOperation = "source-over";
+  gw.clearRect(0, 0, w, h); gl.clearRect(0, 0, w, h);
+
+  /* Der Ausschnitt der Wolkendecke, genau so abgebildet wie auf dem
+     Schirm. Die Decke setzt sich seitlich fort, also notfalls in zwei
+     Stuecken. Und von Hand auf das Bild beschnitten: ein Quellrechteck,
+     das ueber den Bildrand ragt, zeichnen nicht alle Browser. */
+  const uw = (2 * R / ab.breite) * ab.rw, vh = (2 * R * q / ab.hoehe) * ab.rh;
+  let u0 = ((X - R - ab.links) / ab.breite + ab.versatz) * ab.rw;
+  u0 = ((u0 % ab.rw) + ab.rw) % ab.rw;
+  const v0 = ((Y - R * q - ab.oben) / ab.hoehe) * ab.rh;
+  const stueck = (su, sw, zx, zw) => {
+    let sv = v0, sh = vh, zy = 0, zh = h;
+    if (sv < 0) { const k = -sv / sh; zy += k * zh; zh -= k * zh; sh += sv; sv = 0; }
+    if (sv + sh > ab.rh) { const k = (sv + sh - ab.rh) / sh; zh -= k * zh; sh = ab.rh - sv; }
+    if (sw <= 0.5 || sh <= 0.5 || zw <= 0.5 || zh <= 0.5) return;
+    gw.drawImage(kr, su, sv, sw, sh, zx, zy, zw, zh);
+  };
+  if (u0 + uw <= ab.rw) stueck(u0, uw, 0, w);
+  else {
+    const erst = ab.rw - u0, anteil = erst / uw;
+    stueck(u0, erst, 0, w * anteil);
+    stueck(0, uw - erst, w * anteil, w * (1 - anteil));
+  }
+
+  /* Das Lichtfeld */
+  gl.save();
+  gl.translate(w / 2, h / 2);
+  gl.scale(DPR, DPR * q);
+  const fleck = (x0, y0, r, st) => {
+    const g = gl.createRadialGradient(x0, y0, 0, x0, y0, r);
+    g.addColorStop(0, `rgba(255,255,255,${st})`);
+    g.addColorStop(0.5, `rgba(255,255,255,${st * 0.45})`);
+    g.addColorStop(1, "rgba(255,255,255,0)");
+    gl.fillStyle = g;
+    gl.beginPath(); gl.arc(x0, y0, r, 0, Math.PI * 2); gl.fill();
+  };
+  fleck(0, 0, R, b.innen ? 0.85 : 1);
+  for (const be of b.beulen)
+    fleck(Math.cos(be.w) * R * be.d * 0.6, Math.sin(be.w) * R * be.d * 0.6, R * be.r, 0.55);
+  gl.restore();
+
+  /* Wolke mal Licht: nur wo beides ist, leuchtet es */
+  gw.globalCompositeOperation = "destination-in";
+  gw.drawImage(cl, 0, 0, w, h, 0, 0, w, h);
+  gw.globalCompositeOperation = "source-over";
+  return { c: cw, w, h };
 }
 
 /* Tagesrand und Stadtlichter in die Scheibe einrechnen. Das passiert
@@ -10593,6 +10916,11 @@ function zeichneErde(t) {
     Math.round((dx - seit * zieh) * DPR),
     Math.round((ERDE.oben * (ERDE.hoehe ? H / ERDE.hoehe : 1) + dy) * DPR),
     Math.round((ERDE.bildBreite || W) * zieh * DPR), Math.round(hoehe * DPR));
+
+  /* Die Gewitter liegen in den Wolken, also direkt auf der Scheibe —
+     unter dem Nachthimmelsleuchten und dem Polarlicht, die neunzig und
+     mehr Kilometer hoeher stehen. */
+  zeichneGewitter(t, dx, dy, zieh, hoehe, termX, tags);
 
   /* --- Polarlicht ----------------------------------------------------
      Von oben sieht man es nicht als Bogen am Himmel, sondern als
@@ -15253,9 +15581,11 @@ const HILFE = [
     titel: "Der Himmel",
     text: "Sonne und Mond gehen hinter der Erdkante auf und unter, jeweils einmal je Umlauf. Beide sind "
       + "ein halbes Grad breit — winzig, und das ist richtig so. Vier Sternbilder stehen an ihrem echten "
-      + "Platz: Orion, der Große Wagen, die Kassiopeia und das Kreuz des Südens. Alle drei lassen sich "
-      + "antippen. Dazu ziehen andere Satelliten durch, tagsüber schnell und nah, nachts langsam und "
-      + "selten — die nahen stehen dann im selben Erdschatten wie wir.",
+      + "Platz: Orion, der Große Wagen, die Kassiopeia und das Kreuz des Südens. Sonne, Mond und "
+      + "Sternbilder lassen sich antippen. Dazu ziehen andere Satelliten durch, tagsüber schnell und nah, nachts langsam und "
+      + "selten — die nahen stehen dann im selben Erdschatten wie wir. Unten auf der Nachtseite "
+      + "zucken Gewitter in den Wolken, oft mehrmals hintereinander und von Zelle zu Zelle — am "
+      + "meisten kurz nach Sonnenuntergang über Land, so wie in echt.",
   },
   {
     titel: "Der Lebenserhalt",
@@ -15939,6 +16269,14 @@ window.__AGENT_DAZU = (a) => { Z.agenten.push(a); zeichneCrewLeiste(); };
 window.__BUCH = () => BORDBUCH;
 window.__LOGPUSH = (e) => { Z.log.unshift(e); zeichneLog(); };
 window.__PHASE = (ph) => { PHASE_TEST = ph; };
+window.__GEWITTER = () => GEWITTER;
+window.__BLITZ = () => {
+  const oben = erdeMasse().oben, unten = bedienRand().unten;
+  const z = GEWITTER.zellen.filter(q => q.sicht > 0.9 && !q.blitz && q.sy > oben + 20 && q.sy < unten - 12)
+    .sort((a, b) => Math.abs(a.sx - W / 2) - Math.abs(b.sx - W / 2))[0];
+  if (z) gewitterZuenden(z, performance.now() - T0, 0);
+  return z ? { x: z.sx, y: z.sy } : null;
+};
 window.__LICHT = () => ({ tag: TAGLICHT, abend: ABENDLICHT });
 window.__ASTRO = (...a) => zeichneAstronaut(...a);
 window.__STERNZAHL = () => sterne.length;
