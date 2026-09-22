@@ -7681,6 +7681,7 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
      einer Dreiviertelsekunde. */
   const art = (werk && werk.art) || "";
   const puls = (werk && werk.puls) || 0;
+  const gestoert = !!(werk && werk.stoerung);
   const echterTakt = !!(werk && werk.echt);
   const wippen = ruhig ? 0 : Math.sin(t * 0.0022 + phase) * 0.12;
   const armA = ruhig ? 0 : Math.sin(t * 0.0026 + phase) * 0.16;
@@ -8302,6 +8303,15 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
         cx.beginPath(); cx.arc(-kb * 0.12, -kh * 0.42, Math.max(1, H * 0.022), 0, Math.PI * 2); cx.fill();
       }
       cx.restore();
+    } else if (zustand === "sendet" && rechts && art === "netz" && gestoert) {
+      /* Die Leuchte an der Sprechkappe, im Takt eines Wiederholversuchs */
+      const an = ruhig || Math.sin(t * 0.006 + phase) > 0;
+      if (an) {
+        cx.fillStyle = "rgba(236,176,86,.95)";
+        cx.beginPath(); cx.arc(rechts.x, rechts.y - H * 0.035, Math.max(0.5, H * 0.009), 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = "rgba(236,176,86,.22)";
+        cx.beginPath(); cx.arc(rechts.x, rechts.y - H * 0.035, Math.max(1, H * 0.022), 0, Math.PI * 2); cx.fill();
+      }
     } else if (zustand === "sendet" && rechts && art === "befehl") {
       /* Ein Befehl: an der Bedieneinheit leuchtet bei jedem Aufruf
          eine Taste unter dem Handschuh auf */
@@ -11893,7 +11903,11 @@ function rahmen(jetzt) {
       v.pulse = v.pulse.filter(p => t - p < 750);
       for (const p of v.pulse) if (t >= p) puls = Math.max(puls, 1 - (t - p) / 750);
     }
-    const werk = { art: (SCHRITTART[a.werkzeug] || [])[1] || "", puls, echt: taktDa };
+    /* Wartet die Sitzung auf den gestoerten Dienst, arbeitet sie nicht:
+       die Hand geht an den Helm wie beim Funk, und eine Leuchte blinkt
+       bernstein — sie wartet auf Verbindung, nicht auf dich. */
+    const werk = { art: a.stoerung ? "netz" : (SCHRITTART[a.werkzeug] || [])[1] || "", puls,
+                   echt: taktDa, stoerung: !!a.stoerung };
     zeichneAstronaut(x, y, groesse * v.wuchs, kipp, a.farbe, l.zustand, t, v.phase,
       hervor, haltung, blick, anzugStand(a), werk);
     const mitte = inSicht(x, y);
