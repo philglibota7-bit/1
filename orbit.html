@@ -450,6 +450,8 @@ select.eingabe{appearance:none; cursor:pointer;
 .knopf.voll:disabled{opacity:.35; cursor:default;}
 .knopf.leer{background:var(--p2); border:1px solid var(--edge); color:var(--tx2);}
 .knopf.leer:hover{background:var(--p3); color:var(--tx);}
+.d-knoepfe{display:flex; gap:8px; margin-top:16px;}
+.d-knoepfe .knopf{flex:1 1 0; min-width:0;}
 
 /* ---------- Missions-Log ---------- */
 .log-eintrag{border:1px solid var(--edge); border-radius:var(--r1); background:var(--p1);
@@ -13769,6 +13771,27 @@ function zeichneDetail(id) {
       box.appendChild(abschnitt("Letzte Actions-Läufe"));
       box.appendChild(laufStrahl(a.laeufe));
     }
+  }
+
+  /* Hinfahren ist gut, hingehen besser: der Ordner einer Sitzung oder
+     eines Projekts in VS Code oder im Finder. Nur im Programm — nur
+     dort kennt ORBIT echte Pfade —, und nicht in der Vorfuehrung.
+     VS Code wird ueber seine eigene Adresse geoeffnet, nicht ueber
+     einen Befehl in der Shell: ein Pfad mit einem Anfuehrungszeichen
+     darin kann so nie zu einem Befehl werden. */
+  if ((a.typ === "session" || a.typ === "ordner") && a.ort && a.ort.startsWith("/")
+      && nativVorhanden() && !a.vorfuehrung && !a.heimwaerts) {
+    const reihe = document.createElement("div");
+    reihe.className = "d-knoepfe";
+    const vs = document.createElement("button");
+    vs.className = "knopf leer"; vs.textContent = "In VS Code öffnen";
+    vs.onclick = () => externOeffnen("vscode://file" + encodeURI(a.ort));
+    const fi = document.createElement("button");
+    fi.className = "knopf leer";
+    fi.textContent = window.NL_OS === "Darwin" ? "Im Finder zeigen" : "Ordner öffnen";
+    fi.onclick = () => externOeffnen("file://" + encodeURI(a.ort));
+    reihe.append(vs, fi);
+    box.appendChild(reihe);
   }
 }
 
