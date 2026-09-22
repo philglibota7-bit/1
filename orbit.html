@@ -3697,11 +3697,11 @@ let STBILD = null;
 /* Merkt sich, wo ein Fenster im fertigen Bild liegt, statt es zu
    zeichnen. Die Verkettung aus Drehungen und Verschiebungen steckt im
    Zustand des Zeichners — die fragen wir hier einfach ab. */
-function merkeFenster(c, liste, x, y, r, ton, ph, takt, grund, hub) {
+function merkeFenster(c, liste, x, y, r, ton, ph, takt, grund, hub, reihe) {
   if (!liste) return;
   const m = c.getTransform();
   const p = new DOMPoint(x, y).matrixTransform(m);
-  liste.push({ x: p.x, y: p.y, r: r * Math.hypot(m.a, m.b), ton, ph, takt, grund, hub });
+  liste.push({ x: p.x, y: p.y, r: r * Math.hypot(m.a, m.b), ton, ph, takt, grund, hub, reihe });
 }
 
 /* Ein Arbeitsplatz an der Station: eine Stelle, an der ein Astronaut
@@ -4206,7 +4206,7 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler, ohneSch
      nur, wo sie im fertigen Bild liegen. */
   for (let i = 0; i < 5; i++) {
     merkeFenster(c, fenster, -R * 0.35 + i * R * 0.066, -md * 0.12, md * 0.055,
-      "255,228,170", i * 0.5, 0.0013, 0.6, 0.3);
+      "255,228,170", i * 0.5, 0.0013, 0.6, 0.3, i);
   }
   /* Antennenausleger am russischen Ende — schief, wie gebaut */
   c.strokeStyle = "rgba(196,204,216,.6)"; c.lineWidth = Math.max(0.5, R * 0.012);
@@ -4412,7 +4412,7 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler, ohneSch
   /* Das grosse Mittelfenster — achtzig Zentimeter, das groesste, das
      der Innendruck zulaesst. */
   scheibe(0, kr * 0.5, kr * 0.2);
-  merkeFenster(c, fenster, 0, kr * 0.5, kr * 0.2, "190,228,255", 0, 0.0009, 0.62, 0.26);
+  merkeFenster(c, fenster, 0, kr * 0.5, kr * 0.2, "190,228,255", 0, 0.0009, 0.62, 0.26, "kuppel");
   c.strokeStyle = "rgba(232,238,246,.55)"; c.lineWidth = Math.max(0.5, kr * 0.05);
   c.beginPath();
   c.moveTo(-kr, 0);
@@ -5154,15 +5154,29 @@ function zeichneStation(t, cxp, cyp, R) {
   const strom = klemm(0.34 + LEBEN.akku * 1.1, 0.34, 1);
   const wach = (0.45 + 0.55 * CREWWACH) * strom;
   for (const fe of b.fenster) {
-    const staerke = Math.min(1, (fe.grund + fe.hub * Math.sin(t * fe.takt + fe.ph)) * nachthell * wach);
+    const staerke = Math.min(1, (fe.grund + fe.hub * Math.sin(t * fe.takt + fe.ph))
+      * nachthell * wach) * (1 - verdeckung(fe, t));
     cx.fillStyle = `rgba(${fe.ton},${staerke})`;
     cx.beginPath();
     cx.arc(mitte.x + fe.x * f, mitte.y + fe.y * f, Math.max(0.6, fe.r * f), 0, Math.PI * 2);
     cx.fill();
     if (TAGLICHT < 0.7) {
+      /* Der Hof um ein helles Fenster ist KEIN Leuchten im Raum — im
+         Vakuum gibt es nichts, woran sich Licht streuen koennte.
+         Derselbe Grund, aus dem der Helmscheinwerfer keinen Kegel
+         wirft. Was man sieht, entsteht im Auge und in der Linse, und
+         das ist eine Eigenschaft des BILDES, nicht der Szene.
+
+         Also darf der Hof beim Heranfahren nicht mitwachsen. Vorher
+         war er das 3,4-fache des Fensterradius; bei elffachem Zoom
+         wurden daraus Nebelbaelle, die das halbe Modul verdeckten.
+         Jetzt ist er ein fester Zuschlag in Bildpunkten, gegen den
+         Zoom herausgerechnet — nah ein schmaler Saum, fern ein
+         weicher Schein. */
+      const hof = fe.r * f + 6 / Math.max(0.4, KAM.zoom);
       cx.fillStyle = `rgba(${fe.ton},${0.16 * staerke * (1 - TAGLICHT)})`;
       cx.beginPath();
-      cx.arc(mitte.x + fe.x * f, mitte.y + fe.y * f, Math.max(1.5, fe.r * f * 3.4), 0, Math.PI * 2);
+      cx.arc(mitte.x + fe.x * f, mitte.y + fe.y * f, Math.max(1.5, hof), 0, Math.PI * 2);
       cx.fill();
     }
   }
@@ -8096,6 +8110,55 @@ const MOND = { elong0: 118 };
    geprueft werden als die Scheibe selbst. */
 const HIMMELSKOERPER = { sonne: null, mond: null };
 
+/* --- Jemand geht vorbei ----------------------------------------------
+   Die fuenf Fenster des Moduls liegen in einer Reihe, siebenundfuenfzig
+   Zentimeter auseinander. Schwebt jemand innen daran entlang, verdeckt
+   er das Licht — erst im ersten Fenster, dann im zweiten, dann im
+   dritten. Von aussen sieht man einen Schatten die Reihe entlang
+   wandern, und das ist das Billigste und zugleich Staerkste, was man
+   tun kann, damit eine Station bewohnt aussieht. Eine Station, in der
+   sich nur Anzeigen bewegen, ist eine Maschine; eine, in der jemand
+   am Fenster vorbeikommt, ist ein Zuhause.
+
+   Die Zeiten sind aus der Strecke gerechnet: zweieinviertel Meter
+   Fensterreihe, und drinnen schwebt man mit gut einem halben Meter je
+   Sekunde. Das macht rund vier Sekunden fuer die ganze Reihe.
+
+   Und am Mittelfenster der Kuppel steht manchmal jemand laenger. Wer
+   einmal dort war, bleibt nicht drei Sekunden. */
+const DURCHGANG = { von: 0, bis: 0, richtung: 1, kuppelVon: 0, kuppelBis: 0 };
+
+function durchgangTakt(t, dt) {
+  if (t > DURCHGANG.bis && Math.random() < dt / 26000) {
+    DURCHGANG.von = t;
+    DURCHGANG.bis = t + 4400;
+    DURCHGANG.richtung = Math.random() < 0.5 ? 1 : -1;
+  }
+  if (t > DURCHGANG.kuppelBis && Math.random() < dt / 48000) {
+    DURCHGANG.kuppelVon = t;
+    DURCHGANG.kuppelBis = t + 9000 + Math.random() * 16000;
+  }
+}
+
+/* Wie stark ist dieses Fenster gerade verdeckt? 0 heisst frei. */
+function verdeckung(fe, t) {
+  if (fe.reihe === "kuppel") {
+    if (t < DURCHGANG.kuppelVon || t > DURCHGANG.kuppelBis) return 0;
+    /* Weich hinein und wieder heraus — man schiebt sich in die Kuppel
+       und wieder heraus, man erscheint nicht. */
+    const ein = Math.min(1, (t - DURCHGANG.kuppelVon) / 1400);
+    const aus = Math.min(1, (DURCHGANG.kuppelBis - t) / 1400);
+    return Math.min(ein, aus) * 0.72;
+  }
+  if (fe.reihe === undefined) return 0;
+  if (t < DURCHGANG.von || t > DURCHGANG.bis) return 0;
+  const i = DURCHGANG.richtung > 0 ? fe.reihe : 4 - fe.reihe;
+  const wann = DURCHGANG.von + 600 + i * 800;
+  const d = Math.abs(t - wann);
+  if (d > 560) return 0;
+  return Math.pow(Math.cos(d / 560 * Math.PI / 2), 2) * 0.78;
+}
+
 /* Wie weit reicht der sichtbare Himmel? Die Erde verdeckt von hier oben
    einen Kegel von rund 140 Grad. Was uebrig bleibt, ist der Bogen, auf
    dem Sonne und Mond ueberhaupt stehen koennen — und seine Breite
@@ -8435,6 +8498,7 @@ function rahmen(jetzt) {
      derselbe, und das faellt sofort auf. */
   lebenTakt(t, dt, umlaufPhase);
   funkTakt(t, dt);
+  durchgangTakt(t, dt);
 
   zeichneHimmel(t);
   /* Nahe Sterne driften staerker als der Himmel dahinter — das erzeugt
@@ -11355,6 +11419,8 @@ window.__HIMMEL_STAND = () => ({ dx: HIMMEL.dx, dy: HIMMEL.dy, spiel: HIMMEL.spi
 window.__TRIFFT = (x, y) => trifftStruktur(x, y);
 window.__MISSION = () => MISSION;
 window.__LETZTES_RST = () => LETZTES_RST;
+window.__DURCHGANG = () => DURCHGANG;
+window.__VERDECKUNG = (fe, t) => verdeckung(fe, t);
 window.__SATELLITEN = () => SATELLITEN;
 window.__MONDOBJ = () => MOND;
 window.__MOND = (ph) => {
