@@ -1690,10 +1690,76 @@ function alleAstronauten() {
    Wichtig fuer Prozesse: deren IDs haengen an der PID und wechseln bei
    jedem Neustart eines Entwicklungsservers. Ohne das Aufraeumen wuechse
    die Karte ueber einen Arbeitstag auf Tausende toter Eintraege. */
+/* Wer verschwindet, verschwindet nicht einfach.
+
+   Eine Sitzung endet, ein Prozess laeuft aus — bisher war die Figur im
+   naechsten Takt weg, mitten auf dem Traeger, ohne Erklaerung. Das ist
+   der einzige Weg von draussen nach drinnen, den es an einer echten
+   Station nicht gibt: man geht durch die Schleuse zurueck.
+
+   Also bekommt jeder, der aus den Quellen faellt, den Rueckweg. Er
+   hangelt sich zur Luke und ist erst dort wirklich weg. Das dauert so
+   lang, wie es dauert — dieselbe Geschwindigkeit wie auf dem Hinweg,
+   denn es ist derselbe Weg.
+
+   Zwei Bremsen dagegen:
+   — Kommt die Quelle zurueck (ein Dateizugriff ist misslungen, eine
+     Sitzung rutschte kurz aus dem Zeitfenster), dreht die Figur um und
+     arbeitet weiter, als waere nichts gewesen.
+   — Und nach vier Minuten ist Schluss, egal wo sie steht. Ohne diese
+     Grenze haengt eine Figur ewig herum, wenn es gerade keinen Platz
+     an der Schleuse gibt. */
+const HEIMFRIST = 240000;
+const HEIM = new Map();      // id -> { figur, seit }
+const ZULETZT = new Map();   // id -> die Anzeigedaten des letzten Takts
+
 function aufraeumenSicht() {
   const da = new Set(alleAstronauten().map(a => a.id));
-  for (const k of Array.from(SICHT.keys())) if (!da.has(k)) SICHT.delete(k);
-  for (const k of Array.from(LAUF.keys())) if (!da.has(k)) LAUF.delete(k);
+  const jetzt = Date.now();
+  /* Wieder da: Rueckweg abbrechen. Das laufende Stueck bleibt stehen —
+     v.ziel jetzt zu loeschen wuerde die Figur auf den Ausgangspunkt
+     der Fahrt zurueckspringen lassen, und ein Sprung ist schlimmer als
+     ein paar Griffe in die falsche Richtung. Sie faehrt zu Ende, und
+     weil v.heim wieder falsch ist, steigt sie am Ende nicht ein,
+     sondern sucht sich wie jede andere Figur einen neuen Platz. */
+  for (const k of da) {
+    if (!HEIM.has(k)) continue;
+    HEIM.delete(k);
+    const v = SICHT.get(k);
+    if (v) { v.heim = false; v.fertigHeim = false; }
+  }
+  for (const k of Array.from(SICHT.keys())) {
+    if (da.has(k)) continue;
+    const h = HEIM.get(k);
+    if (!h) {
+      const f = ZULETZT.get(k);
+      /* Ohne Anzeigedaten laesst sich nichts zeichnen — dann sofort weg */
+      if (!f) { SICHT.delete(k); LAUF.delete(k); continue; }
+      HEIM.set(k, { seit: jetzt, figur: {
+        id: k, typ: f.typ, name: f.name, farbe: f.farbe,
+        zustand: "ruht", ort: "auf dem Rückweg", taetigkeit: "",
+        seit: 0, heimwaerts: true,
+      } });
+      continue;
+    }
+    if (jetzt - h.seit > HEIMFRIST) {
+      SICHT.delete(k); LAUF.delete(k); HEIM.delete(k); ZULETZT.delete(k);
+    }
+  }
+  for (const k of Array.from(ZULETZT.keys())) {
+    if (!da.has(k) && !SICHT.has(k)) ZULETZT.delete(k);
+  }
+  for (const k of Array.from(LAUF.keys())) {
+    if (!da.has(k) && !SICHT.has(k)) LAUF.delete(k);
+  }
+}
+
+/* Die, die gerade zur Schleuse zurueckhangeln. Sie stehen in keiner
+   Quelle mehr, sollen aber weiter gezeichnet werden. */
+function heimkehrer() {
+  const raus = [];
+  for (const h of HEIM.values()) raus.push(h.figur);
+  return raus;
 }
 
 /* ================================================================
@@ -3985,7 +4051,7 @@ function merkeMast(c, liste, x, y, dreh, seite, paar, oben, irosa) {
   });
 }
 
-function merkePlatz(c, liste, x, y, art, dreh) {
+function merkePlatz(c, liste, x, y, art, dreh, marke) {
   if (!liste) return;
   const m = c.getTransform();
   const p = new DOMPoint(x, y).matrixTransform(m);
@@ -3993,7 +4059,10 @@ function merkePlatz(c, liste, x, y, art, dreh) {
      der Astronaut soll parallel zur Flaeche stehen, nicht schraeg
      dazu. Auf das Vielfache von R umgerechnet wird erst am Ende, wenn
      der Backmassstab feststeht. */
-  liste.push({ x: p.x, y: p.y, art, winkel: Math.atan2(m.b, m.a) + (dreh || 0) });
+  /* Die Marke ueberlebt das Umsortieren, weil sie am Objekt haengt und
+     nicht am Index — nach weitOrdnen() stimmt keine Nummer mehr. */
+  liste.push({ x: p.x, y: p.y, art, winkel: Math.atan2(m.b, m.a) + (dreh || 0),
+               marke: marke || "" });
 }
 
 /* Die Station ist ein schmales Band mit einem Klumpen in der Mitte —
@@ -4490,7 +4559,7 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler, ohneSch
     c.restore();
 
     /* Ein Arbeitsplatz direkt an der Luke — hier steigt man aus. */
-    merkePlatz(c, plaetze, sx - sr * 0.5, -md * 0.5 - sd2 * 1.05, "handlauf", 0);
+    merkePlatz(c, plaetze, sx - sr * 0.5, -md * 0.5 - sd2 * 1.05, "handlauf", 0, "schleuse");
     merkeTeil(c, teile, sx, -md * 0.5 - sd2 * 0.52, "schleuse");
   }
 
@@ -9159,7 +9228,7 @@ function rahmen(jetzt) {
     y: (py - H / 2) * KAM.zoom * kinoZoom + H / 2 + KAM.y,
   });
 
-  const liste = alleAstronauten();
+  const liste = alleAstronauten().concat(heimkehrer());
   const n = liste.length;
   const blasen = [];
   const hindernisse = [];
@@ -9253,15 +9322,84 @@ function rahmen(jetzt) {
     const l = lauf(a.id);
     /* Live-Astronauten bringen ihren Zustand selbst mit */
     if (a.typ !== "agent") l.zustand = a.zustand;
+    /* Die Anzeigedaten hier merken und nicht erst beim Aufraeumen:
+       aufraeumenSicht() laeuft nur, wenn sich die Liste aendert, und
+       zu dem Zeitpunkt ist die verschwundene Figur schon nicht mehr
+       darin. Im Bildtakt kommt dagegen jede gezeichnete Figur vorbei. */
+    if (!a.heimwaerts) ZULETZT.set(a.id, a);
 
-    /* Erstmalig einen Platz beziehen */
+    /* Erstmalig einen Platz beziehen.
+
+       Wer schon da war, als die App aufging, ist einfach draussen: die
+       App hat die Sitzungen nicht gestartet, und ein Ausstieg, der bei
+       jedem Neuladen noch einmal passiert, waere eine Luege. Wer aber
+       WAEHREND des Laufens dazukommt — eine neue Sitzung, ein neuer
+       Prozess —, der steigt aus der Luftschleuse aus und hangelt sich
+       zu seinem Platz. Das ist der einzige Weg nach draussen, und es
+       ist der Moment, in dem die Station bewohnt wirkt. */
     if (v.platz === undefined) {
-      v.platz = reihe.indexOf(a.id) % plaetze.length;
-      v.ziel = null;
-      v.wechselUm = t + 8000 + streu(i, 13, 5) * 40000;
-      vergeben.add(v.platz);
+      const heim = reihe.indexOf(a.id) % plaetze.length;
+      const schl = plaetze.findIndex(q => q.marke === "schleuse");
+      const ausstieg = t > 4000 && schl >= 0 && schl !== heim
+                       && !vergeben.has(schl) && !vergeben.has(heim) && !sparsam;
+      if (ausstieg) {
+        v.platz = schl;
+        v.ziel = heim;
+        vergeben.add(schl); vergeben.add(heim);
+        const d = Math.hypot(plaetze[heim].x - plaetze[schl].x,
+                             plaetze[heim].y - plaetze[schl].y);
+        v.griffe = Math.max(2, Math.round(d / 0.071));
+        v.losUm = t;
+        v.dauer = v.griffe * 2200;
+        v.wechselUm = t + v.dauer + 20000 + streu(i, 41, 7) * 50000;
+        bordbuch(a.name + " ist aus der Schleuse ausgestiegen");
+      } else {
+        v.platz = heim;
+        v.ziel = null;
+        v.wechselUm = t + 8000 + streu(i, 13, 5) * 40000;
+        vergeben.add(v.platz);
+      }
     }
     if (v.platz >= plaetze.length) v.platz = v.platz % plaetze.length;
+
+    /* Der Rueckweg zur Schleuse. Er wird hier angeordnet und nicht beim
+       Aufraeumen, weil erst hier bekannt ist, wo die Plaetze liegen. */
+    /* Unterwegs, wenn die Quelle ausfaellt? Dann nicht die ganze
+       Strecke zu Ende fahren, nur um danach umzudrehen. Wer noch nicht
+       ueber der Haelfte ist, kehrt um — dieselbe Strecke rueckwaerts.
+       Das geht ohne Sprung: Start und Ziel tauschen und die Startzeit
+       so setzen, dass der Fortschritt gespiegelt weiterlaeuft. Ueber
+       der Haelfte lohnt das Umkehren nicht mehr, da ist der naechste
+       Halt naeher als der letzte.
+
+       Mitten zwischen zwei Griffen loslassen tut ohnehin niemand, und
+       v.platz ist waehrend einer Fahrt der Ausgangspunkt und nicht der
+       Aufenthaltsort — ein Rueckweg von dort waere von der falschen
+       Stelle aus gerechnet. */
+    if (a.heimwaerts && !v.heim && v.ziel !== null) {
+      const u = Math.min(1, (t - v.losUm) / v.dauer);
+      if (u < 0.5) {
+        const p0 = v.platz;
+        v.platz = v.ziel; v.ziel = p0;
+        v.losUm = t - (1 - u) * v.dauer;
+      }
+    }
+    if (a.heimwaerts && !v.heim && v.ziel === null) {
+      const schl = plaetze.findIndex(q => q.marke === "schleuse");
+      v.heim = true;
+      if (schl >= 0 && schl !== v.platz) {
+        v.ziel = schl;
+        const d = Math.hypot(plaetze[schl].x - plaetze[v.platz].x,
+                             plaetze[schl].y - plaetze[v.platz].y);
+        v.griffe = Math.max(2, Math.round(d / 0.071));
+        v.losUm = t;
+        v.dauer = v.griffe * 2200;
+        bordbuch(a.name + " hangelt zurück zur Schleuse");
+      } else {
+        /* Steht schon an der Luke oder es gibt keine: dann sofort rein */
+        v.fertigHeim = true;
+      }
+    }
 
     /* Wird gerade nicht gearbeitet und ist Zeit, sucht sich die Figur
        einen neuen Arbeitsplatz — moeglichst einen, der weit genug weg
@@ -9311,6 +9449,7 @@ function rahmen(jetzt) {
         vergeben.delete(v.platz);
         v.platz = v.ziel; v.ziel = null;
         v.wechselUm = t + 20000 + streu(i, 41, 7) * 50000;
+        if (v.heim) v.fertigHeim = true;
       }
     }
 
@@ -9596,6 +9735,15 @@ function rahmen(jetzt) {
                     farbe: a.farbe, seit: l.seit || a.seit || 0 });
     }
   });
+
+  /* An der Luke angekommen: einsteigen. Erst jetzt ist die Figur weg,
+     und erst jetzt steht es im Bordbuch. */
+  for (const [k, h] of Array.from(HEIM.entries())) {
+    const v = SICHT.get(k);
+    if (!v || !v.fertigHeim) continue;
+    bordbuch(h.figur.name + " ist eingestiegen");
+    SICHT.delete(k); LAUF.delete(k); HEIM.delete(k); ZULETZT.delete(k);
+  }
 
   ereignisse(t, dt, ccx, ccy, Rst);
 
@@ -10595,7 +10743,10 @@ function detailOeffnen(id) {
 }
 
 function zeichneDetail(id) {
-  const a = alleAstronauten().find(x => x.id === id);
+  /* Auch die auf dem Rueckweg: sie sind sichtbar, also muss ein Tipp
+     darauf etwas anderes ergeben als "nicht mehr da". */
+  const a = alleAstronauten().find(x => x.id === id)
+         || (HEIM.get(id) || {}).figur;
   const box = $("#d-inhalt");
   if (!a) {
     /* Auch die Kopfzeile zuruecksetzen — sonst stand dort weiter der Name
@@ -10666,6 +10817,20 @@ function zeichneDetail(id) {
       v.onclick = () => { ag.verlauf = []; sichern(); zeichneDetail(a.id); };
       box.appendChild(v);
     }
+    return;
+  }
+
+  /* Wer auf dem Rueckweg ist, hat keine Quelle mehr — alles, was hier
+     sonst steht, waere von gestern. Also nur das, was jetzt gilt. */
+  if (a.heimwaerts) {
+    box.appendChild(zeile("Zustand", "auf dem Rückweg zur Schleuse"));
+    const h = document.createElement("div");
+    h.className = "d-fussnote"; h.style.marginTop = "14px";
+    h.textContent = "Die Quelle meldet sich nicht mehr: die Sitzung ist zu "
+      + "Ende oder der Prozess ausgelaufen. Der Weg zur Luke dauert so "
+      + "lang wie der Hinweg — wer wieder auftaucht, dreht um und "
+      + "arbeitet weiter.";
+    box.appendChild(h);
     return;
   }
 
@@ -12062,7 +12227,9 @@ function astronautBei(px, py) {
   const p = zeigerZuSzene(px, py);
   let treffer = null, naechste = 1e9;
   const reichweite = 42 / Math.max(0.6, KAM.zoom) + 16;
-  for (const a of alleAstronauten()) {
+  /* Die auf dem Rueckweg zaehlen mit: sie stehen sichtbar in der
+     Szene, und was man sieht, muss man antippen koennen. */
+  for (const a of alleAstronauten().concat(heimkehrer())) {
     const v = SICHT.get(a.id);
     if (!v) continue;
     const d = Math.hypot(v.sx - p.x, v.sy - p.y);
@@ -12321,6 +12488,17 @@ window.__SONNE = (ph) => {
 window.__ERDBACK = () => erdeBacken();
 window.__ERDSCHATTEN = (a, b, c) => erdeSchatten(a, b, c);
 window.__SICHTMAP = () => SICHT;
+/* Die Liste, mit der die Szene wirklich rechnet: ohne den
+   Kopplungsstutzen, dafuer mit der Armspitze hinten dran. STBILD.plaetze
+   ist eine andere Nummerierung, und wer die vergleicht, vergleicht
+   Aepfel mit Birnen. */
+window.__PLAETZE = () => LETZTE_ORTE || [];
+window.__BORDBUCH = () => BORDBUCH;
+window.__HEIM = () => HEIM;
+/* Test-Naht: die Sitzungsquelle setzen und den Neuaufbau der App
+   anstossen. BR.live direkt zu fuellen bringt nichts — liveNeuBauen()
+   ersetzt es bei jedem Takt aus genau diesen Quell-Listen. */
+window.__QUELLE = (liste) => { bruecke_sessions = liste || []; liveNeuBauen(); };
 window.__FRACHT = () => FRACHT;
 window.__SCHILDER = () => TEILSCHILDER;
 window.__ORTE = () => LETZTE_ORTE;
