@@ -6021,6 +6021,8 @@ function erdeSchatten(termX, tags, lauf) {
   c.drawImage(ERDE.ring, 0, 0, bw, bh);
   c.restore();
 
+  sonnenhoch(c, bw, bh, termX, tags, lauf);
+
   const m = erdeMasse();
   const breite = W * 0.34 * DPR;
   const tx = termX * DPR;
@@ -6047,6 +6049,43 @@ function erdeSchatten(termX, tags, lauf) {
   c.restore();
   ERDE.termX = termX;
   ERDE.schubGebacken = ERDE.schub;
+}
+
+/* --- Wo die Sonne senkrecht steht -----------------------------------
+   Die Tagseite war bisher gleichmaessig hell bis zum Tagesrand. Das
+   ist falsch: die Beleuchtung einer Kugel faellt mit dem Kosinus des
+   Winkels zum Unterpunkt der Sonne ab, und dieser Abfall faengt
+   direkt unter der Sonne an, nicht erst kurz vor dem Rand. Auf jedem
+   Foto aus dem Orbit sieht man deshalb eine helle Stelle, die ueber
+   den Planeten wandert, und keine gleichmaessig ausgeleuchtete
+   Flaeche.
+
+   Ein Sonnenglanz auf dem Wasser wurde hier auch versucht — der
+   gleissende Fleck, den die Spiegelung auf dem Meer erzeugt. Er ist
+   wieder herausgeflogen: in dieser Ansicht sieht man von der Erde nur
+   ein schmales Band am Rand, halb hinter der Fusszeile und voller
+   Dunst. Der Fleck war dort korrekt gerechnet und trotzdem nicht zu
+   sehen — er lag in zwei von drei Faellen ueber Land, und wo er ueber
+   Wasser lag, verschwand er im Streulicht. Drei Bilder und sechs
+   Kopien fuer etwas, das man nicht sieht, sind drei Bilder zu viel. */
+function sonnenhoch(c, bw, bh, termX, tags, lauf) {
+  if (!tags) return;
+  /* Ein gutes halbes Bild von der Daemmerungslinie entfernt steht die
+     Sonne im Zenit. Sie wandert mit dem Tagesrand ueber die Scheibe. */
+  const gx = (termX - W * 0.62) * (bw / W);
+  const gy = bh * 0.5;
+  const r = bw * 0.62;
+  if (gx < -r || gx > bw + r) return;
+  const rg = c.createRadialGradient(gx, gy, 0, gx, gy, r);
+  rg.addColorStop(0, "rgba(255,250,232,.3)");
+  rg.addColorStop(0.45, "rgba(255,246,224,.14)");
+  rg.addColorStop(1, "rgba(240,246,255,0)");
+  c.save();
+  /* "source-atop": nur auf der Scheibe, nie darueber hinaus. */
+  c.globalCompositeOperation = "source-atop";
+  c.fillStyle = rg;
+  c.fillRect(Math.max(0, gx - r), 0, Math.min(bw, r * 2), bh);
+  c.restore();
 }
 
 function zeichneErde(t) {
