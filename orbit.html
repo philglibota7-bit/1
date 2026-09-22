@@ -4489,17 +4489,78 @@ function fluegelBacken(Rpx, laenge, breite, kLaenge, kBreite, winkel) {
       }
       c.fillStyle = ig;
       c.fillRect(-iw / 2, -ih / 2, iw, ih);
-      c.strokeStyle = dunkel ? "rgba(110,120,146,.22)" : "rgba(168,180,210,.3)";
-      c.lineWidth = 0.4;
+
+      /* Das Zellraster. Vorher waren es vierzehn Striche in einer
+         Richtung — das ist ein Gitterzaun, kein Solarfeld. Ein
+         Rollfluegel dieser Bauart misst sechs auf neunzehn Meter und
+         traegt Zellen von rund acht Zentimetern. Das sind ueber
+         zwanzigtausend Stueck, und was man davon aus der Ferne sieht,
+         ist ein feines Raster in BEIDEN Richtungen — quer enger als
+         laengs, weil die Zellen in Strings verschaltet sind und
+         zwischen den Strings die Sammelschienen liegen. */
+      c.save();
+      c.beginPath(); c.rect(-iw / 2, -ih / 2, iw, ih); c.clip();
+      c.strokeStyle = dunkel ? "rgba(96,108,134,.16)" : "rgba(150,164,196,.2)";
+      c.lineWidth = 0.35;
       c.beginPath();
-      for (let i = 1; i < 14; i++) {
-        const xx = -iw / 2 + (iw * i) / 14;
+      const strings = Math.max(20, Math.round(iw / (ih * 0.055)));
+      for (let i = 1; i < strings; i++) {
+        const xx = -iw / 2 + (iw * i) / strings;
+        c.moveTo(xx, -ih / 2); c.lineTo(xx, ih / 2);
+      }
+      const reihen = Math.max(6, Math.round(ih / (ih * 0.13)));
+      for (let i = 1; i < reihen; i++) {
+        const yy2 = -ih / 2 + (ih * i) / reihen;
+        c.moveTo(-iw / 2, yy2); c.lineTo(iw / 2, yy2);
+      }
+      c.stroke();
+      /* Die Sammelschienen: jede achte Linie ist breiter und heller,
+         dort laeuft der Strom ab. */
+      c.strokeStyle = dunkel ? "rgba(130,142,170,.3)" : "rgba(186,198,222,.34)";
+      c.lineWidth = 0.7;
+      c.beginPath();
+      for (let i = 8; i < strings; i += 8) {
+        const xx = -iw / 2 + (iw * i) / strings;
         c.moveTo(xx, -ih / 2); c.lineTo(xx, ih / 2);
       }
       c.stroke();
+
+      /* Der Glanz. Eine Solarzelle ist unter Glas, und Glas spiegelt.
+         Auf jeder Aufnahme liegt deshalb ein breites helles Band
+         schraeg ueber dem Feld, dort wo die Flaeche gerade den
+         richtigen Winkel zur Sonne hat. Ohne dieses Band ist ein
+         Solarfeld ein schwarzes Rechteck; mit ihm ist es Glas. */
+      const sg = c.createLinearGradient(-iw * 0.45, -ih / 2, iw * 0.15, ih / 2);
+      sg.addColorStop(0, "rgba(120,150,210,0)");
+      sg.addColorStop(0.42, `rgba(132,162,222,${dunkel ? 0.05 : 0.14})`);
+      sg.addColorStop(0.52, `rgba(160,190,244,${dunkel ? 0.07 : 0.2})`);
+      sg.addColorStop(0.64, `rgba(120,150,210,${dunkel ? 0.03 : 0.08})`);
+      sg.addColorStop(1, "rgba(110,140,200,0)");
+      c.fillStyle = sg;
+      c.fillRect(-iw / 2, -ih / 2, iw, ih);
+      c.restore();
+
       c.strokeStyle = dunkel ? "rgba(140,152,180,.34)" : "rgba(208,218,232,.5)";
       c.lineWidth = 0.5;
       c.strokeRect(-iw / 2, -ih / 2, iw, ih);
+
+      /* Die Kassette an der Wurzel. Ein Rollfluegel kommt nicht
+         gefaltet, sondern aufgerollt: er wird von einer Welle
+         abgewickelt, und die bleibt danach als Zylinder am Fuss
+         stehen. Ohne sie sieht das Feld aus, als waere es aus dem
+         Nichts gewachsen. */
+      const kz = ih * 0.16;
+      const kg2 = c.createLinearGradient(0, -kz, 0, kz);
+      kg2.addColorStop(0, "#9aa0ab"); kg2.addColorStop(0.35, "#e4e6ea");
+      kg2.addColorStop(0.7, "#787d88"); kg2.addColorStop(1, "#2a2e36");
+      c.fillStyle = kg2;
+      rundRect(c, -iw / 2 - kz * 0.9, -ih / 2 - kz * 0.2,
+        kz * 1.3, ih + kz * 0.4, kz * 0.5);
+      c.fill();
+      c.strokeStyle = "rgba(30,32,38,.55)"; c.lineWidth = 0.4;
+      rundRect(c, -iw / 2 - kz * 0.9, -ih / 2 - kz * 0.2,
+        kz * 1.3, ih + kz * 0.4, kz * 0.5);
+      c.stroke();
     }
     return cv;
   };
