@@ -10891,10 +10891,33 @@ function zeichneErde(t) {
     * 0.024 * ERDE.bild.width * ZEIT.rate;
   ERDE.uhr = t;
   /* Neu zusammengesetzt wird nur, wenn sich wirklich etwas verschoben
-     hat. Bei hoher Zeitraffung wird die Schwelle mitgezogen: sonst
-     waere die Scheibe bei zwoelffachem Tempo dreissigmal je Sekunde
-     neu zu bauen, und das kostet mehr als es zeigt. */
-  const schwelle = 22 * Math.max(1, ZEIT.rate * 0.6);
+     hat. Die Frage ist, ab wie viel.
+
+     Lange waren es fest zweiundzwanzig Bildpunkte der fertigen
+     Scheibe. Gemessen hiess das: der Boden stand still und sprang dann
+     um fuenfundvierzig Bildpunkte, gut einmal je Sekunde — auf dem
+     Handy seltener, aber genauso weit. Ein Planet, der ruckt wie eine
+     Diaschau, ist gerade das, was eine Szene unwirklich macht.
+
+     Wie klein die Schwelle sein darf, haengt am Geraet. Mit einem
+     Grafikchip kostet das Zusammensetzen so gut wie nichts, und der
+     Boden kann Bild fuer Bild weiterziehen. In einem Browser, der ohne
+     Grafikchip zeichnet, kostet es bei doppelter Aufloesung rund
+     vierzig Millisekunden, und eine Schwelle von sechs statt
+     zweiundzwanzig Bildpunkten halbierte dort die Bildrate (gemessen:
+     11 statt 23 Bilder je Sekunde). Die Zeit, die der
+     Aufruf selbst braucht, sagt darueber nichts — der Browser zeichnet
+     erst spaeter. Also wird gemessen, was es wirklich kostet: wie viel
+     laenger ein Bild dauert, in dem die Scheibe neu entstand, als eines
+     ohne. Die Schwelle wird so gelegt, dass das Zusammensetzen
+     hoechstens ein Zwoelftel der Zeit frisst. Wo es nichts kostet,
+     zieht der Boden fluessig; wo es teuer ist, bleibt es bei den
+     alten Spruengen, statt die ganze Szene auszubremsen. */
+  const bodenTempo = 0.024 * ERDE.bild.width * Math.max(0.05, ZEIT.rate);
+  const erdKosten = Math.max(0, ERDKOSTEN.mit - ERDKOSTEN.ohne) / 1000;
+  const schwelle = klemm(bodenTempo * erdKosten * 12, 1,
+                         22 * Math.max(1, ZEIT.rate * 0.6));
+  ERDKOSTEN.schwelle = schwelle;
   /* Dieselbe Mitzieherei fuer den Tagesrand. Seit er nicht mehr
      gemaechlich ueber den halben Umlauf kriecht, sondern den
      sichtbaren Streifen in Minuten durchquert, wandert er mit gut
@@ -10907,6 +10930,7 @@ function zeichneErde(t) {
       || ERDE.schubGebacken === null
       || Math.abs(ERDE.schub - ERDE.schubGebacken) > schwelle) {
     ERDE.tags = tags;
+    ERDKOSTEN.eben = true;
     erdeSchatten(termX, tags, lauf);
   }
 
@@ -11652,6 +11676,9 @@ function kameraNachfuehren() {
 
 const SICHT = new Map();     // agentId -> { r, winkel, sx, sy }
 let letzteZeit = performance.now();
+/* Was das Neuzusammensetzen der Erde wirklich kostet: die Bilddauer
+   nach einem Bild, in dem es geschah, gegen die ohne. Beide gleiten. */
+const ERDKOSTEN = { mit: 16.7, ohne: 16.7, eben: false, schwelle: 22 };
 let kinoAn = false;
 
 function sicht(id, i, n, startWinkel) {
@@ -11677,6 +11704,10 @@ function rahmen(jetzt) {
      Weiterzuzeichnen wuerde nur den Weichzeichner der Blende in jedem
      Einzelbild neu anwerfen. */
   if (blendeOffen || window.__STOP) { requestAnimationFrame(rahmen); return; }
+
+  if (ERDKOSTEN.eben) ERDKOSTEN.mit += (dt - ERDKOSTEN.mit) * 0.12;
+  else ERDKOSTEN.ohne += (dt - ERDKOSTEN.ohne) * 0.04;
+  ERDKOSTEN.eben = false;
 
   cx.clearRect(0, 0, W, H);
 
