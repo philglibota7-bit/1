@@ -2327,6 +2327,34 @@ function endkappe(c, x, y, r, hafen) {
    sieht — der hintere Rahmen wird schwaecher und versetzt gezeichnet,
    dazwischen bleibt die Schwaerze des Alls stehen. Ein massiver Balken
    sieht sofort nach Spielzeug aus. */
+/* --- Beruehrungsschatten ---------------------------------------------
+   Dort, wo zwei Bauteile aneinanderstossen, kommt weniger Licht hin —
+   nicht weil etwas davorsteht, sondern weil die Umgebung dort einen
+   Teil des Himmels verdeckt. Im Orbit ist dieser Himmel die Erde und
+   das Sonnenlicht, das von den Nachbarflaechen zurueckkommt.
+
+   Das haengt an KEINER Lichtrichtung, und genau deshalb ist es hier
+   das richtige Werkzeug: die Szene hat nicht eine Sonne, sondern eine
+   gemalte Lichtstimmung, und jeder Schlagschatten wuerde den
+   Widerspruch aufdecken. Ein Beruehrungsschatten nicht — er sagt nur
+   "diese beiden Teile beruehren sich", und das ist immer wahr.
+
+   Es ist zugleich der billigste Weg zu Koerperlichkeit. Ein
+   Rechenbild ohne diese dunklen Zonen sieht aus wie ausgeschnittenes
+   Papier, egal wie fein die Flaechen gezeichnet sind. */
+function beruehrung(c, x, y, rx, ry, staerke) {
+  const g = c.createRadialGradient(x, y, 0, x, y, 1);
+  g.addColorStop(0, `rgba(8,10,14,${staerke})`);
+  g.addColorStop(0.45, `rgba(8,10,14,${staerke * 0.55})`);
+  g.addColorStop(1, "rgba(8,10,14,0)");
+  c.save();
+  c.translate(x, y);
+  c.scale(rx, ry);
+  c.fillStyle = g;
+  c.beginPath(); c.arc(0, 0, 1, 0, Math.PI * 2); c.fill();
+  c.restore();
+}
+
 function gittertraeger(c, x1, x2, y, hoehe, saat, plaetze) {
   const laenge = x2 - x1;
   /* Feldteilung nicht nach Augenmass: das Segment S0 hat fuenf Felder
@@ -2406,6 +2434,24 @@ function gittertraeger(c, x1, x2, y, hoehe, saat, plaetze) {
   }
   c.stroke();
 
+  /* Die Knoten, an denen die Diagonalen auf die Gurte treffen. Ein
+     Fachwerk ist an diesen Stellen dicker, nicht duenner — dort
+     sitzen die Knotenbleche und die Bolzen. Und dort ist es dunkel,
+     weil drei Rohre einander den Himmel verstellen. */
+  if (hoehe > 5) {
+    for (let i = 0; i <= felder; i++) {
+      const xa = x1 + (laenge * i) / felder;
+      for (const s of [-1, 1]) {
+        const yy = y + s * hoehe / 2;
+        beruehrung(c, xa, yy, hoehe * 0.16, hoehe * 0.16, 0.5);
+        c.fillStyle = "rgba(196,203,211,.85)";
+        rundRect(c, xa - hoehe * 0.055, yy - hoehe * 0.05,
+          hoehe * 0.11, hoehe * 0.1, hoehe * 0.02);
+        c.fill();
+      }
+    }
+  }
+
   /* Segmentfugen sitzen unregelmaessig — echte Traeger sind aus
      verschieden langen Stuecken gebaut, kein gleichmaessiges Raster. */
   c.strokeStyle = "rgba(226,232,240,.8)";
@@ -2427,6 +2473,9 @@ function gittertraeger(c, x1, x2, y, hoehe, saat, plaetze) {
     const bh = hoehe * (0.3 + streu(i, saat, 5) * 0.3);
     const oben = streu(i, saat, 9) > 0.5;
     const yy = oben ? y - hoehe / 2 - bh : y + hoehe / 2;
+    /* Der Fuss der Kiste auf dem Gurt */
+    beruehrung(c, xx + bw / 2, oben ? y - hoehe / 2 : y + hoehe / 2,
+      bw * 0.62, hoehe * 0.3, 0.45);
     if (streu(i, saat, 13) > 0.66) {
       folie(c, xx, yy, bw, bh, bh * 0.15, saat + i);
     } else {
@@ -4059,6 +4108,7 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler, ohneSch
     const gx = seite * tr * 0.42;
     c.save();
     c.translate(gx, 0);
+    beruehrung(c, 0, 0, trh * 1.0, trh * 0.85, 0.5);
     c.fillStyle = sonnenlauf(c, -trh * 0.6, -trh * 0.52, trh * 1.2, trh * 1.04,
       "#e4e8ec", "#8d959c", "#191d21");
     rundRect(c, -trh * 0.6, -trh * 0.52, trh * 1.2, trh * 1.04, trh * 0.2); c.fill();
@@ -4075,6 +4125,7 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler, ohneSch
     for (const paar of [0, 1]) {
       const wurzel = seite * tr * (paar ? 0.86 : 0.58);
       /* Der Ausfahrkasten, aus dem der Mast herauswaechst */
+      beruehrung(c, wurzel, 0, trh * 0.75, trh * 0.72, 0.48);
       c.fillStyle = sonnenlauf(c, wurzel - trh * 0.4, -trh * 0.45, trh * 0.8, trh * 0.9,
         "#f0eee4", "#93918a", "#171a1d");
       rundRect(c, wurzel - trh * 0.4, -trh * 0.45, trh * 0.8, trh * 0.9, trh * 0.15);
@@ -11678,6 +11729,7 @@ window.__HIMMEL_STAND = () => ({ dx: HIMMEL.dx, dy: HIMMEL.dy, spiel: HIMMEL.spi
 window.__TRIFFT = (x, y) => trifftStruktur(x, y);
 window.__MISSION = () => MISSION;
 window.__LETZTES_RST = () => LETZTES_RST;
+window.__STATION_BACK = (R) => stationBacken(R);
 window.__DURCHGANG = () => DURCHGANG;
 window.__VERDECKUNG = (fe, t) => verdeckung(fe, t);
 window.__SATELLITEN = () => SATELLITEN;
