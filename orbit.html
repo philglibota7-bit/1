@@ -6370,7 +6370,7 @@ function halteZeug(c, ax, ay, winkel, art, M, stiel, zoom, t, phase, gx, gy, kip
   /* Nach aussen zeigt im gedrehten Bezugssystem das negative y —
      dieselbe Festlegung wie beim Kontaktschatten daneben. */
 
-  if (art === "fussraste") {
+  if (art === "fussraste" || art === "arm") {
     /* Die Fussraste ist der Arbeitsplatz im All. Man steigt mit den
        Stiefeln in zwei Klemmen, dreht eine Vierteldrehung, und steht
        fest genug, um mit beiden Haenden an einer Schraube zu drehen.
@@ -6395,6 +6395,24 @@ function halteZeug(c, ax, ay, winkel, art, M, stiel, zoom, t, phase, gx, gy, kip
     c.beginPath(); c.arc(0, -M * 0.06, M * 0.085, 0, Math.PI * 2); c.fill();
     c.strokeStyle = d("rgba(26,28,34,.7)"); c.lineWidth = M * 0.02;
     c.beginPath(); c.arc(0, -M * 0.06, M * 0.085, 0, Math.PI * 2); c.stroke();
+
+    /* Haengt die Raste am Arm, sitzt unter dem Kugelgelenk ihr
+       Greifzapfen — das ist die Stelle, an der der Arm sie gepackt
+       hat. Es ist naemlich nicht der Mensch, den der Arm haelt,
+       sondern die Raste: eine tragbare Fussraste mit Zapfen am Fuss,
+       in die man einsteigt, und dann faehrt der Arm los. Genau so
+       kommt man an Stellen, die keine Hand erreicht. */
+    if (art === "arm") {
+      c.fillStyle = d("#a9adb4");
+      c.beginPath();
+      c.moveTo(-M * 0.09, M * 0.02); c.lineTo(-M * 0.05, -M * 0.1);
+      c.lineTo(M * 0.05, -M * 0.1); c.lineTo(M * 0.09, M * 0.02);
+      c.closePath(); c.fill();
+      c.fillStyle = d("#d4d7db");
+      rundRect(c, -M * 0.13, M * 0.0, M * 0.26, M * 0.06, M * 0.02); c.fill();
+      c.strokeStyle = d("rgba(26,28,34,.7)"); c.lineWidth = Math.max(0.3, M * 0.018);
+      rundRect(c, -M * 0.13, M * 0.0, M * 0.26, M * 0.06, M * 0.02); c.stroke();
+    }
 
     /* Die Platte, leicht geneigt — so steht sie wirklich, damit der
        Koerper zur Arbeit zeigt und nicht senkrecht vom Bauteil weg. */
@@ -6432,22 +6450,6 @@ function halteZeug(c, ax, ay, winkel, art, M, stiel, zoom, t, phase, gx, gy, kip
       c.stroke();
     }
     c.restore();
-    c.restore();
-    return;
-  }
-
-  if (art === "arm") {
-    /* Greifzapfen: der Punkt, an dem der Arm zupackt. Ein Kegelstumpf
-       mit Kragen, damit die drei Draehte im Endstueck sicher fassen. */
-    c.fillStyle = d("#a9adb4");
-    c.beginPath();
-    c.moveTo(-M * 0.09, 0); c.lineTo(-M * 0.05, -M * 0.24);
-    c.lineTo(M * 0.05, -M * 0.24); c.lineTo(M * 0.09, 0);
-    c.closePath(); c.fill();
-    c.fillStyle = d("#d4d7db");
-    rundRect(c, -M * 0.13, -M * 0.3, M * 0.26, M * 0.07, M * 0.02); c.fill();
-    c.strokeStyle = d("rgba(26,28,34,.7)"); c.lineWidth = Math.max(0.3, M * 0.018);
-    rundRect(c, -M * 0.13, -M * 0.3, M * 0.26, M * 0.07, M * 0.02); c.stroke();
     c.restore();
     return;
   }
