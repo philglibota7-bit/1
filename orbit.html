@@ -7959,7 +7959,15 @@ function zeichneErde(t) {
      waere die Scheibe bei zwoelffachem Tempo dreissigmal je Sekunde
      neu zu bauen, und das kostet mehr als es zeigt. */
   const schwelle = 22 * Math.max(1, ZEIT.rate * 0.6);
-  if (ERDE.termX === null || Math.abs(termX - ERDE.termX) > 20 || ERDE.tags !== tags
+  /* Dieselbe Mitzieherei fuer den Tagesrand. Seit er nicht mehr
+     gemaechlich ueber den halben Umlauf kriecht, sondern den
+     sichtbaren Streifen in Minuten durchquert, wandert er mit gut
+     zwanzig Bildpunkten je Sekunde — bei zwoelffacher Zeit mit
+     zweihundertfuenfzig. Eine feste Schwelle von zwanzig haette die
+     Scheibe dann zwoelfmal je Sekunde neu zusammengesetzt, und jedes
+     Zusammensetzen sind sechs bis zehn Millisekunden. */
+  const randSchwelle = 20 * Math.max(1, ZEIT.rate * 0.6);
+  if (ERDE.termX === null || Math.abs(termX - ERDE.termX) > randSchwelle || ERDE.tags !== tags
       || ERDE.schubGebacken === null
       || Math.abs(ERDE.schub - ERDE.schubGebacken) > schwelle) {
     ERDE.tags = tags;
