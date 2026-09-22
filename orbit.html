@@ -8185,19 +8185,63 @@ function zeichneLeine(von, bis, farbe, zustand, t, blitze, phase) {
 /* --- Gedankenblase mit dem echten Denkprotokoll ---
    Layout und Zeichnen sind getrennt: nur so koennen sich mehrere
    Blasen gegenseitig ausweichen, statt uebereinander zu liegen. */
-function blaseLayout(x, y, text) {
-  const maxB = Math.min(240, W * 0.6);
-  cx.font = "11.5px -apple-system, system-ui, sans-serif";
-  const worte = String(text).split(/\s+/);
+/* Der Umbruch einer Blase haengt nur an Text und Breite — und dieselben
+   Blasen stehen Bild fuer Bild da. Also einmal umbrechen und merken. */
+const BLASEN_UMBRUCH = new Map();
+
+function blaseUmbrechen(text, platz) {
+  const schl = platz + "|" + text;
+  const alt = BLASEN_UMBRUCH.get(schl);
+  if (alt) return alt;
+  /* Ein Wort, das allein nicht in eine Zeile passt — ein Pfad, ein
+     langer Befehl —, wird zerlegt, am liebsten hinter einem
+     Schraegstrich oder Bindestrich. Vorher brach die Blase nur an
+     Leerzeichen, und ein Pfad lief weit ueber ihren Rand hinaus:
+     aufgefallen erst mit echten Daten. */
+  const stuecke = [];
+  for (const w of String(text).split(/\s+/).filter(Boolean)) {
+    let rest = w;
+    while (cx.measureText(rest).width > platz) {
+      let lo = 1, hi = rest.length;               // laengstes Stueck, das passt
+      while (lo < hi) {
+        const mitte = (lo + hi + 1) >> 1;
+        if (cx.measureText(rest.slice(0, mitte)).width <= platz) lo = mitte; else hi = mitte - 1;
+      }
+      let n = lo;
+      const schnitt = Math.max(rest.lastIndexOf("/", n - 1), rest.lastIndexOf("-", n - 1));
+      if (schnitt >= n * 0.5) n = schnitt + 1;
+      stuecke.push(rest.slice(0, n));
+      rest = rest.slice(n);
+    }
+    if (rest) stuecke.push(rest);
+  }
   const zeilen = [];
   let z = "";
-  for (const w of worte) {
+  for (const w of stuecke) {
     const probe = z ? z + " " + w : w;
-    if (cx.measureText(probe).width > maxB - 22 && z) { zeilen.push(z); z = w; }
+    if (cx.measureText(probe).width > platz && z) { zeilen.push(z); z = w; }
     else z = probe;
   }
   if (z) zeilen.push(z);
-  const sicht = zeilen.slice(-3);
+  if (BLASEN_UMBRUCH.size > 60) BLASEN_UMBRUCH.clear();
+  BLASEN_UMBRUCH.set(schl, zeilen);
+  return zeilen;
+}
+
+/* Drei Zeilen passen in eine Blase. Bei einem Gedanken, der gerade
+   einlaeuft, sind es die letzten — dort steht das Neueste. Bei einer
+   Taetigkeit die ersten: ein Befehl beginnt mit dem, was er tut, und
+   ohne seinen Anfang ist ein Pfad nur eine Zahlenreihe. */
+function blaseLayout(x, y, text, vonVorn) {
+  const maxB = Math.min(240, W * 0.6);
+  cx.font = "11.5px -apple-system, system-ui, sans-serif";
+  const zeilen = blaseUmbrechen(text, maxB - 22);
+  let sicht = vonVorn ? zeilen.slice(0, 3) : zeilen.slice(-3);
+  if (vonVorn && zeilen.length > 3) {
+    let l = sicht[2];
+    while (l && cx.measureText(l + "…").width > maxB - 22) l = l.slice(0, -1);
+    sicht = [sicht[0], sicht[1], l.trimEnd() + "…"];
+  }
   const zh = 15.5;
   const bh = sicht.length * zh + 15;
   let breite = 0;
@@ -11088,7 +11132,7 @@ function rahmen(jetzt) {
       : (l.zustand === "sendet" || l.zustand === "fehler" ? a.taetigkeit
        : l.zustand === "winkt" ? (WARTET_TEXT[a.wartetAuf] || "wartet auf dich") : "");
     if (blasentext) {
-      blasen.push({ x, y: y - groesse * 1.9, text: blasentext,
+      blasen.push({ x, y: y - groesse * 1.9, text: blasentext, vonVorn: a.typ !== "agent",
                     farbe: a.farbe, seit: l.seit || a.seit || 0 });
     }
   });
@@ -11221,7 +11265,7 @@ function rahmen(jetzt) {
   const zeigen = blasen.slice(0, maxBlasen).sort((a, b) => a.y - b.y);
   const frei = hindernisse.slice();
   for (const bl of zeigen) {
-    const box = blaseLayout(bl.x, bl.y, bl.text);
+    const box = blaseLayout(bl.x, bl.y, bl.text, bl.vonVorn);
     for (let versuch = 0; versuch < 8; versuch++) {
       const stoert = frei.find(o =>
         box.bx < o.bx + o.bw + 6 && box.bx + box.bw + 6 > o.bx &&
@@ -12084,7 +12128,16 @@ function etimeMs(t) {
 /* Wie lange ist dieser Astronaut draussen? Nur echte Startzeiten
    zaehlen: geraten wird hier nichts, und ohne Startzeit faellt die
    ganze Uhr weg, statt eine zu erfinden. */
+/* Ein Unteragent, der berichtet hat oder abgebrochen wurde, ist nicht
+   mehr im Einsatz — seine Uhr bleibt beim letzten Lebenszeichen stehen.
+   Vorher lief sie weiter, und ein Agent von gestern, der nach
+   siebzehn Minuten fertig war, stand mit "Reserve aufgebraucht" da. */
+function einsatzVorbei(a) {
+  return a.typ === "unteragent" && (a.berichtet || !!a.fehlerText || a.zustand === "ruht");
+}
+
 function draussenSeit(a) {
+  if (a.seitStart && einsatzVorbei(a) && a.seit) return Math.max(0, a.seit - a.seitStart);
   if (a.seitStart) return Math.max(0, Date.now() - a.seitStart);
   if (a.laufzeit) return etimeMs(a.laufzeit);
   return 0;
@@ -12391,7 +12444,9 @@ function zeichneDetail(id) {
     }
     if (draussenSeit(a)) {
       box.appendChild(abschnitt("Außenbordeinsatz"));
-      box.appendChild(zeile("Draußen", dauer(draussenSeit(a))));
+      box.appendChild(einsatzVorbei(a)
+        ? zeile("Einsatz", dauer(draussenSeit(a)) + " — beendet")
+        : zeile("Draußen", dauer(draussenSeit(a))));
       box.appendChild(anzugBlock(a));
     }
     if (a.nutzung) {
@@ -12475,7 +12530,9 @@ function zeichneDetail(id) {
        Laufzeit, und ps gibt sie her. */
     if (draussenSeit(a)) {
       box.appendChild(abschnitt("Außenbordeinsatz"));
-      box.appendChild(zeile("Draußen", dauer(draussenSeit(a))));
+      box.appendChild(einsatzVorbei(a)
+        ? zeile("Einsatz", dauer(draussenSeit(a)) + " — beendet")
+        : zeile("Draußen", dauer(draussenSeit(a))));
       box.appendChild(anzugBlock(a));
     } else {
       box.appendChild(zeile("Laufzeit", a.laufzeit || "—"));
