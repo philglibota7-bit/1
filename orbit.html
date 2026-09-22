@@ -311,6 +311,14 @@ footer{
 .live-karte .uhr{font-size:11px; color:var(--tx3); flex:0 0 auto;
   font-variant-numeric:tabular-nums;}
 .live-karte .uhr.eng{color:#e0a24e;}
+/* Der kleine Takt vor der Uhr: zwanzig Minuten, eine Saeule je Minute */
+.mini-takt{display:inline-flex; align-items:flex-end; gap:1px; width:59px; height:13px;
+  flex:0 0 auto; align-self:center; margin-left:4px;}
+.mini-takt i{flex:1 1 0; min-width:0; border-radius:1px 1px 0 0; background:var(--lauf);}
+.mini-takt i.leer{height:1px; background:rgba(255,255,255,.16); border-radius:0;}
+.mini-takt i.unbekannt{height:1px; background:none; border-radius:0;
+  background-image:linear-gradient(90deg, rgba(255,255,255,.2) 50%, transparent 50%);}
+.live-karte.kind .mini-takt{opacity:.8;}
 .live-karte .uhr.leer{color:var(--bad);}
 .live-karte .tut{font-size:11.5px; color:var(--tx2); margin-top:4px; line-height:1.4;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
@@ -357,6 +365,22 @@ footer{
 .d-kind .st.fertig{color:var(--good);}
 .d-kind .st.aktiv{color:var(--lauf);}
 .d-kind .st.fehler{color:#e79a8c;}
+/* Die Dateien, die eine Sitzung geaendert hat — der Punkt in der Farbe
+   des Schreibens wie im Zeitstrahl, hell, solange es keine Minute her ist */
+.d-dateien{margin:2px 0 4px;}
+.d-datei{display:flex; align-items:baseline; gap:8px; min-width:0; position:relative;
+  padding:5px 2px 5px 13px; border-bottom:1px solid rgba(255,255,255,.05); font-size:12.5px;}
+.d-datei::before{content:""; position:absolute; left:1px; top:50%; width:5px; height:5px;
+  margin-top:-2.5px; border-radius:50%; background:rgba(207,164,86,.42);}
+.d-datei.frisch::before{background:#cfa456; box-shadow:0 0 0 3px rgba(207,164,86,.18);}
+.d-datei .nm{flex:0 1 auto; max-width:58%; color:var(--tx); font-weight:600;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.d-datei .ord{flex:1 1 0; min-width:0; color:var(--tx3); font-size:10.5px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; direction:rtl; text-align:left;}
+.d-datei .n{flex:0 0 auto; color:#cfa456; font-size:11px; font-variant-numeric:tabular-nums;}
+.d-datei .wann{flex:0 0 auto; min-width:64px; text-align:right; color:var(--tx3); font-size:10.5px;
+  font-variant-numeric:tabular-nums;}
 
 .mini{width:28px; height:28px; border-radius:7px; background:var(--p2); color:var(--tx3);
   display:flex; align-items:center; justify-content:center; flex:0 0 auto; transition:all .2s var(--ease);}
@@ -641,6 +665,8 @@ body.sicht #blende-detail{
   cursor:pointer; transition:background .15s, border-color .15s;}
 .d-pr:hover, .d-pr:focus-visible{background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.12);
   outline:none;}
+.d-pr.ohne-ziel{cursor:default;}
+.d-pr.ohne-ziel:hover{background:rgba(255,255,255,.03); border-color:rgba(255,255,255,.06);}
 .d-pr::before{content:""; position:absolute; left:0; top:10px; bottom:10px; width:3px;
   border-radius:0 3px 3px 0; background:rgba(255,255,255,.14);}
 .d-pr.gruen::before{background:var(--good);}
@@ -692,7 +718,7 @@ body.sicht #blende-detail{
 @keyframes wartepuls{
   0%,100%{box-shadow:0 0 0 3px rgba(207,164,86,.2);}
   50%{box-shadow:0 0 0 5px rgba(207,164,86,.07);}}
-.d-lauf.gh .d-tritt:hover .ziel, .d-lauf.gh .d-tritt:focus-visible .ziel{color:var(--tx);}
+.d-lauf.gh .d-tritt[role=link]:hover .ziel, .d-lauf.gh .d-tritt:focus-visible .ziel{color:var(--tx);}
 .d-lauf.gh .d-tritt:focus-visible{outline:none;}
 /* --- Die Anzuguhr ---
    Ein Aussenbordeinsatz endet nicht, wenn die Arbeit fertig ist,
@@ -1675,6 +1701,12 @@ function textAus(c) {
   return c.filter(b => b && b.type === "text" && typeof b.text === "string").map(b => b.text).join("\n");
 }
 
+/* Die Werkzeuge, die eine Datei schreiben. Was ein Befehl in der
+   Shell aendert, ist daraus nicht zu erkennen — das steht so auch
+   unter der Liste. */
+const SCHREIBWERKZEUGE = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
+const SCHREIBZEILE = /"name":"(?:Edit|Write|MultiEdit|NotebookEdit)"/;
+
 async function protokollLesen(pfad, groesse, mt) {
   const alt = PROTOKOLLE.get(pfad);
   if (alt && alt.groesse === groesse && alt.mt === mt) return alt.daten;
@@ -1828,6 +1860,13 @@ async function protokollLesen(pfad, groesse, mt) {
      "nichts los", sondern unbekannt. */
   const takt = [];
   let abgedecktAb = 0;
+  /* Im selben Durchgang: welche Dateien hat sie geaendert? Gezaehlt
+     wird ein Edit oder Write erst, wenn sein Ergebnis da ist und kein
+     Fehler war — ein abgelehnter Edit steht als "is_error":true mit
+     "The user doesn't want to proceed with this tool use" im
+     Protokoll (an einem echten nachgesehen), und die Datei ist dann
+     unveraendert. Ausgepackt werden nur die Zeilen, um die es geht. */
+  const schreibt = new Map(), erledigt = new Set();
   for (const z of zeilen) {
     const m = /"timestamp":"([^"]+)"/.exec(z);
     if (!m) continue;
@@ -1836,11 +1875,40 @@ async function protokollLesen(pfad, groesse, mt) {
     if (z.includes('"type":"assistant"') && z.includes('"tool_use"')) {
       const n = z.split('"type":"tool_use"').length - 1;
       for (let k = 0; k < Math.max(1, n); k++) takt.push(zt);
+      if (SCHREIBZEILE.test(z)) {
+        let d = null;
+        try { d = JSON.parse(z); } catch {}
+        const inhalt = d && !synthetisch(d) && Array.isArray((d.message || {}).content) ? d.message.content : [];
+        for (const b of inhalt) {
+          if (!b || b.type !== "tool_use" || !SCHREIBWERKZEUGE.has(b.name) || !b.input) continue;
+          const f = b.input.file_path || b.input.notebook_path;
+          if (typeof f === "string" && f) schreibt.set(b.id, { pfad: f, zeit: zt });
+        }
+      }
+    } else if (schreibt.size && z.includes('"tool_result"')) {
+      if (z.includes('"is_error":true')) {
+        let d = null;
+        try { d = JSON.parse(z); } catch {}
+        const c = d && Array.isArray((d.message || {}).content) ? d.message.content : [];
+        for (const b of c)
+          if (b && b.type === "tool_result" && !b.is_error && b.tool_use_id) erledigt.add(b.tool_use_id);
+      } else {
+        for (const t of z.matchAll(/"tool_use_id":"([^"]+)"/g)) erledigt.add(t[1]);
+      }
     }
+  }
+  const geaendert = new Map();
+  for (const [id, e] of schreibt) {
+    if (!erledigt.has(id)) continue;
+    const g = geaendert.get(e.pfad) || { pfad: e.pfad, n: 0, zuletzt: 0 };
+    g.n++; g.zuletzt = Math.max(g.zuletzt, e.zeit);
+    geaendert.set(e.pfad, g);
   }
 
   const daten = {
     takt: takt.slice(-600), abgedecktAb: pos > 0 ? abgedecktAb : 0,
+    geaendert: [...geaendert.values()].sort((x, y) => y.zuletzt - x.zuletzt).slice(0, 12),
+    geaendertZahl: geaendert.size,
     cwd, branch, modell, aufwand, sid, nutzung, agentId, letzteZeit, letzteRolle,
     letzterText: letzterText || strukturiert, fehlerText: fehlerText ? antwortKurz(fehlerText) : "",
     /* Lange Auftraege werden hier schon gekuerzt: was drueber
@@ -1900,6 +1968,7 @@ async function sessionLesen(k, elternName) {
     const berichtet = !fehlerText && letzterText && alter > 15000;
     return {
       takt: p.takt, abgedecktAb: p.abgedecktAb,
+      geaendert: p.geaendert, geaendertZahl: p.geaendertZahl,
       id: "u:" + kennung,
       sid: kennung,
       typ: "unteragent",
@@ -1930,6 +1999,7 @@ async function sessionLesen(k, elternName) {
 
   return {
     takt: p.takt, abgedecktAb: p.abgedecktAb,
+    geaendert: p.geaendert, geaendertZahl: p.geaendertZahl,
     id: "s:" + (sid || k.name),
     sid,
     typ: "session",
@@ -2609,10 +2679,26 @@ function vorfuehrungTakt() {
   const phaseA = s < 32 ? "busy" : s < 55 ? "waiting" : s < 100 ? "busy" : "idle";
   const phaseAb = s < 32 ? 0 : s < 55 ? 32 : s < 100 ? 55 : 100;
   const schritteA = vorfSchritte(SCHRITTE_A, s, t0);
-  /* Eine Stunde Vorgeschichte fuer den Takt: gleichmaessig mit einer
-     Pause in der Mitte — so sieht eine echte Stunde aus. */
+  /* Was sie geaendert hat: die Edits dieses Durchgangs, dazu drei aus
+     der Vorgeschichte */
+  const geaendertA = [
+    { pfad: ort + "/src/kasse/preis.ts", n: 2, zuletzt: t0 - 18 * 60000 },
+    { pfad: ort + "/src/kasse/gutschein.ts", n: 3, zuletzt: t0 - 12 * 60000 },
+    { pfad: ort + "/tests/kasse.test.ts", n: 2, zuletzt: t0 - 47 * 60000 },
+  ];
+  for (const x of SCHRITTE_A) if (x[1] === "Edit" && x[0] <= s) {
+    const g = geaendertA.find(e => e.pfad === x[2].file_path);
+    if (g) { g.n++; g.zuletzt = um(x[0]); }
+    else geaendertA.push({ pfad: x[2].file_path, n: 1, zuletzt: um(x[0]) });
+  }
+  geaendertA.sort((x, y) => y.zuletzt - x.zuletzt);
+  /* Eine Stunde Vorgeschichte fuer den Takt: Arbeit in Schueben von
+     zwei bis fuenf Aufrufen je Minute, in der Mitte eine Pause — so
+     sieht eine echte Stunde aus. Ein fester Wechsel statt Zufall,
+     damit jeder Durchgang gleich aussieht. */
   const taktA = [];
-  for (let m = 58; m > 0; m -= 1.3) if (m < 34 || m > 41) taktA.push(t0 - m * 60000);
+  for (let m = 58; m > 0.4; m -= 0.18 + 0.25 * (1 + Math.sin(m * 0.9)))
+    if (m < 34 || m > 41) taktA.push(t0 - m * 60000);
   for (const x of SCHRITTE_A) if (x[0] <= s) taktA.push(um(x[0]));
   const A = {
     ...gemeinsam, id: "s:vorf-a", sid: "vorf-a", typ: "session", name: "webshop-kasse",
@@ -2630,6 +2716,7 @@ function vorfuehrungTakt() {
       : phaseA === "idle" ? "Die Rabattcodes funktionieren. Alle 48 Tests sind grün, die doppelte Rundung ist raus."
       : "Ich stelle die Preisberechnung um und prüfe danach die Aufrufer.",
     letzteRolle: "assistant", schritte: schritteA, takt: taktA, abgedecktAb: 0,
+    geaendert: geaendertA, geaendertZahl: geaendertA.length,
   };
 
   /* --- Die ruhige zweite Sitzung --- */
@@ -7352,8 +7439,16 @@ function roehre(c, punkte, d, koerper, glanz, umriss, fein) {
   if (fein) zieh(d * 0.13, -d * 0.27, -d * 0.28, "rgba(255,255,255,.55)");
 }
 
-function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltung, blick, vorrat) {
+function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltung, blick, vorrat, werk) {
   const ruhig = sparsam;
+  /* Was die freie Hand gerade tut, kommt aus dem echten Werkzeug: wer
+     liest, haelt die Kamera, wer einen Befehl ausfuehrt, bedient die
+     Konsole an der Brust, wer delegiert, zeigt hinaus. puls ist ein
+     echter Werkzeugaufruf, der gerade ankam — 1 im Moment, 0 nach
+     einer Dreiviertelsekunde. */
+  const art = (werk && werk.art) || "";
+  const puls = (werk && werk.puls) || 0;
+  const echterTakt = !!(werk && werk.echt);
   const wippen = ruhig ? 0 : Math.sin(t * 0.0022 + phase) * 0.12;
   const armA = ruhig ? 0 : Math.sin(t * 0.0026 + phase) * 0.16;
   const armB = ruhig ? 0 : Math.cos(t * 0.0021 + phase) * 0.14;
@@ -7775,8 +7870,30 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
     } else if (zustand === "fehler") {
       ex = sd * H * 0.2;  ey = sy + H * 0.09 + sw * H * 0.04;
       hx = sd * H * 0.27; hy = sy + H * 0.02 + sw * H * 0.06;
+    } else if (zustand === "sendet" && istRechts && art === "befehl") {
+      /* Ein Befehl: die Hand an der Bedieneinheit vor der Brust. Mit
+         dem dicken Handschuh drueckt man dort nur grosse Tasten — ein
+         kurzer Druck bei jedem echten Aufruf. */
+      ex = sd * H * 0.2; ey = sy + H * 0.1;
+      hx = sd * H * 0.05; hy = sy + H * 0.14 + Math.sin(puls * Math.PI) * H * 0.014;
+    } else if (zustand === "sendet" && istRechts && art === "netz") {
+      /* Im Netz: die Hand an der Seite des Helms, dort, wo innen die
+         Sprechkappe sitzt. Andruecken kann man durch den Helm nichts,
+         aber jeder liest die Geste als "ich hoere zu". */
+      ex = sd * H * 0.24; ey = sy + H * 0.02;
+      hx = sd * H * 0.13; hy = helmY + helmR * 0.35;
+    } else if (zustand === "sendet" && istRechts && art === "delegieren") {
+      /* Delegieren: der Arm zeigt hinaus, gestreckt, aber nicht weiter
+         als ein Anzugarm reicht — 0,27 H von der Schulter. */
+      ex = sd * H * 0.29; ey = sy + H * 0.01;
+      hx = sd * H * 0.42; hy = sy - H * 0.02 + sw * H * 0.015;
+    } else if (zustand === "sendet" && istRechts && art === "plan") {
+      /* Planen: dieselbe Pruefliste wie beim Nachdenken */
+      ex = sd * H * 0.15; ey = sy + H * 0.13;
+      hx = sd * H * 0.07; hy = sy + H * 0.21;
     } else if (zustand === "sendet" && istRechts) {
-      /* Fuehrt ein Werkzeug auf Brusthoehe */
+      /* Fuehrt ein Werkzeug auf Brusthoehe — den Schrauber oder, wer
+         liest und sucht, die Kamera */
       ex = sd * H * 0.18; ey = sy + H * 0.11;
       hx = sd * H * 0.13; hy = sy + H * 0.23 + sw * H * 0.02;
     } else if (raste) {
@@ -7908,7 +8025,7 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
   /* ---------- Werkzeug je nach Taetigkeit ---------- */
   if (mittel) {
     const rechts = haende.find(h => h.rechts);
-    if (zustand === "denkt" && rechts) {
+    if ((zustand === "denkt" || (zustand === "sendet" && art === "plan")) && rechts) {
       /* Pruefliste am Handgelenk */
       cx.save();
       cx.translate(rechts.x, rechts.y);
@@ -7924,7 +8041,44 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
       }
       cx.restore();
     }
-    if (zustand === "sendet" && rechts) {
+    if (zustand === "sendet" && rechts && (art === "lesen" || art === "suchen")) {
+      /* Lesen und Suchen: die Kamera. Draussen wird alles fotografiert,
+         was man sich ansieht — die Bilder sind der Befund. Sie steckt
+         in einer weissen Thermohuelle, nur das Objektiv schaut heraus.
+         Wer sucht, schwenkt sie langsam; wer liest, haelt still. Bei
+         jedem echten Aufruf leuchtet die Aufnahmeleuchte. */
+      cx.save();
+      cx.translate(rechts.x, rechts.y);
+      const schwenk = ruhig || art !== "suchen" ? 0 : Math.sin(t * 0.0016 + phase) * 0.3;
+      cx.rotate(-0.15 + schwenk);
+      const kb = H * 0.11, kh = H * 0.075;
+      cx.fillStyle = tf("#f1efe6", "#3a4a61");
+      rundRect(cx, -kb * 0.3, -kh * 0.62, kb, kh, H * 0.014); cx.fill();
+      cx.strokeStyle = "rgba(60,58,52,.5)"; cx.lineWidth = Math.max(0.3, H * 0.005);
+      rundRect(cx, -kb * 0.3, -kh * 0.62, kb, kh, H * 0.014); cx.stroke();
+      /* Das Objektiv als dunkler Zylinder nach vorn, mit einem harten
+         Glanzpunkt — Glas im Vakuum spiegelt die Sonne scharf */
+      cx.fillStyle = "#1c1e22";
+      rundRect(cx, kb * 0.66, -kh * 0.5, H * 0.045, kh * 0.76, H * 0.008); cx.fill();
+      cx.fillStyle = `rgba(255,255,255,${0.35 + 0.4 * TAGLICHT})`;
+      cx.beginPath(); cx.arc(kb * 0.7 + H * 0.03, -kh * 0.3, Math.max(0.3, H * 0.006), 0, Math.PI * 2); cx.fill();
+      if (puls > 0) {
+        cx.fillStyle = `rgba(255,70,60,${0.5 + 0.5 * puls})`;
+        cx.beginPath(); cx.arc(-kb * 0.12, -kh * 0.42, Math.max(0.5, H * 0.009), 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = `rgba(255,90,70,${0.25 * puls})`;
+        cx.beginPath(); cx.arc(-kb * 0.12, -kh * 0.42, Math.max(1, H * 0.022), 0, Math.PI * 2); cx.fill();
+      }
+      cx.restore();
+    } else if (zustand === "sendet" && rechts && art === "befehl") {
+      /* Ein Befehl: an der Bedieneinheit leuchtet bei jedem Aufruf
+         eine Taste unter dem Handschuh auf */
+      if (puls > 0) {
+        cx.fillStyle = `rgba(120,230,150,${0.35 + 0.6 * puls})`;
+        cx.beginPath(); cx.arc(rechts.x + H * 0.02, rechts.y - H * 0.012, Math.max(0.5, H * 0.008), 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = `rgba(120,230,150,${0.2 * puls})`;
+        cx.beginPath(); cx.arc(rechts.x + H * 0.02, rechts.y - H * 0.012, Math.max(1, H * 0.02), 0, Math.PI * 2); cx.fill();
+      }
+    } else if (zustand === "sendet" && rechts && art !== "netz" && art !== "delegieren" && art !== "plan") {
       /* Pistol Grip Tool: klobiger als ein irdischer Akkuschrauber */
       cx.save();
       cx.translate(rechts.x, rechts.y);
@@ -7933,9 +8087,12 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
          still. Genau dieser Takt — gut die Haelfte halten, ein Viertel
          ziehen, ein Fuenftel Stillstand — laesst eine blosse
          Silhouette als Mensch lesen statt als Maschine. Eine
-         gleichmaessige Schwingung liest sich immer als Motor. */
+         gleichmaessige Schwingung liest sich immer als Motor.
+         Kennt die Figur ihren echten Takt, zieht sie genau dann, wenn
+         ein Aufruf ankommt — die Funken sind dann die Arbeit selbst. */
       const takt = ruhig ? 0 : ((t * 0.00026 + phase * 0.13) % 1);
-      const zug = takt < 0.55 ? 0
+      const zug = echterTakt ? (ruhig ? 0 : Math.sin(puls * Math.PI))
+                : takt < 0.55 ? 0
                 : takt < 0.8 ? (takt - 0.55) / 0.25
                 : 0;
       cx.rotate(0.5 - zug * 0.26);
@@ -8568,6 +8725,24 @@ function blaseUmbrechen(text, platz) {
   return zeilen;
 }
 
+/* Wo die Bedienung ueber der Szene liegt. Halbsekuendlich nachgemessen:
+   der Kopf waechst, wenn auf dem Handy das Band der Vorfuehrung
+   dazukommt, und das meldet kein resize. */
+let RAND = { oben: 0, unten: 0, um: -1e9 };
+function bedienRand() {
+  const j = performance.now();
+  if (j - RAND.um > 500) {
+    const k = document.querySelector("header"), f = document.querySelector("footer");
+    /* Auf dem Handy haengt das Band der Vorfuehrung unter dem Kopf */
+    const band = document.getElementById("vorf-band");
+    const bb = band ? band.getBoundingClientRect() : null;
+    RAND = { oben: Math.max(k ? k.getBoundingClientRect().bottom : 0, bb && bb.height ? bb.bottom : 0),
+             unten: f ? f.getBoundingClientRect().top : H, um: j };
+  }
+  return RAND;
+}
+let NAMEN_LETZT = [], BLASEN_LETZT = [];
+
 /* Drei Zeilen passen in eine Blase. Bei einem Gedanken, der gerade
    einlaeuft, sind es die letzten — dort steht das Neueste. Bei einer
    Taetigkeit die ersten: ein Befehl beginnt mit dem, was er tut, und
@@ -8612,9 +8787,20 @@ function blaseZeichnen(b, farbe) {
   /* Zwei Punkte statt Zipfel — bleibt sauber, auch wenn die Blase
      nach oben ausgewichen ist. */
   cx.fillStyle = "rgba(12,17,27,.82)";
-  const dy = b.spitzeY - (b.by + b.bh);
-  cx.beginPath(); cx.arc(b.spitzeX, b.by + b.bh + dy * 0.35, 3, 0, Math.PI * 2); cx.fill();
-  cx.beginPath(); cx.arc(b.spitzeX + 3, b.by + b.bh + dy * 0.72, 1.8, 0, Math.PI * 2); cx.fill();
+  if (b.fussY !== undefined && b.by > b.spitzeY) {
+    /* Die Blase musste unter die Figur ausweichen: dann fuehren die
+       Punkte von ihrer Oberkante hinauf zu den Fuessen — und nicht,
+       wie vorher, quer durch Blase und Figur zum Kopf. */
+    const dy = b.by - b.fussY;
+    if (dy > 6) {
+      cx.beginPath(); cx.arc(b.spitzeX, b.by - dy * 0.35, 3, 0, Math.PI * 2); cx.fill();
+      cx.beginPath(); cx.arc(b.spitzeX + 3, b.by - dy * 0.72, 1.8, 0, Math.PI * 2); cx.fill();
+    }
+  } else {
+    const dy = b.spitzeY - (b.by + b.bh);
+    cx.beginPath(); cx.arc(b.spitzeX, b.by + b.bh + dy * 0.35, 3, 0, Math.PI * 2); cx.fill();
+    cx.beginPath(); cx.arc(b.spitzeX + 3, b.by + b.bh + dy * 0.72, 1.8, 0, Math.PI * 2); cx.fill();
+  }
 
   cx.font = "11.5px -apple-system, system-ui, sans-serif";
   cx.fillStyle = "rgba(222,230,244,.88)";
@@ -11262,6 +11448,17 @@ function rahmen(jetzt) {
       if (d < nd) { nd = d; naechster = w; }
     }
     if (naechster) blick = naechster.sx < anker.x ? -1 : 1;
+    /* Wer delegiert, sieht zu dem, den er losgeschickt hat — der
+       ausgestreckte Arm zeigt dann auch dorthin. Der Juengste zaehlt;
+       seine Lage ist die aus dem letzten Bild, fuer eine Blickrichtung
+       genau genug. */
+    if (l.zustand === "sendet" && (SCHRITTART[a.werkzeug] || [])[1] === "delegieren") {
+      let kind = null;
+      for (const o of liste)
+        if (o.elternId === a.id && (!kind || (o.seitStart || 0) > (kind.seitStart || 0))) kind = o;
+      const w = kind && SICHT.get(kind.id);
+      if (w && w.sx !== undefined) blick = w.sx < anker.x ? -1 : 1;
+    }
     /* Kommt ein Schiff an oder faehrt es ab, sieht die ganze Crew
        dorthin und nicht mehr zum Nachbarn. Das ist keine Freiheit,
        die man sich nimmt: ein Anflug wird von aussen beobachtet, weil
@@ -11429,12 +11626,41 @@ function rahmen(jetzt) {
       cx.restore();
     }
 
+    /* Der echte Takt: jeder neue Werkzeugaufruf seit dem letzten Bild
+       wird ein kurzer Puls in der Hand. Die Bruecke liest nur alle
+       paar Sekunden, die Aufrufe kommen also in Buendeln — verteilt
+       ueber die naechsten zweieinhalb Sekunden, hoechstens sechs,
+       damit ein Buendel von zwanzig kein Dauerfeuer wird. Die erste
+       Sichtung holt nichts nach. */
+    let puls = 0;
+    const taktDa = Array.isArray(a.takt);
+    if (taktDa && a.takt.length) {
+      const letzter = Math.max(a.takt[0], a.takt[a.takt.length - 1]);
+      if (v.taktBis === undefined) v.taktBis = letzter;
+      else if (letzter > v.taktBis) {
+        const neu = Math.min(6, a.takt.filter(zt => zt > v.taktBis).length);
+        v.taktBis = letzter;
+        v.pulse = v.pulse || [];
+        for (let i = 0; i < neu; i++) v.pulse.push(t + i * 2600 / neu);
+      }
+    }
+    if (v.pulse && v.pulse.length) {
+      v.pulse = v.pulse.filter(p => t - p < 750);
+      for (const p of v.pulse) if (t >= p) puls = Math.max(puls, 1 - (t - p) / 750);
+    }
+    const werk = { art: (SCHRITTART[a.werkzeug] || [])[1] || "", puls, echt: taktDa };
     zeichneAstronaut(x, y, groesse * v.wuchs, kipp, a.farbe, l.zustand, t, v.phase,
-      hervor, haltung, blick, anzugStand(a));
+      hervor, haltung, blick, anzugStand(a), werk);
     const mitte = inSicht(x, y);
-    funkPunkte.set(a.id, { x: mitte.x, y: mitte.y,
-      r: groesse * v.wuchs * 1.7 * KAM.zoom * kinoZoom,
+    const rSchirm = groesse * v.wuchs * 1.7 * KAM.zoom * kinoZoom;
+    funkPunkte.set(a.id, { x: mitte.x, y: mitte.y, r: rSchirm,
       zustand: l.zustand, eltern: a.elternId, hervor });
+    /* Wer ganz ausserhalb des Bildes treibt, bekommt weder Schild noch
+       Blase. Beide wurden an den Rand geklemmt und standen dort ohne
+       ihre Figur, halb abgeschnitten und ueber den Knoepfen. Wohin es
+       geht, zeigt der Funk; alle Namen hat die Crew-Liste. */
+    const imBild = mitte.x > -rSchirm && mitte.x < W + rSchirm
+                && mitte.y > -rSchirm && mitte.y < H + rSchirm;
 
     /* Namensschild — gegen den Zoom herausgerechnet. Schrift gehoert zur
        Bedienung, nicht in die Szene: sonst wird sie beim Heranfahren
@@ -11451,8 +11677,8 @@ function rahmen(jetzt) {
     const unter = a.typ === "agent" ? (l.zustand !== "ruht" ? BESCHRIFTUNG[l.zustand] : "")
                 : a.typ === "unteragent" && a.eltern ? "von " + kuerzenVorn(a.eltern, 18)
                 : kuerzenVorn(a.branch || a.ort || "", 22);
-    schilder.push({
-      x: klemm(schirm.x, 54, W - 54),
+    if (imBild) schilder.push({
+      x: schirm.x,
       y: schirm.y,
       id: a.id,
       name: (TYP_ZEICHEN[a.typ] || "") + " " + a.name.toUpperCase(),
@@ -11471,8 +11697,9 @@ function rahmen(jetzt) {
       ? (l.zustand === "denkt" || l.zustand === "sendet" ? l.gedanke : "")
       : (l.zustand === "sendet" || l.zustand === "fehler" ? a.taetigkeit
        : l.zustand === "winkt" ? (WARTET_TEXT[a.wartetAuf] || "wartet auf dich") : "");
-    if (blasentext) {
-      blasen.push({ x, y: y - groesse * 1.9, text: blasentext, vonVorn: a.typ !== "agent",
+    if (blasentext && imBild) {
+      blasen.push({ x, y: y - groesse * 1.9, fuss: y + groesse * 2.1,
+                    text: blasentext, vonVorn: a.typ !== "agent",
                     farbe: a.farbe, seit: l.seit || a.seit || 0 });
     }
   });
@@ -11492,7 +11719,10 @@ function rahmen(jetzt) {
      sollen in jeder Zoomstufe gleich gross und gleich scharf sein. */
   cx.restore();
   zeichneFunk(funkPunkte, t);
-  for (const b of blasen) { const s2 = inSicht(b.x, b.y); b.x = s2.x; b.y = s2.y; }
+  for (const b of blasen) {
+    b.fuss = inSicht(b.x, b.fuss).y;
+    const s2 = inSicht(b.x, b.y); b.x = s2.x; b.y = s2.y;
+  }
   for (const h of hindernisse) {
     const s2 = inSicht(h.bx + h.bw / 2, h.by + h.bh / 2);
     h.bw *= KAM.zoom * kinoZoom; h.bh *= KAM.zoom * kinoZoom;
@@ -11543,17 +11773,46 @@ function rahmen(jetzt) {
   const knapp = schilder.length > 7;
   if (knapp) for (const q of schilder) q.unter = "";
 
+  /* Jedes Schild wird gemessen. Vorher galt eine feste halbe Breite
+     von 54 Punkten fuer alle: ein langer Name am Rand lief dann aus dem
+     Bild ("AUFRUFE BERECHNEP"), und zwei lange Namen achtzig Punkte
+     auseinander galten als frei, obwohl sich ihre Schrift ueberlappte. */
+  cx.save();
+  for (const q of schilder) {
+    cx.font = "600 10.5px -apple-system, system-ui, sans-serif";
+    const nb = cx.measureText(q.name).width;
+    cx.font = "9.5px -apple-system, system-ui, sans-serif";
+    const ub = q.unter ? cx.measureText(q.unter).width : 0;
+    q.links = Math.max(nb / 2 + (q.vorrat ? 11 : 0), ub / 2);
+    q.rechts = Math.max(nb / 2, ub / 2);
+    q.x = klemm(q.x, q.links + 6, W - q.rechts - 6);
+  }
+  cx.restore();
   schilder.sort((a, b) => a.y - b.y);
   const SCHILDHOEHE = 25;
   for (let i = 0; i < schilder.length; i++) {
     for (let k = 0; k < i; k++) {
-      const o = schilder[k];
-      if (Math.abs(schilder[i].x - o.x) < 62 &&
-          schilder[i].y < o.y + SCHILDHOEHE) {
-        schilder[i].y = o.y + SCHILDHOEHE;
-      }
+      const o = schilder[k], q = schilder[i];
+      const beruehrt = q.x < o.x ? o.x - q.x < q.rechts + o.links + 6
+                                 : q.x - o.x < o.rechts + q.links + 6;
+      if (beruehrt && q.y < o.y + SCHILDHOEHE) q.y = o.y + SCHILDHOEHE;
     }
   }
+  /* Unter dem Kopf und hinter der Fussleiste liegt Bedienung ueber
+     der Schrift: dort ist ein Name weder zu lesen, noch laesst sich
+     der Knopf darueber sauber treffen. Die Figur ist dort ohnehin
+     halb verdeckt; die verfolgte steht nie dort, sie ist in der Mitte. */
+  const bedien = bedienRand();
+  for (let i = schilder.length - 1; i >= 0; i--) {
+    const q = schilder[i];
+    if (q.y < bedien.oben + 2 || q.y + (q.unter ? 24 : 13) > bedien.unten - 2) schilder.splice(i, 1);
+  }
+  NAMEN_LETZT = schilder.map(q => ({ id: q.id, name: q.name, x: q.x, y: q.y,
+                                     links: q.links, rechts: q.rechts }));
+  /* Die Schilder sind Hindernisse fuer die Blasen — eine Blase ueber
+     einem Namen verdeckt genau das, womit man sie zuordnet. */
+  for (const q of schilder)
+    hindernisse.push({ bx: q.x - q.links, by: q.y - 2, bw: q.links + q.rechts, bh: q.unter ? 26 : 15 });
   cx.save();
   cx.setTransform(1, 0, 0, 1, 0, 0);
   cx.scale(DPR, DPR);
@@ -11601,21 +11860,38 @@ function rahmen(jetzt) {
   massstabsleiste(Rst * KAM.zoom * kinoZoom);
 
   const maxBlasen = W < 520 ? 2 : 4;
+  BLASEN_LETZT = [];
   blasen.sort((a, b) => (b.seit || 0) - (a.seit || 0));
   const zeigen = blasen.slice(0, maxBlasen).sort((a, b) => a.y - b.y);
   const frei = hindernisse.slice();
   for (const bl of zeigen) {
     const box = blaseLayout(bl.x, bl.y, bl.text, bl.vonVorn);
-    for (let versuch = 0; versuch < 8; versuch++) {
-      const stoert = frei.find(o =>
-        box.bx < o.bx + o.bw + 6 && box.bx + box.bw + 6 > o.bx &&
-        box.by < o.by + o.bh + 6 && box.by + box.bh + 6 > o.by);
-      if (!stoert) break;
-      box.by = stoert.by - box.bh - 8;
+    /* Nicht unter den Kopf: dort liegen die Knoepfe darueber, und
+       weder die Blase ist dann zu lesen noch der Knopf zu treffen. */
+    const rand = bedienRand(), oben = rand.oben + 6, unten = rand.unten - 6;
+    const imWeg = frei.filter(o => box.bx < o.bx + o.bw + 6 && box.bx + box.bw + 6 > o.bx);
+    const stoert = (by) => imWeg.some(o => by < o.by + o.bh + 6 && by + box.bh + 6 > o.by);
+    /* Gesucht wird die freie Hoehe, die der gewuenschten am naechsten
+       liegt: knapp ueber oder unter einem der Hindernisse. Vorher
+       schob eine Regel die Blase so lange nach oben, bis sie an der
+       Kante anstiess — zwei Blasen landeten dann uebereinander. */
+    const wunsch = Math.max(oben, box.by);
+    let by = stoert(wunsch) ? null : wunsch;
+    if (by === null) {
+      const orte = [];
+      for (const o of imWeg) orte.push(o.by - box.bh - 8, o.by + o.bh + 8);
+      by = orte.filter(y => y >= oben && y + box.bh <= unten)
+               .sort((a, b) => Math.abs(a - box.by) - Math.abs(b - box.by))
+               .find(y => !stoert(y));
     }
-    if (box.by < 8) box.by = 8;
+    /* Kein Platz: lieber keine Blase als eine ueber der anderen. Was
+       die Figur tut, steht auch in ihrer Leiste unten. */
+    if (by === undefined) continue;
+    box.by = by;
+    box.fussY = bl.fuss;
     frei.push(box);
     blaseZeichnen(box, bl.farbe);
+    BLASEN_LETZT.push({ text: bl.text, bx: box.bx, by: box.by, bw: box.bw, bh: box.bh });
   }
 
   requestAnimationFrame(rahmen);
@@ -12220,12 +12496,37 @@ function zeichneVorschlaege() {
   }
 }
 
+/* Die Liste wird bei jedem Durchlauf der Bruecke neu gebaut, in der
+   Vorfuehrung jede Sekunde. Dabei gingen drei Dinge verloren: der
+   Tastaturfokus, der Hover und auf dem Handy ein Tipp, der gerade
+   lief — Finger auf der alten Karte, losgelassen ueber der neuen,
+   und der Browser meldet keinen Klick. Also wird nebenher gebaut und
+   nur ersetzt, was sich geaendert hat; nie, waehrend ein Finger auf
+   der Liste liegt; und der Fokus kommt an dieselbe Karte zurueck. */
+let crewGedrueckt = 0, crewNachholen = false;
+
 function zeichneCrewListe() {
-  const box = $("#crew-liste");
-  box.innerHTML = "";
+  const ziel = $("#crew-liste");
+  if (!ziel.dataset.hoert) {
+    ziel.dataset.hoert = "1";
+    ziel.addEventListener("pointerdown", () => { crewGedrueckt = Date.now(); });
+    const los = () => {
+      if (!crewGedrueckt) return;
+      crewGedrueckt = 0;
+      /* Erst nach dem Klick, der auf das Loslassen folgt */
+      if (crewNachholen) { crewNachholen = false; setTimeout(zeichneCrewListe, 250); }
+    };
+    addEventListener("pointerup", los);
+    addEventListener("pointercancel", los);
+  }
+  /* Drei Sekunden hoechstens: wird irgendwo ausserhalb des Fensters
+     losgelassen, kommt kein pointerup, und die Liste bliebe stehen. */
+  if (crewGedrueckt && Date.now() - crewGedrueckt < 3000) { crewNachholen = true; return; }
+  const box = document.createElement("div");
   for (const a of Z.agenten) {
     const k = document.createElement("div");
     k.className = "agent-karte";
+    k.dataset.id = "agent:" + a.id;
     const z1 = document.createElement("div");
     z1.className = "zeile1";
     const kug = document.createElement("span");
@@ -12234,6 +12535,7 @@ function zeichneCrewListe() {
     const bearb = document.createElement("button");
     bearb.className = "mini"; bearb.title = "Bearbeiten";
     bearb.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/></svg>';
+    bearb.dataset.id = "bearbeiten:" + a.id;
     bearb.onclick = () => agentBearbeiten(a.id);
     z1.append(kug, nm, bearb);
 
@@ -12291,6 +12593,7 @@ function zeichneCrewListe() {
   if (live.length) {
     const t = document.createElement("div");
     t.className = "d-abschnitt"; t.style.marginTop = "4px";
+    t.dataset.id = "kopf:live";
     t.textContent = VORF.an ? "Aus der Vorführung — Beispieldaten" : "Aus deiner Arbeit";
     box.appendChild(t);
   } else if (!BR.aktiv) {
@@ -12298,6 +12601,7 @@ function zeichneCrewListe() {
        nie, wofuer er da ist. */
     const h = document.createElement("div");
     h.className = "vorf-hinweis";
+    h.dataset.id = "vorf-hinweis";
     const t = document.createElement("p");
     t.textContent = "Im Mac-Programm stehen hier deine laufenden Claude-Code-Sitzungen, "
       + "ihre Unteragenten, Projektordner und Befehle. Im Browser darf keine Seite sie lesen.";
@@ -12313,6 +12617,7 @@ function zeichneCrewListe() {
     const kind = !!(a.elternId && daIds.has(a.elternId));
     k.className = "live-karte" + (kind ? " kind" : "") + (a.berichtet ? " fertig" : "")
       + (a.fehlerText ? " abgebrochen" : "");
+    k.dataset.id = a.id;
     const z1 = document.createElement("div"); z1.className = "zeile1";
     const kug = document.createElement("span");
     kug.className = "kugel";
@@ -12320,6 +12625,8 @@ function zeichneCrewListe() {
     const nm = document.createElement("span"); nm.className = "name";
     nm.textContent = (TYP_ZEICHEN[a.typ] || "") + " " + a.name;
     z1.append(kug, nm);
+    if ((a.typ === "session" || a.typ === "unteragent") && Array.isArray(a.takt) && !a.heimwaerts)
+      z1.appendChild(miniTakt(a));
     const drin = draussenSeit(a);
     if (drin) {
       const u = document.createElement("span");
@@ -12349,6 +12656,31 @@ function zeichneCrewListe() {
       if (SICHT.has(a.id)) fahreZu(a.id, Math.max(2.4, KAM.zielZoom));
     };
     box.appendChild(k);
+  }
+  if (box.innerHTML !== ziel.innerHTML) {
+    const f = document.activeElement;
+    const fokus = f && ziel.contains(f) ? f.dataset.id : null;
+    /* Karte fuer Karte: was sich nicht geaendert hat, bleibt derselbe
+       Knoten an seinem Platz. Sonst zaehlt in der Wartephase "seit 12
+       Sek." jede Sekunde weiter, und jede Sekunde wurde die ganze
+       Liste ersetzt — samt dem Tooltip unter der Maus. */
+    const alt = new Map();
+    for (const k of ziel.children) if (k.dataset.id) alt.set(k.dataset.id, k);
+    const neu = [...box.children].map(k => {
+      const o = k.dataset.id && alt.get(k.dataset.id);
+      return o && o.outerHTML === k.outerHTML ? o : k;
+    });
+    const bleibt = new Set(neu);
+    for (const k of [...ziel.childNodes]) if (!bleibt.has(k)) k.remove();
+    let ref = ziel.firstChild;
+    for (const k of neu) {
+      if (k === ref) { ref = ref.nextSibling; continue; }
+      ziel.insertBefore(k, ref);
+    }
+    if (fokus && !ziel.contains(document.activeElement)) {
+      const w = [...ziel.querySelectorAll("[data-id]")].find(x => x.dataset.id === fokus);
+      if (w) w.focus({ preventScroll: true });
+    }
   }
 
   zeichneVorschlaege();
@@ -12684,6 +13016,82 @@ function taktBild(a) {
   return box;
 }
 
+/* Was eine Sitzung geaendert hat, Datei fuer Datei: der Name vorn,
+   der Ordner klein daneben, wie oft und wann zuletzt. Die neueste
+   steht oben — die Frage ist meist "woran war sie gerade?". Der
+   Ordner wird von vorn gekuerzt: das Ende eines Pfades ist das, was
+   eine Datei von ihren Namensvettern unterscheidet. */
+function dateiListe(a) {
+  const box = document.createElement("div");
+  box.className = "d-dateien";
+  const basis = (a.ort || "").replace(/\/$/, "") + "/";
+  const jetzt = Date.now();
+  for (const g of a.geaendert) {
+    const rel = basis.length > 1 && g.pfad.startsWith(basis) ? g.pfad.slice(basis.length) : g.pfad;
+    const schnitt = rel.lastIndexOf("/");
+    const z = document.createElement("div");
+    z.className = "d-datei" + (jetzt - g.zuletzt < 60000 ? " frisch" : "");
+    z.title = g.pfad;
+    const nm = document.createElement("span"); nm.className = "nm";
+    nm.textContent = rel.slice(schnitt + 1);
+    const ord = document.createElement("span"); ord.className = "ord";
+    /* Das unsichtbare Zeichen am Ende haelt den Schraegstrich hinten —
+       die Schreibrichtung ist fuer das Kuerzen von vorn umgedreht. */
+    ord.textContent = schnitt > 0 ? rel.slice(0, schnitt + 1) + "\u200E" : "";
+    const n = document.createElement("span"); n.className = "n";
+    n.textContent = g.n > 1 ? g.n + "×" : "";
+    n.title = g.n === 1 ? "einmal geändert" : g.n + "-mal geändert";
+    const w = document.createElement("span"); w.className = "wann";
+    w.textContent = jetzt - g.zuletzt < 3600000 ? vorZeit(g.zuletzt) : zeitpunkt(g.zuletzt);
+    z.append(nm, ord, n, w);
+    box.appendChild(z);
+  }
+  const zahl = a.geaendertZahl || a.geaendert.length;
+  const f = document.createElement("div");
+  f.className = "d-fussnote";
+  f.textContent = (zahl > a.geaendert.length ? "Die " + a.geaendert.length + " jüngsten von " + zahl + ". " : "")
+    + "Nur was über Edit und Write lief — was ein Befehl in der Shell ändert, steht hier nicht."
+    + (a.abgedecktAb ? " Gezählt ab " + uhr(a.abgedecktAb) + "; weiter zurück reicht der gelesene Teil des Protokolls nicht." : "");
+  box.appendChild(f);
+  return box;
+}
+
+/* Der kleine Takt fuer die Crew-Liste: zwanzig Minuten, eine Saeule
+   je Minute. In der Liste soll er nur eine Frage beantworten — wer
+   arbeitet gerade wirklich, wer steht schon eine Weile? —, also ohne
+   Achse und ohne Zahl. Der Massstab hat einen Boden: ein einzelner
+   Aufruf ist eine kleine Saeule, keine volle, sonst saehe eine
+   Sitzung, die alle paar Minuten einmal liest, genauso beschaeftigt
+   aus wie eine, die im Sekundentakt arbeitet.
+   Minuten vor dem gelesenen Teil des Protokolls sind unbekannt und
+   stehen gepunktet da — eine leere Saeule hiesse "nichts getan", und
+   das weiss hier niemand. */
+function miniTakt(a) {
+  const jetzt = Date.now(), SPANNE = 20 * 60000, N = 20, B = SPANNE / N;
+  const zaehl = new Array(N).fill(0);
+  for (const zt of a.takt) {
+    const i = Math.floor((zt - (jetzt - SPANNE)) / B);
+    if (i >= 0 && i < N) zaehl[i]++;
+  }
+  const hoechst = Math.max(4, ...zaehl);
+  const summe = zaehl.reduce((x, y) => x + y, 0);
+  const box = document.createElement("span");
+  box.className = "mini-takt";
+  box.setAttribute("role", "img");
+  box.title = summe + (summe === 1 ? " Werkzeugaufruf" : " Werkzeugaufrufe")
+    + " in den letzten 20 Minuten";
+  box.setAttribute("aria-label", box.title);
+  for (let i = 0; i < N; i++) {
+    const s = document.createElement("i");
+    const von = jetzt - SPANNE + i * B;
+    /* "Nichts getan" nur fuer eine Minute, die ganz gelesen ist */
+    if (zaehl[i]) s.style.height = Math.round(22 + 78 * Math.min(1, zaehl[i] / hoechst)) + "%";
+    else s.className = a.abgedecktAb && von < a.abgedecktAb ? "unbekannt" : "leer";
+    box.appendChild(s);
+  }
+  return box;
+}
+
 function externOeffnen(url) {
   try {
     if (nativVorhanden()) Neutralino.os.open(url);
@@ -12722,7 +13130,10 @@ function zeichneDetail(id) {
   kugel.style.cssText = "width:11px;height:11px;border-radius:50%;flex:0 0 auto;"
     + "background:" + a.farbe + ";box-shadow:0 0 10px " + a.farbe;
 
-  const extern = a.url || (a.typ === "github" ? "https://github.com/" + a.ort : "");
+  /* Die Vorfuehrung hat keine echte Seite — "du/webshop" gibt es auf
+     GitHub nicht, oder es gehoert jemand Fremdem. */
+  const extern = a.vorfuehrung ? ""
+    : a.url || (a.typ === "github" ? "https://github.com/" + a.ort : "");
   const btn = $("#d-oeffnen");
   btn.style.display = extern ? "flex" : "none";
   btn.onclick = () => externOeffnen(extern);
@@ -12924,6 +13335,10 @@ function zeichneDetail(id) {
       box.appendChild(schrittStrahl(a.schritte,
         a.zustand === "denkt" || a.zustand === "sendet"));
     }
+    if (a.geaendert && a.geaendert.length) {
+      box.appendChild(abschnitt("Geänderte Dateien  ·  " + (a.geaendertZahl || a.geaendert.length)));
+      box.appendChild(dateiListe(a));
+    }
   }
 
   if (a.typ === "ordner") {
@@ -13027,8 +13442,6 @@ function zeitpunkt(ms) {
 function prKarte(pr, mitAutor) {
   const d = document.createElement("div");
   d.className = "d-pr" + (pr.stand ? " " + pr.stand : "");
-  d.tabIndex = 0;
-  d.setAttribute("role", "link");
 
   const kopf = document.createElement("div"); kopf.className = "kopf";
   const nr = document.createElement("span"); nr.className = "nr"; nr.textContent = "#" + pr.nr;
@@ -13072,8 +13485,14 @@ function prKarte(pr, mitAutor) {
     d.append(p);
   }
 
-  d.onclick = () => externOeffnen(pr.url);
-  d.onkeydown = (e) => { if (e.key === "Enter") externOeffnen(pr.url); };
+  /* Ohne Adresse — in der Vorfuehrung — ist die Karte eine Auskunft
+     und kein Link: ein Tipp darauf oeffnete sonst ein leeres Fenster. */
+  if (pr.url) {
+    d.tabIndex = 0;
+    d.setAttribute("role", "link");
+    d.onclick = () => externOeffnen(pr.url);
+    d.onkeydown = (e) => { if (e.key === "Enter") externOeffnen(pr.url); };
+  } else d.classList.add("ohne-ziel");
   return d;
 }
 
@@ -13084,9 +13503,6 @@ function laufStrahl(laeufe) {
     const offen = l.stand === "laeuft" || l.stand === "wartet";
     const d = document.createElement("div");
     d.className = "d-tritt lauf-" + l.stand + (offen ? " jetzt" : "") + (i > 2 && !offen ? " alt" : "");
-    d.style.cursor = "pointer";
-    d.tabIndex = 0;
-    d.setAttribute("role", "link");
 
     const pkt = document.createElement("i"); pkt.className = "pkt";
     const kopf = document.createElement("div"); kopf.className = "kopf";
@@ -13115,8 +13531,13 @@ function laufStrahl(laeufe) {
       m.textContent = meta.join("  ·  ");
       d.append(m);
     }
-    d.onclick = () => externOeffnen(l.url);
-    d.onkeydown = (e) => { if (e.key === "Enter") externOeffnen(l.url); };
+    if (l.url) {
+      d.style.cursor = "pointer";
+      d.tabIndex = 0;
+      d.setAttribute("role", "link");
+      d.onclick = () => externOeffnen(l.url);
+      d.onkeydown = (e) => { if (e.key === "Enter") externOeffnen(l.url); };
+    }
     box.append(d);
   });
   return box;
@@ -14854,6 +15275,8 @@ window.__QUELLE = (liste) => { bruecke_sessions = liste || []; liveNeuBauen(); }
 window.__FRACHT = () => FRACHT;
 window.__SCHILDER = () => TEILSCHILDER;
 window.__FUNK = () => FUNK_LETZT;
+window.__NAMEN = () => NAMEN_LETZT;
+window.__BLASEN = () => BLASEN_LETZT;
 window.__MELDUNGEN = () => MELDUNGEN;
 window.__ORTE = () => LETZTE_ORTE;
 window.__AGENT_DAZU = (a) => { Z.agenten.push(a); zeichneCrewLeiste(); };
