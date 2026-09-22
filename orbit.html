@@ -285,6 +285,25 @@ footer{
 .live-karte .wo{font-size:10.5px; color:var(--tx3); margin-top:3px;
   font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+/* Ein Unteragent steht eingerueckt unter seiner Sitzung, mit einem
+   Haken davor, der zu ihr hinaufzeigt — wie in einem Dateibaum. */
+.live-karte.kind{margin-left:20px; width:calc(100% - 20px); position:relative;
+  padding-top:8px; padding-bottom:8px; margin-top:-3px;}
+.live-karte.kind::before{content:""; position:absolute; left:-13px; top:-9px; height:calc(50% + 9px);
+  width:9px; border-left:1px solid var(--edge2); border-bottom:1px solid var(--edge2);
+  border-bottom-left-radius:5px;}
+.live-karte.kind.fertig .tut{color:var(--good);}
+/* Die Unteragenten im Detailfenster einer Sitzung */
+.d-kind{display:flex; align-items:center; gap:9px; width:100%; text-align:left;
+  padding:7px 9px; margin:0 0 5px; border-radius:9px; border:1px solid rgba(255,255,255,.06);
+  background:rgba(255,255,255,.03); transition:background .15s;}
+.d-kind:hover{background:rgba(255,255,255,.06);}
+.d-kind .kugel{width:8px; height:8px; border-radius:50%; flex:0 0 auto;}
+.d-kind .nm{font-size:12.5px; font-weight:600; color:var(--tx); flex:0 1 auto;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.d-kind .st{font-size:11px; color:var(--tx3); margin-left:auto; flex:0 0 auto;}
+.d-kind .st.fertig{color:var(--good);}
+.d-kind .st.aktiv{color:var(--lauf);}
 
 .mini{width:28px; height:28px; border-radius:7px; background:var(--p2); color:var(--tx3);
   display:flex; align-items:center; justify-content:center; flex:0 0 auto; transition:all .2s var(--ease);}
@@ -11374,9 +11393,13 @@ function zeichneCrewLeiste() {
     /* Wer wartet, sagt worauf. Die letzte Taetigkeit waere hier die
        falsche Auskunft: sie ist vorbei, und was jetzt zaehlt, ist dass
        jemand an dir haengt. */
+    /* Vorn gekuerzt, nicht hinten: eine Taetigkeit beginnt mit ihrem
+       Verb, und "…chsucht nach berechnePreis" hatte genau das
+       abgeschnitten. Hinten kuerzen ist richtig fuer einen Gedanken,
+       der gerade einlaeuft — dort ist das Neueste am Ende. */
     zs.textContent = a.zustand === "winkt"
-      ? kuerzen(WARTET_TEXT[a.wartetAuf] || "wartet auf dich", 26)
-      : a.taetigkeit ? kuerzen(a.taetigkeit, 26) : TYP_NAME[a.typ];
+      ? anfang(WARTET_TEXT[a.wartetAuf] || "wartet auf dich", 26)
+      : a.taetigkeit ? anfang(a.taetigkeit, 26) : TYP_NAME[a.typ];
     if (a.zustand === "fehler") zs.style.color = "var(--bad)";
     if (a.zustand === "winkt") zs.style.color = "#e0a24e";
     t.append(nm, zs);
@@ -11640,9 +11663,25 @@ function zeichneCrewListe() {
      Sitzungen ist genau das die eine Zeile, fuer die man sie aufmacht;
      danach kommt, was gerade arbeitet, und zuletzt was ruht. */
   const WARTERANG = { winkt: 0, fehler: 1, sendet: 2, denkt: 3, fertig: 4, ruht: 5 };
-  const live = (BR.live || []).concat(heimkehrer())
+  const sortiert = (BR.live || []).concat(heimkehrer())
     .slice()
     .sort((a, b) => (WARTERANG[a.zustand] ?? 9) - (WARTERANG[b.zustand] ?? 9));
+  /* Unteragenten stehen direkt unter ihrer Sitzung, eingerueckt — nicht
+     irgendwo in der Liste nach ihrem Zustand einsortiert. Wer zu wem
+     gehoert, ist die Frage, die man an drei gleichzeitige Unteragenten
+     zuerst hat. Eine Waise, deren Sitzung nicht in der Liste steht,
+     bleibt an ihrem Platz. */
+  const daIds = new Set(sortiert.map(a => a.id));
+  const kinderVon = new Map();
+  const oben = [];
+  for (const a of sortiert) {
+    if (a.elternId && daIds.has(a.elternId)) {
+      if (!kinderVon.has(a.elternId)) kinderVon.set(a.elternId, []);
+      kinderVon.get(a.elternId).push(a);
+    } else oben.push(a);
+  }
+  const live = [];
+  for (const a of oben) live.push(a, ...(kinderVon.get(a.id) || []));
   if (live.length) {
     const t = document.createElement("div");
     t.className = "d-abschnitt"; t.style.marginTop = "4px";
@@ -11651,7 +11690,8 @@ function zeichneCrewListe() {
   }
   for (const a of live) {
     const k = document.createElement("button");
-    k.className = "live-karte";
+    const kind = !!(a.elternId && daIds.has(a.elternId));
+    k.className = "live-karte" + (kind ? " kind" : "") + (a.berichtet ? " fertig" : "");
     const z1 = document.createElement("div"); z1.className = "zeile1";
     const kug = document.createElement("span");
     kug.className = "kugel";
@@ -11674,7 +11714,9 @@ function zeichneCrewListe() {
       : (a.taetigkeit || BESCHRIFTUNG[a.zustand] || "");
     if (a.zustand === "winkt" && !a.heimwaerts) tut.style.color = "#e0a24e";
     if (tut.textContent) k.appendChild(tut);
-    if (a.branch || a.ort) {
+    /* Beim Unteragenten stuende hier der Branch seiner Sitzung — die
+       steht direkt darueber. */
+    if ((a.branch || a.ort) && !kind) {
       const wo = document.createElement("div"); wo.className = "wo";
       wo.textContent = a.branch || a.ort;
       k.appendChild(wo);
@@ -12117,6 +12159,32 @@ function zeichneDetail(id) {
           + tsd(n.aus) + " Tokens"));
     }
     if (a.version) box.appendChild(zeile("Version", a.version + (a.art ? "  ·  " + a.art : "")));
+    /* Wen diese Sitzung losgeschickt hat. Die Funkstrecke in der Szene
+       zeigt es, aber nur, wenn beide Figuren im Bild sind; hier steht
+       es immer, und ein Tipp faehrt hin. */
+    const kinder = a.typ === "session" ? (BR.live || []).filter(x => x.elternId === a.id) : [];
+    if (kinder.length) {
+      box.appendChild(abschnitt("Unteragenten  ·  " + kinder.length));
+      for (const u of kinder) {
+        const r = document.createElement("button");
+        r.className = "d-kind";
+        const kg = document.createElement("span"); kg.className = "kugel";
+        kg.style.background = u.farbe;
+        const nm = document.createElement("span"); nm.className = "nm";
+        nm.textContent = "↳ " + u.name;
+        const st = document.createElement("span");
+        const aktiv = u.zustand === "sendet" || u.zustand === "denkt";
+        st.className = "st" + (u.berichtet ? " fertig" : aktiv ? " aktiv" : "");
+        st.textContent = u.berichtet ? "hat berichtet" : aktiv ? "arbeitet" : "still";
+        r.title = u.auftrag || u.name;
+        r.append(kg, nm, st);
+        r.onclick = () => {
+          detailOeffnen(u.id);
+          if (SICHT.has(u.id)) fahreZu(u.id, Math.max(2.4, KAM.zielZoom));
+        };
+        box.appendChild(r);
+      }
+    }
     if (a.schritte && a.schritte.length) {
       /* "Arbeitsschritte" und nicht "Letzte Schritte": der oberste ist
          der, der gerade laeuft, und der ist nicht "letzter". */
