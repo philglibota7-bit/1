@@ -14960,6 +14960,40 @@ function teilZeigen(schluessel, name) {
   blendeAuf("blende-teil");
 }
 
+/* --- Eine Datei hergeben -------------------------------------------------
+   Im Browser und im Programm ein gewoehnlicher Download. Laeuft ORBIT als
+   Artefakt im Betrachter von claude.ai, darf die Seite selbst nichts
+   herunterladen: dort bietet der Betrachter die Datei an und fragt, ob
+   sie gespeichert werden soll. Vorher tat der Knopf dort still nichts —
+   und meldete trotzdem "Gesichert". Kann der Betrachter es nicht, fallen
+   beide Knoepfe weg, statt ins Leere zu fuehren. */
+const hergabe = window.claude && typeof window.claude.use === "function"
+  ? window.claude.use("downloads").catch(() => null) : null;
+if (hergabe) hergabe.then(d => {
+  if (d) return;
+  for (const id of ["log-sichern", "bild-sichern"]) {
+    const k = document.getElementById(id);
+    if (k) k.style.display = "none";
+  }
+});
+
+/* Liefert "gesichert", "abgelehnt" oder "nicht" */
+async function dateiHergeben(name, daten) {
+  if (hergabe) {
+    const d = await hergabe;
+    if (!d) return "nicht";
+    try { await d.save({ filename: name, data: daten }); return "gesichert"; }
+    catch (e) { return e && e.code === "declined" ? "abgelehnt" : "nicht"; }
+  }
+  const url = URL.createObjectURL(daten);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; a.click();
+  /* Die Objekt-URL wieder freigeben, sonst haelt der Browser die Datei
+     bis zum Neuladen im Speicher. */
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  return "gesichert";
+}
+
 /* Das Log als Textdatei sichern. Markdown, weil man es dann sowohl
    lesen als auch weiterverarbeiten kann — und weil die Antworten der
    Agenten ohnehin schon so formatiert sind. Das Denkprotokoll kommt
@@ -14987,14 +15021,8 @@ if (logSichern) logSichern.onclick = () => {
 
   try {
     const b = new Blob([teile.join("\n")], { type: "text/markdown;charset=utf-8" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(b);
-    a.download = "orbit-log-" +
-      new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-") + ".md";
-    a.click();
-    /* Die Objekt-URL wieder freigeben, sonst haelt der Browser den
-       ganzen Text bis zum Neuladen im Speicher. */
-    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    dateiHergeben("orbit-log-" +
+      new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-") + ".md", b);
   } catch (e) {
     console.warn("Konnte das Log nicht sichern.", e);
   }
@@ -15005,17 +15033,21 @@ if (logSichern) logSichern.onclick = () => {
    und sind deshalb von selbst nicht mit drauf. */
 const bildKnopf = $("#bild-sichern");
 if (bildKnopf) bildKnopf.onclick = () => {
+  const wann = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+  /* "Gesichert" nur, wenn es stimmt — im Betrachter kann man ablehnen */
+  const melden = (text) => {
+    const b = bildKnopf.querySelector(".bez");
+    if (!b) return;
+    b.firstChild.textContent = text;
+    setTimeout(() => { b.firstChild.textContent = "Szene als Bild sichern"; }, 1800);
+  };
   try {
-    const a = document.createElement("a");
-    const wann = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
-    a.download = "orbit-" + wann + ".png";
-    a.href = cv.toDataURL("image/png");
-    a.click();
-    bildKnopf.querySelector(".bez").firstChild.textContent = "Gesichert";
-    setTimeout(() => {
-      const b = bildKnopf.querySelector(".bez");
-      if (b) b.firstChild.textContent = "Szene als Bild sichern";
-    }, 1800);
+    cv.toBlob(async (bild) => {
+      if (!bild) return;
+      const erg = await dateiHergeben("orbit-" + wann + ".png", bild);
+      if (erg === "gesichert") melden("Gesichert");
+      else if (erg === "abgelehnt") melden("Nicht gesichert");
+    }, "image/png");
   } catch (e) {
     console.warn("Konnte die Szene nicht sichern.", e);
   }
