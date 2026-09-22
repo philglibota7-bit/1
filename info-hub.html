@@ -752,6 +752,95 @@ html[data-bewegung="aus"] *{transition-duration:.06s !important;}
   background:var(--p2); flex-shrink:0; transition:.18s;}
 .sortpfeil:hover:not(:disabled){background:var(--p3); color:var(--tx);}
 .sortpfeil:disabled{opacity:.22; cursor:default;}
+
+/* ================================================================
+   Heller Modus — Wasserglas
+   Muss am Ende stehen: die Regeln oben verdrahten an rund 75 Stellen
+   weisse Lichtkanten und schwarze Schatten fest, die auf hellem Grund
+   nicht funktionieren. Schwarz wird hier zu einem weichen Blaugrau —
+   echte schwarze Schatten wirken auf Weiss sofort schmutzig.
+   ================================================================ */
+html[data-modus="hell"]{
+  --edge:rgba(22,40,56,.11); --edge2:rgba(22,40,56,.20);
+  --solid1:#ffffff; --solid2:#f4f8fb; --solid3:#e8eff5;
+  --shadow:0 12px 40px rgba(30,60,90,.16);
+  --mint:#2f8a5c; --gold:#9a7520; --neg:#c0453a;
+  --good:#2f8a5c; --bad:#c0453a;
+}
+html[data-modus="hell"] ::selection{background:var(--acc); color:#fff;}
+html[data-modus="hell"] ::-webkit-scrollbar-thumb{background:rgba(30,60,90,.20);}
+html[data-modus="hell"] ::-webkit-scrollbar-thumb:hover{background:rgba(30,60,90,.34);}
+
+/* Rauschen fast weg — auf hellen Flaechen wirkt es wie Schmutz */
+html[data-modus="hell"] #bg::after{opacity:.035;}
+
+/* Tiefe kommt aus weichem Blaugrau statt Schwarz */
+html[data-modus="hell"] .card,
+html[data-modus="hell"] #homeGrid .tile,
+html[data-modus="hell"] .match,
+html[data-modus="hell"] .news,
+html[data-modus="hell"] .toast,
+html[data-modus="hell"] .favstrip,
+html[data-modus="hell"] .hours,
+html[data-modus="hell"] .tickerwrap{
+  box-shadow:0 calc(8px * var(--schatten,1)) calc(28px * var(--schatten,1)) rgba(30,60,90,calc(.13 * var(--schatten,1)));
+}
+html[data-modus="hell"] #tabbar{box-shadow:0 16px 44px rgba(30,60,90,.14), inset 0 1px 0 rgba(255,255,255,.7);}
+html[data-modus="hell"] #modal .sheet{box-shadow:0 18px 48px rgba(30,60,90,.22);}
+html[data-modus="hell"] .sugbox{box-shadow:0 18px 50px rgba(30,60,90,.20);}
+
+/* Lichtkante: oben weiss, unten eine feine dunkle Linie statt Weiss —
+   sonst hat das Glas auf hellem Grund keine sichtbare Unterkante. */
+html[data-modus="hell"] .card::before,
+html[data-modus="hell"] #homeGrid .tile::before{
+  background:linear-gradient(146deg,
+    rgba(255,255,255,calc(.95 * var(--kante))) 0%,
+    rgba(255,255,255,calc(.42 * var(--kante))) 24%,
+    rgba(255,255,255,0) 54%,
+    rgba(30,60,90,calc(.045 * var(--kante))) 80%,
+    rgba(30,60,90,calc(.09 * var(--kante))) 100%);
+}
+
+/* Flaechen, die fest auf weisse Transparenz gesetzt waren */
+html[data-modus="hell"] .tbadge,
+html[data-modus="hell"] .wxstat,
+html[data-modus="hell"] .mover,
+html[data-modus="hell"] .news img{background:rgba(30,60,90,.055);}
+html[data-modus="hell"] .wxstat,
+html[data-modus="hell"] .mover{box-shadow:inset 0 1px 0 rgba(255,255,255,.9);}
+html[data-modus="hell"] .tempbar,
+html[data-modus="hell"] .dots i{background:rgba(30,60,90,.13);}
+html[data-modus="hell"] .hour:hover,
+html[data-modus="hell"] .coin:hover,
+html[data-modus="hell"] .sugbox button:hover{background:rgba(30,60,90,.05);}
+html[data-modus="hell"] .sheet > .griff,
+html[data-modus="hell"] .sheet::before{background:rgba(30,60,90,.18);}
+
+/* Bedienelemente */
+html[data-modus="hell"] .input{background:rgba(255,255,255,.72);}
+html[data-modus="hell"] .input:focus{background:rgba(255,255,255,.95);}
+html[data-modus="hell"] .toggle{background:rgba(30,60,90,.14);}
+html[data-modus="hell"] .toggle::after{background:#fff; box-shadow:0 2px 6px rgba(30,60,90,.3);}
+html[data-modus="hell"] .btn{
+  background:var(--acc); color:#fff;
+  box-shadow:0 6px 18px rgba(30,60,90,.18), inset 0 1px 0 rgba(255,255,255,.3);
+}
+html[data-modus="hell"] .btn:hover{background:var(--acc); filter:brightness(1.08);}
+html[data-modus="hell"] .btn.ghost{
+  background:rgba(255,255,255,.7); color:var(--tx2); filter:none;
+  box-shadow:0 3px 10px rgba(30,60,90,.1), inset 0 0 0 1px var(--edge);
+}
+html[data-modus="hell"] .btn.ghost:hover{background:rgba(255,255,255,.95); color:var(--tx);}
+html[data-modus="hell"] .tabbtn.active{box-shadow:inset 0 1px 0 rgba(255,255,255,.9);}
+html[data-modus="hell"] .chip.on,
+html[data-modus="hell"] .seg button.active{box-shadow:inset 0 1px 0 rgba(255,255,255,.85);}
+html[data-modus="hell"] .swatch{box-shadow:inset 0 1px 0 rgba(255,255,255,.5), 0 4px 12px rgba(30,60,90,.16);}
+html[data-modus="hell"] .swatch.on{box-shadow:inset 0 1px 0 rgba(255,255,255,.5), 0 0 0 2px var(--tx), 0 4px 12px rgba(30,60,90,.16);}
+html[data-modus="hell"] .farbfeld i,
+html[data-modus="hell"] .stimmfeld i{box-shadow:inset 0 0 0 1px rgba(30,60,90,.14);}
+html[data-modus="hell"] .regler{background:rgba(30,60,90,.14);}
+html[data-modus="hell"] .regler::-webkit-slider-thumb{background:var(--acc); box-shadow:0 2px 8px rgba(30,60,90,.3);}
+html[data-modus="hell"] .regler::-moz-range-thumb{background:var(--acc); box-shadow:0 2px 8px rgba(30,60,90,.3);}
 </style>
 </head>
 <body>
@@ -1020,7 +1109,7 @@ const DESIGN = {
   standard: {
     // Aussehen
     farbwelt: 'abendlicht', schriftwelt: 'einheimisch', dichte: 'normal',
-    rundung: 'normal', glas: 2, schrift: 1,
+    rundung: 'normal', glas: 2, schrift: 1, modus: 'dunkel',
     hintergrund: 'nebel', bewegung: 'voll', schatten: 'normal', eigenerAkzent: null,
     // Aufbau
     navPos: 'links', breite: 'normal', start: 'home',
@@ -1076,16 +1165,57 @@ const DESIGN = {
     unten:  { name: 'Unten',        hinweis: 'schwebende Leiste' },
   },
 
-  /* --- Farbwelten: Akzent, vier Nebelfarben, Grundfläche, Textton --- */
+  modi: {
+    dunkel: { name: 'Dunkel', hinweis: 'Glas über dunklem Farbnebel' },
+    hell:   { name: 'Hell',   hinweis: 'Wasserglas, helle Flächen' },
+  },
+
+  /* --- Helle Glasstufen. Auf hellem Grund traegt nicht die Flaeche die Tiefe,
+         sondern die Lichtkante oben und ein weicher, blaustichiger Schatten —
+         schwarze Schatten wirken hier sofort schmutzig. --- */
+  glasstufenHell: [
+    { name: 'Aus',        blur: 'none', satt: '100%', kante: .5, nebel: 0,
+      f1: 'rgba(255,255,255,1)',   f2: 'rgba(250,252,254,1)',  f3: 'rgba(244,248,252,1)',
+      kopf: 'rgba(255,255,255,1)', leiste: 'rgba(255,255,255,1)', dialog: 'rgba(255,255,255,1)',
+      tx2: '#4a5763', tx3: '#5d6b78' },
+    { name: 'Dezent',     blur: '14px', satt: '120%', kante: .7, nebel: .34,
+      f1: 'rgba(255,255,255,.88)', f2: 'rgba(255,255,255,.93)', f3: 'rgba(255,255,255,.97)',
+      kopf: 'rgba(255,255,255,.82)', leiste: 'rgba(255,255,255,.86)', dialog: 'rgba(255,255,255,.93)',
+      tx2: '#4a5763', tx3: '#5d6b78' },
+    { name: 'Ausgewogen', blur: '22px', satt: '150%', kante: .9, nebel: .58,
+      f1: 'rgba(255,255,255,.70)', f2: 'rgba(255,255,255,.78)', f3: 'rgba(255,255,255,.86)',
+      kopf: 'rgba(255,255,255,.64)', leiste: 'rgba(255,255,255,.70)', dialog: 'rgba(255,255,255,.84)',
+      tx2: '#46525e', tx3: '#586572' },
+    { name: 'Stark',      blur: '32px', satt: '185%', kante: 1.1, nebel: .78,
+      f1: 'rgba(255,255,255,.54)', f2: 'rgba(255,255,255,.63)', f3: 'rgba(255,255,255,.73)',
+      kopf: 'rgba(255,255,255,.48)', leiste: 'rgba(255,255,255,.55)', dialog: 'rgba(255,255,255,.74)',
+      tx2: '#3f4a55', tx3: '#4d5966' },
+    { name: 'Sehr stark', blur: '44px', satt: '210%', kante: 1.3, nebel: 1,
+      f1: 'rgba(255,255,255,.42)', f2: 'rgba(255,255,255,.52)', f3: 'rgba(255,255,255,.62)',
+      kopf: 'rgba(255,255,255,.36)', leiste: 'rgba(255,255,255,.44)', dialog: 'rgba(255,255,255,.66)',
+      tx2: '#38434e', tx3: '#45505c' },
+  ],
+
+  /* --- Farbwelten: Akzent, vier Nebelfarben, Grundfläche, Textton.
+         `hell` traegt die Werte fuer den hellen Modus: hellere Grundflaeche,
+         dunkler Text und blassere, wassrige Nebelfarben. --- */
   farbwelten: {
-    abendlicht:   { name: 'Abendlicht',   akzent: '#e08a5e', nebel: ['#a8552f','#8a4a55','#6d5a8a','#9c7c3e'], grund: '#0c0a09', text: '#efe7dd' },
-    nadelwald:    { name: 'Nadelwald',    akzent: '#93b27c', nebel: ['#3f6b4a','#2a5f70','#6e7a3c','#6b5340'], grund: '#080b09', text: '#e6ece4' },
-    leinenpapier: { name: 'Leinenpapier', akzent: '#c8a878', nebel: ['#9c8560','#6b7280','#a8724f','#5f5a4a'], grund: '#0d0c0a', text: '#f0ebe1' },
-    werkstahl:    { name: 'Werkstahl',    akzent: '#93adc4', nebel: ['#3a5f82','#5d6470','#357a72','#6f5d84'], grund: '#090a0c', text: '#e4e9ee' },
-    weinkeller:   { name: 'Weinkeller',   akzent: '#c98494', nebel: ['#7a3644','#57365e','#8a5a3a','#3f4a5c'], grund: '#0b0809', text: '#ece2e2' },
-    tiefsee:      { name: 'Tiefsee',      akzent: '#7bb0b8', nebel: ['#2f5f6b','#334a7a','#3d7a6e','#5d4f72'], grund: '#070a0c', text: '#e2ebee' },
-    duenensand:   { name: 'D\u00fcnensand',   akzent: '#d2a068', nebel: ['#a87a44','#9a8340','#7d5340','#4f5a6b'], grund: '#0c0b08', text: '#f0e9dc' },
-    aschefeld:    { name: 'Ascheregen',   akzent: '#a8a8a1', nebel: ['#4e5763','#6f6155','#47544d','#635a6d'], grund: '#0a0a0b', text: '#e8e8e6' },
+    abendlicht:   { name: 'Abendlicht',   akzent: '#e08a5e', nebel: ['#a8552f','#8a4a55','#6d5a8a','#9c7c3e'], grund: '#0c0a09', text: '#efe7dd',
+      hell: { akzent: '#c05f2c', grund: '#f7f0e9', text: '#2a2320', nebel: ['#f0b48c','#e8a9b4','#c3b3e0','#efcf94'] } },
+    nadelwald:    { name: 'Nadelwald',    akzent: '#93b27c', nebel: ['#3f6b4a','#2a5f70','#6e7a3c','#6b5340'], grund: '#080b09', text: '#e6ece4',
+      hell: { akzent: '#417a4f', grund: '#eef5ef', text: '#1e2620', nebel: ['#a8dcb6','#96d2de','#cadf9a','#e0c9a8'] } },
+    leinenpapier: { name: 'Leinenpapier', akzent: '#c8a878', nebel: ['#9c8560','#6b7280','#a8724f','#5f5a4a'], grund: '#0d0c0a', text: '#f0ebe1',
+      hell: { akzent: '#8a6a34', grund: '#f8f4ea', text: '#2a2620', nebel: ['#e4d2ad','#c2cbd8','#eeb894','#d4cfbc'] } },
+    werkstahl:    { name: 'Werkstahl',    akzent: '#93adc4', nebel: ['#3a5f82','#5d6470','#357a72','#6f5d84'], grund: '#090a0c', text: '#e4e9ee',
+      hell: { akzent: '#2f6489', grund: '#eef2f7', text: '#1c2229', nebel: ['#a6cbe8','#c0c8d4','#9ad8d0','#cbbfe0'] } },
+    weinkeller:   { name: 'Weinkeller',   akzent: '#c98494', nebel: ['#7a3644','#57365e','#8a5a3a','#3f4a5c'], grund: '#0b0809', text: '#ece2e2',
+      hell: { akzent: '#a04357', grund: '#f8eef1', text: '#2a2022', nebel: ['#eeacb9','#d4aede','#eec4a2','#b6c2d6'] } },
+    tiefsee:      { name: 'Tiefsee',      akzent: '#7bb0b8', nebel: ['#2f5f6b','#334a7a','#3d7a6e','#5d4f72'], grund: '#070a0c', text: '#e2ebee',
+      hell: { akzent: '#1f7a86', grund: '#ecf5f7', text: '#182428', nebel: ['#96d8e2','#a2bce8','#98ded0','#c2b4dc'] } },
+    duenensand:   { name: 'D\u00fcnensand',   akzent: '#d2a068', nebel: ['#a87a44','#9a8340','#7d5340','#4f5a6b'], grund: '#0c0b08', text: '#f0e9dc',
+      hell: { akzent: '#a3713a', grund: '#faf3e8', text: '#2a2418', nebel: ['#f2cb95','#e8d597','#eab89c','#bcc6d6'] } },
+    aschefeld:    { name: 'Ascheregen',   akzent: '#a8a8a1', nebel: ['#4e5763','#6f6155','#47544d','#635a6d'], grund: '#0a0a0b', text: '#e8e8e6',
+      hell: { akzent: '#5d6169', grund: '#f2f3f4', text: '#202225', nebel: ['#c3ccd8','#dcccc0','#bed0c6','#cdc4d8'] } },
   },
 
   /* --- Schriftwelten --- */
@@ -1172,20 +1302,31 @@ function ladeSchrift(url){
 function applyDesign(){
   const d = designState();
   const r = document.documentElement;
-  const w = DESIGN.farbwelten[d.farbwelt] || DESIGN.farbwelten[DESIGN.standard.farbwelt];
+  const welt = DESIGN.farbwelten[d.farbwelt] || DESIGN.farbwelten[DESIGN.standard.farbwelt];
   const s = DESIGN.schriften[d.schriftwelt] || DESIGN.schriften[DESIGN.standard.schriftwelt];
   const di = DESIGN.dichten[d.dichte] || DESIGN.dichten[DESIGN.standard.dichte];
   const ru = DESIGN.rundungen[d.rundung] || DESIGN.rundungen[DESIGN.standard.rundung];
-  const gl = DESIGN.glasstufen[Math.max(0, Math.min(DESIGN.glasstufen.length - 1, d.glas))];
+
+  // Hell oder dunkel — beides hat eigene Glasstufen und eigene Farbwerte,
+  // weil auf hellem Grund andere Flaechen und Textfarben noetig sind.
+  const hell = d.modus === 'hell' && !!welt.hell;
+  r.dataset.modus = hell ? 'hell' : 'dunkel';
+  const stufen = hell ? DESIGN.glasstufenHell : DESIGN.glasstufen;
+  const gl = stufen[Math.max(0, Math.min(stufen.length - 1, d.glas))];
+  const w = hell ? { ...welt, ...welt.hell } : welt;
 
   // Farbwelt
   r.style.setProperty('--acc', w.akzent);
   r.style.setProperty('--a1', w.akzent);
-  r.style.setProperty('--acc-tint', hexA(w.akzent, .16));
+  r.style.setProperty('--acc-tint', hexA(w.akzent, hell ? .13 : .16));
   r.style.setProperty('--f1', w.nebel[0]); r.style.setProperty('--f2', w.nebel[1]);
   r.style.setProperty('--f3', w.nebel[2]); r.style.setProperty('--f4', w.nebel[3]);
   r.style.setProperty('--p0', w.grund);
   r.style.setProperty('--tx', w.text);
+  // Statusleiste auf Mobilgeraeten mitfuehren, sonst bleibt sie im hellen
+  // Modus schwarz ueber heller Seite
+  const tc = document.querySelector('meta[name="theme-color"]');
+  if (tc) tc.setAttribute('content', w.grund);
 
   // Glas
   const aus = gl.blur === 'none';
@@ -2569,7 +2710,8 @@ function designPanel(){
   stim.innerHTML = '<div class="setlabel">Stimmung<span>setzt alles darunter auf einmal — Aufbau bleibt</span></div>';
   const sr = document.createElement('div'); sr.className = 'stimmrow';
   Object.entries(DESIGN.stimmungen).forEach(([k, s]) => {
-    const w = DESIGN.farbwelten[s.werte.farbwelt];
+    const sw = DESIGN.farbwelten[s.werte.farbwelt];
+    const w = (d().modus === 'hell' && sw.hell) ? { ...sw, ...sw.hell } : sw;
     const b = document.createElement('button');
     // aktiv nur, wenn wirklich jeder Wert der Stimmung gerade eingestellt ist
     const passt = Object.entries(s.werte).every(([f, v]) => (d()[f] ?? null) === v);
@@ -2592,11 +2734,19 @@ function designPanel(){
 
   /* ---------- Farbe & Material ---------- */
   wrap.appendChild(klappe('Farbe & Material', true, box => {
+    // Hell oder dunkel
+    box.appendChild(wahlReihe('Helligkeit',
+      Object.entries(DESIGN.modi).map(([k, v]) => [k, v.name, v.hinweis]), d().modus,
+      v => { setDesign({ modus: v }); wrap.replaceWith(designPanel()); }));
+
     // Farbwelt
     const farb = document.createElement('div'); farb.className = 'setblock';
     farb.innerHTML = '<div class="setlabel">Farbwelt</div>';
     const fr = document.createElement('div'); fr.className = 'farbrow';
-    Object.entries(DESIGN.farbwelten).forEach(([k, w]) => {
+    Object.entries(DESIGN.farbwelten).forEach(([k, welt]) => {
+      // Die Vorschau muss den eingestellten Modus zeigen, sonst waehlt man
+      // im hellen Modus aus lauter dunklen Kacheln aus.
+      const w = (d().modus === 'hell' && welt.hell) ? { ...welt, ...welt.hell } : welt;
       const b = document.createElement('button');
       b.className = 'farbfeld' + (k === d().farbwelt ? ' on' : '');
       b.innerHTML = `<i style="background:
@@ -2604,7 +2754,7 @@ function designPanel(){
           radial-gradient(60% 60% at 80% 20%, ${w.nebel[1]}, transparent 70%),
           radial-gradient(60% 60% at 75% 80%, ${w.nebel[2]}, transparent 70%),
           radial-gradient(60% 60% at 20% 85%, ${w.nebel[3]}, transparent 70%),
-          ${w.grund}"><u style="background:${w.akzent}"></u></i><span>${esc(w.name)}</span>`;
+          ${w.grund}"><u style="background:${w.akzent}"></u></i><span>${esc(welt.name)}</span>`;
       b.onclick = () => {
         setDesign({ farbwelt: k, eigenerAkzent: null });
         [...fr.children].forEach(c => c.classList.remove('on'));
