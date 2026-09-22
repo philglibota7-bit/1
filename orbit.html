@@ -2147,6 +2147,10 @@ async function sammleOrdner() {
   const vs = await befehl("ps -Ao comm= 2>/dev/null | grep -ci 'Visual Studio Code\\|Code Helper\\|/Code$' || true");
   BR.vscodeLaeuft = parseInt(vs.trim(), 10) > 0;
 
+  /* stat erst in der GNU-Schreibweise, dann in der von macOS: auf dem Mac
+     scheitert "stat -c" still, ohne etwas auszugeben. Andersherum gab
+     "stat -f" unter Linux die Daten des Dateisystems aus statt der Zeit
+     der Datei — an einer echten Umgebung gesehen. */
   for (const pfad of Z.bruecke.ordner) {
     const sh = `
 P=${hochkomma(pfad)}
@@ -2156,7 +2160,7 @@ echo "DIRTY:$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')"
 L=$(git ls-files -mo --exclude-standard 2>/dev/null | head -60 | tr '\\n' '\\0' | xargs -0 ls -t 2>/dev/null | head -4)
 if [ -n "$L" ]; then echo "$L" | sed 's/^/FILE:/'; fi
 F=$(echo "$L" | head -1)
-if [ -n "$F" ]; then echo "MTIME:$( (stat -f %m "$F" 2>/dev/null || stat -c %Y "$F" 2>/dev/null) )"; fi
+if [ -n "$F" ]; then echo "MTIME:$( (stat -c %Y "$F" 2>/dev/null || stat -f %m "$F" 2>/dev/null) | head -1)"; fi
 echo "HEAD:$(git log -1 --pretty=%s 2>/dev/null | head -c 80)"
 `;
     const aus = await befehl(sh);
@@ -2191,12 +2195,21 @@ echo "HEAD:$(git log -1 --pretty=%s 2>/dev/null | head -c 80)"
 
 /* ---------- Quelle 3: laufende Befehle ---------- */
 
-const PROZESS_MUSTER = "node |npm |pnpm |yarn |bun |vite|next |nodemon|webpack|esbuild|jest|vitest|playwright|python -m|uvicorn|gunicorn|flask|rails |cargo |go run|dotnet |docker |claude";
+/* Was als laufender Befehl zaehlt. "claude" stand frueher mit drin —
+   und passte dann auf jeden Prozess, in dessen Aufruf irgendwo .claude/
+   vorkommt. Die Sitzungen selbst sind aber schon als eigene Astronauten
+   da, aus ihren Protokollen. "python -m" passte nicht auf "python3 -m";
+   jetzt beides. An einer echten Prozessliste nachgesehen. */
+const PROZESS_MUSTER = "node |npm |pnpm |yarn |bun |deno |vite|next |nodemon|webpack|esbuild|jest|vitest|playwright|python3? -m|uvicorn|gunicorn|flask|rails |cargo |go run|dotnet |docker ";
 
 async function sammleProzesse() {
+  /* Claude Code fuehrt jeden Befehl in einer Huelle aus: bash -c source
+     ~/.claude/shell-snapshots/snapshot-….sh && … eval '<Befehl>'. Die
+     Huelle lebt so lange wie der Befehl und traegt ihn im Aufruf — ohne
+     sie auszusortieren stand jeder Entwicklungsserver doppelt da. */
   const aus = await befehl(
     `ps -Ao pid=,etime=,pcpu=,args= 2>/dev/null | grep -Ei ${hochkomma(PROZESS_MUSTER)} ` +
-    `| grep -v grep | grep -v ' ps -Ao' | head -8 || true`
+    `| grep -v grep | grep -v ' ps -Ao' | grep -v 'shell-snapshots/snapshot-' | head -8 || true`
   );
   const raus = [];
   for (const z of aus.split("\n")) {
