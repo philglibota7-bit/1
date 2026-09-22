@@ -5996,7 +5996,16 @@ function zeichneStation(t, cxp, cyp, R) {
      drinnen etwas klemmt, ist der Unterschied zwischen einer Kulisse
      und einem Betrieb. */
   const blink = Math.sin(t * 0.0031) > 0.72;
-  const lichter = [[tr * 0.98, 0, "224,122,106"], [-tr * 0.98, 0, "116,180,141"], [0, -R * 0.5, "255,255,255"]];
+  /* Alle Leuchten sitzen auf dem Obergurt des Traegers. Der liegt bei
+     -0,12 R, und dort ist auch wirklich Metall: vorher stand die
+     weisse Leuchte bei -0,5 R, also einen halben Modulradius ueber der
+     Struktur im Leeren, und ihr Mast endete an nichts. Eine Leuchte,
+     die nirgends befestigt ist, sieht aufgemalt aus — derselbe Grund,
+     aus dem die Leitungen am Traeger Schellen bekommen haben. */
+  const obergurt = -R * 0.12;
+  const lichter = [[tr * 0.98, obergurt, "224,122,106"],
+                   [-tr * 0.98, obergurt, "116,180,141"],
+                   [0, obergurt - R * 0.07, "255,255,255"]];
   /* Die Warnleuchte gilt nicht mehr nur der Crew. Seit die Station
      einen Stoffwechsel hat, kann auch der klemmen — leere Batterien,
      zu viel Kohlendioxid, ein Kuehlkreis am Anschlag. Und wenn Schrott
@@ -6004,22 +6013,81 @@ function zeichneStation(t, cxp, cyp, R) {
      wird gerechnet, ob ausgewichen werden muss, und das ist der einzige
      Zustand, in dem es wirklich eilt. Rot blinkt entsprechend
      schneller. */
+  /* --- Jede Leuchte sitzt auf etwas ----------------------------------
+     Die Lampen waren nackte Kreise. Aus der Ferne faellt das nicht auf,
+     beim Heranfahren schon: dann schwebt ein bernsteinfarbener Fleck
+     von zwanzig Bildpunkten mitten im leeren Himmel, ohne dass etwas
+     ihn traegt — es sieht aus wie ein Fehler im Bild, und beim ersten
+     Ansehen habe ich es selbst fuer einen gehalten.
+
+     Also bekommt jede einen Mast mit Fuss und ein Gehaeuse, und die
+     Leuchtfarbe sitzt vorn darin. Die beiden oberen stehen ohnehin
+     ueber der Struktur und brauchen den Mast zwingend; an den
+     Traegerenden genuegt ein kurzer Stumpf. */
+  const leuchte = (lx, ly, ton, staerke, mast, gr) => {
+    /* Der Mast: von der Struktur zur Lampe. Richtung ist immer weg
+       von der Mitte, denn genau deshalb sitzt eine Kennleuchte dort —
+       sie soll von aussen zu sehen sein. */
+    if (mast > 0) {
+      const ux = lx === 0 ? 0 : Math.sign(lx), uy = lx === 0 ? -1 : 0;
+      c.strokeStyle = "rgba(188,194,202,.9)";
+      c.lineWidth = Math.max(0.4, gr * 0.36);
+      c.beginPath();
+      c.moveTo(lx - ux * mast, ly - uy * mast);
+      c.lineTo(lx, ly);
+      c.stroke();
+      c.fillStyle = "rgba(206,212,220,.95)";
+      c.beginPath();
+      c.arc(lx - ux * mast, ly - uy * mast, gr * 0.42, 0, Math.PI * 2);
+      c.fill();
+    }
+    /* Das Gehaeuse — hell auf der Sonnenseite, dunkel darunter. */
+    c.fillStyle = sonnenlauf(c, lx - gr, ly - gr, gr * 2, gr * 2,
+      "#eceef0", "#9aa0a6", "#23262b");
+    c.beginPath(); c.arc(lx, ly, gr, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = "rgba(24,28,34,.6)"; c.lineWidth = Math.max(0.25, gr * 0.16);
+    c.stroke();
+    /* Und die Linse darin. */
+    c.fillStyle = `rgba(${ton},${staerke})`;
+    c.beginPath(); c.arc(lx, ly, gr * 0.6, 0, Math.PI * 2); c.fill();
+  };
+
   const eilig = KONJ.lage === "warnung" || KONJ.lage === "manoever";
   if (STATIONSALARM || LEBEN.alarm || eilig) {
     const takt = eilig ? 0.014 : 0.007;
     const ton = eilig ? "255,96,72" : "255,176,64";
     const w = 0.5 + 0.5 * Math.sin(t * takt);
-    c.fillStyle = `rgba(${ton},${0.35 + 0.6 * w})`;
-    c.beginPath(); c.arc(0, -R * 0.66, R * 0.04, 0, Math.PI * 2); c.fill();
-    c.fillStyle = `rgba(${ton},${0.14 * w})`;
-    c.beginPath(); c.arc(0, -R * 0.66, R * 0.3 * (0.6 + w * 0.7), 0, Math.PI * 2); c.fill();
+    /* Seitlich versetzt und auf kurzem Mast. Beide Lampen auf einer
+       senkrechten Linie uebereinander sahen aus wie eine Ampel, und
+       der lange Mast endete im Nichts — an einer Station sitzt jede
+       Leuchte fuer sich auf ihrem eigenen Beschlag. */
+    /* Seitlich versetzt: beide Lampen auf einer senkrechten Linie
+       uebereinander sahen aus wie eine Ampel. An einer Station sitzt
+       jede Leuchte fuer sich auf ihrem eigenen Beschlag. */
+    leuchte(R * 0.34, obergurt - R * 0.09, ton, 0.35 + 0.6 * w, R * 0.09, R * 0.05);
+    /* Der Hof gehoert ganz ins BILD und nicht in die Szene — im Vakuum
+       gibt es nichts, woran sich Licht streuen koennte; was man sieht,
+       entsteht in Auge und Linse. Also eine feste Zahl Bildpunkte,
+       ohne jeden szenenabhaengigen Anteil: ein halb mitwachsender Hof
+       waechst immer noch. Vorher waren es 0,3 R, und beim Heranfahren
+       wurde daraus ein Nebelball von einem halben Modulradius.
+       Derselbe Fehler war bei den Fenstern schon einmal drin. */
+    const hof = 17 * proBildpunkt(c);
+    c.fillStyle = `rgba(${ton},${0.16 * w})`;
+    c.beginPath();
+    c.arc(R * 0.34, obergurt - R * 0.09, hof * (0.7 + w * 0.5), 0, Math.PI * 2);
+    c.fill();
   }
   for (const [lx, ly, ton] of lichter) {
-    c.fillStyle = `rgba(${ton},${blink ? 0.95 : 0.25})`;
-    c.beginPath(); c.arc(lx, ly, R * 0.022, 0, Math.PI * 2); c.fill();
+    /* Die weisse steht auf einem kurzen Mast ueber dem Gurt, die
+       beiden farbigen sitzen direkt darauf — an den Traegerenden ist
+       ohnehin nichts, was die Sicht nimmt. */
+    leuchte(lx, ly, ton, blink ? 0.95 : 0.25,
+      lx === 0 ? R * 0.07 : 0, R * 0.03);
     if (blink) {
+      const hof = 11 * proBildpunkt(c);
       c.fillStyle = `rgba(${ton},.18)`;
-      c.beginPath(); c.arc(lx, ly, R * 0.09, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.arc(lx, ly, hof, 0, Math.PI * 2); c.fill();
     }
   }
   c.restore();
@@ -6853,6 +6921,17 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
   }
 
   cx.restore();
+}
+
+/* Wie viele Zeicheneinheiten ist ein Bildpunkt gerade wert? Aus der
+   laufenden Abbildung gelesen, damit es in jeder Kette aus Drehungen
+   und Massstaeben stimmt. Gebraucht ueberall dort, wo etwas eine
+   Eigenschaft des BILDES ist und nicht der Szene — ein Lichthof zum
+   Beispiel entsteht in Auge und Linse, nicht draussen, und darf beim
+   Heranfahren deshalb nicht mitwachsen. */
+function proBildpunkt(c) {
+  const m = c.getTransform();
+  return 1 / Math.max(1e-6, Math.hypot(m.a, m.b));
 }
 
 /* Zwei Farben mischen — fuer Verlaeufe am Anzug */
@@ -12982,6 +13061,7 @@ window.__RUNDGANG = () => RUNDGANG;
 window.__ZEIT = () => ZEIT;
 window.__Z = () => Z;
 window.__SCHUB = () => SCHUB;
+window.__ALARM = (an) => { STATIONSALARM = !!an; };
 window.__SCHWING = () => SCHWINGUNG;
 window.__BEWEGSTAND = () => BEWEGSTAND;
 window.__STNAH = () => STNAH;
