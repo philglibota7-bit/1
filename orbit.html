@@ -2493,6 +2493,19 @@ function bordbuch(text) {
    Minuten ein Lichtpunkt langsam durchs Bild zieht. Er blinkt, weil
    er taumelt und das Sonnenlicht nur in bestimmten Lagen zurueckwirft. */
 const EINSCHLAG = [];
+/* --- Narben ----------------------------------------------------------
+   Ein Einschlag war bisher ein Aufblitzen und danach nichts. In
+   Wirklichkeit bleibt etwas: ein Krater von einem halben Millimeter
+   bis zu ein paar Millimetern, mit aufgeworfenem hellen Rand. Die
+   Aussenhaut der ISS ist nach zwanzig Jahren uebersaet damit, und die
+   zurueckgeholten Teile sind genau deshalb so wertvoll — sie sind das
+   einzige Langzeitmass fuer den Staub in dieser Bahnhoehe.
+
+   Also bleiben die Treffer stehen. Das ist der einzige Vorgang in
+   dieser App, der sich ANSAMMELT: wer lange genug zusieht, sieht der
+   Station an, wie lange sie schon draussen ist. Ein Organismus hat
+   eine Vergangenheit, und man sieht sie ihm an. */
+const NARBEN = [];
 const NACHBARN = [];
 
 /* Ablassventile. Eine bewohnte Station gibt staendig etwas ab —
@@ -2532,6 +2545,39 @@ const KONJ = {
   bis: 0, objekt: "", abstand: 0, zaehler: 0,
   spur: null,
 };
+
+/* Liegt dieser Punkt — in Vielfachen von R, von der Stationsmitte aus
+   — auf der Struktur? Das gebackene Bild weiss es: dort, wo etwas
+   steht, ist es nicht durchsichtig. */
+function trifftStruktur(nx, ny) {
+  if (!STBILD) return false;
+  const px = Math.round(STBILD.rx + nx * STBILD.R);
+  const py = Math.round(STBILD.ry + ny * STBILD.R);
+  if (px < 0 || py < 0 || px >= STBILD.bild.width || py >= STBILD.bild.height) return false;
+  try {
+    const d = STBILD.bild.getContext("2d").getImageData(px, py, 1, 1).data;
+    return d[3] > 200;
+  } catch (e) { return false; }
+}
+
+/* Die Narben liegen fest an der Station und wandern mit ihr. Gezeichnet
+   wird nur, was auch zu sehen waere: unter einem halben Bildpunkt
+   Durchmesser ist ein Krater kein Krater mehr, sondern Rauschen. */
+function zeichneNarben(c, R) {
+  if (!NARBEN.length || sparsam) return;
+  if (R * 0.0012 < 0.4) return;
+  for (const n of NARBEN) {
+    const x = n.x * R, y = n.y * R, r = n.gr * R;
+    if (r * 1.9 < 0.4) continue;
+    /* Der aufgeworfene Rand faengt Licht und ist heller als die Haut
+       ringsum — er ist es, der den Krater ueberhaupt sichtbar macht.
+       Das Loch selbst ist nur ein dunkler Punkt. */
+    c.fillStyle = `rgba(232,236,240,${0.42 * TAGLICHT + 0.1})`;
+    c.beginPath(); c.arc(x, y, r * 1.9, 0, Math.PI * 2); c.fill();
+    c.fillStyle = `rgba(18,20,26,${0.6 * TAGLICHT + 0.2})`;
+    c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+  }
+}
 
 function konjunktion(t, dt, ccx, ccy, Rst) {
   if (KONJ.bis === 0) KONJ.bis = t + 180000 + Math.random() * 160000;
@@ -2673,12 +2719,30 @@ function ereignisse(t, dt, ccx, ccy, Rst) {
   if (EINSCHLAG.length < 3 && Math.random() < dt / 9000) {
     const w = Math.random() * Math.PI * 2;
     const d = (0.3 + Math.random() * 5.4) * Rst;
+    const ex = Math.cos(w) * d, ey = Math.sin(w) * d * 0.28;
     EINSCHLAG.push({
-      x: ccx + Math.cos(w) * d,
-      y: ccy + Math.sin(w) * d * 0.28,
+      x: ccx + ex, y: ccy + ey,
       alter: 0, dauer: 260 + Math.random() * 180,
       gr: Rst * (0.02 + Math.random() * 0.05),
     });
+    /* Eine Narbe bleibt nur, wo wirklich Blech war. Ob dort Blech war,
+       weiss das gebackene Bild — also wird es gefragt: ein einzelner
+       Bildpunkt, einmal je Einschlag. */
+    if (NARBEN.length < 64 && trifftStruktur(ex / Rst, ey / Rst)) {
+      /* Die Groesse ist gerechnet, nicht gewaehlt: ein Krater misst
+         einen halben bis vier Millimeter, und jeder achte Treffer
+         schlaegt ein Loch von einem halben bis anderthalb Zentimetern.
+         Ein Modul ist 4,3 Meter dick, sein Radius also 0,25 R — damit
+         ist ein Krater rund ein Zehntausendstel von R. Das heisst: aus
+         der Entfernung, aus der man die ganze Station sieht, ist er
+         UNSICHTBAR, und das ist richtig so. Sichtbar wird er erst,
+         wenn man so nah heranfaehrt, wie ein Mensch im Anzug
+         davorsteht. Ein Krater in Schraubenkopfgroesse waere
+         hundertfach zu gross. */
+      const mm = Math.random() < 0.12 ? 5 + Math.random() * 10
+                                      : 0.5 + Math.random() * 3.5;
+      NARBEN.push({ x: ex / Rst, y: ey / Rst, gr: (mm / 1000) / 2.15 * 0.25 });
+    }
     if (Math.random() < 0.34) bordbuch("Einschlag an der Struktur");
   }
   for (let i = EINSCHLAG.length - 1; i >= 0; i--) {
@@ -2777,6 +2841,12 @@ let PHASE_VERSATZ = 0;
    Bild springt. */
 const ZEIT = { rate: 1 };
 let PHASE_UHR = 0;
+/* Wie lange laeuft die Mission schon, und wie oft ist die Station
+   dabei herumgekommen? Die zweite Zahl ist die interessantere: ein
+   Umlauf ist die natuerliche Zeiteinheit im Orbit, so wie unten der
+   Tag. Vierzehneinhalb davon sind ein Tag — deshalb sehen die
+   Besatzungen sechzehn Sonnenaufgaenge, wenn wir einen sehen. */
+const MISSION = { seit: 0, umlaeufe: 0, letztePhase: 0, simSek: 0 };
 
 /* --- Der Lebenserhalt: die Station als Organismus --------------------
    Bis hierher war die Station eine Kulisse mit Lichtwechsel. Was ihr
@@ -4179,6 +4249,7 @@ function zeichneStation(t, cxp, cyp, R) {
   const tr = R * 3.3;
   c.save();
   c.translate(cxp, cyp);
+  zeichneNarben(c, R);
   zeichneAntenne(c, R, t);
   /* ---------- Roboterarm: sitzt auf dem Traeger, greift zum Modul ---------- */
   c.save();
@@ -6128,6 +6199,16 @@ function rahmen(jetzt) {
   PHASE_UHR = ((PHASE_UHR + (dt / UMLAUF) * ZEIT.rate) % 1 + 1) % 1;
   const umlaufPhase = PHASE_TEST !== null ? PHASE_TEST
     : ((PHASE_UHR + PHASE_VERSATZ) % 1 + 1) % 1;
+  /* Der Umlaufzaehler springt genau dort weiter, wo die Phase
+     umschlaegt. Ein Sprung per Knopf zaehlt nicht mit — sonst waere
+     der Zaehler eine Zahl ueber die Bedienung und nicht ueber den
+     Flug. */
+  if (MISSION.seit === 0) { MISSION.seit = Date.now(); MISSION.letztePhase = umlaufPhase; }
+  if (PHASE_TEST === null) {
+    MISSION.simSek += (dt / 1000) * ZEITRAFFER * ZEIT.rate;
+    if (umlaufPhase < MISSION.letztePhase - 0.5) MISSION.umlaeufe++;
+    MISSION.letztePhase = umlaufPhase;
+  }
   window.__PHASE_WERT = umlaufPhase;
   {
     const alle = alleAstronauten();
@@ -7996,6 +8077,16 @@ function kz(wert, stellen) {
   return wert.toFixed(stellen === undefined ? 1 : stellen).replace(".", ",");
 }
 
+/* Die gerafft vergangene Zeit an Bord. Ab einem Tag wird in Tagen
+   gezaehlt, weil "38 Stunden" niemand im Kopf umrechnet. */
+function simZeit(sek) {
+  const std = sek / 3600;
+  if (std < 1) return Math.round(sek / 60) + " min an Bord";
+  if (std < 24) return Math.floor(std) + " h " + Math.round((std % 1) * 60) + " min an Bord";
+  const tage = Math.floor(std / 24);
+  return tage + (tage === 1 ? " Tag " : " Tage ") + Math.round(std % 24) + " h an Bord";
+}
+
 function zeitKurz(ms) {
   const sek = Math.max(0, Math.round(ms / 1000));
   return Math.floor(sek / 60) + ":" + String(sek % 60).padStart(2, "0");
@@ -8055,6 +8146,8 @@ function zeichneTelemetrie(t) {
     ["BAHN", kz(LEBEN.hoehe, 2) + " km" + (SCHUB.laeuft ? " · Schub" : "")],
 
     ["~", "UMLAUF UND CREW"],
+    ["MISSION", MISSION.umlaeufe + (MISSION.umlaeufe === 1 ? " Umlauf · " : " Umläufe · ")
+      + simZeit(MISSION.simSek)],
     ["PHASE", Z.umlauf === false ? "aus"
       : (tags ? "Tag" : "Erdschatten") + " · " + zeitKurz(rest)],
     ["BESATZUNG", alle.length + (laufend ? " · " + laufend + " arbeitet" : " · bereit")],
@@ -8770,6 +8863,12 @@ window.__BEWEG = (v) => { BEWEGLICH = v; };
 window.__LEBEN = () => LEBEN;
 window.__FUNK = () => FUNK;
 window.__KONJ = () => KONJ;
+window.__NARBEN = () => NARBEN;
+window.__TRIFFT = (x, y) => trifftStruktur(x, y);
+window.__MISSION = () => MISSION;
+window.__ERDE = () => ERDE;
+window.__ERDBACK = () => erdeBacken();
+window.__ERDSCHATTEN = (a, b, c) => erdeSchatten(a, b, c);
 window.__SICHTMAP = () => SICHT;
 window.__FRACHT = () => FRACHT;
 window.__SCHILDER = () => TEILSCHILDER;
