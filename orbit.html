@@ -5584,12 +5584,99 @@ function zeichneStation(t, cxp, cyp, R) {
   const strom = klemm(0.34 + LEBEN.akku * 1.1, 0.34, 1);
   const wach = (0.45 + 0.55 * CREWWACH) * strom;
   for (const fe of b.fenster) {
+    /* Bei Tag sieht man kaum hinein. Draussen steht die Erde, die das
+       halbe Blickfeld fuellt, und die Sonne; dagegen ist eine
+       Deckenleuchte nichts. Was man bei Tag von einem Fenster sieht,
+       ist fast nur die Spiegelung — deshalb wird das Innenlicht auf
+       die Haelfte gedaempft. Ganz weg darf es nicht: an den erhellten
+       Fenstern liest man von weitem ab, ob an Bord jemand wach ist und
+       ob der Strom reicht, und diese Auskunft soll nicht fuer
+       neunundfuenfzig Prozent des Umlaufs verschwinden. */
+    const innen = 0.5 + 0.5 * (1 - TAGLICHT);
     const staerke = Math.min(1, (fe.grund + fe.hub * Math.sin(t * fe.takt + fe.ph))
-      * nachthell * wach) * (1 - verdeckung(fe, t));
-    cx.fillStyle = `rgba(${fe.ton},${staerke})`;
+      * nachthell * wach * innen) * (1 - verdeckung(fe, t));
+    const fx = mitte.x + fe.x * f, fy = mitte.y + fe.y * f;
+    const fr = Math.max(0.6, fe.r * f);
+    const gross = fr > 5 && !sparsam;
+    if (gross) {
+      /* Ein Fenster ist kein Loch, sondern ein kurzer Schacht: die
+         Scheibe sitzt tief in einer Fassung, die selbst noch einmal so
+         dick ist. Von schraeg aussen sieht man deshalb nicht die ganze
+         Scheibe leuchten, sondern nur ihre Mitte — der Rand wird vom
+         Rahmen verdeckt. Genau diese Vignette macht aus einem hellen
+         Kreis ein Fenster, und sie gilt bei Tag wie bei Nacht. */
+      const ig = cx.createRadialGradient(fx, fy, 0, fx, fy, fr);
+      ig.addColorStop(0, `rgba(${fe.ton},${staerke})`);
+      ig.addColorStop(0.78, `rgba(${fe.ton},${staerke * 0.94})`);
+      ig.addColorStop(0.94, `rgba(${fe.ton},${staerke * 0.34})`);
+      ig.addColorStop(1, `rgba(${fe.ton},0)`);
+      cx.fillStyle = ig;
+    } else {
+      cx.fillStyle = `rgba(${fe.ton},${staerke})`;
+    }
     cx.beginPath();
-    cx.arc(mitte.x + fe.x * f, mitte.y + fe.y * f, Math.max(0.6, fe.r * f), 0, Math.PI * 2);
+    cx.arc(fx, fy, fr, 0, Math.PI * 2);
     cx.fill();
+
+    /* --- Das Glas ------------------------------------------------------
+       Ab etwa fuenf Bildpunkten lohnt es sich, ein Fenster als Glas zu
+       zeichnen und nicht als Lichtfleck. Drei Dinge machen den
+       Unterschied, und alle drei stehen auf jedem echten Foto:
+
+       Die Fassung ist dick. Eine Scheibe der Kuppel misst rund zehn
+       Zentimeter Glas in einem Rahmen, der noch einmal so tief ist —
+       man sieht deshalb nicht auf eine Scheibe, sondern in einen
+       Schacht. Ein dunkler Ring innen am Rand ist die ganze
+       Darstellung davon, und sie genuegt.
+
+       Die Erde spiegelt sich. Sie fuellt von hier unten das halbe
+       Blickfeld und ist um ein Vielfaches heller als alles andere
+       ausser der Sonne. Auf der erdzugewandten Seite der Scheibe steht
+       deshalb ein heller Bogen — bei Tag scharf, ueber der Nachtseite
+       nur noch ein Hauch. Erdzugewandt heisst hier schlicht unten: die
+       Szene zeigt die Station ueber dem Horizont.
+
+       Und die Sonne setzt einen harten Punkt. Sie misst ein halbes
+       Grad, also ist ihr Spiegelbild klein und scharf — kein weicher
+       Schein, sondern ein Glanzlicht mit Kante. Auf allen Scheiben
+       sitzt es an derselben Stelle, denn die Sonne steht unendlich
+       weit weg. */
+    if (gross) {
+      cx.save();
+      cx.beginPath(); cx.arc(fx, fy, fr, 0, Math.PI * 2); cx.clip();
+
+      /* Die Tiefe der Fassung. Sie haengt nicht am Tageslicht: ein
+         Rahmen ist ein Rahmen. Nur bei Nacht faellt sie schwaecher
+         aus, weil das Licht von innen die Rahmeninnenwand mit
+         beleuchtet — sie wird grau, nicht schwarz. */
+      /* Schmal halten. Ring und Vignette liegen uebereinander; mit
+         einem Fuenftel des Halbmessers frass der Ring bei der grossen
+         Mittelscheibe ein Drittel der Flaeche und machte sie dunkler
+         als die kleinen ringsherum — bei der groessten Scheibe der
+         Station genau das falsche Ergebnis. */
+      cx.strokeStyle = `rgba(8,11,16,${0.34 + 0.34 * TAGLICHT})`;
+      cx.lineWidth = Math.max(0.5, fr * 0.13);
+      cx.beginPath(); cx.arc(fx, fy, fr * 0.935, 0, Math.PI * 2); cx.stroke();
+
+      /* Die Erde auf dem Glas */
+      const eg = cx.createLinearGradient(fx, fy + fr * 0.1, fx, fy + fr);
+      const ehell = 0.1 + 0.42 * TAGLICHT;
+      eg.addColorStop(0, "rgba(186,214,244,0)");
+      eg.addColorStop(0.55, `rgba(196,222,248,${ehell * 0.5})`);
+      eg.addColorStop(1, `rgba(226,240,255,${ehell})`);
+      cx.fillStyle = eg;
+      cx.beginPath(); cx.arc(fx, fy, fr * 0.86, 0, Math.PI * 2); cx.fill();
+
+      /* Der Sonnenpunkt */
+      if (TAGLICHT > 0.3) {
+        cx.fillStyle = `rgba(255,252,242,${0.72 * TAGLICHT})`;
+        cx.beginPath();
+        cx.ellipse(fx - fr * 0.34, fy - fr * 0.38, fr * 0.15, fr * 0.1,
+          -0.7, 0, Math.PI * 2);
+        cx.fill();
+      }
+      cx.restore();
+    }
     if (TAGLICHT < 0.7) {
       /* Der Hof um ein helles Fenster ist KEIN Leuchten im Raum — im
          Vakuum gibt es nichts, woran sich Licht streuen koennte.
@@ -5603,10 +5690,10 @@ function zeichneStation(t, cxp, cyp, R) {
          Jetzt ist er ein fester Zuschlag in Bildpunkten, gegen den
          Zoom herausgerechnet — nah ein schmaler Saum, fern ein
          weicher Schein. */
-      const hof = fe.r * f + 6 / Math.max(0.4, KAM.zoom);
+      const hof = fr + 6 / Math.max(0.4, KAM.zoom);
       cx.fillStyle = `rgba(${fe.ton},${0.16 * staerke * (1 - TAGLICHT)})`;
       cx.beginPath();
-      cx.arc(mitte.x + fe.x * f, mitte.y + fe.y * f, Math.max(1.5, hof), 0, Math.PI * 2);
+      cx.arc(fx, fy, Math.max(1.5, hof), 0, Math.PI * 2);
       cx.fill();
     }
   }
