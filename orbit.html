@@ -7770,15 +7770,34 @@ function sonnenhoch(c, bw, bh, termX, tags, lauf) {
   const gy = bh * 0.5;
   const r = W * 1.05 * sk;
   if (gx < -r || gx > bw + r) return;
-  const rg = c.createRadialGradient(gx, gy, 0, gx, gy, r);
-  rg.addColorStop(0, "rgba(255,250,232,.3)");
-  rg.addColorStop(0.45, "rgba(255,246,224,.14)");
-  rg.addColorStop(1, "rgba(240,246,255,0)");
   c.save();
   /* "source-atop": nur auf der Scheibe, nie darueber hinaus. */
   c.globalCompositeOperation = "source-atop";
-  c.fillStyle = rg;
-  c.fillRect(Math.max(0, gx - r), 0, Math.min(bw, r * 2), bh);
+
+  /* ABDUNKELN statt aufhellen. Vorher lagen hier bis zu dreissig
+     Prozent Weiss ueber der Scheibe, und zusammen mit dem Luftdunst
+     ergab das ueber dem unteren Bildrand rund ein Drittel Schleier:
+     die Erde wurde blass, das Meer graublau statt tief, das Land
+     salbeifarben statt gruen. Die ganze Muehe an den Farben lag
+     darunter begraben.
+
+     Richtig herum ist es ohnehin: unter der Sonne ist die Flaeche
+     voll beleuchtet, das ist der NORMALFALL und braucht keinen
+     Zuschlag. Was sich aendert, ist das Weniger zur Seite hin — die
+     Beleuchtung faellt mit dem Kosinus des Winkels zum Unterpunkt.
+     Also wird von der Mitte nach aussen abgedunkelt, und die Mitte
+     bleibt, wie sie gebacken wurde.
+
+     Ein Hauch Waerme bleibt: direkt unter der Sonne steht die
+     Atmosphaere am duennsten im Strahlengang, und das Licht ist dort
+     am wenigsten blau weggestreut. */
+  const dg = c.createRadialGradient(gx, gy, 0, gx, gy, r);
+  dg.addColorStop(0, "rgba(255,250,230,.07)");
+  dg.addColorStop(0.3, "rgba(255,248,230,0)");
+  dg.addColorStop(0.62, "rgba(18,26,44,.1)");
+  dg.addColorStop(1, "rgba(10,16,32,.26)");
+  c.fillStyle = dg;
+  c.fillRect(0, 0, bw, bh);
   c.restore();
 }
 
