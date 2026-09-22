@@ -2983,6 +2983,12 @@ const TEILE = {
     lang: "Gegen vierhundert Lichtjahre sind vierhundert Kilometer nichts: die Sterne stehen von hier aus genau dort, wo sie auch vom Gartenstuhl aus stehen. Vier Figuren sind aus ihren echten Koordinaten gerechnet — Orion, der Große Wagen, die Kassiopeia und das Kreuz des Südens. Von einer Bahn mit 51,6 Grad Neigung sind sie wirklich alle zu sehen. Verbindungslinien gibt es nicht; die stehen nur in Büchern.",
     zahl: "Die Helligkeiten sind echte Größenklassen: zweieinhalb Klassen sind ein Faktor zehn im Licht. Und sie funkeln nicht — dafür bräuchte es Luft, die das Licht bricht.",
   },
+  schleuse: {
+    name: "Luftschleuse",
+    kurz: "Hier geht es nach draußen.",
+    lang: "Eine kleine Kammer mit zwei Luken: eine nach innen, eine nach außen. Man steigt im Anzug ein, macht hinter sich zu, lässt die Luft ab und öffnet dann erst die äußere. Der Anzug hat nur ein Drittel des Kabinendrucks, also muss man vorher Stunden lang reinen Sauerstoff atmen — sonst bekommt man beim Druckabfall dieselben Blasen im Blut wie ein Taucher, der zu schnell auftaucht. Das ist der Grund, warum ein Außenbordeinsatz einen halben Tag Vorlauf braucht.",
+    zahl: "Die Luke misst einen knappen Meter — gerade genug für einen Menschen im Anzug, und der ist breiter als er selbst. Der gelbe Ring darum ist Vorschrift: mit Helm sieht man wenig, und man muss sie wiederfinden.",
+  },
   hafen: {
     name: "Kopplungsstutzen",
     kurz: "Hier docken Schiffe an.",
@@ -4269,6 +4275,99 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler, ohneSch
      Haenden. Das ist die haeufigste Arbeitshaltung ueberhaupt. */
   merkePlatz(c, plaetze, knoten[0] !== undefined ? knoten[0] : 0, -md * 0.62, "fussraste", 0);
   merkePlatz(c, plaetze, knoten[1] !== undefined ? knoten[1] : pos * 0.5, md * 0.62, "fussraste", Math.PI);
+
+  /* --- Die Luftschleuse ------------------------------------------------
+     Die naheliegendste Frage an eine Station mit Leuten draussen war
+     bisher unbeantwortet: wo kommen die eigentlich heraus? Also
+     bekommt sie eine Schleuse — ein kurzer dicker Zylinder quer am
+     zweiten Knoten, mit einer runden Luke, die offen zur Seite steht.
+
+     Sie ist bewusst der einzige Ort an der ganzen Station mit einer
+     grossen runden Oeffnung, und sie ist gelb umrandet. Damit ist sie
+     von ueberall wiederzuerkennen, und das ist auch draussen ihr
+     Zweck: wer im Anzug zurueckkommt, muss sie finden, und das
+     Sichtfeld im Helm ist klein.
+
+     Vom Rand der Luke laeuft eine Reihe Handlaeufe weg — der
+     Ausstiegsweg. Sie sind dieselbe Sorte wie ueberall sonst, nur
+     enger gesetzt: direkt an der Luke greift man haeufiger um. */
+  if (knoten[1] !== undefined && md > 7) {
+    const sx = knoten[1] + md * 0.15;
+    /* Echte Masse. Die Schleuse der Station misst gut vier Meter in
+       beide Richtungen, also knapp einen Moduldurchmesser. */
+    const sr = md * 0.5;                     // halbe Laenge der Schleuse
+    const sd2 = md * 0.78;                   // ihr Durchmesser
+    c.save();
+    c.translate(sx, -md * 0.5);
+    beruehrung(c, 0, 0, sd2 * 0.8, md * 0.3, 0.5);
+    /* Der Zylinder steht quer, also sieht man ihn von der Seite als
+       Rechteck mit runden Enden und einer Endkappe oben. */
+    const lg = c.createLinearGradient(-sr, 0, sr, 0);
+    lg.addColorStop(0, "#cfccc1"); lg.addColorStop(0.22, "#f7f6f1");
+    lg.addColorStop(0.55, "#b9b6ab"); lg.addColorStop(0.85, "#4e5158");
+    lg.addColorStop(1, "#33414f");
+    c.fillStyle = lg;
+    rundRect(c, -sr, -sd2 * 1.05, sr * 2, sd2 * 1.05, sr * 0.22); c.fill();
+    c.strokeStyle = "rgba(26,30,36,.55)"; c.lineWidth = Math.max(0.3, md * 0.014);
+    rundRect(c, -sr, -sd2 * 1.05, sr * 2, sd2 * 1.05, sr * 0.22); c.stroke();
+    /* Deckel oben */
+    c.fillStyle = "rgba(228,230,224,.9)";
+    c.beginPath();
+    c.ellipse(0, -sd2 * 1.05, sr, sr * 0.34, 0, 0, Math.PI * 2);
+    c.fill();
+    c.strokeStyle = "rgba(30,34,40,.5)"; c.lineWidth = Math.max(0.3, md * 0.012);
+    c.stroke();
+
+    /* Die Luke: offen, der Deckel steht zur Seite weg. Eine
+       Schleusenluke oeffnet nach INNEN — der Druck drueckt sie sonst
+       heraus —, aber offen sieht man sie von aussen trotzdem als
+       dunkles Loch mit einem Kragen. */
+    /* Die Luke: ein knapper Meter im DURCHMESSER, also ein halber im
+       Halbmesser. Bei 4,3 Metern Moduldurchmesser sind das 0,116 —
+       ein erster Versuch hatte 0,22 und damit eine Luke von fast zwei
+       Metern. Durch die waere ein Anzug bequem gegangen; sie war
+       genau doppelt so gross wie das, was danebensteht. */
+    const lr = md * 0.116;
+    c.fillStyle = "#c9ccd2";
+    c.beginPath(); c.arc(0, -sd2 * 0.52, lr * 1.28, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = "rgba(216,173,60,.85)";
+    c.lineWidth = Math.max(0.4, lr * 0.16);
+    c.beginPath(); c.arc(0, -sd2 * 0.52, lr * 1.14, 0, Math.PI * 2); c.stroke();
+    c.fillStyle = "rgba(14,17,22,.92)";
+    c.beginPath(); c.arc(0, -sd2 * 0.52, lr, 0, Math.PI * 2); c.fill();
+    /* Ein Rest Innenlicht — drinnen brennt Licht, sonst muesste man im
+       Dunkeln einsteigen. */
+    const il = c.createRadialGradient(-lr * 0.2, -sd2 * 0.52 - lr * 0.2, 0,
+      -lr * 0.2, -sd2 * 0.52 - lr * 0.2, lr);
+    il.addColorStop(0, "rgba(255,228,170,.5)");
+    il.addColorStop(0.5, "rgba(255,214,150,.14)");
+    il.addColorStop(1, "rgba(255,200,140,0)");
+    c.fillStyle = il;
+    c.beginPath(); c.arc(0, -sd2 * 0.52, lr, 0, Math.PI * 2); c.fill();
+    /* Der abgeklappte Deckel daneben */
+    c.save();
+    c.translate(lr * 1.75, -sd2 * 0.62);
+    c.rotate(0.42);
+    c.fillStyle = "#e6e4da";
+    c.beginPath(); c.ellipse(0, 0, lr * 0.3, lr * 1.1, 0, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = "rgba(30,34,40,.55)"; c.lineWidth = Math.max(0.3, lr * 0.1);
+    c.stroke();
+    c.restore();
+
+    /* Der Ausstiegsweg: Handlaeufe vom Lukenrand weg */
+    if (md > 12) {
+      const hd = Math.max(0.5, md * 0.012);
+      for (let i = 0; i < 3; i++) {
+        const hx = -sr * 0.78 + i * sr * 0.3;
+        handlauf(c, hx, -sd2 * 1.0, hx + sr * 0.2, -sd2 * 1.0, hd, -1);
+      }
+    }
+    c.restore();
+
+    /* Ein Arbeitsplatz direkt an der Luke — hier steigt man aus. */
+    merkePlatz(c, plaetze, sx - sr * 0.5, -md * 0.5 - sd2 * 1.05, "handlauf", 0);
+    merkeTeil(c, teile, sx, -md * 0.5 - sd2 * 0.52, "schleuse");
+  }
 
   /* Der freie Kopplungsstutzen, an dem Frachter andocken */
   merkePlatz(c, plaetze, pos + md * 0.55, 0, "hafen", 0);
@@ -10776,7 +10875,7 @@ const RUNDGANG = {
      Erklaerung: erst das Rueckgrat, dann was daran haengt, dann wo
      die Besatzung lebt und zuletzt, wie sie hinaus- und wieder
      hineinkommt. */
-  weg: ["traeger", "fluegel", "radiator", "modul", "kuppel", "handlauf", "antenne", "hafen"],
+  weg: ["traeger", "fluegel", "radiator", "modul", "kuppel", "schleuse", "handlauf", "antenne", "hafen"],
   halt: 9500,
 };
 
