@@ -499,14 +499,19 @@ body.sicht #blende-detail{
 /* Die Pulskurve. Sie steht bewusst ganz oben und ohne Beschriftung:
    ein Ausschlag sagt mehr als eine Zahl, und wer wissen will, was er
    bedeutet, liest die Zeilen darunter. */
-#tm-puls{display:block; width:100%; height:30px; margin:2px 0 9px;
-  border-radius:5px; background:rgba(255,255,255,.035);}
+/* Beide Kurvenfelder rechnen in ihren eigenen Bildpunkten. Damit die
+   Erde in der Uhr eine Kugel bleibt und kein Ei, muss das
+   Seitenverhaeltnis des Kastens dasselbe sein wie das der Leinwand —
+   eine feste Hoehe in Bildpunkten waere bei jeder Schirmbreite anders
+   falsch. */
+#tm-puls{display:block; width:100%; aspect-ratio:420/60; height:auto;
+  margin:2px 0 9px; border-radius:5px; background:rgba(255,255,255,.035);}
 /* Die Umlaufuhr: Erde, Bahn, Schattenkegel und die Stelle, an der die
    Station gerade steht. Sie beantwortet in einem Bild, was drei Zeilen
    Text nicht schaffen — warum es alle anderthalb Stunden dunkel wird
    und wie knapp die Bahn ueber der Oberflaeche liegt. */
-#tm-uhr{display:block; width:100%; height:114px; margin:2px 0 6px;
-  border-radius:6px; background:rgba(255,255,255,.028);}
+#tm-uhr{display:block; width:100%; aspect-ratio:420/200; height:auto;
+  margin:2px 0 6px; border-radius:6px; background:rgba(255,255,255,.028);}
 .tm-wert.schlecht{color:var(--bad);}
 .tm-wert.warm{color:#e0a24e;}
 .tm-alarm{display:flex; align-items:center; gap:6px; margin:0 0 9px; padding:5px 7px;
@@ -525,8 +530,21 @@ body.sicht #blende-detail{
 #vorschlaege{display:flex; flex-direction:column; gap:4px;}
 #vorschlaege .schalter{width:100%;}
 #vorschlaege .schalter:disabled{cursor:default;}
-@media (max-width:620px){ #telemetrie{left:10px; top:64px; width:200px; font-size:11px;
-  max-height:calc(100dvh - 190px);} }
+/* Auf dem Handy frisst die Anzeige sonst drei Viertel des Schirms.
+   Also: flachere Uhr, engere Zeilen, und das Bordbuch faellt weg — es
+   steht vollstaendig im Log, und zweimal dasselbe ist auf einem
+   kleinen Schirm einmal zu viel. */
+@media (max-width:620px){
+  #telemetrie{left:10px; top:64px; width:204px; font-size:11px;
+    padding:10px 11px 9px; max-height:calc(100dvh - 206px);}
+  #tm-uhr{margin:2px 0 4px;}
+  #tm-puls{margin:2px 0 7px;}
+  .tm-zeile{padding:2px 0; gap:7px;}
+  .tm-gruppe{margin:8px 0 4px; padding-top:7px;}
+  .tm-name{font-size:9px;}
+  .tm-wert{font-size:11px;}
+  #tm-buch, #tm-buchkopf{display:none;}
+}
 
 .schalterliste{display:flex; flex-direction:column; gap:2px;}
 .schalter{display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:var(--r1);
@@ -619,11 +637,11 @@ body.sicht #blende-detail{
   <!-- ---------- Stationswerte ---------- -->
   <div id="telemetrie" class="glas" hidden>
     <div class="tm-kopf">STATIONSWERTE</div>
-    <canvas id="tm-uhr" width="420" height="228"></canvas>
+    <canvas id="tm-uhr" width="420" height="200"></canvas>
     <canvas id="tm-puls" width="420" height="60"></canvas>
     <div id="tm-alarm"></div>
     <div id="tm-zeilen"></div>
-    <div class="tm-kopf" style="margin:12px 0 7px">BORDBUCH</div>
+    <div class="tm-kopf" id="tm-buchkopf" style="margin:12px 0 7px">BORDBUCH</div>
     <div id="tm-buch"></div>
   </div>
 
@@ -2476,8 +2494,99 @@ const VENTIL = [];
    Abgase am Heck, mehr nicht. */
 const SCHUB = { bis: 0, von: 0, laeuft: false };
 
+/* --- Konjunktion: ein Stueck Schrott kommt zu nah -------------------
+   In der Bahnhoehe der Station kreisen rund vierzigtausend verfolgte
+   Objekte, vom ausgebrannten Oberstufenrumpf bis zur verlorenen
+   Linsenkappe. Wird eines davon vorhergesagt, die Station naeher als
+   eine Kiste von 0,75 auf 25 auf 25 Kilometer zu passieren, wird
+   gerechnet; reicht die Wahrscheinlichkeit ueber eins zu zehntausend,
+   wird ausgewichen. Das passiert ein- bis zweimal im Jahr.
+
+   Hier kommt es haeufiger, weil man sonst wochenlang zusehen muesste.
+   Der Ablauf ist aber der echte: Warnung, Bahnrechnung, dann entweder
+   ein Vorbeiflug oder ein Schub von ein paar Sekunden. Ausgewichen
+   wird fast immer nach OBEN — Anheben kostet Treibstoff, aber
+   Absenken brauchte spaeter wieder eine Anhebung. */
+const SCHROTT = [
+  "Kosmos 1408 · Bruchstück", "Fengyun 1C · Bruchstück",
+  "Ariane-5 · Oberstufe", "Iridium 33 · Bruchstück",
+  "Delta-2 · Adapterring", "Zenit-2 · Oberstufe",
+  "Thorad Agena · Bruchstück", "SL-16 · Rumpf",
+];
+const KONJ = {
+  lage: "ruhig",      // ruhig | warnung | manoever | vorbei
+  bis: 0, objekt: "", abstand: 0, zaehler: 0,
+  spur: null,
+};
+
+function konjunktion(t, dt, ccx, ccy, Rst) {
+  if (KONJ.bis === 0) KONJ.bis = t + 180000 + Math.random() * 160000;
+
+  if (t > KONJ.bis) {
+    if (KONJ.lage === "ruhig") {
+      KONJ.objekt = SCHROTT[(KONJ.zaehler++) % SCHROTT.length];
+      /* Der Abstand in der Vorhersage. Unter 0,75 km radial wird
+         gerechnet, und dann wird meist ausgewichen. */
+      KONJ.abstand = 0.25 + Math.random() * 3.4;
+      KONJ.lage = "warnung";
+      KONJ.bis = t + 26000;
+      bordbuch("Konjunktionswarnung · " + KONJ.objekt
+        + " · " + kz(KONJ.abstand, 2) + " km");
+    } else if (KONJ.lage === "warnung") {
+      if (KONJ.abstand < 0.75) {
+        KONJ.lage = "manoever";
+        KONJ.bis = t + 19000;
+        SCHUB.laeuft = true; SCHUB.von = t; SCHUB.bis = t + 19000;
+        bordbuch("Ausweichmanöver — Bahn wird angehoben");
+      } else {
+        KONJ.lage = "vorbei";
+        KONJ.bis = t + 9000;
+        bordbuch("Kein Manöver nötig — Vorbeiflug");
+      }
+      /* Das Objekt selbst zieht vorbei: schnell, geradeaus, und in
+         einer Ebene, die nicht die unsere ist. Zwei Bahnen, die sich
+         kreuzen, tun das mit mehreren Kilometern je Sekunde — deshalb
+         ist ein Vorbeiflug hier ein Strich und kein Punkt. */
+      const w = Math.random() * Math.PI * 2;
+      const nah = Rst * (KONJ.abstand < 0.75 ? 0.5 : 1.6 + KONJ.abstand * 0.4);
+      KONJ.spur = {
+        x: ccx + Math.cos(w) * W, y: ccy + Math.sin(w) * H * 0.8,
+        vx: -Math.cos(w) * 1.15, vy: -Math.sin(w) * 0.82,
+        off: nah, alter: 0,
+      };
+    } else {
+      KONJ.lage = "ruhig";
+      KONJ.bis = t + 190000 + Math.random() * 170000;
+      KONJ.spur = null;
+    }
+  }
+
+  /* Der Vorbeiflug */
+  const sp = KONJ.spur;
+  if (sp) {
+    sp.alter += dt;
+    sp.x += sp.vx * dt; sp.y += sp.vy * dt;
+    if (sp.alter > 14000) { KONJ.spur = null; return; }
+    /* Ein Strich statt eines Punktes: in der Belichtungszeit, in der
+       das Auge ein Bild aufnimmt, ist das Ding schon ein Stueck
+       weiter. */
+    const hell = Math.min(1, sp.alter / 600) * Math.max(0, 1 - (sp.alter - 11000) / 3000);
+    cx.strokeStyle = `rgba(226,238,255,${0.55 * hell})`;
+    cx.lineWidth = 1.6;
+    cx.lineCap = "round";
+    cx.beginPath();
+    cx.moveTo(sp.x, sp.y);
+    cx.lineTo(sp.x - sp.vx * 90, sp.y - sp.vy * 90);
+    cx.stroke();
+    cx.fillStyle = `rgba(255,255,255,${0.85 * hell})`;
+    cx.beginPath(); cx.arc(sp.x, sp.y, 1.8, 0, Math.PI * 2); cx.fill();
+  }
+}
+
 function ereignisse(t, dt, ccx, ccy, Rst) {
   if (sparsam) return;
+
+  konjunktion(t, dt, ccx, ccy, Rst);
 
   /* Bahnanhebung */
   if (SCHUB.bis === 0) SCHUB.bis = t + 150000;
@@ -2880,9 +2989,17 @@ function lebenTakt(t, dt, phase) {
     if (LEBEN.puls.length > 78) LEBEN.puls.shift();
   }
 
-  LEBEN.alarm = LEBEN.co2 > 5.3 ? "CO₂"
-    : LEBEN.akku < 0.22 ? "Strom"
-    : LEBEN.waerme > 0.88 ? "Wärme" : null;
+  /* Die Alarmzeile sagt, WAS los ist, nicht nur welcher Kreislauf
+     betroffen ist. "Strom außerhalb des Rahmens" hilft niemandem —
+     "Batterien unter 22 Prozent" schon. */
+  LEBEN.alarm = KONJ.lage === "warnung"
+      ? "Konjunktion · " + kz(KONJ.abstand, 2) + " km, Bahn wird gerechnet"
+    : KONJ.lage === "manoever" ? "Ausweichmanöver läuft"
+    : LEBEN.co2 > 5.3 ? "CO₂ über dem Grenzwert von 5,3 mmHg"
+    : LEBEN.akku < 0.22 ? "Batterien unter 22 Prozent"
+    : LEBEN.waerme > 0.88 ? "Kühlkreis am Anschlag"
+    : FUNK.kontakt === false && FUNK.staerke < 0.02 ? "Funkstille — keine Verbindung"
+    : null;
 }
 
 /* --- Die Station als gebackenes Bild ---------------------------------
@@ -7880,7 +7997,7 @@ function zeichneTelemetrie(t) {
       klemm((LEBEN.co2 - 1.6) / 4, 0, 1),
       LEBEN.co2 > 5.3 ? "schlecht" : LEBEN.co2 > 4 ? "warm" : "gut"],
     ["KABINE", Math.round(LEBEN.druck) + " hPa · " + kz(LEBEN.o2) + " % O₂"],
-    ["KÜHLKREIS", kz(LEBEN.vorlauf) + " °C vor · " + kz(LEBEN.ruecklauf) + " zurück",
+    ["KÜHLKREIS", kz(LEBEN.vorlauf) + " → " + kz(LEBEN.ruecklauf) + " °C",
       LEBEN.waerme, LEBEN.waerme > 0.88 ? "schlecht" : LEBEN.waerme > 0.7 ? "warm" : "gut"],
     ["WASSER", kz(LEBEN.wasser * 100) + " % zurück"],
     ["BAHN", kz(LEBEN.hoehe, 2) + " km" + (SCHUB.laeuft ? " · Schub" : "")],
@@ -7893,6 +8010,11 @@ function zeichneTelemetrie(t) {
     ["FRACHT", FRACHT.lage === "gedockt" ? "angedockt"
       : FRACHT.lage === "anflug" ? "im Anflug"
       : FRACHT.lage === "abflug" ? "legt ab" : "keine"],
+    ["BAHNLAGE", KONJ.lage === "ruhig" ? "frei"
+      : KONJ.lage === "warnung" ? kz(KONJ.abstand, 2) + " km · " + KONJ.objekt.split(" ·")[0]
+      : KONJ.lage === "manoever" ? "Ausweichschub"
+      : "Vorbeiflug",
+      undefined, KONJ.lage === "warnung" ? "warm" : KONJ.lage === "manoever" ? "schlecht" : "gut"],
 
     ["~", "FUNKVERKEHR"],
     ["KONTAKT", FUNK.kontakt ? FUNK.stelle + " · " + Math.round(FUNK.staerke * 100) + " %"
@@ -7938,7 +8060,7 @@ function zeichneTelemetrie(t) {
     if (LEBEN.alarm) {
       const a = document.createElement("div");
       a.className = "tm-alarm";
-      a.textContent = "▲  " + LEBEN.alarm + " ausserhalb des Rahmens";
+      a.textContent = "▲  " + LEBEN.alarm;
       az.append(a);
     }
   }
@@ -8595,6 +8717,7 @@ window.__FLBILD = () => FLBILD;
 window.__BEWEG = (v) => { BEWEGLICH = v; };
 window.__LEBEN = () => LEBEN;
 window.__FUNK = () => FUNK;
+window.__KONJ = () => KONJ;
 window.__SICHTMAP = () => SICHT;
 window.__FRACHT = () => FRACHT;
 window.__SCHILDER = () => TEILSCHILDER;
