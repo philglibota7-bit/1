@@ -6430,23 +6430,101 @@ function erdeBacken() {
         if (trocken > 0.56) { r = 168 + k * 40; g = 138 + k * 32; b = 92 + k * 26; }
         else                { r = 62 + k * 46;  g = 92 + k * 52;  b = 52 + k * 30; }
       } else {
-        /* Tiefes Wasser ist fast schwarzblau, flaches leuchtet tuerkis */
-        const tief = 0.52 - h;
-        r = 12 + (1 - tief * 2.2) * 26;
-        g = 44 + (1 - tief * 2.2) * 78;
-        b = 104 + (1 - tief * 2.2) * 86;
+        /* Wasser ist nicht blau, weil es blau waere, sondern weil es
+           rot schluckt. Je tiefer, desto mehr ist weg — deshalb geht
+           es vom Tuerkis der Sandbank ins fast schwarze Blau der
+           Tiefsee, und nicht einfach von hell nach dunkel.
+
+           Vorher war der flache Bereich viel zu breit: fast alles
+           Wasser landete bei einem blassen Mittelblau, und die
+           gemessene Spanne ueber zweihundert Bildpunkte lag bei
+           mageren sechsunddreissig Stufen. Jetzt faellt die Kurve
+           schnell ab — die Sandbank bleibt ein schmaler Saum an der
+           Kueste, der Rest wird tief. */
+        const tief = Math.min(1, (0.52 - h) * 7.5);
+        const flach = Math.pow(1 - tief, 2.4);
+        r = 6  + flach * 46;
+        g = 26 + flach * 132;
+        b = 72 + flach * 122;
       }
 
-      /* Wolken: ein eigenes, weicheres Rauschen darueber. Sie liegen in
-         Baendern, weil die Atmosphaere in Baendern stroemt. */
+      /* Wolken. Frueher war das eine Wolke von Rauschflecken in
+         Baendern — richtig als Statistik, falsch als Bild. Aus dem
+         Orbit sieht man keine Flecken, man sieht Wettersysteme:
+         Wirbel, lange Fronten, Zellenfelder ueber dem Meer.
+
+         Der Unterschied kommt von der Gebietsverzerrung. Statt das
+         Rauschen an der Stelle zu nehmen, an der man steht, nimmt man
+         es an einer Stelle, die ein zweites Rauschen verschoben hat.
+         Das zieht die Flecken zu Schlieren und rollt sie um die
+         Wirbelzentren auf. Zwei Runden davon, und es sieht aus wie
+         eine Wetterkarte. Es kostet drei weitere Rauschabfragen je
+         Bildpunkt — das ist der Grund, warum diese Scheibe gebacken
+         wird und nicht in jedem Bild neu entsteht.
+
+         Dazu die Drehung: auf der Nordhalbkugel laufen Tiefs gegen
+         den Uhrzeigersinn, auf der Suedhalbkugel mit ihm. Das
+         Vorzeichen haengt an sy, also an der Breite. */
+      /* Zwei Oktaven genuegen. Die Verzerrung soll grosse Wirbel
+         aufrollen, nicht selbst Struktur beitragen — feine Oktaven
+         darin sind reine Rechenzeit. */
+      const wx1 = nahtlos(1.3, 90, 17, 233, 2) - 0.5;
+      const wy1 = nahtlos(1.3, -41, 63, 239, 2) - 0.5;
+      const dreh = sy < 0 ? 1 : -1;
+      const vx = sx + (wx1 * 0.9 + wy1 * 0.9 * dreh);
+      const vy = sy + (wy1 * 0.9 - wx1 * 0.9 * dreh);
+      const vnaht = (skala, ax, ay, saat, tiefe) => {
+        const grund = fbm(vx * skala + ax, vy * skala + ay, saat, tiefe);
+        if (misch === 0) return grund;
+        return grund * (1 - misch)
+          + fbm((vx - versatz) * skala + ax, vy * skala + ay, saat, tiefe) * misch;
+      };
+
+      /* Die Baender bleiben — die Luft stroemt wirklich in Baendern,
+         und die Passatwolken ueber dem Aequator sind auf jedem
+         Satellitenbild ein durchgehender Streifen. */
       const band = 0.5 + 0.5 * Math.sin(sy * 5.2 + nahtlos(0.9, 0, 0, 211, 3) * 4);
-      const w = nahtlos(2.3, 40, -15, 157, 5) * (0.45 + 0.55 * band);
+      const w = vnaht(2.3, 40, -15, 157, 5) * (0.45 + 0.55 * band);
       const wolke = Math.max(0, (w - 0.42) / 0.58);
+
+      /* Der Schatten der Wolken auf dem Boden. Das ist der eine Kniff,
+         der eine gemalte Kugel in eine fotografierte verwandelt: eine
+         Wolke ohne Schatten klebt auf der Oberflaeche, eine mit
+         Schatten schwebt darueber.
+
+         Verschoben wird gegen die Sonne. Die Hoehe der Wolke mal der
+         Tangens des Sonnenstands ergibt den Versatz; beides ist hier
+         eine Zahl nach Augenmass, denn der Sonnenstand aendert sich
+         mit dem Tagesrand und die Scheibe wird nur einmal gebacken. */
+      /* Drei Oktaven statt fuenf. Ein Schatten hat weiche Raender —
+         die Sonne ist keine Punktquelle, sondern eine halbes Grad
+         breite Scheibe, und in zehn Kilometern Fallhoehe verwischt
+         das jede feine Kante. Die groberen Oktaven sind hier also
+         nicht nur billiger, sie sind richtiger. */
+      const wx2 = vx + 0.055, wy2 = vy + 0.03;      // Versatz gegen die Sonne
+      const roh2 = misch === 0
+        ? fbm(wx2 * 2.3 + 40, wy2 * 2.3 - 15, 157, 3)
+        : fbm(wx2 * 2.3 + 40, wy2 * 2.3 - 15, 157, 3) * (1 - misch)
+          + fbm((wx2 - versatz) * 2.3 + 40, wy2 * 2.3 - 15, 157, 3) * misch;
+      const schattenW =
+        Math.max(0, (roh2 * (0.45 + 0.55 * band) - 0.42) / 0.58);
+      if (schattenW > 0) {
+        const sa = Math.min(0.42, schattenW * 0.7);
+        r *= 1 - sa; g *= 1 - sa; b *= 1 - sa * 0.86;
+      }
+
       if (wolke > 0) {
-        const a = Math.min(1, wolke * 1.6);
-        r = r * (1 - a) + 246 * a;
-        g = g * (1 - a) + 250 * a;
-        b = b * (1 - a) + 255 * a;
+        /* Wolken sind nicht flach weiss. Die Sonne steht schraeg
+           darauf, also ist die eine Flanke hell und die andere grau —
+           genau dieselbe Rechnung wie beim Schatten, nur mit
+           umgekehrtem Vorzeichen des Versatzes. Daher die zwei
+           Grauwerte statt eines. */
+        const kamm = Math.max(0, Math.min(1, (wolke - schattenW) * 3 + 0.5));
+        const hellW = 210 + kamm * 44;
+        const a = Math.min(1, wolke * 1.9);
+        r = r * (1 - a) + hellW * a;
+        g = g * (1 - a) + (hellW + 4) * a;
+        b = b * (1 - a) + (hellW + 9) * a;
       }
 
       /* Streifender Blick am Rand: die Atmosphaere legt sich als
@@ -6454,7 +6532,24 @@ function erdeBacken() {
          gehoert zur SCHEIBE, nicht zur Oberflaeche — er steht still,
          waehrend der Boden darunter vorbeizieht. Also kommt er in ein
          eigenes Bild. */
-      const dunst = Math.pow(1 - steil, 2.2);
+      /* Wie dick ist die Luft auf dem Weg zum Auge? Streifend blickt
+         man durch ein Vielfaches der Atmosphaere, senkrecht nur durch
+         eine Schicht — daher der blaue Schleier, der zur Kante hin
+         zunimmt.
+
+         Der Exponent war 2,2, und damit lag ueber der GANZEN
+         sichtbaren Flaeche Dunst: bei Kante 0,88, also am unteren
+         Bildrand, noch vierundzwanzig Prozent. Gemessen hat der
+         Schleier so zwei Drittel des Oberflaechenkontrasts
+         weggenommen — die ganze Muehe an Land, Meer und Wolken war
+         umsonst, weil man sie nicht mehr sah.
+
+         Mit 3,4 faellt die Kurve viel schneller: am unteren Bildrand
+         bleiben zehn Prozent, dicht wird es erst im letzten Prozent
+         des Radius. Das ist auch das, was Fotos aus dem Orbit zeigen:
+         ein schmaler, sehr heller blauer Bogen, und darunter sofort
+         klare Sicht auf Wolken und Kuesten. */
+      const dunst = Math.pow(1 - steil, 3.4);
       sd[i] = 118; sd[i + 1] = 168; sd[i + 2] = 232;
       sd[i + 3] = Math.round(255 * dunst * kante2);
 
@@ -6467,10 +6562,39 @@ function erdeBacken() {
 
       /* Stadtlichter: nur an Land, nur nahe der Kueste, und nie
          gleichmaessig. Sie werden getrennt gemerkt und spaeter nur auf
-         der Nachtseite aufgeblendet. */
-      if (land && h < 0.62 && streu(x, y, 401) > 0.986 && wolke < 0.35) {
-        lc.fillStyle = `rgba(255,214,150,${0.5 + streu(x, y, 77) * 0.5})`;
-        lc.fillRect(x, y, 1, 1);
+         der Nachtseite aufgeblendet.
+
+         Das waren einzelne Bildpunkte. Die Scheibe wird in halber
+         Geraeteaufloesung zusammengesetzt und dann hochgezogen — ein
+         einzelner Punkt wird dabei zu einem Viertel seiner Helligkeit
+         verschmiert und verschwindet. Also werden es kleine Flecken
+         mit weichem Rand, und jeder zwoelfte bekommt einen hellen
+         Kern: das ist eine Millionenstadt, der Rest ist ihr Umland.
+
+         Sie liegen nicht gleichmaessig. Ein zweites, grobes Rauschen
+         entscheidet, ob eine Gegend ueberhaupt besiedelt ist — so
+         entstehen Ballungsraeume und dazwischen Leere, statt eines
+         gleichmaessigen Sternenstaubs ueber jedem Kontinent. */
+      /* Der Wuerfel zuerst, das Rauschen danach. Die Schwelle liegt
+         zwischen 0,978 und 0,998 — wer darunter liegt, wird nie eine
+         Stadt, egal wie dicht die Gegend besiedelt ist. Dieses eine
+         vorgezogene Wenn spart das Besiedelungsrauschen fuer
+         achtundneunzig Prozent aller Landpunkte. */
+      const wuerfel = land && h < 0.66 && wolke < 0.35 ? streu(x, y, 401) : 0;
+      if (wuerfel > 0.978) {
+        const besiedelt = nahtlos(4.3, 61, -27, 307, 2);
+        const schwelle = 0.998 - besiedelt * 0.02;
+        if (wuerfel > schwelle) {
+          const gross = streu(x, y, 77) > 0.92;
+          const rad = gross ? 2.6 : 1.3;
+          const a = (gross ? 0.85 : 0.4) + streu(x, y, 131) * 0.3;
+          const lg = lc.createRadialGradient(x, y, 0, x, y, rad);
+          lg.addColorStop(0, `rgba(255,228,176,${a})`);
+          lg.addColorStop(0.5, `rgba(255,196,124,${a * 0.45})`);
+          lg.addColorStop(1, "rgba(255,180,110,0)");
+          lc.fillStyle = lg;
+          lc.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+        }
       }
     }
   }
@@ -6614,24 +6738,38 @@ function erdeSchatten(termX, tags, lauf) {
      Tagseite war gleichmaessig hell statt zum Rand hin dunkler. */
   const sk = bw / (ERDE.bildBreite || W);
   const vorrat = ERDE.seit || 0;
-  const breite = W * 0.34 * sk;
+  /* Wie breit ist die Daemmerung? Die Erde dreht sich in vierundzwanzig
+     Stunden einmal; buergerliche Daemmerung dauert am Aequator gut
+     zwanzig Minuten, also knapp ein Prozent des Umfangs. Auf der
+     Scheibe waere das eine haarfeine Linie.
+
+     So schmal darf sie hier trotzdem nicht sein, denn der Blick geht
+     streifend ueber die Kugel: wir sehen den Streifen stark verkuerzt
+     von der Seite, und was auf der Kugel schmal ist, zieht sich im
+     Bild in die Laenge. 0,34 der Bildbreite war zu viel des Guten —
+     ein brauner Schleier ueber dem halben Bild. 0,22 trifft es: ein
+     deutlicher Streifen, der trotzdem ein Streifen bleibt.
+
+     Die Farben sind die der Abenddaemmerung von aussen gesehen, von
+     hell nach dunkel: blasses Gold, Orange, das tiefe Rot der langen
+     Wege durch die Luft, dann Blauviolett — die Erdschattengrenze,
+     die man vom Boden aus als Gegendaemmerung sieht — und zuletzt
+     Nacht. Das Blauviolett dazwischen ist der Grund, warum der Streifen
+     vorher schlammig aussah: ohne es geht Rot direkt in Schwarz, und
+     das liest sich als Dreck. */
+  const breite = W * 0.22 * sk;
   const tx = (termX + vorrat) * sk;
   const sg = c.createLinearGradient(tx - breite, 0, tx + breite, 0);
-  if (tags) {
-    sg.addColorStop(0, "rgba(6,8,16,0)");
-    sg.addColorStop(0.34, "rgba(255,228,170,.16)");
-    sg.addColorStop(0.48, "rgba(232,140,64,.34)");
-    sg.addColorStop(0.6, "rgba(122,40,42,.6)");
-    sg.addColorStop(0.78, "rgba(10,12,24,.88)");
-    sg.addColorStop(1, "rgba(4,6,14,.94)");
-  } else {
-    sg.addColorStop(0, "rgba(4,6,14,.94)");
-    sg.addColorStop(0.22, "rgba(10,12,24,.88)");
-    sg.addColorStop(0.4, "rgba(122,40,42,.6)");
-    sg.addColorStop(0.52, "rgba(232,140,64,.34)");
-    sg.addColorStop(0.66, "rgba(255,228,170,.16)");
-    sg.addColorStop(1, "rgba(6,8,16,0)");
-  }
+  const stufen = [
+    [0.00, "rgba(6,8,16,0)"],
+    [0.30, "rgba(255,232,186,.14)"],
+    [0.44, "rgba(240,152,72,.32)"],
+    [0.55, "rgba(158,48,44,.58)"],
+    [0.66, "rgba(52,34,72,.82)"],
+    [0.82, "rgba(8,10,22,.95)"],
+    [1.00, "rgba(3,4,12,.975)"],
+  ];
+  for (const [o, f] of stufen) sg.addColorStop(tags ? o : 1 - o, f);
   c.save();
   c.globalCompositeOperation = "source-atop";
   c.fillStyle = sg;
@@ -6681,9 +6819,39 @@ function sonnenhoch(c, bw, bh, termX, tags, lauf) {
 
 function zeichneErde(t) {
   if (sparsam) return;
-  if (!ERDE.bild || ERDE.breite !== W || ERDE.hoehe !== H) erdeBacken();
+  /* Die Scheibe zu backen kostet gut vier Zehntelsekunden: fuer jeden
+     Bildpunkt ein Dutzend Rauschabfragen, plus Wolkenschatten und
+     Stadtlichter. Einmal beim Start ist das in Ordnung.
+
+     Beim Ziehen am Fensterrand ist es das nicht. "resize" feuert
+     dabei vierzig- bis sechzigmal je Sekunde, und wenn jedes davon
+     neu backen liesse, stuende das Bild waehrend des ganzen Ziehens.
+     Der Himmel wird aus demselben Grund schon lange verzoegert
+     gebacken — die Erde war schlicht vergessen worden.
+
+     Also: waehrend sich die Groesse noch aendert, bleibt die alte
+     Scheibe stehen und wird auf die neue Breite gezogen. Das ist
+     kurz etwas verzerrt, aber es laeuft. Gebacken wird erst, wenn
+     die Groesse zweihundert Millisekunden lang dieselbe geblieben
+     ist. Beim allerersten Mal gibt es nichts zum Ziehen — dann wird
+     sofort gebacken. */
+  const andersGross = ERDE.breite !== W || ERDE.hoehe !== H;
+  if (!ERDE.bild) { erdeBacken(); }
+  else if (andersGross) {
+    if (ERDE.wartetAuf !== W + "x" + H) {
+      ERDE.wartetAuf = W + "x" + H;
+      ERDE.wartetSeit = t;
+    } else if (t - ERDE.wartetSeit > 200) {
+      ERDE.wartetAuf = null;
+      erdeBacken();
+    }
+  } else { ERDE.wartetAuf = null; }
   if (!ERDE.bild) return;
-  const hoehe = H - ERDE.oben + ERDE.rand;
+  /* Solange die alte Scheibe noch steht, wird sie auf die neue
+     Bildbreite gezogen. Ohne diesen Faktor kaeme beim Verbreitern
+     rechts und links schwarzer Rand ins Bild. */
+  const zieh = ERDE.breite ? W / ERDE.breite : 1;
+  const hoehe = (H - ERDE.oben + ERDE.rand) * (ERDE.hoehe ? H / ERDE.hoehe : 1);
 
   /* Die Erde steht naeher als die Sterne, aber viel weiter als die
      Station: sie wandert beim Verschieben ein Drittel mit und waechst
@@ -6729,8 +6897,9 @@ function zeichneErde(t) {
   cx.save();
   cx.setTransform(1, 0, 0, 1, 0, 0);
   cx.drawImage(ERDE.bild, 0, 0, ERDE.bild.width, ERDE.bild.height,
-    Math.round((dx - seit) * DPR), Math.round((ERDE.oben + dy) * DPR),
-    Math.round((ERDE.bildBreite || W) * DPR), Math.round(hoehe * DPR));
+    Math.round((dx - seit * zieh) * DPR),
+    Math.round((ERDE.oben * (ERDE.hoehe ? H / ERDE.hoehe : 1) + dy) * DPR),
+    Math.round((ERDE.bildBreite || W) * zieh * DPR), Math.round(hoehe * DPR));
 
   /* --- Polarlicht ----------------------------------------------------
      Von oben sieht man es nicht als Bogen am Himmel, sondern als
@@ -7037,10 +7206,17 @@ function rahmen(jetzt) {
   funkTakt(t, dt);
 
   zeichneHimmel(t);
-  zeichneErde(t);
   /* Nahe Sterne driften staerker als der Himmel dahinter — das erzeugt
-     die Tiefe, auch wenn sonst nichts passiert */
+     die Tiefe, auch wenn sonst nichts passiert.
+     Sie gehoeren VOR die Erde. Ein Stern ist Lichtjahre entfernt, die
+     Erde vierhundert Kilometer. Der Planet verdeckt alles dahinter.
+     Lagen die Sterne obenauf, sahen sie aus wie Staub auf der Linse. */
   zeichneSterne(t, t * 0.0035, t * 0.0012);
+  zeichneErde(t);
+  /* Die Sternschnuppe bleibt oben drauf, und das ist richtig so:
+     ein Meteor verglueht in achtzig Kilometern Hoehe, also weit
+     UNTER der Station. Von hier oben sieht man ihn quer ueber die
+     Nachtseite ziehen, nicht am Sternhimmel. */
   zeichneSternschnuppe(t, dt);
 
   const ccx = W / 2;
