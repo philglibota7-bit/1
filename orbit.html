@@ -2101,8 +2101,20 @@ function solarfluegel(c, x, y, w, h, saat, dunkel) {
     const yy = y + h / 2 + s * (mast / 2 + halb / 2) - halb / 2;
     const g = c.createLinearGradient(x, yy, x + w, yy + halb);
     if (dunkel) {
-      g.addColorStop(0, "#161a26"); g.addColorStop(0.5, "#252a3e");
-      g.addColorStop(0.72, "#3a3550"); g.addColorStop(1, "#0d0f16");
+      /* Die Rueckseite. Sie ist nicht einfach die dunkle Seite — sie
+         ist die DURCHLEUCHTETE. Das Gelenk dreht den Fluegel immer zur
+         Sonne; sieht man von hinten darauf, steht die Sonne also
+         dahinter und scheint durch die Kaptonfolie hindurch. Auf
+         echten Aufnahmen leuchtet sie dann bernsteinfarben, und die
+         Zellen zeichnen sich als dunkles Gitter davor ab wie ein Blatt
+         gegen den Himmel.
+
+         Der frueher hier stehende kalte Blaugrauton war der
+         naheliegende, aber falsche Griff: er unterstellt, dass die
+         abgewandte Seite unbeleuchtet ist. Sie ist die hellste. */
+      g.addColorStop(0, "#32200f"); g.addColorStop(0.34, "#8a5222");
+      g.addColorStop(0.56, "#cd8b3c"); g.addColorStop(0.78, "#96591f");
+      g.addColorStop(1, "#2a1a0b");
     } else {
       /* Kupferrot, nicht Gold. Die Zellen sitzen auf einer
          Kaptonfolie, und auf Fotos liest sich das als Terracotta mit
@@ -2136,7 +2148,9 @@ function solarfluegel(c, x, y, w, h, saat, dunkel) {
     c.fillRect(x, yy - halb, w, halb * 3);
 
     /* Zellraster: viele feine Querstreifen laengs der langen Achse */
-    c.strokeStyle = dunkel ? "rgba(6,8,14,.75)" : "rgba(28,14,8,.55)";
+    /* Gegen das Licht sind die Zellen dunkler als vor ihm: sie stehen
+       als Schattenriss im durchscheinenden Grund. */
+    c.strokeStyle = dunkel ? "rgba(34,16,4,.72)" : "rgba(28,14,8,.55)";
     c.lineWidth = 0.4;
     c.beginPath();
     const spalten = Math.max(14, Math.round(w / (halb * 0.28)));
@@ -2146,7 +2160,7 @@ function solarfluegel(c, x, y, w, h, saat, dunkel) {
     }
     c.stroke();
     /* Trennnaehte quer: deutlich seltener als die Zellstreifen */
-    c.strokeStyle = dunkel ? "rgba(140,150,190,.3)" : "rgba(214,158,112,.32)";
+    c.strokeStyle = dunkel ? "rgba(255,206,132,.34)" : "rgba(214,158,112,.32)";
     c.lineWidth = Math.max(0.4, halb * 0.05);
     c.beginPath();
     for (let i = 1; i < 6; i++) {
@@ -3821,6 +3835,29 @@ function zeichneBewegliche(t, mitte, f, phase) {
      dauert dreieinhalb Sekunden im Umlauf. */
   const mischung = lichtMischung(hell, abend);
 
+  /* Der Sonnenglanz auf den Zellen. Er hat eine Bedingung, und die ist
+     keine Geschmacksfrage: das Gelenk dreht den Fluegel immer zur
+     Sonne, also faellt die Spiegelung genau dann ins Auge, wenn der
+     Fluegel dem Betrachter zugewandt ist — dann steht die Sonne im
+     Ruecken des Betrachters. Ein Glanz, wenn man von der Seite
+     draufsieht, waere physikalisch unmoeglich.
+
+     Gebaut wird EIN Verlauf je Bild, der dann acht Mal an die
+     richtige Stelle geschoben wird. Acht eigene Verlaeufe kosteten
+     mehr als das ganze Kopieren der Fluegel. */
+  const glanz = Math.pow(Math.max(0, Math.cos(alpha)), 5) * hell;
+  let glanzFarbe = null;
+  /* Erst ab einem Sechstel sichtbar. Darunter kostet der Verlauf mehr,
+     als er zeigt — und acht grosse Verlaeufe je Bild sind gemessen
+     vier Bilder je Sekunde. */
+  if (glanz > 0.16 && !sparsam) {
+    const gl = cx.createRadialGradient(0, 0, 0, 0, 0, 1);
+    gl.addColorStop(0, `rgba(255,244,218,${0.4 * glanz})`);
+    gl.addColorStop(0.42, `rgba(255,214,150,${0.17 * glanz})`);
+    gl.addColorStop(1, "rgba(255,200,130,0)");
+    glanzFarbe = gl;
+  }
+
   for (const m of b.masten) {
     /* Der Ausschlag ist klein genug, dass er das Vorzeichen nie
        umdreht: alle acht Fluegel zeigen immer dieselbe Seite. Sie
@@ -3858,6 +3895,21 @@ function zeichneBewegliche(t, mitte, f, phase) {
       male(satz[idx], deck);
     }
     if (sk > 1.35) kanten(fb, sx, sy, px, py, fb.laenge, fb.breite, vorn, hell);
+
+    /* Der Glanz liegt auf der Mitte des Teppichs und wandert mit der
+       Drehung ein Stueck nach aussen — die Spiegelung sitzt dort, wo
+       der Winkel gerade passt, nicht immer am selben Fleck. */
+    if (glanzFarbe && vorn) {
+      const u = fb.laenge * (0.38 + 0.2 * Math.sin(alpha * 2 + m.paar));
+      const co = Math.cos(fb.winkel), si = Math.sin(fb.winkel);
+      cx.setTransform(1, 0, 0, 1, 0, 0);
+      cx.save();
+      cx.translate(px + u * co * sx, py + u * si * sy);
+      cx.scale(Math.abs(sx) * fb.breite * 0.62, Math.abs(sy) * fb.laenge * 0.2);
+      cx.fillStyle = glanzFarbe;
+      cx.beginPath(); cx.arc(0, 0, 1, 0, Math.PI * 2); cx.fill();
+      cx.restore();
+    }
   }
 
   /* Die Waermetauscher drehen sich anders herum: ihr Gelenk haelt sie
