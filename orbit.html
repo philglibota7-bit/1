@@ -126,6 +126,16 @@ header{
    Verzicht auf opacity halfen alle nicht. So ist sie im Ruhezustand
    gratis und sagt obendrein etwas aus. */
 .marke .sat.aktiv{animation:puls 2.2s ease-in-out infinite;}
+/* Wer wartet, steht auch oben neben dem Namen — der eine Knopf, der
+   dich der Reihe nach zu jedem bringt, der an dir haengt. */
+.wartet-pille{display:none; align-items:center; gap:7px; margin-left:6px; padding:5px 11px 5px 9px;
+  border-radius:999px; font-size:11.5px; font-weight:600; color:#e8b066; white-space:nowrap;
+  background:rgba(207,164,86,.12); border:1px solid rgba(207,164,86,.35); transition:background .15s;}
+.wartet-pille.da{display:inline-flex;}
+.wartet-pille:hover{background:rgba(207,164,86,.22);}
+.wartet-pille i{width:7px; height:7px; border-radius:50%; background:#e0a24e; flex:0 0 auto;
+  animation:pillenpuls 2.8s ease-in-out infinite;}
+@keyframes pillenpuls{0%,100%{box-shadow:0 0 0 0 rgba(224,162,78,.55);} 60%{box-shadow:0 0 0 5px rgba(224,162,78,0);}}
 @keyframes puls{0%,100%{transform:scale(1); opacity:.9;} 50%{transform:scale(1.07); opacity:1;}}
 .marke h1{font-size:15px; font-weight:600; letter-spacing:.16em;}
 .marke small{display:block; font-size:10.5px; color:var(--tx3); letter-spacing:.1em;
@@ -801,7 +811,7 @@ body.sicht #blende-detail{
 @media (prefers-reduced-motion:reduce){
   #nebel::before{animation:none;}
   .marke .sat{animation:none;}
-  .d-tritt.jetzt .pkt, .d-pr.laeuft::before{animation:none;}
+  .d-tritt.jetzt .pkt, .d-pr.laeuft::before, .wartet-pille i{animation:none;}
 }
 </style>
 </head>
@@ -820,6 +830,7 @@ body.sicht #blende-detail{
         <h1>ORBIT</h1>
         <small>AGENTEN-LEITSTAND</small>
       </div>
+      <button class="wartet-pille" id="btn-wartet" title="Zum Nächsten, der auf dich wartet (W)"><i></i><span></span></button>
     </div>
     <button class="kopf-knopf" id="btn-log" title="Missions-Log">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
@@ -1308,6 +1319,18 @@ const MELDUNGEN = [];               // was gemeldet wurde, fuer die Pruefung
 const GRUNDTITEL = document.title;
 let titelZuletzt = GRUNDTITEL;
 
+/* Der Reihe nach zu jedem, der wartet: von dem aus, bei dem man gerade
+   ist, zum naechsten. Mit W oder ueber den Knopf oben. */
+function naechsterWartender() {
+  const warten = BR.live.filter(a => a.zustand === "winkt" && SICHT.has(a.id));
+  if (!warten.length) return false;
+  const i = warten.findIndex(a => a.id === (KAM.folgt || offeneDetailId));
+  const n = warten[(i + 1) % warten.length];
+  detailOeffnen(n.id);
+  fahreZu(n.id, Math.max(2.4, KAM.zielZoom));
+  return true;
+}
+
 function meldenAn() {
   return Z.melden === null ? nativVorhanden() : !!Z.melden;
 }
@@ -1380,6 +1403,11 @@ function meldungenPruefen() {
 
 function titelSetzen() {
   const warten = BR.live.filter(a => a.zustand === "winkt");
+  const pille = document.getElementById("btn-wartet");
+  if (pille) {
+    pille.classList.toggle("da", warten.length > 0);
+    pille.querySelector("span").textContent = warten.length === 1 ? "1 wartet" : warten.length + " warten";
+  }
   const was = warten.length === 1 ? warten[0].name + " wartet"
             : warten.length ? warten.length + " warten auf dich" : "";
   const t = was ? "(" + warten.length + ") " + was + " · ORBIT" : GRUNDTITEL;
@@ -12786,6 +12814,8 @@ $("#s-loeschen").onclick = () => {
    ================================================================ */
 
 $("#btn-crew").onclick = () => blendeAuf("blende-crew");
+$("#btn-wartet").onclick = () => naechsterWartender();
+
 $("#btn-himmel").onclick = () => {
   $("#himmel-suche").value = "";
   blendeAuf("blende-himmel");
@@ -13479,7 +13509,7 @@ const HILFE = [
       + "Tasten: L Log, C Crew, H Hintergrund, B Brücke, T Stationswerte, K Kinomodus, R Rundgang. "
       + "Pfeiltasten schieben das Bild (mit Umschalt weiter), Plus und Minus zoomen, "
       + "N und P springen von Astronaut zu Astronaut (Tab auch, solange kein Knopf "
-      + "den Fokus hat), Leertaste stellt die Kamera zurück, "
+      + "den Fokus hat), W zum Nächsten, der auf dich wartet, Leertaste stellt die Kamera zurück, "
       + "Escape schließt.",
   },
   {
@@ -13739,6 +13769,10 @@ document.addEventListener("keydown", (e) => {
      mit der man ueberhaupt erst zu den Knoepfen kommt. Wer also durch
      die Bedienung wandert, wandert weiter; wer nur die Szene vor sich
      hat, springt durch die Crew. */
+  if (taste === "w") {
+    if (naechsterWartender()) e.preventDefault();
+    return;
+  }
   const weiterTaste = taste === "n" ? 1 : taste === "p" ? -1
     : (e.key === "Tab" && (!z || z === document.body)) ? (e.shiftKey ? -1 : 1) : 0;
   if (weiterTaste) {
