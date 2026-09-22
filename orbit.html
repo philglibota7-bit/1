@@ -10497,6 +10497,13 @@ function gewitterZuenden(z, um, tiefe) {
                                    d: 0.45 + Math.random() * 0.6,
                                    r: 0.45 + Math.random() * 0.4 })),
   };
+  /* Selten steht ueber einem starken Schlag zum Boden fuer einen
+     Augenblick ein roter Kobold: eine Entladung nach OBEN, von den
+     Wolken bis in fast neunzig Kilometer Hoehe. Vom Boden aus sieht man
+     sie kaum, von der Station aus sind sie gefilmt worden — am besten
+     am Horizont, wo sie ueber den Rand in den schwarzen Himmel ragen.
+     Deshalb nur bei Zellen dicht an der Kante. */
+  if (!innen && z.randNah && Math.random() < (z.land ? 0.06 : 0.03)) koboldStarten(z, um);
   GEWITTER.n++;
   GEWITTER.letzte = { x: z.sx, y: z.sy, um };
   /* Die Kette: jeder Nachbar kann mitgerissen werden, je weiter die
@@ -10558,6 +10565,8 @@ function zeichneGewitter(t, dx, dy, zieh, hoehe, termX, tags) {
        Fleck wird flach, so wie jede Wolke dort. */
     const k = ab / m.r;
     z.quetsch = klemm(Math.sqrt(Math.max(0, 1 - k * k)) * 1.7, 0.22, 0.8);
+    z.randNah = m.r - ab < 26;
+    z.ab = ab; z.kmx = kmx; z.kmy = kmy; z.kr = m.r;
     if (z.kette && t >= z.kette.um) {
       const kt = z.kette;
       z.kette = null;
@@ -10630,6 +10639,84 @@ function zeichneGewitter(t, dx, dy, zieh, hoehe, termX, tags) {
     cx.restore();
   }
   cx.restore();
+  zeichneKobolde(t, belicht);
+}
+
+function koboldStarten(z, um) {
+  const n = 3 + Math.floor(Math.random() * 4);
+  z.kobold = {
+    um: um + 4 + Math.random() * 18,
+    dauer: 150 + Math.random() * 130,
+    breite: 7 + Math.random() * 12,
+    /* Die Ranken: wo sie unter der Krone ansetzen, wie weit sie
+       herunterreichen, wie stark sie sich biegen */
+    ranken: Array.from({ length: n }, () => ({
+      x: (Math.random() - 0.5) * 1.6, lang: 0.45 + Math.random() * 0.5,
+      bieg: (Math.random() - 0.5) * 0.5, hell: 0.5 + Math.random() * 0.5,
+    })),
+  };
+  GEWITTER.kobolde = (GEWITTER.kobolde || 0) + 1;
+  /* Ins Bordbuch — aber nicht jeden, sonst steht es voll damit */
+  const jetzt = Date.now();
+  if (!GEWITTER.koboldGemeldet || jetzt - GEWITTER.koboldGemeldet > 600000) {
+    GEWITTER.koboldGemeldet = jetzt;
+    bordbuch("Roter Kobold über einem Gewitter am Horizont");
+  }
+}
+
+/* Ein Kobold steht senkrecht ueber seiner Zelle, also laengs der
+   Richtung vom Erdmittelpunkt nach aussen. Oben eine rote Krone in
+   siebzig bis neunzig Kilometern — rot vom Stickstoff in der duennen
+   Luft —, darunter Ranken, die nach unten ins Violette und Blaue
+   uebergehen, wo die Luft dichter wird. Achtzig Kilometer sind gut ein
+   Prozent des Erdradius. */
+function zeichneKobolde(t, belicht) {
+  for (const z of GEWITTER.zellen) {
+    const k = z.kobold;
+    if (!k) continue;
+    const u = (t - k.um) / k.dauer;
+    if (u < 0) continue;
+    if (u > 1) { z.kobold = null; continue; }
+    if (z.sicht <= 0) continue;
+    const a = Math.min(1, u * 8) * Math.pow(1 - u, 1.6) * z.sicht * belicht;
+    if (a < 0.01) continue;
+    /* Die oertliche Senkrechte: vom Erdmittelpunkt durch die Zelle */
+    const ux = (z.sx - z.kmx) / z.ab, uy = (z.sy - z.kmy) / z.ab;
+    const km = z.kr / 6371;                 // Bildpunkte je Kilometer an der Kante
+    const fuss = 18 * km, krone = 78 * km, oben = 92 * km;
+    const px = (h, q) => [(z.sx + ux * h - uy * q) * DPR, (z.sy + uy * h + ux * q) * DPR];
+    cx.save();
+    cx.globalCompositeOperation = "lighter";
+    cx.lineCap = "round";
+    /* Die Ranken */
+    for (const r of k.ranken) {
+      const q0 = r.x * k.breite * 0.5;
+      const [x0, y0] = px(krone, q0);
+      const unten = krone - (krone - fuss) * r.lang;
+      const [x1, y1] = px(unten, q0 + r.bieg * k.breite);
+      const [xm, ym] = px((krone + unten) / 2, q0 + r.bieg * k.breite * 0.2);
+      const g = cx.createLinearGradient(x0, y0, x1, y1);
+      g.addColorStop(0, `rgba(255,86,92,${a * 0.75 * r.hell})`);
+      g.addColorStop(0.55, `rgba(196,70,150,${a * 0.45 * r.hell})`);
+      g.addColorStop(1, "rgba(110,90,230,0)");
+      cx.strokeStyle = g;
+      cx.lineWidth = Math.max(1, 1.2 * DPR);
+      cx.beginPath(); cx.moveTo(x0, y0); cx.quadraticCurveTo(xm, ym, x1, y1); cx.stroke();
+    }
+    /* Die Krone: ein flacher, weicher roter Schein quer zur Senkrechten */
+    const [cxk, cyk] = px((krone + oben) / 2, 0);
+    cx.translate(cxk, cyk);
+    cx.rotate(Math.atan2(uy, ux) + Math.PI / 2);
+    cx.scale(1, 0.42);
+    const rk = k.breite * 0.75 * DPR;
+    const kg = cx.createRadialGradient(0, 0, 0, 0, 0, rk);
+    kg.addColorStop(0, `rgba(255,108,96,${a * 0.8})`);
+    kg.addColorStop(0.5, `rgba(240,70,80,${a * 0.35})`);
+    kg.addColorStop(1, "rgba(220,50,70,0)");
+    cx.fillStyle = kg;
+    cx.beginPath(); cx.arc(0, 0, rk, 0, Math.PI * 2); cx.fill();
+    cx.restore();
+  }
 }
 
 /* Die erleuchtete Wolke: der Ausschnitt der Wolkendecke unter dem Blitz,
@@ -15897,7 +15984,10 @@ const HILFE = [
       + "Sternbilder lassen sich antippen. Dazu ziehen andere Satelliten durch, tagsüber schnell und nah, nachts langsam und "
       + "selten — die nahen stehen dann im selben Erdschatten wie wir. Unten auf der Nachtseite "
       + "zucken Gewitter in den Wolken, oft mehrmals hintereinander und von Zelle zu Zelle — am "
-      + "meisten kurz nach Sonnenuntergang über Land, so wie in echt.",
+      + "meisten kurz nach Sonnenuntergang über Land, so wie in echt. Selten steht über einem "
+      + "starken Gewitter am Horizont für einen Augenblick ein roter Kobold, eine Entladung nach oben "
+      + "bis fast in die Leuchtschicht. Sternschnuppen sieht man von hier oben unter sich, über der "
+      + "dunklen Erde.",
   },
   {
     titel: "Der Lebenserhalt",
@@ -16582,6 +16672,16 @@ window.__BUCH = () => BORDBUCH;
 window.__LOGPUSH = (e) => { Z.log.unshift(e); zeichneLog(); };
 window.__PHASE = (ph) => { PHASE_TEST = ph; };
 window.__GEWITTER = () => GEWITTER;
+window.__KOBOLD = () => {
+  const z = GEWITTER.zellen.filter(q => q.sicht > 0.9 && q.randNah)
+    .sort((a, b) => Math.abs(a.sx - W / 2) - Math.abs(b.sx - W / 2))[0];
+  if (!z) return null;
+  const t = performance.now() - T0;
+  gewitterZuenden(z, t, 0);
+  z.blitz.innen = false;
+  koboldStarten(z, t);
+  return { x: z.sx, y: z.sy };
+};
 window.__METEOR = () => { sternschnuppe = meteorStarten(); return sternschnuppe; };
 window.__CREWPULS = () => ({ ereignisse: CREWPULS.length, letzt: PULS_LETZT, ort: PULS_ORT });
 window.__BLITZ = () => {
