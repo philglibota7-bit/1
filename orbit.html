@@ -28,6 +28,10 @@
   --tx:#e9ecf2; --tx2:#98a1b4; --tx3:#626c80;
   --acc:#7ba4d8; --acc-deep:#557ba8; --acc-tint:rgba(123,164,216,.16);
   --good:#74b48d; --warn:#cfa456; --bad:#e07a6a;
+  /* "Laeuft" hat eine eigene, feste Farbe. Der Akzent wechselt mit dem
+     Himmel, und bei fuenf der Himmel ist er orange oder rot — dann
+     sahen ein laufender und ein fehlgeschlagener Lauf gleich aus. */
+  --lauf:#7ba4d8;
   /* Nebelfarben — tiefer Raum, aber sichtbar */
   --f1:#3c5fa0; --f2:#5d4a92; --f3:#2f7684; --f4:#7d4a7e;
   --r1:12px; --r2:18px; --r3:26px;
@@ -557,6 +561,67 @@ body.sicht #blende-detail{
    normale Takt und wuerde die Liste nur zupflastern. */
 .d-luecke{font-size:10px; color:var(--tx3); padding:1px 0 3px; letter-spacing:.02em;}
 .d-luecke b{color:var(--tx2); font-weight:600;}
+/* --- GitHub: PR-Karten und Actions-Laeufe ---
+   Der Streifen links ist der Stand des PRs auf einen Blick; die
+   Marken darunter sagen, welcher Ablauf ihn dahin gebracht hat. */
+.d-pr{position:relative; padding:9px 11px 10px 14px; margin:0 0 8px; border-radius:10px;
+  background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06);
+  cursor:pointer; transition:background .15s, border-color .15s;}
+.d-pr:hover, .d-pr:focus-visible{background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.12);
+  outline:none;}
+.d-pr::before{content:""; position:absolute; left:0; top:10px; bottom:10px; width:3px;
+  border-radius:0 3px 3px 0; background:rgba(255,255,255,.14);}
+.d-pr.gruen::before{background:var(--good);}
+.d-pr.rot::before{background:var(--bad);}
+.d-pr.wartet::before{background:var(--warn);}
+.d-pr.abgebrochen::before{background:var(--tx3);}
+.d-pr.laeuft::before{background:var(--lauf); animation:prpuls 2.4s ease-in-out infinite;}
+@keyframes prpuls{0%,100%{opacity:1;} 50%{opacity:.35;}}
+.d-pr .kopf{display:flex; align-items:baseline; gap:8px;}
+.d-pr .nr{font-size:12px; font-weight:650; color:var(--tx); font-variant-numeric:tabular-nums;}
+.d-pr .art{font-size:9.5px; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--tx3);}
+.d-pr .wann{margin-left:auto; flex:0 0 auto; font-size:10px; color:var(--tx3);}
+.d-pr .titel{margin-top:3px; font-size:12.5px; line-height:1.42; color:var(--tx);
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+.d-pr .zweig{margin-top:3px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:10.5px; color:var(--tx3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.d-pr .pruef{display:flex; flex-wrap:wrap; gap:5px; margin-top:8px;}
+.d-pr .pruef span{font-size:10.5px; line-height:1.5; padding:1px 8px 1px 7px; border-radius:999px;
+  border:1px solid rgba(255,255,255,.1); color:var(--tx2); max-width:100%; box-sizing:border-box;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.d-pr .pruef span b{font-weight:700;}
+.d-pr .pruef span.gruen{color:var(--good); background:rgba(116,180,141,.1); border-color:rgba(116,180,141,.28);}
+.d-pr .pruef span.rot{color:var(--bad); background:rgba(224,122,106,.1); border-color:rgba(224,122,106,.3);}
+.d-pr .pruef span.wartet{color:var(--warn); background:rgba(207,164,86,.1); border-color:rgba(207,164,86,.3);}
+.d-pr .pruef span.laeuft{color:var(--lauf); background:rgba(123,164,216,.12); border-color:rgba(123,164,216,.3);}
+.d-pr .pruef span.keine{border-style:dashed; color:var(--tx3);}
+/* Die Laeufe auf dem Strahl: der Punkt traegt das Ergebnis, der Name
+   bleibt hell — bei acht gruenen Namen untereinander waere Gruen
+   keine Auskunft mehr, sondern Tapete. */
+.d-lauf.gh .was{color:var(--tx);}
+/* Der Titel eines Laufs ist ein Satz, kein Dateiname — also nicht in
+   Schreibmaschine wie die Ziele der Arbeitsschritte. */
+.d-lauf.gh .ziel{font-family:inherit; font-size:12px;}
+.d-tritt .erg{font-size:10px; font-weight:600; flex:0 0 auto;}
+.d-tritt .meta{margin-top:2px; font-size:10.5px; color:var(--tx3); overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap;}
+.d-tritt.lauf-gruen .pkt{background:var(--good); border-color:var(--good);}
+.d-tritt.lauf-gruen .erg{color:var(--good);}
+.d-tritt.lauf-rot .pkt{background:var(--bad); border-color:var(--bad);}
+.d-tritt.lauf-rot .erg{color:var(--bad);}
+.d-tritt.lauf-abgebrochen .pkt{border-color:var(--tx3);}
+.d-tritt.lauf-abgebrochen .erg{color:var(--tx3);}
+.d-tritt.lauf-laeuft .erg{color:var(--lauf);}
+.d-tritt.jetzt.lauf-laeuft .pkt{background:var(--lauf); border-color:var(--lauf);}
+.d-tritt.lauf-wartet .erg{color:var(--warn);}
+.d-tritt.jetzt.lauf-wartet .pkt{background:var(--warn); border-color:var(--warn);
+  animation:wartepuls 2.4s ease-in-out infinite;}
+@keyframes wartepuls{
+  0%,100%{box-shadow:0 0 0 3px rgba(207,164,86,.2);}
+  50%{box-shadow:0 0 0 5px rgba(207,164,86,.07);}}
+.d-lauf.gh .d-tritt:hover .ziel, .d-lauf.gh .d-tritt:focus-visible .ziel{color:var(--tx);}
+.d-lauf.gh .d-tritt:focus-visible{outline:none;}
 /* --- Die Anzuguhr ---
    Ein Aussenbordeinsatz endet nicht, wenn die Arbeit fertig ist,
    sondern wenn der knappste Vorrat im Anzug zur Neige geht. Deshalb
@@ -715,6 +780,7 @@ body.sicht #blende-detail{
 @media (prefers-reduced-motion:reduce){
   #nebel::before{animation:none;}
   .marke .sat{animation:none;}
+  .d-tritt.jetzt .pkt, .d-pr.laeuft::before{animation:none;}
 }
 </style>
 </head>
@@ -1724,6 +1790,93 @@ async function gh(pfad) {
   return r.json();
 }
 
+/* Ein Actions-Lauf in einem Wort. GitHub kennt sechs Zustaende und
+   neun Ergebnisse; wer auf eine Liste schaut, will fuenf Dinge wissen:
+   gut, kaputt, laeuft noch, wartet auf mich, oder abgebrochen.
+
+   "Wartet" ist der wichtigste davon und der, den GitHub am besten
+   versteckt: ein Lauf, der vor einer geschuetzten Umgebung auf eine
+   Freigabe wartet (status "waiting"), oder einer von einem neuen
+   Mitwirkenden, der erst freigegeben werden muss ("action_required").
+   Beide tun nichts, bis jemand klickt. Uebersprungen und neutral
+   zaehlen als gut — sie haben nichts kaputt gemacht. */
+function laufStand(l) {
+  if (l.status === "waiting" || l.conclusion === "action_required") return "wartet";
+  if (l.status !== "completed") return "laeuft";
+  if (["success", "skipped", "neutral"].includes(l.conclusion)) return "gruen";
+  if (l.conclusion === "cancelled") return "abgebrochen";
+  return "rot";
+}
+
+function laufLesen(l) {
+  const start = Date.parse(l.run_started_at || l.created_at) || 0;
+  return {
+    name: l.name,
+    titel: l.display_title || "",
+    zweig: l.head_branch || "",
+    anlass: l.event || "",
+    stand: laufStand(l),
+    versuch: l.run_attempt || 1,
+    zeit: start,
+    /* Bei einem fertigen Lauf ist updated_at der Zeitpunkt, an dem er
+       fertig wurde — daraus die Dauer. Solange er laeuft, gibt es
+       kein Ende, und die Anzeige rechnet ab jetzt. */
+    ende: l.status === "completed" ? (Date.parse(l.updated_at) || 0) : 0,
+    url: l.html_url,
+  };
+}
+
+/* Zu jedem offenen Pull Request: sind seine Actions gruen?
+   GitHub liefert die Laeufe gefiltert nach dem Stand (head_sha), eine
+   Abfrage je PR. Damit das bei zehn Repos mit je fuenf PRs nicht bei
+   jedem Takt fuenfzig Abfragen werden, merkt sich PR_PRUEFUNG das
+   Ergebnis je Stand. Solange etwas laeuft oder wartet, wird jedes Mal
+   nachgesehen; ist alles fertig, gilt es zehn Minuten — nicht fuer
+   immer, denn ein neu gestarteter Job aendert das Ergebnis, ohne
+   dass ein neuer Stand entsteht. */
+const PR_PRUEFUNG = new Map();          // sha -> { zeit, fertig, laeufe }
+const PR_FRIST = 600000;
+
+async function prPruefung(repo, sha) {
+  if (!sha) return null;
+  const alt = PR_PRUEFUNG.get(sha);
+  if (alt && alt.fertig && Date.now() - alt.zeit < PR_FRIST) return alt;
+  try {
+    const x = await gh(`/repos/${repo}/actions/runs?head_sha=${sha}&per_page=20`);
+    /* Je Arbeitsablauf und Anlass zaehlt nur der juengste Lauf. Ein
+       zweiter Versuch ersetzt den ersten, er kommt nicht dazu; die
+       Liste kommt von GitHub neu zuerst. */
+    const je = new Map();
+    for (const l of x.workflow_runs || []) {
+      const k = l.workflow_id + "|" + l.event;
+      if (!je.has(k)) je.set(k, laufLesen(l));
+    }
+    const laeufe = [...je.values()];
+    const neu = {
+      zeit: Date.now(),
+      fertig: laeufe.every(l => l.stand !== "laeuft" && l.stand !== "wartet"),
+      laeufe,
+    };
+    PR_PRUEFUNG.set(sha, neu);
+    return neu;
+  } catch {
+    /* Lieber den alten Stand zeigen als gar keinen — aber nur den
+       alten dieses Stands, nie den eines anderen. */
+    return alt || null;
+  }
+}
+
+/* Die Summe ueber alle Ablaeufe eines PRs, in derselben Rangfolge,
+   die GitHub fuer den kombinierten Status benutzt: ein einziger
+   roter macht den Stand rot, auch wenn andere noch laufen — das
+   Ergebnis steht dann ja schon fest. */
+function pruefungGesamt(p) {
+  if (!p || !p.laeufe.length) return null;
+  const z = new Set(p.laeufe.map(l => l.stand));
+  for (const s of ["rot", "wartet", "laeuft", "abgebrochen"]) if (z.has(s)) return s;
+  return "gruen";
+}
+
 async function sammleGithub() {
   if (!Z.bruecke.ghToken) return [];
   let repos;
@@ -1734,45 +1887,72 @@ async function sammleGithub() {
     return [];
   }
 
-  /* Die beiden Abfragen je Repo sind voneinander unabhaengig, und die
-     Repos untereinander auch. Nacheinander waeren das bei zehn Repos
-     einundzwanzig Runden — parallel ist es eine. */
+  /* Die Abfragen je Repo sind voneinander unabhaengig, und die Repos
+     untereinander auch. Nacheinander waeren das bei zehn Repos
+     einundzwanzig Runden — parallel ist es eine, plus eine fuer die
+     Pruefungen der PRs, die erst nach der PR-Liste feststehen. */
   const roh = await Promise.all(repos.slice(0, Z.bruecke.ghAnzahl).map(async (r) => {
     const [laeufe, prs] = await Promise.all([
-      gh(`/repos/${r.full_name}/actions/runs?per_page=3`).then(x => x.workflow_runs || []).catch(() => []),
+      gh(`/repos/${r.full_name}/actions/runs?per_page=5`).then(x => x.workflow_runs || []).catch(() => []),
       gh(`/repos/${r.full_name}/pulls?state=open&per_page=5`).catch(() => []),
     ]);
-    return { r, laeufe, prs };
+    const pruefungen = await Promise.all(prs.map(p => prPruefung(r.full_name, p.head && p.head.sha)));
+    return { r, laeufe, prs, pruefungen };
   }));
 
+  /* Aufraeumen: gemerkt wird nur, was noch zu einem offenen PR gehoert */
+  const offen = new Set(roh.flatMap(x => x.prs.map(p => p.head && p.head.sha)));
+  for (const sha of PR_PRUEFUNG.keys()) if (!offen.has(sha)) PR_PRUEFUNG.delete(sha);
+
   const raus = [];
-  for (const { r, laeufe, prs } of roh) {
-    const l0 = laeufe[0];
-    const laufend = laeufe.some(x => x.status === "in_progress" || x.status === "queued");
-    const rot = l0 && l0.status === "completed" && l0.conclusion !== "success";
+  for (const { r, laeufe, prs, pruefungen } of roh) {
+    const liste = laeufe.map(laufLesen);
+    const l0 = liste[0];
+    /* Fuer den Zustand der Figur zaehlen nur die drei juengsten
+       Laeufe. Ein Lauf, der seit Tagen als "queued" haengt, weil nie
+       ein Runner kam, soll den Astronauten nicht ewig arbeiten lassen. */
+    const jung = liste.slice(0, 3);
+    const laufend = jung.find(x => x.stand === "laeuft");
+    const wartend = jung.find(x => x.stand === "wartet");
+    const rot = l0 && l0.stand === "rot";
+
+    const prListe = prs.map((p, i) => ({
+      nr: p.number, titel: p.title, entwurf: p.draft, url: p.html_url,
+      zweig: p.head ? p.head.ref : "",
+      von: p.user ? p.user.login : "",
+      geaendert: Date.parse(p.updated_at) || 0,
+      pruefung: pruefungen[i] ? pruefungen[i].laeufe : [],
+      stand: pruefungGesamt(pruefungen[i]),
+    }));
+    const prRot = prListe.filter(p => p.stand === "rot");
+    const prWartet = prListe.find(p => p.stand === "wartet");
 
     raus.push({
       id: "g:" + r.full_name,
       typ: "github",
       name: r.name,
       farbe: farbeAusName(r.full_name),
-      zustand: laufend ? "sendet" : rot ? "fehler" : "ruht",
+      /* Wartet ein Lauf auf eine Freigabe, winkt der Astronaut — wie
+         eine Sitzung, die auf eine Antwort wartet. Es ist dieselbe
+         Lage: ohne dich geht es nicht weiter. */
+      zustand: (wartend || prWartet) ? "winkt" : laufend ? "sendet" : rot ? "fehler" : "ruht",
       ort: r.full_name,
       branch: r.default_branch,
-      taetigkeit: laufend ? (l0 ? l0.name + " läuft" : "Actions laufen")
-                : rot ? (l0.name + " fehlgeschlagen")
-                : prs.length ? prs.length + " offene Pull Requests"
+      taetigkeit: wartend ? wartend.name + " wartet auf Freigabe"
+                : prWartet ? "PR #" + prWartet.nr + " wartet auf Freigabe"
+                : laufend ? laufend.name + " läuft"
+                : rot ? l0.name + " fehlgeschlagen"
+                : prRot.length ? (prRot.length === 1 ? "PR #" + prRot[0].nr + ": Actions rot"
+                                                      : prRot.length + " PRs mit roten Actions")
+                : prs.length ? prs.length + (prs.length === 1 ? " offener Pull Request" : " offene Pull Requests")
                 : "ruhig",
       seit: r.pushed_at ? Date.parse(r.pushed_at) : 0,
-      prs: prs.map(p => ({ nr: p.number, titel: p.title, entwurf: p.draft, url: p.html_url })),
-      laeufe: laeufe.map(x => ({
-        name: x.name, status: x.status, ergebnis: x.conclusion,
-        zeit: Date.parse(x.created_at) || 0, url: x.html_url,
-      })),
+      prs: prListe,
+      laeufe: liste,
       url: r.html_url,
-      schritte: laeufe.slice(0, 5).map(x => ({
-        werkzeug: x.conclusion === "success" ? "✓" : x.status === "completed" ? "✗" : "…",
-        text: x.name, zeit: Date.parse(x.created_at) || 0,
+      schritte: liste.map(x => ({
+        werkzeug: x.stand === "gruen" ? "✓" : x.stand === "rot" ? "✗" : "…",
+        text: x.name, zeit: x.zeit,
       })),
     });
   }
@@ -11502,7 +11682,10 @@ function zeichneDetail(id) {
      fremde Sitzung zuerst hat. */
   if (a.auftrag) box.appendChild(zeile("Auftrag", a.auftrag));
   if (a.taetigkeit) box.appendChild(zeile("Tut gerade", a.taetigkeit));
-  if (a.seit)   box.appendChild(zeile("Zuletzt", vorZeit(a.seit) + "  ·  " + uhr(a.seit)));
+  /* Bei einem Repo ist "zuletzt" der letzte Push, nicht die letzte
+     Regung — Laeufe und PRs stehen weiter unten mit eigener Zeit. */
+  if (a.seit)   box.appendChild(zeile(a.typ === "github" ? "Letzter Push" : "Zuletzt",
+                                      vorZeit(a.seit) + "  ·  " + zeitpunkt(a.seit)));
 
   if (a.typ === "session" || a.typ === "unteragent") {
     if (a.modell) box.appendChild(zeile("Modell", a.modell.replace("claude-", "")
@@ -11600,36 +11783,15 @@ function zeichneDetail(id) {
 
   if (a.typ === "github") {
     if (a.prs && a.prs.length) {
-      box.appendChild(abschnitt("Offene Pull Requests"));
-      a.prs.forEach(pr => {
-        const d = document.createElement("div");
-        d.className = "d-schritt"; d.style.cursor = "pointer";
-        const z = document.createElement("span"); z.className = "zt"; z.textContent = "#" + pr.nr;
-        const w = document.createElement("span"); w.className = "wz";
-        w.textContent = pr.entwurf ? "Entwurf" : "offen";
-        const t = document.createElement("span"); t.className = "tx"; t.textContent = pr.titel;
-        t.style.fontFamily = "inherit"; t.title = pr.titel;
-        d.append(z, w, t);
-        d.onclick = () => externOeffnen(pr.url);
-        box.appendChild(d);
-      });
+      box.appendChild(abschnitt("Offene Pull Requests  ·  " + a.prs.length));
+      /* Der Name des Autors nur, wenn es mehrere gibt. Stehen fuenf PRs
+         alle von dir da, ist fuenfmal dein Name keine Auskunft. */
+      const mitAutor = new Set(a.prs.map(p => p.von)).size > 1;
+      a.prs.forEach(pr => box.appendChild(prKarte(pr, mitAutor)));
     }
     if (a.laeufe && a.laeufe.length) {
       box.appendChild(abschnitt("Letzte Actions-Läufe"));
-      a.laeufe.forEach(l => {
-        const d = document.createElement("div");
-        d.className = "d-schritt"; d.style.cursor = "pointer";
-        const z = document.createElement("span"); z.className = "zt"; z.textContent = uhr(l.zeit);
-        const w = document.createElement("span"); w.className = "wz";
-        w.textContent = l.status !== "completed" ? "läuft" : l.ergebnis === "success" ? "✓" : "✗";
-        w.style.color = l.status !== "completed" ? "var(--warn)"
-                      : l.ergebnis === "success" ? "var(--good)" : "var(--bad)";
-        const t = document.createElement("span"); t.className = "tx"; t.textContent = l.name;
-        t.style.fontFamily = "inherit";
-        d.append(z, w, t);
-        d.onclick = () => externOeffnen(l.url);
-        box.appendChild(d);
-      });
+      box.appendChild(laufStrahl(a.laeufe));
     }
   }
 }
@@ -11738,6 +11900,142 @@ function himmelVorschau(t) {
 
   /* Ein paar Sterne */
   let z = ((t.saat || 1) + 4242) >>> 0;
+/* --- GitHub: Pull Requests und Actions --------------------------------
+   Vorher standen PRs und Laeufe als dieselbe Tabelle da wie frueher
+   die Arbeitsschritte: Nummer, ein Wort, abgeschnittener Titel. Ob
+   ein PR gruen ist, stand nirgends — und genau das ist die Frage, mit
+   der man auf einen offenen PR schaut.
+
+   Jetzt ist jeder PR eine Karte: links ein Streifen in der Farbe
+   seines Stands, oben Nummer und Alter, darunter der ganze Titel,
+   der Zweig, und je Arbeitsablauf eine Marke mit dem Ergebnis. Die
+   Laeufe des Repos stehen auf demselben Strahl wie die Schritte
+   einer Sitzung, mit Dauer statt Luecke — bei einem Actions-Lauf
+   ist die Frage nicht, wie lange zwischen zwei Laeufen nichts
+   geschah, sondern wie lange einer gebraucht hat. */
+
+const LAUF_ZEICHEN = { gruen: "✓", rot: "✗", laeuft: "●", wartet: "✋", abgebrochen: "⊘" };
+const LAUF_TEXT = {
+  gruen: "erfolgreich", rot: "fehlgeschlagen", laeuft: "läuft",
+  wartet: "wartet auf Freigabe", abgebrochen: "abgebrochen",
+};
+const ANLASS = {
+  push: "Push", pull_request: "Pull Request", pull_request_target: "Pull Request",
+  schedule: "Zeitplan", workflow_dispatch: "von Hand", release: "Release",
+  merge_group: "Merge-Warteschlange", workflow_run: "nach anderem Lauf",
+};
+
+/* Wann, in einem Wort: heute die Uhrzeit, gestern "gestern", davor
+   das Datum. Nur die Uhrzeit waere bei einem Lauf von vorgestern
+   eine Angabe, die stimmt aussieht und nicht stimmt. */
+function zeitpunkt(ms) {
+  if (!ms) return "";
+  const d = new Date(ms), h = new Date();
+  const tag = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const t = Math.round((tag(h) - tag(d)) / 86400000);
+  if (t <= 0) return uhr(ms);
+  if (t === 1) return "gestern " + uhr(ms);
+  return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+}
+
+function prKarte(pr, mitAutor) {
+  const d = document.createElement("div");
+  d.className = "d-pr" + (pr.stand ? " " + pr.stand : "");
+  d.tabIndex = 0;
+  d.setAttribute("role", "link");
+
+  const kopf = document.createElement("div"); kopf.className = "kopf";
+  const nr = document.createElement("span"); nr.className = "nr"; nr.textContent = "#" + pr.nr;
+  const art = document.createElement("span"); art.className = "art";
+  art.textContent = pr.entwurf ? "Entwurf" : "offen";
+  const wann = document.createElement("span"); wann.className = "wann";
+  wann.textContent = pr.geaendert ? vorZeit(pr.geaendert) : "";
+  wann.title = "zuletzt geändert";
+  kopf.append(nr, art, wann);
+
+  const titel = document.createElement("div"); titel.className = "titel";
+  titel.textContent = pr.titel; titel.title = pr.titel;
+  d.append(kopf, titel);
+
+  if (pr.zweig) {
+    const z = document.createElement("div"); z.className = "zweig";
+    z.textContent = pr.zweig + (mitAutor && pr.von ? "  ·  " + pr.von : "");
+    z.title = pr.zweig;
+    d.append(z);
+  }
+
+  /* null heisst: nicht nachgesehen (Abfrage fehlgeschlagen) — dann
+     steht hier nichts. Eine leere Liste heisst: nachgesehen, und zu
+     diesem Stand gibt es keine Actions. Das ist eine Auskunft und
+     steht deshalb da. */
+  if (Array.isArray(pr.pruefung)) {
+    const p = document.createElement("div"); p.className = "pruef";
+    if (!pr.pruefung.length) {
+      const s = document.createElement("span"); s.className = "keine";
+      s.textContent = "keine Actions zu diesem Stand";
+      p.append(s);
+    }
+    for (const l of pr.pruefung) {
+      const s = document.createElement("span"); s.className = l.stand;
+      const z = document.createElement("b"); z.textContent = LAUF_ZEICHEN[l.stand];
+      s.append(z, document.createTextNode(" " + l.name
+        + (l.stand === "laeuft" ? "  " + luecke(Date.now() - l.zeit) : "")));
+      s.title = l.name + ": " + LAUF_TEXT[l.stand];
+      p.append(s);
+    }
+    d.append(p);
+  }
+
+  d.onclick = () => externOeffnen(pr.url);
+  d.onkeydown = (e) => { if (e.key === "Enter") externOeffnen(pr.url); };
+  return d;
+}
+
+function laufStrahl(laeufe) {
+  const box = document.createElement("div");
+  box.className = "d-lauf gh";
+  laeufe.forEach((l, i) => {
+    const offen = l.stand === "laeuft" || l.stand === "wartet";
+    const d = document.createElement("div");
+    d.className = "d-tritt lauf-" + l.stand + (offen ? " jetzt" : "") + (i > 2 && !offen ? " alt" : "");
+    d.style.cursor = "pointer";
+    d.tabIndex = 0;
+    d.setAttribute("role", "link");
+
+    const pkt = document.createElement("i"); pkt.className = "pkt";
+    const kopf = document.createElement("div"); kopf.className = "kopf";
+    const was = document.createElement("span"); was.className = "was";
+    was.textContent = l.name;
+    const erg = document.createElement("span"); erg.className = "erg";
+    erg.textContent = LAUF_TEXT[l.stand];
+    const wann = document.createElement("span"); wann.className = "wann";
+    /* Laufend: wie lange schon. Fertig: wann, und wie lange er
+       gebraucht hat — der Zeitpunkt allein sagt nicht, ob ein Lauf
+       zehn Sekunden oder zwanzig Minuten dauert. */
+    wann.textContent = offen ? "seit " + luecke(Date.now() - l.zeit)
+      : zeitpunkt(l.zeit) + (l.ende > l.zeit ? "  ·  " + luecke(l.ende - l.zeit) : "");
+    kopf.append(was, erg, wann);
+    d.append(pkt, kopf);
+
+    if (l.titel) {
+      const ziel = document.createElement("div"); ziel.className = "ziel";
+      ziel.textContent = l.titel; ziel.title = l.titel;
+      d.append(ziel);
+    }
+    const meta = [l.zweig, ANLASS[l.anlass] || l.anlass,
+                  l.versuch > 1 ? l.versuch + ". Versuch" : ""].filter(Boolean);
+    if (meta.length) {
+      const m = document.createElement("div"); m.className = "meta";
+      m.textContent = meta.join("  ·  ");
+      d.append(m);
+    }
+    d.onclick = () => externOeffnen(l.url);
+    d.onkeydown = (e) => { if (e.key === "Enter") externOeffnen(l.url); };
+    box.append(d);
+  });
+  return box;
+}
+
   const rnd = () => { z = (Math.imul(z, 1664525) + 1013904223) >>> 0; return z / 4294967296; };
   const ton = hexZuRgb(t.sterne || "#ffffff");
   for (let i = 0; i < 90; i++) {
