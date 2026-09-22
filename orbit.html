@@ -1636,8 +1636,15 @@ function zeichneHimmel(t) {
      gemessen die Haelfte der Bildrate, sobald man ueber 1,5-fach hinaus
      zoomte. Verschoben wird auf ganze Geraetepixel, sonst muesste der
      Browser trotzdem neu abtasten. */
-  const dx = Math.sin(t * 0.0000085) * 36 * d + KAM.x * 0.16;
-  const dy = Math.cos(t * 0.0000067) * 28 * d + KAM.y * 0.16;
+  /* Beim Hineinzoomen wandern die Sterne WENIGER mit, nicht mehr — sie
+     stehen unendlich weit weg. Und was danach noch uebrig ist, wird auf
+     den gebackenen Vorrat begrenzt: lieber bleibt der Himmel am Ende
+     stehen, als dass seine Kante ins Bild kommt. */
+  const spiel = HIMMEL_RAND - 8;
+  const dx = klemm(Math.sin(t * 0.0000085) * 36 * d
+    + KAM.x * 0.16 / Math.max(1, KAM.zoom), -spiel, spiel);
+  const dy = klemm(Math.cos(t * 0.0000067) * 28 * d
+    + KAM.y * 0.16 / Math.max(1, KAM.zoom), -spiel, spiel);
 
   cx.save();
   cx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1948,7 +1955,17 @@ function modul(c, x, y, w, h, saat, opt) {
 /* Endkappe eines Moduls, das in die Tiefe laeuft. Bei 30 Grad Drehung
    wird aus dem Kreis immer dieselbe Ellipse mit halber Breite — deshalb
    braucht es hier keine Perspektivrechnung, nur eine Konstante. */
-function endkappe(c, x, y, r) {
+/* Die Endkappe eines Moduls. Wenn dort ein Kopplungsstutzen sitzt,
+   ist sie das Gegenstueck, mit dem ein ankommendes Schiff verriegelt
+   wird — und damit das am dichtesten bebaute Stueck der ganzen
+   Aussenhaut. Als glatte Scheibe war sie aus der Naehe die leerste
+   Flaeche am Bauwerk.
+
+   Was wirklich dort sitzt: ein erhabener Ring mit zwoelf Haken, ein
+   Kranz Fuehrungsstifte, die Luke dahinter und das Zielkreuz, an dem
+   der Pilot die Ausrichtung abliest. Genau dieses Kreuz ist es, was
+   einen Kopplungsstutzen unverwechselbar macht. */
+function endkappe(c, x, y, r, hafen) {
   const g = c.createLinearGradient(x, y - r, x, y + r);
   g.addColorStop(0, "#e8e6da"); g.addColorStop(0.5, "#7b7a70");
   g.addColorStop(0.85, "#1a1c20"); g.addColorStop(1, "#40566f");
@@ -1956,6 +1973,55 @@ function endkappe(c, x, y, r) {
   c.beginPath(); c.ellipse(x, y, r * 0.68, r, 0, 0, Math.PI * 2); c.fill();
   c.strokeStyle = "rgba(40,40,36,.6)"; c.lineWidth = Math.max(0.4, r * 0.06);
   c.stroke();
+  if (!hafen) return;
+
+  const ex = r * 0.68;
+  /* Der erhabene Kopplungsring */
+  c.strokeStyle = "rgba(226,224,214,.85)";
+  c.lineWidth = Math.max(0.5, r * 0.09);
+  c.beginPath(); c.ellipse(x, y, ex * 0.8, r * 0.8, 0, 0, Math.PI * 2); c.stroke();
+  c.strokeStyle = "rgba(34,34,30,.55)";
+  c.lineWidth = Math.max(0.4, r * 0.04);
+  c.beginPath(); c.ellipse(x, y, ex * 0.86, r * 0.86, 0, 0, Math.PI * 2); c.stroke();
+
+  /* Zwoelf Haken auf dem Ring */
+  c.fillStyle = "rgba(54,52,46,.7)";
+  for (let i = 0; i < 12; i++) {
+    const w = (i / 12) * Math.PI * 2;
+    c.beginPath();
+    c.ellipse(x + Math.cos(w) * ex * 0.8, y + Math.sin(w) * r * 0.8,
+      r * 0.045, r * 0.055, 0, 0, Math.PI * 2);
+    c.fill();
+  }
+
+  /* Die Luke: etwas dunkler, weil sie tiefer liegt */
+  const lg = c.createLinearGradient(x, y - r * 0.55, x, y + r * 0.55);
+  lg.addColorStop(0, "#9b988e"); lg.addColorStop(0.55, "#4c4a44");
+  lg.addColorStop(1, "#22262e");
+  c.fillStyle = lg;
+  c.beginPath(); c.ellipse(x, y, ex * 0.52, r * 0.52, 0, 0, Math.PI * 2); c.fill();
+
+  /* Das Zielkreuz. Der ankommende Pilot haelt es zur Deckung mit einem
+     zweiten Kreuz auf einem Stab davor — so sieht man auf den Zentimeter
+     genau, ob man schief steht. */
+  c.strokeStyle = "rgba(230,232,236,.8)";
+  c.lineWidth = Math.max(0.4, r * 0.035);
+  c.beginPath();
+  c.moveTo(x - ex * 0.34, y); c.lineTo(x + ex * 0.34, y);
+  c.moveTo(x, y - r * 0.34); c.lineTo(x, y + r * 0.34);
+  c.stroke();
+  c.fillStyle = "rgba(214,160,52,.85)";
+  c.beginPath(); c.ellipse(x, y, ex * 0.1, r * 0.1, 0, 0, Math.PI * 2); c.fill();
+
+  /* Drei Fuehrungsstifte, die das Schiff in die richtige Lage zwingen */
+  c.fillStyle = "rgba(196,198,200,.8)";
+  for (let i = 0; i < 3; i++) {
+    const w = -Math.PI / 2 + (i / 3) * Math.PI * 2;
+    c.beginPath();
+    c.ellipse(x + Math.cos(w) * ex * 0.66, y + Math.sin(w) * r * 0.66,
+      r * 0.055, r * 0.075, 0, 0, Math.PI * 2);
+    c.fill();
+  }
 }
 
 /* Gittertraeger: das Rueckgrat. Entscheidend ist, dass man HINDURCH
@@ -3623,8 +3689,8 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler, ohneSch
   merkePlatz(c, plaetze, pos + md * 0.55, 0, "hafen", 0);
   merkeTeil(c, teile, pos + md * 0.3, md * 0.2, "hafen");
 
-  /* Endkappe vorn: die feste Ellipse mit halber Breite */
-  endkappe(c, pos, 0, md / 2);
+  /* Endkappe vorn: hier sitzt der freie Kopplungsstutzen */
+  endkappe(c, pos, 0, md / 2, true);
 
   /* Russisches Endstueck: olivgruene Steppdecke, viele Fenster.
      Der Kontrast zum fensterarmen westlichen Teil ist echt. */
@@ -4070,7 +4136,7 @@ function zeichneBewegliche(t, mitte, f, phase) {
         : (vorn ? fb["abend" + u] : fb["rabend" + u]);
       male(satz[idx], deck);
     }
-    if (sk > 1.35) kanten(fb, sx, sy, px, py, fb.laenge, fb.breite, vorn, hell);
+    if (sk > 1.35) kanten(fb, sx, sy, px, py, fb.laenge, fb.breite, vorn, hell, false, m.irosa);
 
     /* Der Glanz liegt auf der Mitte des Teppichs und wandert mit der
        Drehung ein Stueck nach aussen — die Spiegelung sitzt dort, wo
@@ -4139,7 +4205,7 @@ function zeichneBewegliche(t, mitte, f, phase) {
    Endpunkte werden von Hand dorthin gerechnet. Sonst zoege die
    ungleiche Stauchung die Strichstaerke mit in die Laenge, und aus
    einer Naht wuerde ein Keil. */
-function kanten(fb, sx, sy, px, py, laenge, breite, vorn, hell, weiss) {
+function kanten(fb, sx, sy, px, py, laenge, breite, vorn, hell, weiss, irosa) {
   const co = Math.cos(fb.winkel), si = Math.sin(fb.winkel);
   const halb = breite / 2;
   /* Bauteilkoordinaten: u laeuft von der Wurzel nach aussen, v quer. */
@@ -4191,6 +4257,44 @@ function kanten(fb, sx, sy, px, py, laenge, breite, vorn, hell, weiss) {
       zug([d, -halb * 0.92], [d, -halb * 0.1]);
       zug([d, halb * 0.1], [d, halb * 0.92]);
     }
+    cx.stroke();
+  }
+
+  /* Der aufgerollte Zusatzfluegel. Er liegt schraeg ueber der inneren
+     Haelfte und ist von allem an dieser Station das Einzige, was aus
+     einer Rolle kommt statt aus einem Rahmen — man sieht es an den
+     vielen feinen Laengsrippen und daran, dass er keinen Mast hat.
+     Ohne seine Kanten ist er beim Heranfahren nur ein dunkler Fleck. */
+  if (irosa) {
+    const iw = laenge * 0.46, ih = breite * 0.54;
+    const mx = laenge * 0.3;
+    const ic = Math.cos(0.17), is = Math.sin(0.17);
+    /* Erst in das gedrehte System des Zusatzfluegels, dann wie oben
+       von Hand in Geraetekoordinaten. */
+    const Q = (u, v) => {
+      const a = mx + u * ic - v * is, b = u * is + v * ic;
+      return [px + (a * co - b * si) * sx, py + (a * si + b * co) * sy];
+    };
+    const zug2 = (a, b) => { const A = Q(a[0], a[1]), B = Q(b[0], b[1]);
+      cx.moveTo(A[0], A[1]); cx.lineTo(B[0], B[1]); };
+    cx.strokeStyle = `rgba(150,164,198,${0.3 * dunkelheit})`;
+    cx.lineWidth = 1;
+    cx.beginPath();
+    for (let i = 1; i < 18; i++) {
+      const u = -iw / 2 + (iw * i) / 18;
+      zug2([u, -ih / 2], [u, ih / 2]);
+    }
+    cx.stroke();
+    cx.strokeStyle = `rgba(206,218,240,${0.5 * dunkelheit})`;
+    cx.lineWidth = 1.2;
+    cx.beginPath();
+    zug2([-iw / 2, -ih / 2], [iw / 2, -ih / 2]);
+    zug2([-iw / 2, -ih / 2], [-iw / 2, ih / 2]);
+    cx.stroke();
+    cx.strokeStyle = `rgba(8,10,16,${0.6 * dunkelheit})`;
+    cx.beginPath();
+    zug2([-iw / 2, ih / 2], [iw / 2, ih / 2]);
+    zug2([iw / 2, -ih / 2], [iw / 2, ih / 2]);
     cx.stroke();
   }
 }
@@ -6376,7 +6480,13 @@ function zeichneErde(t) {
   cx.restore();
 }
 
-const HIMMEL_RAND = 90;
+/* Der Himmel wird groesser gebacken als der Schirm, damit er beim
+   Driften und Verschieben nicht an seiner eigenen Kante endet. Neunzig
+   Bildpunkte reichten fuer das Driften, nicht fuer das Verschieben:
+   beim Hineinzoomen faehrt man leicht tausend Bildpunkte weit, und
+   dann lief eine kerzengerade Kante durch den Sternenhimmel, hinter
+   der es einfach schwarz war. */
+const HIMMEL_RAND = 150;
 
 /* --- Alles neu backen und zu EINEM Bild zusammenfuegen ---
    Frueher wurden die drei Schichten in jedem Einzelbild skaliert und
