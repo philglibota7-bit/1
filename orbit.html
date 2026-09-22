@@ -4242,7 +4242,14 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler, ohneSch
     merkePlatz(c, plaetze, pos + l * 0.65, md / 2, "handlauf", Math.PI);
     pos += l;
     if (i < stapel.length - 1) {
-      /* Kopplungsknoten: kurz, dicker als das Modul, mit Bolzenkranz */
+      /* Kopplungsknoten: kurz, dicker als das Modul, mit Bolzenkranz.
+         Davor der Beruehrungsschatten: der Knoten steht ueber die
+         Modulwand hinaus, also liegt in der Kehle dazwischen
+         weniger Licht. */
+      beruehrung(c, pos, -md * 0.5, md * 0.26, md * 0.34, 0.4);
+      beruehrung(c, pos + md * 0.3, -md * 0.5, md * 0.26, md * 0.34, 0.4);
+      beruehrung(c, pos, md * 0.5, md * 0.26, md * 0.34, 0.34);
+      beruehrung(c, pos + md * 0.3, md * 0.5, md * 0.26, md * 0.34, 0.34);
       c.fillStyle = sonnenlauf(c, pos, -md * 0.62, md * 0.3, md * 1.24,
         "#f8f6ee", "#918f86", "#111316");
       rundRect(c, pos, -md * 0.62, md * 0.3, md * 1.24, md * 0.12); c.fill();
@@ -4609,8 +4616,22 @@ function zeichneAntenne(c, R, t) {
   c.stroke();
   c.strokeStyle = dunkeln("rgba(190,204,224,.6)"); c.lineWidth = Math.max(0.4, R * 0.012);
   c.beginPath(); c.moveTo(0, 0); c.lineTo(R * 0.11, 0); c.stroke();
+  /* Das Speisehorn ist kein Ball, sondern ein Trichter — und er zeigt
+     ZURUECK in die Schale. Das ganze Gerede vom Brennpunkt wird erst
+     dann sichtbar: der Spiegel buendelt, was von aussen kommt, genau
+     dorthin, und dort muss der Trichter hinschauen. Eine Kugel im
+     Brennpunkt sagt darueber nichts. */
   c.fillStyle = dunkeln("#c3cedd");
-  c.beginPath(); c.arc(R * 0.11, 0, R * 0.019, 0, Math.PI * 2); c.fill();
+  c.beginPath();
+  c.moveTo(R * 0.125, -R * 0.012);
+  c.lineTo(R * 0.085, -R * 0.026);
+  c.lineTo(R * 0.085, R * 0.026);
+  c.lineTo(R * 0.125, R * 0.012);
+  c.closePath(); c.fill();
+  c.strokeStyle = dunkeln("rgba(28,32,40,.55)"); c.lineWidth = Math.max(0.3, R * 0.004);
+  c.stroke();
+  c.fillStyle = dunkeln("rgba(40,46,56,.85)");
+  c.beginPath(); c.ellipse(R * 0.086, 0, R * 0.006, R * 0.024, 0, 0, Math.PI * 2); c.fill();
   /* Die Sendeleuchte am Speisehorn: sie blinkt nur, wenn wirklich
      etwas uebertragen wird. Ein Dauerlicht waere eine Behauptung. */
   if (FUNK.kontakt && FUNK.last > 0.02) {
@@ -5397,6 +5418,21 @@ function zeichneStation(t, cxp, cyp, R) {
   c.translate(R * 0.78, 0);
   c.rotate(a2);
   armGelenk(R * 0.042);
+  /* Die Kamera am Ellbogen. Ohne sie faehrt niemand diesen Arm: vom
+     Arbeitsplatz in der Kuppel aus sieht man das Ziel nicht selbst,
+     man sieht es durch sie. Deshalb sitzt sie genau dort, wo der Arm
+     knickt — von da aus blickt sie ueber beide Segmente. */
+  {
+    const kb = R * 0.03;
+    c.fillStyle = dunkeln("#d2d8e0");
+    rundRect(c, -kb * 0.5, -R * 0.075, kb, kb * 1.1, kb * 0.2); c.fill();
+    c.strokeStyle = dunkeln("rgba(28,32,40,.55)"); c.lineWidth = Math.max(0.3, R * 0.004);
+    rundRect(c, -kb * 0.5, -R * 0.075, kb, kb * 1.1, kb * 0.2); c.stroke();
+    c.fillStyle = dunkeln("rgba(22,26,34,.92)");
+    c.beginPath(); c.arc(0, -R * 0.075 + kb * 0.3, kb * 0.26, 0, Math.PI * 2); c.fill();
+    c.fillStyle = "rgba(180,220,255,.5)";
+    c.beginPath(); c.arc(-kb * 0.07, -R * 0.075 + kb * 0.23, kb * 0.09, 0, Math.PI * 2); c.fill();
+  }
   armRohr(R * 0.55, R * 0.038);
   c.translate(R * 0.55, 0);
   armGelenk(R * 0.034);
