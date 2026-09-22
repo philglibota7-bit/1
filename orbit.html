@@ -9097,7 +9097,7 @@ function halteZeug(c, ax, ay, winkel, art, M, stiel, zoom, t, phase, gx, gy, kip
   c.restore();
 }
 
-function zeichneLeine(von, bis, farbe, zustand, t, blitze, phase) {
+function zeichneLeine(von, bis, farbe, zustand, t, blitze, phase, ankunft) {
   const dx = bis.x - von.x, dy = bis.y - von.y;
   const laenge = Math.hypot(dx, dy) || 1;
   const nx = -dy / laenge, ny = dx / laenge;
@@ -9121,13 +9121,36 @@ function zeichneLeine(von, bis, farbe, zustand, t, blitze, phase) {
   }
   cx.stroke();
 
-  /* Impulse laufen zur Station — sichtbare Datenuebertragung */
+  /* Impulse laufen zur Station — sichtbare Datenuebertragung. Wie die
+     Leine selbst gegen den Zoom gerechnet, nur schwaecher: nah sollen
+     sie etwas wachsen, aber nicht zu Murmeln werden. */
+  const zk = 1 / Math.pow(Math.max(0.6, KAM.zoom), 0.6);
   for (const b of blitze) {
     const p = leinePunkt(von, bis, nx, ny, laenge, 1 - b.p, t, phase, hub, schlaufe);
+    const gr = (b.echt ? 1.3 : 1) * zk;
     cx.fillStyle = farbe; cx.globalAlpha = 0.9 * (1 - Math.abs(b.p - 0.5) * 0.8);
-    cx.beginPath(); cx.arc(p.x, p.y, 2.2, 0, Math.PI * 2); cx.fill();
-    cx.globalAlpha = 0.22;
-    cx.beginPath(); cx.arc(p.x, p.y, 6.5, 0, Math.PI * 2); cx.fill();
+    cx.beginPath(); cx.arc(p.x, p.y, 2.2 * gr, 0, Math.PI * 2); cx.fill();
+    cx.globalAlpha = b.echt ? 0.3 : 0.22;
+    cx.beginPath(); cx.arc(p.x, p.y, 6.5 * gr, 0, Math.PI * 2); cx.fill();
+    /* Ein echter Aufruf hat einen hellen Kern — daran erkennt man ihn
+       neben dem Strom eines eigenen Agenten. */
+    if (b.echt) {
+      cx.globalAlpha = 0.85;
+      cx.fillStyle = "#f4f7ff";
+      cx.beginPath(); cx.arc(p.x, p.y, 1 * gr, 0, Math.PI * 2); cx.fill();
+    }
+    cx.globalAlpha = 1;
+  }
+  /* Angekommen: der Haltepunkt leuchtet kurz auf, in der Farbe dessen,
+     der ihn geschickt hat. */
+  if (ankunft !== undefined && t - ankunft < 420) {
+    const k = (t - ankunft) / 420;
+    cx.fillStyle = farbe;
+    cx.globalAlpha = (1 - k) * 0.55;
+    cx.beginPath(); cx.arc(von.x, von.y, (3 + k * 7) * zk, 0, Math.PI * 2); cx.fill();
+    cx.globalAlpha = (1 - k) * 0.9;
+    cx.fillStyle = "#f4f7ff";
+    cx.beginPath(); cx.arc(von.x, von.y, 1.4 * zk, 0, Math.PI * 2); cx.fill();
     cx.globalAlpha = 1;
   }
 }
@@ -12343,13 +12366,35 @@ function rahmen(jetzt) {
     const griffX = x + grX * kco - grY * ksi;
     const griffY = y + grX * ksi + grY * kco;
 
-    /* Impulse auf der Leine, solange gesendet wird */
-    if (l.zustand === "sendet" || (l.zustand === "denkt" && a.typ === "agent")) {
+    /* Impulse auf der Leine. Bei allem, was seinen Takt nicht
+       mitliefert — eigene Agenten, Prozesse, Ordner —, ein
+       gleichmaessiger Strom, solange gesendet wird: bei einem eigenen
+       Agenten laeuft dann wirklich die Antwort herein.
+
+       Eine Sitzung liefert ihren Takt mit, und dann ist jeder Impuls
+       ein echter Werkzeugaufruf. Vorher lief auch bei ihr ein Strom
+       alle 150 Millisekunden, fuenfundzwanzig Sekunden lang nach dem
+       letzten Eintrag — eine Sitzung, die einmal eine Datei las, sah
+       genauso beschaeftigt aus wie eine, die zwanzig Befehle
+       hintereinander absetzte. Jetzt ist die Leine eine Nervenbahn:
+       jeder Punkt, der zur Station laeuft, ist ein Aufruf, und wo er
+       ankommt, leuchtet der Haltepunkt kurz auf. */
+    const leitungEcht = Array.isArray(a.takt);
+    if (!leitungEcht && (l.zustand === "sendet" || (l.zustand === "denkt" && a.typ === "agent"))) {
       l.blitzUhr = (l.blitzUhr || 0) + dt;
       const takt = l.zustand === "sendet" ? 150 : 420;
       if (l.blitzUhr > takt) { l.blitzUhr = 0; l.blitze.push({ p: 0 }); }
     }
-    for (const b of l.blitze) b.p += dt * 0.0013;
+    if (l.leitung && l.leitung.length) {
+      while (l.leitung.length && l.leitung[0] <= t) {
+        l.leitung.shift();
+        l.blitze.push({ p: 0, echt: true });
+      }
+    }
+    for (const b of l.blitze) {
+      b.p += dt * 0.0013;
+      if (b.echt && b.p >= 1) l.ankunft = t;
+    }
     l.blitze = l.blitze.filter(b => b.p < 1);
 
     /* Die Sicherungsleine geht an den Haltepunkt daneben, nicht ins
@@ -12402,7 +12447,7 @@ function rahmen(jetzt) {
       Mfig, stiel, KAM.zoom * kinoZoom, t, v.phase,
       griffX, griffY, kipp);
 
-    zeichneLeine(anker, { x, y }, a.farbe, l.zustand, t, l.blitze, v.phase);
+    zeichneLeine(anker, { x, y }, a.farbe, l.zustand, t, l.blitze, v.phase, l.ankunft);
 
     /* Wer mit einer Hand am Handlauf haengt, pendelt um diese Hand:
        neun Grad Ausschlag, elf Sekunden fuer hin und zurueck. Hier ist
@@ -12465,7 +12510,11 @@ function rahmen(jetzt) {
         const neu = Math.min(6, a.takt.filter(zt => zt > v.taktBis).length);
         v.taktBis = letzter;
         v.pulse = v.pulse || [];
-        for (let i = 0; i < neu; i++) v.pulse.push(t + i * 2600 / neu);
+        l.leitung = l.leitung || [];
+        for (let i = 0; i < neu; i++) {
+          v.pulse.push(t + i * 2600 / neu);
+          l.leitung.push(t + i * 2600 / neu);
+        }
       }
     }
     if (v.pulse && v.pulse.length) {
