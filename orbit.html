@@ -1694,6 +1694,10 @@ function zeichneHimmel(t) {
     + KAM.x * 0.16 / Math.max(1, KAM.zoom), -spiel, spiel);
   const dy = klemm(Math.cos(t * 0.0000067) * 28 * d
     + KAM.y * 0.16 / Math.max(1, KAM.zoom), -spiel, spiel);
+  /* Fuer die Pruefung festgehalten: der Versatz darf nie ueber den
+     gebackenen Vorrat hinausgehen, sonst steht die Bildkante im
+     Bild. */
+  HIMMEL.dx = dx; HIMMEL.dy = dy; HIMMEL.spiel = spiel;
 
   cx.save();
   cx.setTransform(1, 0, 0, 1, 0, 0);
@@ -2488,7 +2492,7 @@ const TEILE = {
     name: "Gitterträger",
     kurz: "Das Rückgrat. Alles andere hängt daran.",
     lang: "Ein langer Balken aus dünnen Aluminiumrohren, zusammengesetzt aus elf Stücken. Er trägt die Solarflügel, die Radiatoren, die Batterien und die Schienen, auf denen der Roboterarm fährt. Weil er offen gebaut ist, sieht man mitten hindurch ins Schwarze — genau daran erkennt man ihn.",
-    zahl: "108,5 Meter lang. Ein Mensch im Anzug ist ein Achtundfünfzigstel davon.",
+    zahl: "108,5 Meter lang. Ein Mensch im Anzug ist ein Achtundfünfzigstel davon. Nach jedem Schub schwingt die ganze Struktur rund zehn Sekunden je Schwingung nach — man sieht es den Flügelspitzen an.",
   },
   fluegel: {
     name: "Solarflügel",
@@ -2709,6 +2713,28 @@ const VENTIL = [];
    Abgase am Heck, mehr nicht. */
 const SCHUB = { bis: 0, von: 0, laeuft: false };
 
+/* --- Das Nachschwingen ----------------------------------------------
+   Eine Station ist kein starrer Koerper. Sie ist hundert Meter lang,
+   besteht aus verschraubten Stuecken und traegt acht Teppiche, die an
+   duennen Masten haengen. Jeder Schub regt das an, und danach schwingt
+   die ganze Struktur nach — mit rund einem Zehntel Hertz, also gut
+   zehn Sekunden je Schwingung, und das ueber Minuten. Auf Aufnahmen
+   nach einem Ankoppeln sieht man den Fluegelspitzen dabei zu.
+
+   Zwei Entscheidungen dazu, beide bewusst:
+
+   Erstens laeuft die Schwingung in ECHTER Zeit und nicht gerafft. Sie
+   ist eine Eigenschaft der Struktur, nicht des Umlaufs; zwoelffach
+   gerafft waere aus dem Wiegen ein Flimmern geworden.
+
+   Zweitens ist es hier eine Breitenaenderung und keine Biegung. In
+   Wirklichkeit bleibt die Wurzel stehen und die Spitze wandert. Eine
+   Biegung braucht aber eine Scherung beim Kopieren, und die kostet den
+   schnellen Weg der Leinwand — gemessen die halbe Bildrate. Die
+   Breitenaenderung ist die naechstbeste Naeherung: eine Flaeche, die
+   sich aus der Ebene biegt, erscheint tatsaechlich schmaler. */
+const SCHWINGUNG = { von: 0 };
+
 /* --- Konjunktion: ein Stueck Schrott kommt zu nah -------------------
    In der Bahnhoehe der Station kreisen rund vierzigtausend verfolgte
    Objekte, vom ausgebrannten Oberstufenrumpf bis zur verlorenen
@@ -2845,6 +2871,8 @@ function ereignisse(t, dt, ccx, ccy, Rst) {
     if (SCHUB.laeuft) bordbuch("Bahnanhebung läuft");
   }
   if (SCHUB.laeuft) {
+    /* Solange geschoben wird, wird auch angeregt. */
+    SCHWINGUNG.von = t;
     const u = (t - SCHUB.von) / 26000;
     const an = Math.min(1, u * 8) * Math.min(1, (1 - u) * 8);
     cx.save();
@@ -4205,6 +4233,9 @@ function alphaWinkel(phase) {
    zoegert, verraet sofort, dass da jemand eine Animation gebaut hat
    statt eine Bahn. */
 let BEWEGLICH = true;
+/* Nur zum Nachmessen von aussen: was die beweglichen Teile gerade
+   tun. */
+const BEWEGSTAND = { hall: 0, breit: 0, alpha: 0 };
 function zeichneBewegliche(t, mitte, f, phase) {
   if (!STBILD || !FLBILD || !BEWEGLICH) return;
   const b = STBILD, fb = FLBILD;
@@ -4226,6 +4257,13 @@ function zeichneBewegliche(t, mitte, f, phase) {
      ruckelig. Nur im Uebergang selbst wird ueberblendet, und der
      dauert dreieinhalb Sekunden im Umlauf. */
   const mischung = lichtMischung(hell, abend);
+
+  /* Wie stark schwingt die Struktur gerade nach? Nach einem Schub
+     klingt es ueber gut eine Minute ab. */
+  const nachAlter = SCHWINGUNG.von ? t - SCHWINGUNG.von : 1e9;
+  const nachAbkl = nachAlter < 90000 ? Math.exp(-nachAlter / 34000) : 0;
+  const nachTakt = nachAlter * (Math.PI * 2 / 11000);
+  BEWEGSTAND.hall = nachAbkl * Math.sin(nachTakt);
 
   /* Der Sonnenglanz auf den Zellen. Er hat eine Bedingung, und die ist
      keine Geschmacksfrage: das Gelenk dreht den Fluegel immer zur
@@ -4260,7 +4298,15 @@ function zeichneBewegliche(t, mitte, f, phase) {
     const kos = Math.cos(alpha);
     /* Auf der Kante bleibt ein Rest: das Paket hat Dicke, und der
        Mast steht auch dann noch da. Ganz verschwinden darf nichts. */
-    const breit = Math.max(0.1, Math.abs(kos) + beta * Math.sign(kos || 1));
+    /* Das aeussere Fluegelpaar sitzt weiter draussen am Traeger und
+       schwingt deshalb staerker und etwas spaeter — genau daran
+       erkennt man eine Schwingung der STRUKTUR und nicht eine
+       Bewegung des Gelenks. */
+    const hall = nachAbkl * (m.paar ? 0.075 : 0.045)
+      * Math.sin(nachTakt - m.paar * 0.9 - m.seite * 0.5);
+    const breit = Math.max(0.1,
+      Math.abs(kos) + beta * Math.sign(kos || 1) + hall);
+    BEWEGSTAND.breit = breit; BEWEGSTAND.alpha = alpha;
     const vorn = kos >= 0;
     const idx = m.irosa ? 1 : 0;
     /* Minus mal minus: der untere Fluegel ist der obere, um eine halbe
@@ -6578,6 +6624,7 @@ function zeichneErde(t) {
   const seit = ERDE.seit || 0;
   const dx = klemm(KAM.x * 0.3 / Math.max(1, KAM.zoom), -seit, seit);
   const dy = klemm(KAM.y * 0.3 / Math.max(1, KAM.zoom), -ERDE.rand, ERDE.rand);
+  ERDE.dx = dx; ERDE.dy = dy;
 
   /* Der Tagesrand wandert einmal je Umlauf ueber die Scheibe. Bei Tag
      laeuft er von rechts heran, bei Nacht laeuft die Helligkeit von
@@ -9660,6 +9707,11 @@ window.__TEIL = (k) => teilZeigen(k);
 window.__RUNDGANG = () => RUNDGANG;
 window.__ZEIT = () => ZEIT;
 window.__Z = () => Z;
+window.__SCHUB = () => SCHUB;
+window.__SCHWING = () => SCHWINGUNG;
+window.__BEWEGSTAND = () => BEWEGSTAND;
+window.__HIMMEL_STAND = () => ({ dx: HIMMEL.dx, dy: HIMMEL.dy, spiel: HIMMEL.spiel,
+  bw: HIMMEL.bild ? HIMMEL.bild.width : 0, bh: HIMMEL.bild ? HIMMEL.bild.height : 0, rand: HIMMEL_RAND });
 window.__TRIFFT = (x, y) => trifftStruktur(x, y);
 window.__MISSION = () => MISSION;
 window.__ERDE = () => ERDE;
