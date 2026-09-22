@@ -7570,20 +7570,6 @@ function erdeSchatten(termX, tags, lauf) {
   c.drawImage(ERDE.maske, 0, 0, bw, bh);
   c.globalCompositeOperation = "source-over";
 
-  if (!tags || lauf > 0.55) {
-    c.save();
-    c.globalCompositeOperation = "lighter";
-    c.globalAlpha = tags ? 0.3 : 1;
-    c.drawImage(ERDE.lichter, -schub, 0, bw, bh);
-    c.drawImage(ERDE.lichter, bw - schub, 0, bw, bh);
-    c.restore();
-    /* Die Lichter duerfen nicht ueber den Rand der Scheibe hinaus —
-       sie wurden ohne Maske kopiert. */
-    c.globalCompositeOperation = "destination-in";
-    c.drawImage(ERDE.maske, 0, 0, bw, bh);
-    c.globalCompositeOperation = "source-over";
-  }
-
   /* Der Luftschleier ueber dem Rand: Farbe, also darueberlegen. */
   c.drawImage(ERDE.saum, 0, 0, bw, bh);
   /* Der leuchtende Saum: Licht, also dazuaddieren. */
@@ -7639,6 +7625,49 @@ function erdeSchatten(termX, tags, lauf) {
   c.fillStyle = sg;
   c.fillRect(0, 0, bw, bh);
   c.restore();
+
+  /* --- Stadtlichter ---------------------------------------------------
+     Sie kommen ZULETZT, nach dem Daemmerungsverlauf. Vorher lagen sie
+     darunter, und der Verlauf deckt in tiefer Nacht
+     siebenundneunzigeinhalb Prozent zu — ein Lichtpunkt mit
+     neunzig Prozent Deckkraft blieb davon bei zwei Prozent uebrig und
+     war schlicht unsichtbar. Aufgefallen ist das erst, als der
+     Tagesrand richtig getaktet wurde und die Nacht wirklich dunkel
+     war; davor sah man die Lichter nur in dem schmalen Streifen nahe
+     der Daemmerung, wo der Verlauf noch duenn ist.
+
+     Und es ist auch der Reihe nach richtig: eine Stadt wird nicht vom
+     Erdschatten verdunkelt. Sie leuchtet selbst. Was ueber ihr liegen
+     darf, ist Wolke — und die steckt schon im Bild darunter.
+
+     Nur auf der Nachtseite, mit einem Versatz von 0,09 Bildbreiten
+     ueber den Tagesrand hinaus: dort deckt der Verlauf schon ueber
+     achtzig Prozent, also faellt die harte Schnittkante nicht auf.
+     Genau am Rand zu schneiden legte einen sichtbaren Strich mitten
+     durch das hellste Stueck des Streifens.
+
+     Beschnitten wird auf einen Kreis statt auf die Maske: die Maske
+     liesse sich nur mit "destination-in" anwenden, und das wuerde
+     alles andere gleich mit wegnehmen. Die Scheibe IST ein Kreis,
+     also genuegt einer. */
+  const kante = W * 0.09 * sk;
+  const nachtVon = tags ? tx + kante : 0;
+  const nachtBis = tags ? bw : tx - kante;
+  if (nachtBis - nachtVon > 2) {
+    const mE = erdeMasse();
+    c.save();
+    c.beginPath();
+    c.rect(nachtVon, 0, nachtBis - nachtVon, bh);
+    c.clip();
+    c.beginPath();
+    c.arc((mE.cx + vorrat) * sk, (mE.cy - ERDE.oben) * sk, mE.r * sk, 0, Math.PI * 2);
+    c.clip();
+    c.globalCompositeOperation = "lighter";
+    c.drawImage(ERDE.lichter, -schub, 0, bw, bh);
+    c.drawImage(ERDE.lichter, bw - schub, 0, bw, bh);
+    c.restore();
+  }
+
   ERDE.termX = termX;
   ERDE.schubGebacken = ERDE.schub;
 }
@@ -7661,13 +7690,20 @@ function erdeSchatten(termX, tags, lauf) {
    Wasser lag, verschwand er im Streulicht. Drei Bilder und sechs
    Kopien fuer etwas, das man nicht sieht, sind drei Bilder zu viel. */
 function sonnenhoch(c, bw, bh, termX, tags, lauf) {
-  if (!tags) return;
-  /* Ein gutes halbes Bild von der Daemmerungslinie entfernt steht die
-     Sonne im Zenit. Sie wandert mit dem Tagesrand ueber die Scheibe. */
+  /* Der Unterpunkt der Sonne liegt einen rechten Winkel vom Tagesrand
+     entfernt. Seit der Rand in Umlaufanteilen gerechnet wird, laesst
+     sich das ausrechnen statt schaetzen: der Rand ueberstreicht 1,2
+     Bildbreiten in 0,19 Umlaeufen, ein Viertelumlauf sind also
+     1,2 · 0,25 / 0,19 = 1,58 Bildbreiten.
+
+     Auf welcher Seite, haengt davon ab, wo der Tag liegt. Vorher gab
+     es diesen Fall gar nicht — die Funktion stieg bei Nacht sofort
+     aus und zeichnete damit in der ersten Tageshaelfte nichts, weil
+     dort der Aufgang die naehere Kreuzung ist. */
   const sk = bw / (ERDE.bildBreite || W);
-  const gx = (termX - W * 0.62 + (ERDE.seit || 0)) * sk;
+  const gx = (termX + (tags ? -1 : 1) * W * 1.58 + (ERDE.seit || 0)) * sk;
   const gy = bh * 0.5;
-  const r = W * 0.62 * sk;
+  const r = W * 1.05 * sk;
   if (gx < -r || gx > bw + r) return;
   const rg = c.createRadialGradient(gx, gy, 0, gx, gy, r);
   rg.addColorStop(0, "rgba(255,250,232,.3)");
@@ -7735,10 +7771,45 @@ function zeichneErde(t) {
      laeuft er von rechts heran, bei Nacht laeuft die Helligkeit von
      links wieder auf. */
   const ph = window.__PHASE_WERT !== undefined ? window.__PHASE_WERT : 0;
-  const tags = Z.umlauf === false ? true : ph < TAGANTEIL;
-  const lauf = Z.umlauf === false ? 0.1
-             : tags ? ph / TAGANTEIL : (ph - TAGANTEIL) / (1 - TAGANTEIL);
-  const termX = W * (1.7 - 2.4 * lauf);
+  /* --- Wo steht der Tagesrand auf dem sichtbaren Boden? ---------------
+     Das war lange falsch getaktet, und zwar deutlich. Der Rand lief
+     gleichmaessig ueber den ganzen Tagesabschnitt und kreuzte den
+     Punkt unter der Station in dessen MITTE — also gut achtzehn
+     Minuten neben dem Augenblick, in dem die Station selbst ins
+     Dunkle faehrt. Die Folge sah man: bei Phase 0,86 stand die
+     Station im Erdschatten und darunter lag eine voll besonnte Erde.
+     Das kann nicht sein. Die Station ist vierhundert Kilometer hoch;
+     sie sieht die Sonne LAENGER als der Boden unter ihr, nie kuerzer.
+
+     Richtig ist: der Unterpunkt kreuzt den Rand rund zwei Minuten vor
+     dem Sonnenuntergang der Station und rund zwei Minuten nach ihrem
+     Aufgang. Zwei Minuten sind bei zweiundneunzig Minuten Umlauf gut
+     zwei Hundertstel.
+
+     Und der Rand steht nicht die halbe Nacht im Bild. Der sichtbare
+     Bodenstreifen ist ein paar tausend Kilometer breit, die Station
+     legt siebeneinhalb Kilometer in der Sekunde zurueck — der
+     Durchgang dauert Minuten, nicht eine halbe Stunde. Er ist damit
+     ein Ereignis zweimal je Umlauf und kein Dauerzustand. Dazwischen
+     liegt der Boden gleichmaessig im Licht oder gleichmaessig im
+     Dunkeln, und genau so sieht es aus dem Orbit auch aus.
+
+     Gerechnet wird der Abstand zur naechsten der beiden Kreuzungen.
+     Welche es ist, entscheidet zugleich, auf welcher Seite des Randes
+     der Tag liegt: vor dem Untergang links, vor dem Aufgang rechts. */
+  const VORLAUF = 0.022;              // gut zwei Minuten
+  const SCHWENK = 0.19;               // wie lange der Rand im Bild steht
+  const wickel = (x) => { let v = x % 1; if (v > 0.5) v -= 1; if (v < -0.5) v += 1; return v; };
+  const dUnter = wickel(ph - (TAGANTEIL - VORLAUF));   // zum Untergang
+  const dAuf   = wickel(ph - VORLAUF);                 // zum Aufgang
+  const nahUnter = Math.abs(dUnter) <= Math.abs(dAuf);
+  const d = nahUnter ? dUnter : dAuf;
+  /* Vor der Kreuzung steht der Rand rechts, danach links — die
+     Station faehrt nach rechts, der Rand kommt ihr also entgegen. */
+  const tags = Z.umlauf === false ? true : nahUnter;
+  const termX = Z.umlauf === false ? W * 1.7
+              : W * (0.5 - (d / SCHWENK) * 1.2);
+  const lauf = Z.umlauf === false ? 0.1 : klemm(0.5 + d / SCHWENK, 0, 1);
   /* Wie weit der Boden seit dem letzten Mal weitergezogen ist. Die
      Rate ist aus dem Flug hergeleitet: die Station umrundet die Erde
      einmal je Umlauf, und dabei laeuft unter ihr rund dreizehnmal die
@@ -7775,8 +7846,91 @@ function zeichneErde(t) {
      vollstaendig. Und es steht nie still — die Vorhaenge wandern und
      flackern ueber Minuten, nicht ueber Sekunden. */
   const m2 = erdeMasse();
-  if (TAGLICHT < 0.92) {
-    const staerke = (1 - TAGLICHT);
+
+  /* --- Nachthimmelsleuchten -------------------------------------------
+     Das steht auf JEDEM Nachtbild aus dem Orbit und wird fast nie
+     gezeichnet: ein haarscharfes gruenlich-gelbes Band ueber dem
+     Horizont, deutlich hoeher als der blaue Tagsaum und deutlich
+     schmaler. Es ist nicht das Polarlicht — das gibt es nur in hohen
+     Breiten und es flackert; dieses Band steht rund um die ganze
+     Nachtseite und steht still.
+
+     Woher es kommt: tagsueber zerlegt die Sonne Sauerstoff in
+     neunzig Kilometern Hoehe in einzelne Atome. Nachts finden die
+     sich wieder zu Molekuelen zusammen, und dabei bleibt Energie
+     uebrig, die als Licht abgegeben wird. Die Luft dort oben
+     leuchtet also von dem, was der Tag in ihr angerichtet hat.
+
+     Die Hoehe ist der Grund, warum das Band so scharf ist: die
+     leuchtende Schicht ist nur rund zehn Kilometer dick, und
+     streifend gesehen wird daraus eine Linie. Neunzig Kilometer sind
+     bei einem Erdradius von 6371 gerade 1,4 Prozent — genau dort
+     sitzt es, ein schmaler Ring dicht ueber der Kante.
+
+     Gruen von Sauerstoff, mit einem Stich ins Gelbrote vom Natrium
+     darunter. Bei Tag ist davon nichts zu sehen. */
+  if (TAGLICHT < 0.85) {
+    const nl = (1 - TAGLICHT / 0.85);
+    const mx3 = (m2.cx + dx) * DPR, my3 = (m2.cy + dy) * DPR;
+    const rr3 = m2.r * DPR;
+    cx.save();
+    cx.globalCompositeOperation = "lighter";
+    /* Innen scharf abgeschnitten, aussen weich — so sieht eine
+       leuchtende Schicht von der Seite aus. */
+    const lg3 = cx.createRadialGradient(mx3, my3, rr3 * 1.0075, mx3, my3, rr3 * 1.021);
+    lg3.addColorStop(0, "rgba(120,220,150,0)");
+    lg3.addColorStop(0.22, `rgba(146,236,164,${nl * 0.4})`);
+    lg3.addColorStop(0.45, `rgba(190,224,140,${nl * 0.22})`);
+    lg3.addColorStop(0.78, `rgba(214,170,110,${nl * 0.07})`);
+    lg3.addColorStop(1, "rgba(200,160,110,0)");
+    cx.fillStyle = lg3;
+    /* Nur ueber dem dunklen Teil des Horizonts. Wo die Sonne auf die
+       Kante scheint, ueberstrahlt sie das Leuchten vollstaendig —
+       leuchten tut die Schicht dort trotzdem, man sieht es nur nicht.
+
+       Ausgeblendet wird weich, und zwar in senkrechten Streifen mit
+       je eigener Deckkraft. Ein harter Schnitt waere eine senkrechte
+       Kante quer durch den Bogen, und die faellt sofort auf. */
+    const von3 = tags ? termX + W * 0.16 : -W * 0.5;
+    const bis3 = tags ? W * 1.5 : termX - W * 0.16;
+    const weich = W * 0.22;
+    const nS = 26;
+    for (let i = 0; i < nS; i++) {
+      const x0 = (i / nS) * W, x1 = ((i + 1) / nS) * W;
+      const mitte3 = (x0 + x1) / 2;
+      let a3 = 1;
+      if (mitte3 < von3) a3 = 0; else if (mitte3 < von3 + weich) a3 = (mitte3 - von3) / weich;
+      if (mitte3 > bis3) a3 = 0; else if (mitte3 > bis3 - weich) a3 = Math.min(a3, (bis3 - mitte3) / weich);
+      if (a3 <= 0.01) continue;
+      cx.globalAlpha = a3;
+      cx.beginPath();
+      cx.rect(x0 * DPR, my3 - rr3 * 1.03, (x1 - x0) * DPR + 1, rr3 * 0.06);
+      cx.fill();
+    }
+    cx.globalAlpha = 1;
+    cx.restore();
+  }
+
+  /* Wie nah ist die Station gerade am Polarlichtoval? Das Oval liegt
+     rund um den magnetischen Pol bei etwa siebenundsechzig Grad
+     Breite; die Station kommt bei ihrer Neigung von 51,6 Grad nicht
+     hinein, sieht es aber von der Seite ueber dem Horizont stehen,
+     und zwar nur nahe ihrer hoechsten und tiefsten Breite. Das
+     passiert zweimal je Umlauf.
+
+     Vorher stand das Polarlicht die ganze Nacht ueber da. Das ist der
+     haeufigste Fehler beim Polarlicht ueberhaupt — es ist kein
+     Dauerzustand des Nachthimmels, sondern eine Gegend, durch die man
+     faehrt. Mit der Breite als Faktor wird daraus ein Ereignis: es
+     schiebt sich ueber Minuten herein, steht hoch, und geht wieder.
+
+     Der Exponent macht den Durchgang schmal. Einer von den beiden
+     faellt in den Tag und ist damit unsichtbar — bei Tag
+     ueberstrahlt die Sonne es vollstaendig. Uebrig bleibt einer je
+     Umlauf, und genau das macht ihn zu etwas, auf das man wartet. */
+  const breite = Math.pow(Math.abs(Math.sin(ph * Math.PI * 2)), 3.4);
+  if (TAGLICHT < 0.92 && breite > 0.04) {
+    const staerke = (1 - TAGLICHT) * breite;
     /* In Bildschirmkoordinaten, nicht in denen der gebackenen Scheibe:
        deren Nullpunkt liegt bei ERDE.oben, und wer den hier abzieht,
        zeichnet das Polarlicht um genau diesen Betrag zu hoch. */
