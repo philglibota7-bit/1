@@ -7895,12 +7895,22 @@ function zeichneSonne(t, phase) {
      jedes Mal verdeckt. Weiter aussen faellt die Erdkante ausserdem
      tiefer, die Sonne kommt also unterhalb der Fluegel heraus. */
   const u = st.hoch / 0.34;
-  const sx = st.auf ? W * (0.95 - u * 0.14) : W * (0.05 + u * 0.14);
+  /* Mitwandern wie der Sternhimmel. Die Sonne steht hundertfuenfzig
+     Millionen Kilometer weit weg, also unendlich weit gegen alles
+     andere im Bild — sie gehoert zur Staffelungsebene der Sterne und
+     nicht zu der der Erde. Ohne diesen Versatz blieb sie beim
+     Verschieben stehen, waehrend der Himmel um sie herum wanderte;
+     bei starkem Zoom sah man sie durch das Sternenfeld gleiten. */
+  const hdx = HIMMEL.dx || 0, hdy = HIMMEL.dy || 0;
+  const sx = W * (st.auf ? 0.95 - u * 0.14 : 0.05 + u * 0.14) + hdx;
 
-  /* Die Kante der Erde genau unter ihr. Darueber steigt sie auf. */
+  /* Die Kante der Erde genau unter ihr. Darueber steigt sie auf.
+     Dass sie sich dabei gegen die Kante verschiebt, ist richtig —
+     genau das ist Parallaxe: die Erde steht vierhundert Kilometer
+     weit weg, die Sonne hundertfuenfzig Millionen. */
   const q = m.r * m.r - (sx - mx) * (sx - mx);
   const rand = q > 0 ? my - Math.sqrt(q) : my - m.r;
-  const sy = rand - u * (rand + H * 0.2);
+  const sy = rand - u * (rand + H * 0.2) + hdy;
 
   /* Ein Zweihundertvierundsechzigstel des Erdhalbmessers. */
   const rs = Math.max(3.2, m.r / 264);
@@ -8093,13 +8103,15 @@ function zeichneMond(t, phase) {
   const m = erdeMasse();
   const mx = m.cx + (ERDE.dx || 0), my = m.cy + (ERDE.dy || 0);
 
-  const sx = W * (0.95 - (st.u + 1) / 2 * 0.9);
+  /* Derselbe Versatz wie beim Sternhimmel und bei der Sonne. */
+  const hdx = HIMMEL.dx || 0, hdy = HIMMEL.dy || 0;
+  const sx = W * (0.95 - (st.u + 1) / 2 * 0.9) + hdx;
   const q = m.r * m.r - (sx - mx) * (sx - mx);
   const rand = q > 0 ? my - Math.sqrt(q) : my - m.r;
   /* Im Zenit soll er noch im Bild stehen, nicht darueber. Mit einem
      Zuschlag statt eines Abzugs stand er in der halben Nacht
      ausserhalb des Schirms — sichtbar waren nur Auf- und Untergang. */
-  const sy = rand - st.hoch * (rand - H * 0.07);
+  const sy = rand - st.hoch * (rand - H * 0.07) + hdy;
   const rm = Math.max(3.2, m.r / 264);
 
   /* Der beleuchtete Anteil. Null bei Neumond, eins bei Vollmond. */
@@ -11277,10 +11289,10 @@ window.__MOND = (ph) => {
   if (!st) return null;
   const m = erdeMasse();
   const mx = m.cx + (ERDE.dx || 0), my = m.cy + (ERDE.dy || 0);
-  const sx = W * (0.95 - (st.u + 1) / 2 * 0.9);
+  const sx = W * (0.95 - (st.u + 1) / 2 * 0.9) + (HIMMEL.dx || 0);
   const q = m.r * m.r - (sx - mx) * (sx - mx);
   const rand = q > 0 ? my - Math.sqrt(q) : my - m.r;
-  return { ...st, sx, sy: rand - st.hoch * (rand - H * 0.07), rand,
+  return { ...st, sx, sy: rand - st.hoch * (rand - H * 0.07) + (HIMMEL.dy || 0), rand,
            rm: Math.max(3.2, m.r / 264),
            k: (1 - Math.cos(st.elong * Math.PI / 180)) / 2 };
 };
@@ -11291,10 +11303,10 @@ window.__SONNE = (ph) => {
   const m = erdeMasse();
   const mx = m.cx + (ERDE.dx || 0), my = m.cy + (ERDE.dy || 0);
   const u = st.hoch / 0.34;
-  const sx = st.auf ? W * (0.95 - u * 0.14) : W * (0.05 + u * 0.14);
+  const sx = W * (st.auf ? 0.95 - u * 0.14 : 0.05 + u * 0.14) + (HIMMEL.dx || 0);
   const q = m.r * m.r - (sx - mx) * (sx - mx);
   const rand = q > 0 ? my - Math.sqrt(q) : my - m.r;
-  const sy = rand - u * (rand + H * 0.2);
+  const sy = rand - u * (rand + H * 0.2) + (HIMMEL.dy || 0);
   const rs = Math.max(3.2, m.r / 264);
   return { ...st, sx, sy, rand, rs, DPR, W, H, r: m.r, my };
 };
