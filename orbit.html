@@ -2404,8 +2404,15 @@ let HEUTE_WAHL = null;           // die angetippte Sitzung im Tagesbogen
    geschrieben hat — nach denselben Regeln wie beim Auftrag. Er steht in
    denselben ersten Zeilen wie der Ordner, kostet also keinen weiteren
    Lesezugriff. Die letzte Zeile ist dort oft angeschnitten; die wird
-   einfach uebergangen. */
-function ersterAuftrag(kopf) {
+   einfach uebergangen.
+
+   Nicht zu verwechseln mit ersterAuftrag() weiter oben, der Aufgabe
+   eines Unteragenten: die kennt den Vorspann der Arbeitsablaeufe. Diese
+   Funktion hiess zuerst genauso — und weil in JavaScript die spaetere
+   von zwei gleichnamigen Funktionen gilt, verloren die Agenten eines
+   Arbeitsablaufs ihre Aufgabe und wurden bei jedem Durchlauf neu
+   gelesen. */
+function sitzungsBeginn(kopf) {
   for (const z of kopf.split("\n")) {
     if (!z.includes('"type":"user"')) continue;
     let d;
@@ -2435,7 +2442,7 @@ async function heuteSammeln() {
             { pos: 0, size: Math.max(1, Math.min(f.groesse || 16384, 16384)) });
           const m = /"cwd":"((?:[^"\\]|\\.)*)"/.exec(kopf);
           if (m) ort = JSON.parse('"' + m[1] + '"');
-          KOPF_AUFTRAG.set(f.pfad, ersterAuftrag(kopf));
+          KOPF_AUFTRAG.set(f.pfad, sitzungsBeginn(kopf));
         } catch {}
         KOPF_ORT.set(f.pfad, ort);
       }
@@ -16463,8 +16470,10 @@ for (const k of $$("#umlauf-sprung button")) {
   };
 }
 
-/* Zeitraffer umschalten */
-function zeitText() {
+/* Zeitraffer umschalten. Hiess einmal zeitText() — genau wie die
+   Funktion, die im Missions-Log die Uhrzeit schreibt. Die spaetere gilt,
+   und so stand dort seither keine Uhrzeit mehr. */
+function zeitrafferText() {
   const f = $("#zeit-text");
   if (!f) return;
   if (ZEIT.rate === 0) { f.textContent = "Angehalten. Licht, Flügelstellung und Werte stehen still."; return; }
@@ -16477,7 +16486,7 @@ for (const k of $$("#zeit-raffer button")) {
   k.onclick = () => {
     ZEIT.rate = parseFloat(k.dataset.rate);
     for (const o of $$("#zeit-raffer button")) o.classList.toggle("an", o === k);
-    zeitText();
+    zeitrafferText();
     if (ZEIT.rate) sichern();
   };
 }
@@ -16489,7 +16498,7 @@ function zeitKnopfStand() {
   for (const o of $$("#zeit-raffer button")) {
     o.classList.toggle("an", parseFloat(o.dataset.rate) === ZEIT.rate);
   }
-  zeitText();
+  zeitrafferText();
 }
 zeitKnopfStand();
 
