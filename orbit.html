@@ -6863,13 +6863,7 @@ function mischen(a, b, t) {
   return "#" + z(lerp(r1, r2, t)) + z(lerp(g1, g2, t)) + z(lerp(b1, b2, t));
 }
 
-/* --- Halteleine mit Durchhang und Lichtimpulsen --- */
-function bezier(p0, p1, p2, t) {
-  const u = 1 - t;
-  return { x: u * u * p0.x + 2 * u * t * p1.x + t * t * p2.x,
-           y: u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y };
-}
-
+/* --- Halteleine mit Lichtimpulsen --- */
 /* Die Sicherungsleine. Im Vakuum haengt sie NICHT durch: ein Durchhang
    ist eine Kettenlinie unter Schwerkraft, und die gibt es hier nicht.
    Die Leine ist gerade gespannt oder schlaff, aber nie geschwungen.
@@ -9269,8 +9263,6 @@ function kameraNachfuehren() {
 }
 
 const SICHT = new Map();     // agentId -> { r, winkel, sx, sy }
-const ZUSTAND_RADIUS = { ruht: 1.0, denkt: 0.74, sendet: 0.86, fertig: 1.09,
-                         fehler: 1.17, winkt: 1.02 };
 let letzteZeit = performance.now();
 let kinoAn = false;
 
@@ -11148,17 +11140,6 @@ function schrittStrahl(schritte, laeuft) {
     }
   });
   return box;
-}
-
-function schrittZeile(sch) {
-  const d = document.createElement("div");
-  d.className = "d-schritt";
-  const z = document.createElement("span"); z.className = "zt"; z.textContent = uhr(sch.zeit);
-  const w = document.createElement("span"); w.className = "wz"; w.textContent = sch.werkzeug || "";
-  const t = document.createElement("span"); t.className = "tx"; t.textContent = sch.text || "";
-  t.title = sch.text || "";
-  d.append(z, w, t);
-  return d;
 }
 
 function externOeffnen(url) {
