@@ -7286,6 +7286,204 @@ const HIMMEL_RAND = 150;
    additiv verrechnet — das kostete so viel, dass nur noch sieben Bilder
    pro Sekunde herauskamen. Jetzt passiert das genau einmal; im laufenden
    Betrieb wird nur noch ein fertiges Bild eins zu eins kopiert. */
+/* --- Die Sonne -------------------------------------------------------
+   Sechzehn Sonnenaufgaenge am Tag sind das, wovon jeder erzaehlt, der
+   oben war — und sie kamen im Bild ueberhaupt nicht vor. Das Licht
+   wechselte, aber die Quelle blieb unsichtbar.
+
+   ZUR GROESSE. Aus 400 Kilometern Hoehe misst die Erde 70 Grad im
+   Halbmesser, die Sonne 0,265 Grad. Die Sonnenscheibe ist also genau
+   ein Zweihundertvierundsechzigstel des Erdhalbmessers — auf einem
+   Bild von 1500 Punkten Breite rund acht Punkte. Das ist erschreckend
+   klein, und es ist richtig so. Wer die Sonne groesser zeichnet, macht
+   sie zu einem Lampion; was sie gross erscheinen laesst, ist nicht
+   ihre Scheibe, sondern das, was sie mit dem Auge und der Linse
+   anstellt. Also bleibt die Scheibe winzig und der Schein darum
+   herum riesig.
+
+   ZUR FARBE UND FORM AM HORIZONT. Dicht ueber der Kante geht ihr Licht
+   streifend durch die ganze Lufthuelle. Blau wird herausgestreut, Rot
+   bleibt — dieselbe Rechnung wie beim Abendrot vom Boden aus, nur
+   schneller: hier dauert der ganze Vorgang dreiundvierzig Sekunden
+   statt einer halben Stunde. Dazu bricht die Luft das Licht, und zwar
+   den unteren Rand staerker als den oberen: die Scheibe wird gestaucht
+   und steht als Ellipse auf der Kante. Beides zusammen ist das, woran
+   man einen Sonnenaufgang aus dem Orbit sofort erkennt.
+
+   WANN UND WO. Der Stand kommt aus der Umlaufphase, dieselbe Zahl, die
+   auch das Licht auf der Station steuert. Sie geht im Osten auf — und
+   Osten ist hier rechts, denn dorthin faehrt die Station: der Boden
+   unter ihr zieht nach links, und der Tagesrand wandert mit. */
+function sonnenStand(phase) {
+  /* Zeit seit dem Aufgang, in Umlaufanteilen. Der Aufgang selbst
+     faellt ans ENDE der Nacht — dort laeuft tageslicht() hoch. */
+  const D = TAGANTEIL + UEBERGANG;           // wie lange die Sonne oben steht
+  let tau;
+  if (phase >= 1 - UEBERGANG) tau = phase - (1 - UEBERGANG);
+  else if (phase < TAGANTEIL) tau = phase + UEBERGANG;
+  else return null;                          // im Erdschatten
+  const hoch = Math.sin(Math.PI * tau / D);  // 0 am Horizont, 1 im Zenit
+  /* Ueber einem Drittel ist sie laengst oberhalb des Bildrandes. Dann
+     gibt es nichts zu zeichnen, und der Verlauf waere nur Rechenzeit. */
+  if (hoch > 0.34) return null;
+  return { hoch, auf: tau < D / 2 };
+}
+
+function zeichneSonne(t, phase) {
+  if (sparsam) return;
+  const st = sonnenStand(phase);
+  if (!st) return;
+  const m = erdeMasse();
+  const dx = ERDE.dx || 0, dy = ERDE.dy || 0;
+  const mx = m.cx + dx, my = m.cy + dy;
+
+  /* Aufgang rechts, Untergang links — vorn und hinten in Fahrtrichtung.
+     Beim Steigen wandert sie dabei etwas zur Mitte, denn ihre Bahn ist
+     ein Bogen und keine Senkrechte.
+
+     Weit aussen, nicht bei 0,88: dort stand sie genau hinter dem
+     aeusseren Solarfluegel, und der Augenblick, um den es geht, war
+     jedes Mal verdeckt. Weiter aussen faellt die Erdkante ausserdem
+     tiefer, die Sonne kommt also unterhalb der Fluegel heraus. */
+  const u = st.hoch / 0.34;
+  const sx = st.auf ? W * (0.95 - u * 0.14) : W * (0.05 + u * 0.14);
+
+  /* Die Kante der Erde genau unter ihr. Darueber steigt sie auf. */
+  const q = m.r * m.r - (sx - mx) * (sx - mx);
+  const rand = q > 0 ? my - Math.sqrt(q) : my - m.r;
+  const sy = rand - u * (rand + H * 0.2);
+
+  /* Ein Zweihundertvierundsechzigstel des Erdhalbmessers. */
+  const rs = Math.max(3.2, m.r / 264);
+
+  /* Wie tief steht sie? Gemessen in eigenen Halbmessern ueber der
+     Kante — das ist auch das Mass, in dem die Lufthuelle dick wird. */
+  const tief = Math.max(0, Math.min(1, 1 - (rand - sy) / (rs * 22)));
+  const rot = Math.pow(tief, 1.6);
+
+  const kern = [255, 250 - rot * 150, 238 - rot * 202];
+  const hof  = [255, 214 - rot * 100, 168 - rot * 118];
+
+  cx.save();
+  cx.setTransform(1, 0, 0, 1, 0, 0);
+  /* Hinter der Erde ist sie nicht zu sehen. Beim Aufgang steht sie
+     halb dahinter, und genau dieser Augenblick ist das Bild, das
+     jeder kennt — ohne Beschnitt laege die Scheibe obenauf und der
+     Aufgang faende nicht statt.
+
+     Der Beschnitt kostet aber: gemessen vier Bilder je Sekunde von
+     sechsunddreissig, denn ein Beschnittpfad aus Rechteck und Kreis
+     zwingt die Zeichenflaeche auf den langsamen Weg. Gebraucht wird
+     er nur, solange die Sonne die Scheibe ueberhaupt erreicht. Steht
+     sie hoeher als ihr eigener Schein weit ist, kann nichts mehr
+     ueberlappen — dann faellt er weg. */
+  const abstandMitte = Math.hypot(sx - mx, sy - my);
+  const weitVoraus = rs * 46;
+  if (abstandMitte - m.r < weitVoraus) {
+    cx.beginPath();
+    cx.rect(0, 0, W * DPR, H * DPR);
+    cx.arc(mx * DPR, my * DPR, m.r * DPR, 0, Math.PI * 2, true);
+    cx.clip("evenodd");
+  }
+  cx.globalCompositeOperation = "lighter";
+
+  const px = sx * DPR, py = sy * DPR, pr = rs * DPR;
+
+  /* Die Luft ueber der Kante, genau dort wo die Sonne steht. Von unten
+     angestrahlt leuchtet sie auf — nicht rundherum, sondern als
+     Schwall ueber der Stelle, an der die Sonne herauskommt. Das ist
+     das Erste, was man von einem Sonnenaufgang aus dem Orbit sieht,
+     lange bevor die Scheibe selbst erscheint, und es ist der Grund,
+     warum der Rand dort weiss wird und nicht blau bleibt.
+
+     Der Beschnitt auf das Aeussere der Scheibe schneidet die untere
+     Haelfte weg — es bleibt genau die Wulst ueber dem Horizont. */
+  if (tief > 0.02) {
+  const sw = pr * (44 - rot * 12);
+  const wg = cx.createRadialGradient(sx * DPR, rand * DPR, 0,
+    sx * DPR, rand * DPR, sw);
+  wg.addColorStop(0, `rgba(255,${226 - rot * 70},${196 - rot * 110},${0.3 + (1 - rot) * 0.1})`);
+  wg.addColorStop(0.3, `rgba(255,${196 - rot * 60},${150 - rot * 80},.13)`);
+  wg.addColorStop(0.65, `rgba(224,${180 - rot * 30},${150 - rot * 40},.045)`);
+  wg.addColorStop(1, "rgba(180,200,255,0)");
+  cx.save();
+  cx.translate(sx * DPR, rand * DPR);
+  cx.scale(1, 0.42);
+  cx.fillStyle = wg;
+  cx.translate(-sx * DPR, -rand * DPR);
+  cx.beginPath(); cx.arc(sx * DPR, rand * DPR, sw, 0, Math.PI * 2); cx.fill();
+  cx.restore();
+  }
+  /* Der grosse Schein. Er ist das, was die Sonne gross macht, nicht
+     ihre Scheibe: Streuung in der Luft, im Auge, in der Linse. Tief
+     steht sie, dann ist er breit und rot; hoch steht sie, dann ist er
+     eng und weiss. */
+  const weit = pr * (9 + (1 - rot) * 24);
+  const g = cx.createRadialGradient(px, py, pr * 0.4, px, py, weit);
+  g.addColorStop(0, `rgba(${hof[0]},${hof[1]},${hof[2]},${0.78 - rot * 0.2})`);
+  g.addColorStop(0.07, `rgba(${hof[0]},${hof[1]},${hof[2]},${0.44 - rot * 0.12})`);
+  g.addColorStop(0.2, `rgba(255,${190 - rot * 60},${140 - rot * 70},${0.17 - rot * 0.04})`);
+  g.addColorStop(0.5, `rgba(255,${176 - rot * 70},${120 - rot * 70},.05)`);
+  g.addColorStop(1, "rgba(255,160,110,0)");
+  cx.fillStyle = g;
+  cx.beginPath(); cx.arc(px, py, weit, 0, Math.PI * 2); cx.fill();
+
+  /* Die Scheibe. Dicht ueber der Kante steht sie als Ellipse: die
+     Luft hebt den unteren Rand staerker an als den oberen. */
+  const stauch = 1 - tief * 0.26;
+  cx.fillStyle = `rgba(${kern[0]},${kern[1]},${kern[2]},${0.9 + (1 - rot) * 0.1})`;
+  cx.beginPath();
+  cx.ellipse(px, py, pr, pr * stauch, 0, 0, Math.PI * 2);
+  cx.fill();
+  /* Der weisse Kern bleibt auch dann weiss, wenn der Rand schon rot
+     ist — die Mitte hat den kuerzesten Weg durch die Luft. */
+  cx.fillStyle = `rgba(255,${252 - rot * 60},${246 - rot * 110},.9)`;
+  cx.beginPath();
+  cx.ellipse(px, py, pr * 0.55, pr * 0.55 * stauch, 0, 0, Math.PI * 2);
+  cx.fill();
+
+  /* Tief stehend legt sich ihr Licht als Band in die Luft ueber der
+     Kante — waagerecht, weil die Lufthuelle waagerecht liegt. */
+  if (tief > 0.05) {
+    const bw = pr * 30 * tief, bh = pr * 1.7;
+    const bg = cx.createLinearGradient(px - bw, py, px + bw, py);
+    bg.addColorStop(0, "rgba(255,120,60,0)");
+    bg.addColorStop(0.5, `rgba(255,${150 - rot * 40},${92 - rot * 40},${0.16 * tief})`);
+    bg.addColorStop(1, "rgba(255,120,60,0)");
+    cx.fillStyle = bg;
+    cx.beginPath();
+    cx.ellipse(px, py, bw, bh, 0, 0, Math.PI * 2);
+    cx.fill();
+  }
+
+  /* Hoch stehend blendet sie, und eine Blende macht daraus ein Kreuz.
+     Das ist kein Effekt um seiner selbst willen: ohne ihn sieht eine
+     kleine helle Scheibe aus wie ein Stern, nicht wie die Sonne. */
+  if (tief < 0.6) {
+    /* Ein Farbverlauf in ein Rechteck gefuellt gibt einen Balken
+       gleicher Hoehe — und der sah aus wie ein Kratzer quer durchs
+       Bild. Ein Blendenstrahl ist aber eine Nadel: in der Mitte dick,
+       zu den Enden hin spitz und schwaecher. Das bekommt man, indem
+       man einen runden Verlauf ungleich streckt. */
+    const kl = pr * (7 + (1 - tief) * 11);
+    const an = (1 - tief / 0.6) * 0.3;
+    for (const [lang, duenn, f] of [[kl, kl * 0.055, 1], [kl * 0.62, kl * 0.05, 0.55]]) {
+      cx.save();
+      cx.translate(px, py);
+      if (f < 1) cx.rotate(Math.PI / 2);
+      cx.scale(lang / pr, Math.max(0.02, duenn / pr));
+      const kg = cx.createRadialGradient(0, 0, 0, 0, 0, pr);
+      kg.addColorStop(0, `rgba(255,250,236,${an * f})`);
+      kg.addColorStop(0.35, `rgba(255,244,220,${an * f * 0.42})`);
+      kg.addColorStop(1, "rgba(255,238,210,0)");
+      cx.fillStyle = kg;
+      cx.beginPath(); cx.arc(0, 0, pr, 0, Math.PI * 2); cx.fill();
+      cx.restore();
+    }
+  }
+  cx.restore();
+}
+
 function himmelBacken() {
   const t = aktivesThema();
   const start = performance.now();
@@ -7501,6 +7699,9 @@ function rahmen(jetzt) {
      UNTER der Station. Von hier oben sieht man ihn quer ueber die
      Nachtseite ziehen, nicht am Sternhimmel. */
   zeichneSternschnuppe(t, dt);
+  /* Die Sonne steht hinter der Station, aber vor der Erde — also nach
+     dem Planeten und vor allem, was zur Station gehoert. */
+  zeichneSonne(t, umlaufPhase);
 
   const ccx = W / 2;
   const ccy = H * (H / W > 1.3 ? 0.46 : kinoAn ? 0.47 : 0.43);
@@ -10354,6 +10555,19 @@ window.__HIMMEL_STAND = () => ({ dx: HIMMEL.dx, dy: HIMMEL.dy, spiel: HIMMEL.spi
 window.__TRIFFT = (x, y) => trifftStruktur(x, y);
 window.__MISSION = () => MISSION;
 window.__ERDE = () => ERDE;
+window.__SONNE = (ph) => {
+  const st = sonnenStand(ph);
+  if (!st) return null;
+  const m = erdeMasse();
+  const mx = m.cx + (ERDE.dx || 0), my = m.cy + (ERDE.dy || 0);
+  const u = st.hoch / 0.34;
+  const sx = st.auf ? W * (0.95 - u * 0.14) : W * (0.05 + u * 0.14);
+  const q = m.r * m.r - (sx - mx) * (sx - mx);
+  const rand = q > 0 ? my - Math.sqrt(q) : my - m.r;
+  const sy = rand - u * (rand + H * 0.2);
+  const rs = Math.max(3.2, m.r / 264);
+  return { ...st, sx, sy, rand, rs, DPR, W, H, r: m.r, my };
+};
 window.__ERDBACK = () => erdeBacken();
 window.__ERDSCHATTEN = (a, b, c) => erdeSchatten(a, b, c);
 window.__SICHTMAP = () => SICHT;
