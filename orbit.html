@@ -6767,30 +6767,53 @@ function zeichneErde(t) {
             Math.min(cv.width, dunkelBis) - Math.max(0, dunkelVon), rr * 0.09);
     cx.fill();
 
+    /* Die Vorhaenge stehen NACH AUSSEN ueber dem Horizont, nicht nach
+       innen in die Scheibe hinein. Sie reichen bis dreihundert
+       Kilometer hoch — deutlich hoeher als die Station fliegt —, und
+       genau deshalb sieht man sie vom Orbit aus ueber dem Rand stehen
+       und nicht darunter liegen. Hier war lange das Vorzeichen falsch,
+       und die Vorhaenge hingen in den Planeten.
+
+       Und sie sind unregelmaessig. Gleich breite Streifen im gleichen
+       Abstand ergeben einen Kamm, kein Polarlicht: in Wirklichkeit
+       stehen die Vorhaenge in Buescheln, mal dicht, mal weit, mal
+       hoch, mal flach. Die Unregelmaessigkeit kommt aus derselben
+       Streufunktion wie ueberall sonst — fest an die Nummer gebunden,
+       damit ein Vorhang nicht bei jedem Bild woanders steht. */
     for (let i = 0; i < 170; i++) {
       const f = i / 169;
-      /* Der Winkel laeuft ueber den sichtbaren Bogen des Horizonts */
-      const w = -Math.PI / 2 + (f - 0.5) * 0.9;
+      /* Der Ort wackelt um bis zu eine halbe Teilung — daraus werden
+         aus gleichen Abstaenden ungleiche. */
+      const ruck = (streu(i, 3, 29) - 0.5) * 0.8;
+      const w = -Math.PI / 2 + (f - 0.5 + ruck / 169) * 0.9;
       const px = mx + Math.cos(w) * rr;
       if (px < dunkelVon || px > dunkelBis) continue;
       const py = my + Math.sin(w) * rr;
       /* Zwei Wellen unterschiedlicher Laenge uebereinander ergeben das
-         unregelmaessige Wandern echter Vorhaenge. */
+         unregelmaessige Wandern echter Vorhaenge. Dazu ein fester
+         Zufall je Vorhang fuer Hoehe und Breite. */
       const welle = 0.5 + 0.5 * Math.sin(f * 11 + t * 0.00021)
                   * Math.sin(f * 4.3 - t * 0.00013 + 1.7);
-      const hoehe = rr * 0.011 * (0.3 + welle * 1.5);
-      const a = staerke * (0.05 + welle * 0.3);
+      const eigen = 0.35 + streu(i, 11, 17) * 1.3;
+      const hoehe = rr * 0.012 * (0.25 + welle * 1.6) * eigen;
+      const a = staerke * (0.05 + welle * 0.3) * (0.6 + streu(i, 5, 23) * 0.8);
       if (a < 0.02) continue;
-      const g = cx.createLinearGradient(px, py, px - Math.cos(w) * hoehe, py - Math.sin(w) * hoehe);
-      g.addColorStop(0, `rgba(96,255,176,${a * 0.85})`);
-      g.addColorStop(0.45, `rgba(70,226,190,${a * 0.5})`);
-      g.addColorStop(1, "rgba(120,180,255,0)");
+      const ex = px + Math.cos(w) * hoehe, ey = py + Math.sin(w) * hoehe;
+      const g = cx.createLinearGradient(px, py, ex, ey);
+      /* Unten gruen, oben rot: der Sauerstoff leuchtet in beiden
+         Farben, aber das Rot braucht duennere Luft und steht deshalb
+         weiter oben. Ein rein gruenes Polarlicht ist der haeufigste
+         Farbfehler. */
+      g.addColorStop(0, `rgba(96,255,176,${a * 0.9})`);
+      g.addColorStop(0.38, `rgba(70,226,190,${a * 0.55})`);
+      g.addColorStop(0.72, `rgba(148,150,230,${a * 0.2})`);
+      g.addColorStop(1, `rgba(214,96,150,0)`);
       cx.strokeStyle = g;
-      cx.lineWidth = rr * 0.013;
+      cx.lineWidth = rr * 0.006 * (0.5 + streu(i, 7, 19) * 1.4);
       cx.lineCap = "butt";
       cx.beginPath();
       cx.moveTo(px, py);
-      cx.lineTo(px - Math.cos(w) * hoehe, py - Math.sin(w) * hoehe);
+      cx.lineTo(ex, ey);
       cx.stroke();
     }
     cx.restore();
