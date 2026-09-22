@@ -324,6 +324,30 @@ select.eingabe{appearance:none; cursor:pointer;
 body.kino #kino-tipp{opacity:1; animation:tippweg 4s ease forwards;}
 @keyframes tippweg{0%,55%{opacity:1;} 100%{opacity:0;}}
 
+/* ---------- Rundgang ----------
+   Eine Tafel unten in der Mitte, die waehrend der Fahrt sagt, wovor
+   man gerade steht. Sie liegt ueber der Szene, aber nimmt keine
+   Zeiger an — ein Tipp irgendwohin beendet den Rundgang, und das soll
+   ueberall gehen. */
+#rundgang{position:fixed; z-index:8; left:50%; transform:translateX(-50%);
+  bottom:calc(112px + env(safe-area-inset-bottom)); width:min(520px, calc(100vw - 36px));
+  padding:13px 16px 14px; border-radius:var(--r2); pointer-events:none;
+  background:rgba(9,12,19,.82); border:1px solid var(--edge);
+  backdrop-filter:blur(16px) saturate(1.1); -webkit-backdrop-filter:blur(16px) saturate(1.1);
+  box-shadow:0 14px 44px rgba(0,0,0,.5);
+  opacity:0; transition:opacity .45s var(--ease);}
+#rundgang.an{opacity:1;}
+#rundgang .rg-zahl{font-size:9.5px; letter-spacing:.16em; color:var(--tx3); margin-bottom:6px;}
+#rundgang h3{margin:0 0 5px; font-size:16px; font-weight:600; color:var(--tx1);
+  letter-spacing:.01em;}
+#rundgang p{margin:0; font-size:12.5px; line-height:1.55; color:var(--tx2);}
+#rundgang .rg-balken{height:2px; margin-top:11px; border-radius:1px;
+  background:rgba(255,255,255,.1); overflow:hidden;}
+#rundgang .rg-balken i{display:block; height:100%; width:0; background:var(--acc);
+  border-radius:1px;}
+@media (max-width:620px){ #rundgang{bottom:calc(104px + env(safe-area-inset-bottom));
+  padding:11px 13px 12px;} #rundgang h3{font-size:14.5px;} #rundgang p{font-size:11.5px;} }
+
 #schleier{position:fixed; inset:0; z-index:9; background:rgba(0,0,0,.5);
   opacity:0; pointer-events:none; transition:opacity .4s var(--ease);}
 #schleier.an{opacity:1; pointer-events:auto;
@@ -609,31 +633,6 @@ body.sicht #blende-detail{
     </button>
   </header>
 
-  <!-- ---------- Blende: Kurzanleitung ---------- -->
-  <div class="blende glas" id="blende-hilfe">
-    <div class="griff"></div>
-    <div class="blende-kopf">
-      <h2>Kurzanleitung</h2>
-      <button class="zu" data-zu="blende-hilfe">✕</button>
-    </div>
-    <div class="blende-inhalt" id="hilfe-inhalt"></div>
-  </div>
-
-  <!-- ---------- Blende: Bauteil erklärt ---------- -->
-  <div class="blende glas" id="blende-teil">
-    <div class="griff"></div>
-    <div class="blende-kopf">
-      <h2 id="teil-name"></h2>
-      <button class="zu" data-zu="blende-teil">✕</button>
-    </div>
-    <div class="blende-inhalt">
-      <p id="teil-kurz" style="font-size:15px; line-height:1.5; color:var(--tx1); margin:0 0 14px"></p>
-      <p id="teil-lang" style="font-size:13px; line-height:1.65; color:var(--tx2); margin:0 0 14px"></p>
-      <p id="teil-zahl" style="font-size:12px; line-height:1.6; color:var(--tx3); margin:0;
-        padding-top:12px; border-top:1px solid var(--edge)"></p>
-    </div>
-  </div>
-
   <!-- ---------- Stationswerte ---------- -->
   <div id="telemetrie" class="glas" hidden>
     <div class="tm-kopf">STATIONSWERTE</div>
@@ -676,7 +675,47 @@ body.sicht #blende-detail{
 </div>
 
 <div id="kino-tipp">Tippen zum Beenden</div>
+<div id="rundgang">
+  <div class="rg-zahl" id="rg-zahl"></div>
+  <h3 id="rg-name"></h3>
+  <p id="rg-text"></p>
+  <div class="rg-balken"><i id="rg-fort"></i></div>
+</div>
 <div id="schleier"></div>
+
+<!-- Die Kurzanleitung und die Bauteilerklaerung standen frueher in
+     #ui. Das war ein Fehler mit Folgen: #ui hat z-index 5 und bildet
+     damit einen eigenen Stapel — alles darin liegt unter dem Schleier
+     mit z-index 9, egal welchen z-index es selbst traegt. Beide
+     Blenden lagen also HINTER der Verdunklung: halb abgedunkelt,
+     weichgezeichnet, und kein Knopf darin erreichbar. Aufgefallen ist
+     es nie, weil ein Tipp auf den Schleier die Blende ohnehin
+     schliesst. Jetzt stehen sie bei den uebrigen Blenden. -->
+<!-- ---------- Blende: Kurzanleitung ---------- -->
+<div class="blende glas" id="blende-hilfe">
+  <div class="griff"></div>
+  <div class="blende-kopf">
+    <h2>Kurzanleitung</h2>
+    <button class="zu" data-zu="blende-hilfe">✕</button>
+  </div>
+  <div class="blende-inhalt" id="hilfe-inhalt"></div>
+</div>
+
+<!-- ---------- Blende: Bauteil erklärt ---------- -->
+<div class="blende glas" id="blende-teil">
+  <div class="griff"></div>
+  <div class="blende-kopf">
+    <h2 id="teil-name"></h2>
+    <button class="zu" data-zu="blende-teil">✕</button>
+  </div>
+  <div class="blende-inhalt">
+    <p id="teil-kurz" style="font-size:15px; line-height:1.5; color:var(--tx1); margin:0 0 14px"></p>
+    <p id="teil-lang" style="font-size:13px; line-height:1.65; color:var(--tx2); margin:0 0 14px"></p>
+    <p id="teil-zahl" style="font-size:12px; line-height:1.6; color:var(--tx3); margin:0;
+      padding-top:12px; border-top:1px solid var(--edge)"></p>
+  </div>
+</div>
+
 
 <!-- ---------- Blende: Missions-Log ---------- -->
 <div class="blende glas" id="blende-log">
@@ -2375,13 +2414,24 @@ function zeichneFrachter(c, R, richtung, schub) {
     pg.addColorStop(1, "#101420");
     c.fillStyle = pg;
     c.fillRect(-L * 0.55, sd * D * 0.8 - (sd < 0 ? D * 0.5 : 0), L * 0.65, D * 0.5);
+    const py = sd * D * 0.8 - (sd < 0 ? D * 0.5 : 0);
     c.strokeStyle = "rgba(150,164,196,.35)"; c.lineWidth = 0.4;
     c.beginPath();
     for (let i = 1; i < 7; i++) {
       const xx = -L * 0.55 + (L * 0.65 * i) / 7;
-      c.moveTo(xx, sd * D * 0.8 - (sd < 0 ? D * 0.5 : 0));
-      c.lineTo(xx, sd * D * 0.8 - (sd < 0 ? D * 0.5 : 0) + D * 0.5);
+      c.moveTo(xx, py);
+      c.lineTo(xx, py + D * 0.5);
     }
+    c.stroke();
+    /* Die Dicke des Paneels: eine helle Kante zur Sonne, eine fast
+       schwarze auf der abgewandten Seite. Ohne die beiden Striche
+       bleibt jede Flaeche ein Aufkleber. */
+    c.strokeStyle = "rgba(208,220,242,.5)";
+    c.lineWidth = Math.max(0.4, D * 0.03);
+    c.beginPath(); c.moveTo(-L * 0.55, py); c.lineTo(L * 0.1, py); c.stroke();
+    c.strokeStyle = "rgba(8,10,16,.7)";
+    c.beginPath();
+    c.moveTo(-L * 0.55, py + D * 0.5); c.lineTo(L * 0.1, py + D * 0.5);
     c.stroke();
   }
 
@@ -6767,6 +6817,7 @@ function rahmen(jetzt) {
 
   /* Kamera nachziehen — gleitet statt zu springen */
   kinofahrt(t);
+  rundgangTakt(t);
   kameraNachfuehren();
   const eil = 1 - Math.pow(0.004, dt / 1000);
   KAM.zoom = lerp(KAM.zoom, KAM.zielZoom, eil);
@@ -6854,6 +6905,7 @@ function rahmen(jetzt) {
   const Rst = hochkant
     ? Math.max(20, W * 0.125)
     : Math.max(20, Math.min(W * 0.082, H * 0.132));
+  LETZTES_RST = Rst;
   const modulR = Rst * 0.25;               // Radius eines Druckmoduls
   /* Das ehrliche Verhaeltnis waere 0,88 Modulradien Figurenhoehe. Dabei
      bleibt die Figur auf grossen Schirmen winzig und auf dem Handy
@@ -8627,6 +8679,9 @@ const KINOFAHRT = { von: 0, zx: 0, zy: 0, zz: 1 };
 /* Die Spitze des Roboterarms in Stationskoordinaten. Sie wird beim
    Zeichnen der Station fortgeschrieben und in der Szene gebraucht. */
 const ARMSPITZE = { x: 0, y: 0, winkel: 0, R: 1 };
+/* Der zuletzt benutzte Stationsmassstab. Der Rundgang braucht ihn, um
+   aus einer Bauteilstelle in R-Vielfachen einen Bildpunkt zu machen. */
+let LETZTES_RST = 0;
 let LETZTE_ORTE = [];
 
 function kinofahrt(t) {
@@ -8641,6 +8696,77 @@ function kinofahrt(t) {
   KAM.zielY = -Math.sin(w * 2 + 0.6) * H * 0.1 * KAM.zielZoom;
   grenzenHalten();
 }
+/* --- Der Rundgang ----------------------------------------------------
+   Die Bauteile erklaeren sich schon selbst, sobald man eines antippt.
+   Nur: man muss erst einmal darauf kommen, hineinzuzoomen und zu
+   tippen. Der Rundgang nimmt einem das ab — er faehrt von Teil zu
+   Teil und sagt jeweils in einem Satz, wovor man steht.
+
+   Gefahren wird mit derselben Kamera wie sonst, also gleitend und
+   nicht springend. Ein Tipp irgendwohin bricht ab; wer selbst
+   weiterschauen will, soll nicht warten muessen. */
+const RUNDGANG = {
+  laeuft: false, i: 0, von: 0, bis: 0,
+  /* Die Reihenfolge ist nicht die im Bild, sondern die der
+     Erklaerung: erst das Rueckgrat, dann was daran haengt, dann wo
+     die Besatzung lebt und zuletzt, wie sie hinaus- und wieder
+     hineinkommt. */
+  weg: ["traeger", "fluegel", "radiator", "modul", "kuppel", "handlauf", "antenne", "hafen"],
+  halt: 9500,
+};
+
+function rundgangStart() {
+  if (!STBILD) return;
+  blendeZu();
+  RUNDGANG.laeuft = true;
+  RUNDGANG.i = -1;
+  RUNDGANG.bis = 0;
+  KAM.folgt = null;
+  if (kinoAn) kino(false);
+  $("#rundgang").classList.add("an");
+}
+
+function rundgangEnde() {
+  if (!RUNDGANG.laeuft) return;
+  RUNDGANG.laeuft = false;
+  $("#rundgang").classList.remove("an");
+  kameraZurueck();
+}
+
+function rundgangTakt(t) {
+  if (!RUNDGANG.laeuft || !STBILD) return;
+  if (t > RUNDGANG.bis) {
+    RUNDGANG.i++;
+    if (RUNDGANG.i >= RUNDGANG.weg.length) { rundgangEnde(); return; }
+    RUNDGANG.von = t;
+    RUNDGANG.bis = t + RUNDGANG.halt;
+    const schluessel = RUNDGANG.weg[RUNDGANG.i];
+    const teil = TEILE[schluessel];
+    const ort = STBILD.teile.find(q => q.schluessel === schluessel);
+    if (teil) {
+      $("#rg-zahl").textContent = "RUNDGANG  " + (RUNDGANG.i + 1)
+        + " VON " + RUNDGANG.weg.length;
+      $("#rg-name").textContent = teil.name;
+      $("#rg-text").textContent = teil.kurz + "  " + teil.zahl;
+    }
+    if (ort) {
+      /* Die Fluegelspitzen liegen weit draussen; dort lohnt weniger
+         Zoom, sonst sieht man nur Teppich. Die Module vertragen mehr. */
+      const weit = Math.hypot(ort.x, ort.y);
+      KAM.zielZoom = klemm(weit > 3 ? 1.9 : 3.4, ZOOM_MIN, ZOOM_MAX);
+      const Rst = LETZTES_RST || 100;
+      const sx = W / 2 + ort.x * Rst;
+      const sy = H * (H / W > 1.3 ? 0.46 : 0.43) + ort.y * Rst;
+      KAM.zielX = (W / 2 - sx) * KAM.zielZoom;
+      KAM.zielY = (H / 2 - sy) * KAM.zielZoom;
+      grenzenHalten();
+    }
+  }
+  const u = klemm((t - RUNDGANG.von) / RUNDGANG.halt, 0, 1);
+  const balken = $("#rg-fort");
+  if (balken) balken.style.width = Math.round(u * 100) + "%";
+}
+
 /* --- Stationswerte ---------------------------------------------------
    Eine Raumstation hat Leistung, Waerme, Funkverkehr und eine Stelle
    im Umlauf. Diese App hat Agenten, Tokens, Kosten und dieselbe Stelle
@@ -9038,6 +9164,29 @@ function zeichneHilfe() {
   const box = $("#hilfe-inhalt");
   if (!box) return;
   box.textContent = "";
+
+  /* Ganz oben der Rundgang. Die Bauteile erklaeren sich selbst, sobald
+     man eines antippt — nur muss man erst darauf kommen. Ein Knopf,
+     der einen einmal herumfuehrt, nimmt einem das ab. */
+  const rg = document.createElement("button");
+  rg.className = "schalter";
+  rg.style.cssText = "margin-bottom:16px";
+  const ks = document.createElement("span");
+  ks.className = "kasten";
+  ks.style.cssText = "border:0;background:transparent;color:var(--tx2)";
+  ks.textContent = "↻";
+  const bez = document.createElement("span");
+  bez.className = "bez";
+  bez.append(document.createTextNode("Rundgang über die Station"));
+  bez.append(document.createElement("br"));
+  const kl = document.createElement("span");
+  kl.className = "zahl";
+  kl.textContent = "Acht Halte, je neun Sekunden. Tippen bricht ab.";
+  bez.append(kl);
+  rg.append(ks, bez);
+  rg.onclick = () => { blendeZu(); setTimeout(rundgangStart, 280); };
+  box.append(rg);
+
   for (const h of HILFE) {
     const t = document.createElement("div");
     t.style.cssText = "font-size:13px;font-weight:600;color:var(--tx1);margin:0 0 5px";
@@ -9187,7 +9336,12 @@ const TASTEN = {
 };
 
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { if (kinoAn) kino(false); else blendeZu(); return; }
+  if (e.key === "Escape") {
+    if (RUNDGANG.laeuft) rundgangEnde();
+    else if (kinoAn) kino(false);
+    else blendeZu();
+    return;
+  }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const z = document.activeElement;
   if (z && (z.tagName === "INPUT" || z.tagName === "TEXTAREA" || z.isContentEditable)) return;
@@ -9295,6 +9449,7 @@ cv.addEventListener("pointermove", (ev) => {
     KAM.folgt = null;
   }
   if (zieh.bewegt) {
+    if (RUNDGANG.laeuft) rundgangEnde();
     KAM.zielX = zieh.kx + dx; KAM.zielY = zieh.ky + dy;
     /* Beim Ziehen sofort folgen statt nachzugleiten */
     KAM.x = KAM.zielX; KAM.y = KAM.zielY;
@@ -9311,6 +9466,9 @@ function zeigerLoslassen(ev) {
   if (ZEIGER.size === 0) zieh = null;
   /* Nur wenn nicht gezogen wurde, gilt es als Tippen */
   if (war && !war.bewegt && ZEIGER.size === 0) {
+    /* Laeuft ein Rundgang, beendet jeder Tipp ihn — wer selbst
+       weiterschauen will, soll nicht bis zum Ende warten muessen. */
+    if (RUNDGANG.laeuft) { rundgangEnde(); return; }
     /* Zuerst die Schilder: sie liegen ueber allem anderen */
     for (const sch of TEILSCHILDER) {
       if (ev.clientX >= sch.bx && ev.clientX <= sch.bx + sch.bw &&
@@ -9444,6 +9602,8 @@ window.__LEBEN = () => LEBEN;
 window.__FUNK = () => FUNK;
 window.__KONJ = () => KONJ;
 window.__NARBEN = () => NARBEN;
+window.__TEIL = (k) => teilZeigen(k);
+window.__RUNDGANG = () => RUNDGANG;
 window.__TRIFFT = (x, y) => trifftStruktur(x, y);
 window.__MISSION = () => MISSION;
 window.__ERDE = () => ERDE;
