@@ -101,7 +101,7 @@ Darunter steht, welche Dateien die Sitzung geändert hat: der Name vorn, der Ord
 
 Arbeiten zwei Sitzungen im selben Ordner, oder läuft ein Unteragent im Hintergrund neben seiner Sitzung, ändern beide manchmal dieselbe Datei, ohne voneinander zu wissen. Gemerkt wird das meist erst beim Mergen. ORBIT zeigt es, sobald es passiert:
 
-- **In der Szene** zieht sich eine rote Zackenlinie zwischen den beiden Figuren, in der Mitte ein Schild mit dem Namen der Datei („⚠ preis.ts“). Sind es mehrere Dateien, steht die Zahl daneben („+1“). Rot und gezackt, damit sie nicht mit dem Funk zwischen Sitzung und Unteragent verwechselt wird, der blau und gewölbt ist.
+- **In der Szene** sehen die beiden einander an, gleich wie weit sie auseinander sind, und zwischen ihnen zieht sich eine rote Zackenlinie, in der Mitte ein Schild mit dem Namen der Datei („⚠ preis.ts“). Sind es mehrere Dateien, steht die Zahl daneben („+1“). Rot und gezackt, damit sie nicht mit dem Funk zwischen Sitzung und Unteragent verwechselt wird, der blau und gewölbt ist.
 - **Unter Stationswerte** steht KONFLIKT mit der jüngsten Datei und den beiden Namen, rot.
 - **Im Detailfenster** hat die Datei einen roten Punkt, darunter „⚠ auch pruefung:rundung (vor 11 Sek.)“.
 - **Eine Mitteilung** und ein Eintrag im Bordbuch, je Paar und Datei einmal: „Konflikt: preis.ts“ mit beiden Namen und dem vollen Pfad. Antippen öffnet die Figur, die zuletzt geändert hat.
@@ -631,6 +631,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Die Vorführung: bei Sekunde 70 und 94 nichts, bei 96 und 140 `preis.ts` von pruefung:rundung zu webshop-kasse.
   - Gegengeprüft mit zwölf kaputten Fassungen: ohne Zeitregel, ohne Frist, meldet beim Start, meldet immer wieder, vergleicht nur den Dateinamen, zählt Projektordner, kein Bild, keine Zeile, kein Hinweis im Detail, Vorführung ohne Konflikt, Richtung verkehrt, die alten zuerst. Alle zwölf schlagen an. Ohne die Zeitregel meldete die Vorführung schon bei Sekunde 94 einen Konflikt, obwohl die Sitzung `preis.ts` geändert hatte, bevor die Prüfung überhaupt losging.
   - Dazu grün: dateien, vorf, detailtausch, familie, funk, aufgaben, test-bruecke, palette, werkzeug, minitakt, github, lieferung, hilfe und menue.
+  - Der Blick: Beide Figuren sehen einander an, aus dem Grund „konflikt“ und nicht, weil sie zufällig Nachbarn sind. Ohne die Regel sah kasse im Test weg; gegengeprüft.
   - Geschlossene Sitzungen: Führt das Register nur b, war a vor 20 Minuten an `preis.ts` und vor 15 zuletzt tätig, und b ändert vor 3 Minuten, ist das keiner. Führt das Register beide, ist es einer, und bei leerem Register ebenso. Gegengeprüft: Eine Fassung, die das Register übergeht, meldet den geschlossenen Fall.
   - Leiste und Crew-Liste (in konflikt.mjs und schleife.mjs): „⚠ gutschein.ts · auch kasse“ in Rot, gekürzt auf 26 Zeichen wie jede Zeile der Leiste, der volle Pfad als Hinweis beim Zeigen; „⟲ 5× derselbe Fehler“ in Orange, mit Befehl und Fehlerzeile als Hinweis; eine Sitzung ohne Kreis behält ihre Tätigkeit. Gegengeprüft: ohne die Zeile in der Leiste und ohne die in der Crew-Liste schlagen beide Tests an. crewliste, familie, winken, minitakt, vorf, unteragent, stoerung und palette bleiben grün.
 - **Wer sich im Kreis dreht** (schleife.mjs, sechs nachgebaute Sitzungen im echten Protokollformat, gelesen über die Brücke):

@@ -21805,6 +21805,16 @@ function rahmen(jetzt) {
       const w = kind && SICHT.get(kind.id);
       if (w && w.sx !== undefined) blick = w.sx < anker.x ? -1 : 1;
     }
+    /* Aendern zwei dieselbe Datei, sehen sie einander an, gleich wie weit
+       sie auseinander sind: das ist der Moment, in dem sich zwei im Anzug
+       per Handzeichen abstimmen wuerden. Die Strecke dazwischen sagt,
+       worueber. */
+    v.blickGrund = naechster ? "nachbar" : null;
+    const kp = KONFLIKT.liste.find(k => k.a.id === a.id || k.b.id === a.id);
+    if (kp) {
+      const w = SICHT.get(kp.a.id === a.id ? kp.b.id : kp.a.id);
+      if (w && w.sx !== undefined) { blick = w.sx < anker.x ? -1 : 1; v.blickGrund = "konflikt"; }
+    }
     /* Kommt ein Schiff an oder faehrt es ab, sieht die ganze Crew
        dorthin und nicht mehr zum Nachbarn. Das ist keine Freiheit,
        die man sich nimmt: ein Anflug wird von aussen beobachtet, weil
@@ -21812,7 +21822,8 @@ function rahmen(jetzt) {
        weit genug weg, um es ueber die halbe Station zu sehen —
        deshalb gilt hier keine Reichweitengrenze wie beim Nachbarn,
        der nur auf Handzeichen-Entfernung zaehlt. */
-    if (schauspiel) blick = schauspiel.x < anker.x ? -1 : 1;
+    if (schauspiel) { blick = schauspiel.x < anker.x ? -1 : 1; v.blickGrund = "schiff"; }
+    v.blick = blick;
 
     const Hfig = groesse * v.wuchs * 2.1;      // Figurenhoehe
     const Mfig = Hfig / 1.9;                   // ein Meter im Figurenmass
