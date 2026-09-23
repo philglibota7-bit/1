@@ -3678,7 +3678,8 @@ function energieZeilen(jetzt) {
     ["VERBRAUCH", tokKurz(e.tokens) + " Tokens"],
     ["ZWISCHENSPEICHER", prozentText(e.summe.lesen, e.tokens)],
     ["TEMPO", e.tempo >= 1 ? tokKurz(e.tempo) + " Tokens/min" : "still"],
-    ...(e.tempo >= 1 ? [["HOCHGERECHNET", tokKurz(e.tokens + e.tempo * rest / 60000) + " bis " + uhr(e.ende)]] : []),
+    /* Bei diesem Tempo bis zum Ende des Fensters; das Ende steht oben */
+    ...(e.tempo >= 1 ? [["HOCHGERECHNET", "≈ " + tokKurz(e.tokens + e.tempo * rest / 60000)]] : []),
     ...(groesster ? [["GRÖSSTER", (figur ? figur.name : "ruhende Sitzung") + " · " + prozentText(groesster.tokens, e.tokens)]] : []),
     ...liest,
   ];
