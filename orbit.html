@@ -3720,10 +3720,12 @@ async function sammleGithub() {
       zustand: (wartend || prWartet) ? "winkt" : laufend ? "sendet" : rot ? "fehler" : "ruht",
       ort: r.full_name,
       branch: r.default_branch,
-      taetigkeit: wartend ? wartend.name + " wartet auf Freigabe"
+      /* Der Name des Ablaufs in Anfuehrungszeichen: "Tests läuft" las
+         sich wie ein Grammatikfehler, „Tests“ läuft nicht */
+      taetigkeit: wartend ? "„" + wartend.name + "“ wartet auf Freigabe"
                 : prWartet ? "PR #" + prWartet.nr + " wartet auf Freigabe"
-                : laufend ? laufend.name + " läuft"
-                : rot ? l0.name + " fehlgeschlagen"
+                : laufend ? "„" + laufend.name + "“ läuft"
+                : rot ? "„" + l0.name + "“ fehlgeschlagen"
                 : prRot.length ? (prRot.length === 1 ? "PR #" + prRot[0].nr + ": Prüfung rot"
                                                       : prRot.length + " PRs mit roten Prüfungen")
                 : prAend ? "PR #" + prAend.nr + ": Änderungen gewünscht"
@@ -4042,7 +4044,7 @@ function vorfuehrungTakt() {
   const G = {
     vorfuehrung: true, id: "g:vorf/webshop", typ: "github", name: "webshop", farbe: "#e0765a",
     zustand: testsFertig ? "ruht" : "sendet", ort: "du/webshop", branch: "main",
-    taetigkeit: testsFertig ? "2 offene Pull Requests" : "Tests läuft",
+    taetigkeit: testsFertig ? "2 offene Pull Requests" : "„Tests“ läuft",
     seit: t0 - 40 * 60000, url: "",
     prs: [
       { nr: 12, titel: "Kasse: Rabattcodes einlösen, auch mehrere pro Bestellung", entwurf: false, url: "",
