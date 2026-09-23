@@ -398,6 +398,8 @@ Die Zahl und alle sieben Knöpfe bleiben immer. Die Knöpfe animieren auch keine
 
 **Die Blenden sind aus Glas.** Oben links fällt Licht ein, unten rechts liegt ein Hauch der Themenfarbe, der Rand schimmert von Weiß über die Themenfarbe nach Violett, und hinter der offenen Blende wird das Bild stärker weichgezeichnet und gesättigt. Sie gleiten beim Öffnen aus der Tiefe und blenden dabei weich ein. Das Kreuz dreht sich beim Draufzeigen. Die Karten zu einem Astronauten und zu einem Bauteil liegen über der laufenden Szene. Durchsichtiges Glas kostete dort die Hälfte der Bildrate, deshalb sind sie undurchsichtig, aber mit denselben Lichtern gemalt.
 
+**Klicks im Detailfenster gehen nicht mehr verloren.** Die Brücke meldet sich laufend neu, in der Vorführung jede Sekunde, im Mac-Programm alle zweieinhalb. Jedes Mal baute das Detailfenster eines Astronauten seinen ganzen Inhalt neu, auch wenn sich nichts geändert hatte. Fiel ein Neubau zwischen Drücken und Loslassen, ging der Klick verloren, etwa auf einen Unteragenten; gemessen mit 400 ms langem Drücken ging er jedes Mal verloren. Die Hervorhebung unter dem Zeiger flackerte im selben Takt. Jetzt wird der neue Inhalt in den alten eingearbeitet: Wo Art und Klasse eines Elements gleich bleiben, bleibt das Element und bekommt nur neue Texte, Attribute und Handgriffe. Ersetzt wird nur, was wirklich anders gebaut ist. Aufgefallen ist es, weil ein Test unter Last hängen blieb, der Klick fand nie ein ruhiges Element.
+
 **Die Hintergrund-Blende** zieht mit: Schalter, Knöpfe und die 42 Themenkarten sind aus demselben Glas, das gewählte Thema leuchtet in seiner Farbe. Dabei fielen zwei alte Fehler auf. Die beiden Erklärungen unter Tag/Nacht und dem Zeitraffer standen frei in der Blende und fielen auf die Grundschrift zurück, groß und weiß; jetzt sind sie klein und leise wie in den Schaltern. Und der gewählte Zeitraffer (etwa „1×“) sah aus wie die anderen; jetzt ist er in der Themenfarbe getönt.
 
 **Die Kurzanleitung klappt auf.** Jeder Abschnitt ist eine nummerierte Karte. Zu zeigt sie den Titel und den ersten Satz, auf den ganzen Text; sie gleitet dabei auf die echte Höhe des Texts. Der erste Abschnitt ist offen. Beim erklärten Bauteil steht der eine Satz groß, darunter der Absatz und die Zahlen in einer eigenen Karte „IN ZAHLEN“. Alle Tönungen folgen dem gewählten Farbthema.
@@ -442,7 +444,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-90 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+91 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
 - **Echte Arbeitsumgebung**:
@@ -625,6 +627,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Lichthöfe bleiben fest bei 12–20 statt 21–92 Punkten.
 
 **Bedienung**
+- **Detailfenster**: Die Brücke meldet zehn Sekunden lang jede Sekunde dieselbe Familie aus zwei Sitzungen und zwei Unteragenten. Bei allen drei geöffneten Astronauten ändert sich der Text („vor 14 s“), aber kein Knoten wird ersetzt, und der erste Knopf ist hinterher noch derselbe. Ein Klick mit 400 ms langem Drücken auf einen Unteragenten, während die Brücke sich meldet, öffnet ihn. Gegengeprüft mit dem Stand davor: Dort blieb kein Knopf derselbe, und der lange Klick ging verloren. familie.mjs lief vorher unter der Last von vier gleichzeitigen Erd-Tests dreimal von drei rot, jetzt dreimal grün.
 - **Menü und Blenden**: Auf dem Rechner und dem Handy stehen die Schalter in der Reihenfolge KARTE, ERDE, LIVE. Jeder hat Titel, Symbol und Beschreibung, der Zustand in `aria-pressed` stimmt, und kein Titel bricht um. Ohne Satellitenbilder ruhen Beschriftung und Relief; eingeschaltet ruhen sie nicht mehr, und der Schieber steht 12 Punkte weiter rechts. Die Kurzanleitung hat 14 Karten, die erste offen; eine andere klappt auf (323 Punkte hoch) und wieder zu (0). Die offene Blende zeichnet mit 26 Punkten weich und hat den schimmernden Rand. Die Tests für echte ISS, Weltraumwetter, Wolken von heute und Relief lesen den Zustand jetzt aus `aria-pressed` statt aus der Aufschrift. Gegengeprüft mit acht absichtlich kaputten Fassungen: ohne `aria-pressed`, ohne Ruhen, alte Reihenfolge, alle Karten zu, Aufklappen ohne Wirkung, altes Glas, Titel brechen auf dem Handy um, Beschriftung und Relief folgen den Satellitenbildern nicht. Alle acht schlagen an.
 - **Tastatur**:
   - Pfeile, N/P, W und Tab funktionieren.

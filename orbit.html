@@ -19136,7 +19136,7 @@ function zeichneDetail(id) {
      darauf etwas anderes ergeben als "nicht mehr da". */
   const a = alleAstronauten().find(x => x.id === id)
          || (HEIM.get(id) || {}).figur;
-  const box = $("#d-inhalt");
+  let box = $("#d-inhalt");
   if (!a) {
     /* Auch die Kopfzeile zuruecksetzen — sonst stand dort weiter der Name
        des verschwundenen Astronauten und der Knopf zeigte auf dessen Seite. */
@@ -19165,7 +19165,13 @@ function zeichneDetail(id) {
   btn.onclick = () => externOeffnen(extern);
 
   const fokusZurueck = fortsetzenFokus();
-  box.innerHTML = "";
+  /* Gebaut wird in eine Schublade und dann ins Fenster eingearbeitet (siehe
+     domAngleichen). Die Vorfuehrung meldet sich jede Sekunde, das Programm
+     alle zweieinhalb, und jedes Mal tauschte das Fenster alle seine Knoepfe
+     aus: fiel ein Tausch zwischen Druecken und Loslassen, ging der Klick
+     verloren, und die Hervorhebung unter dem Zeiger flackerte. */
+  const ziel = box;
+  box = document.createElement("div");
 
   /* Kopfzeile: Art und Zustand */
   const marke = document.createElement("span");
@@ -19471,7 +19477,43 @@ function zeichneDetail(id) {
     box.appendChild(abschnitt("Fortsetzen"));
     box.appendChild(a.register ? nochOffen(a.register, false) : fortsetzenZeile(a.ort, a.sid, true));
   }
+  domAngleichen(ziel, box, zeichneDetail);
+  box = ziel;
   fokusZurueck();
+}
+
+/* Den neuen Inhalt in den alten einarbeiten, statt ihn auszutauschen. Wo Art
+   und Klasse eines Elements gleich bleiben, bleibt das Element und bekommt
+   nur neue Texte, Attribute und Handgriffe (onclick, onfocus, onkeydown, mehr
+   setzen die Bausteine nicht). Ersetzt wird nur, was wirklich anders gebaut
+   ist. So bleibt ein Knopf unter dem Finger derselbe, auch wenn daneben
+   "vor 13 s" zu "vor 14 s" wird. Ein Feld, in dem gerade jemand schreibt,
+   behaelt seinen Wert. In zaehler.geaendert und zaehler.ersetzt steht, wie
+   oft etwas anders war und wie viele Knoten ersetzt wurden (fuer Tests). */
+function domAngleichen(alt, neu, zaehler, oben = true) {
+  const a = [...alt.childNodes], n = [...neu.childNodes];
+  let anders = false;
+  const zaehle = (k) => { anders = true; if (zaehler && k) zaehler.ersetzt = (zaehler.ersetzt || 0) + 1; };
+  for (let i = 0; i < n.length; i++) {
+    const x = a[i], y = n[i];
+    if (!x) { alt.appendChild(y); zaehle(true); continue; }
+    if (x.nodeType !== y.nodeType || x.nodeName !== y.nodeName
+        || (x.nodeType === 1 && x.className !== y.className)) { alt.replaceChild(y, x); zaehle(true); continue; }
+    if (x.nodeType !== 1) {
+      if (x.nodeValue !== y.nodeValue) { x.nodeValue = y.nodeValue; zaehle(false); }
+      continue;
+    }
+    for (const at of [...x.attributes]) if (!y.hasAttribute(at.name)) { x.removeAttribute(at.name); zaehle(false); }
+    for (const at of [...y.attributes]) if (x.getAttribute(at.name) !== at.value) { x.setAttribute(at.name, at.value); zaehle(false); }
+    x.onclick = y.onclick; x.onfocus = y.onfocus; x.onkeydown = y.onkeydown;
+    if ((x.tagName === "INPUT" || x.tagName === "TEXTAREA") && x !== document.activeElement && x.value !== y.value) {
+      x.value = y.value; zaehle(false);
+    }
+    if (domAngleichen(x, y, zaehler, false)) zaehle(false);
+  }
+  while (alt.childNodes.length > n.length) { alt.removeChild(alt.lastChild); zaehle(true); }
+  if (anders && zaehler && oben) zaehler.geaendert = (zaehler.geaendert || 0) + 1;
+  return anders;
 }
 
 /* --- Fortsetzen --------------------------------------------------------
