@@ -11994,9 +11994,13 @@ function gewitterZuenden(z, um, tiefe) {
   GEWITTER.letzte = { x: z.sx, y: z.sy, um };
   /* Die Kette: jeder Nachbar kann mitgerissen werden, je weiter die
      Kette schon gelaufen ist, desto seltener. */
+  /* Auf der echten Erde hat eine Zelle in einem grossen Wolkenfeld
+     zwei Dutzend Nachbarn, und die Kette lief durchs halbe Bild. Bei
+     vielen Zellen im Bild wird sie deshalb gedaempft, wie die Rate. */
+  const dichte = Math.min(1, 12 / Math.max(1, GEWITTER.sichtbar || 0));
   if (tiefe < 3)
     for (const nb of z.nachbarn)
-      if (!nb.blitz && !nb.kette && Math.random() < 0.22 / (tiefe + 1))
+      if (!nb.blitz && !nb.kette && Math.random() < 0.22 / (tiefe + 1) * Math.sqrt(dichte))
         nb.kette = { um: um + 110 + Math.random() * 360, tiefe: tiefe + 1 };
 }
 
@@ -12037,7 +12041,16 @@ function zeichneGewitter(t, dx, dy, zieh, hoehe, termX, tags) {
   /* Steht die Station selbst in der Sonne, ist die Kamera auf Tag
      belichtet, und dieselben Blitze wirken blasser. */
   const belicht = 1 - TAGLICHT * 0.6;
-  let aktiv = 0;
+  let aktiv = 0, sichtbar = 0;
+  /* Wie viele Zellen liegen gerade im Dunkeln im Bild? Auf der echten
+     Erde schwankt das mit dem Wetter unter der Station zwischen null und
+     knapp neunzig. Jede mit derselben Rate blitzen zu lassen, ergab in
+     einer Gewitternacht ueber Afrika dreissig Blitze je Sekunde — ein
+     Stroboskop. Von der Station aus sieht man auch ueber den
+     gewittrigsten Gegenden eher eine Handvoll. Also teilen sich die
+     Zellen die Rate, sobald es mehr als zwoelf sind; der Wert kommt
+     aus dem letzten Bild. */
+  const dichte = Math.min(1, 12 / Math.max(1, GEWITTER.sichtbar || 0));
   const echt = ERDKARTE.bereit && ERDKARTE.blick && zellen === ERDKARTE.zellen;
   for (const z of zellen) {
     let X, Y;
@@ -12062,6 +12075,7 @@ function zeichneGewitter(t, dx, dy, zieh, hoehe, termX, tags) {
     const nacht = tags ? klemm((X - rand - kante) / weich, 0, 1)
                        : klemm((rand - kante - X) / weich, 0, 1);
     z.sicht = ab < m.r - 3 && X > -60 && X < W + 60 && Y < H + 30 ? nacht : 0;
+    if (z.sicht > 0) sichtbar++;
     /* Am Rand der Scheibe sieht man streifend auf die Wolken — der
        Fleck wird flach, so wie jede Wolke dort. */
     const k = ab / m.r;
@@ -12080,11 +12094,12 @@ function zeichneGewitter(t, dx, dy, zieh, hoehe, termX, tags) {
          weiter davon weg, desto spaeter die Nacht. Vor dem Aufgang
          ist es ruhig. */
       const abend = tags ? klemm(1 - (X - rand) / (W * 1.8), 0.25, 1) : 0.25;
-      const rate = (z.land ? 0.6 * abend : 0.12) * z.kraft * tempo;
+      const rate = (z.land ? 0.6 * abend : 0.12) * z.kraft * tempo * dichte;
       if (Math.random() < rate * dt / 1000) gewitterZuenden(z, t, 0);
     }
     if (z.blitz) aktiv++;
   }
+  GEWITTER.sichtbar = sichtbar;
   if (!aktiv) return;
 
   cx.save();
