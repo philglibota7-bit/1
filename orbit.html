@@ -85,10 +85,24 @@ body.kino #vignette{background:radial-gradient(ellipse 74% 64% at 50% 46%, trans
 /* Grosse Blenden duerfen echtes Glas sein: sie sind meist zu, und
    solange eine offen ist, pausiert die Szene dahinter ohnehin. */
 .glas{
-  background:var(--p1);
-  border:1px solid var(--edge);
+  /* Glas: oben links heller, wo das Licht einfaellt, unten rechts ein
+     Hauch vom Blau der Station; innen eine helle Kante oben */
+  background:
+    radial-gradient(120% 70% at 0% 0%, rgba(255,255,255,.10), transparent 55%),
+    radial-gradient(90% 60% at 100% 100%, color-mix(in srgb, var(--acc) 10%, transparent), transparent 60%),
+    linear-gradient(160deg, rgba(255,255,255,.075), rgba(255,255,255,.03) 45%, rgba(255,255,255,.045));
+  border:1px solid rgba(255,255,255,.12);
   border-radius:var(--r2);
-  box-shadow:0 14px 44px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.07);
+  box-shadow:0 24px 64px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.16), inset 0 0 22px color-mix(in srgb, var(--acc) 5%, transparent);
+}
+/* Der Rand schimmert: ein Verlauf von Weiss ueber Blau nach Violett,
+   nur einen Bildpunkt breit, ueber die Kante gelegt */
+.blende::after{
+  content:""; position:absolute; inset:0; border-radius:inherit; padding:1px; pointer-events:none;
+  background:linear-gradient(145deg, rgba(255,255,255,.38), rgba(255,255,255,.06) 30%,
+    color-mix(in srgb, var(--acc) 10%, transparent) 60%, color-mix(in srgb, var(--acc) 34%, transparent) 85%, rgba(200,150,230,.26));
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor; mask-composite:exclude;
 }
 /* Der Weichzeichner wird NUR an der gerade offenen Blende eingeschaltet.
    Alle Blenden liegen dauerhaft im Dokument und sind bloss aus dem Bild
@@ -96,8 +110,8 @@ body.kino #vignette{background:radial-gradient(ellipse 74% 64% at 50% 46%, trans
    trotzdem in jedem Einzelbild weich. Das kostete zwei Drittel der
    Bildrate, obwohl nichts davon zu sehen war. */
 .blende.offen{
-  backdrop-filter:blur(22px) saturate(1.3);
-  -webkit-backdrop-filter:blur(22px) saturate(1.3);
+  backdrop-filter:blur(26px) saturate(1.6) brightness(.9);
+  -webkit-backdrop-filter:blur(26px) saturate(1.6) brightness(.9);
 }
 
 /* Die staendig sichtbare Bedienung bekommt dasselbe Aussehen OHNE
@@ -298,9 +312,11 @@ footer{
   position:fixed; z-index:10; inset:auto 0 0 0;
   max-height:86dvh; display:flex; flex-direction:column;
   border-radius:var(--r3) var(--r3) 0 0;
-  transform:translateY(102%); transition:transform .42s var(--ease);
+  transform:translateY(102%); opacity:0;
+  transition:transform .46s var(--ease), opacity .32s ease;
   padding-bottom:env(safe-area-inset-bottom);
 }
+.blende.offen{opacity:1;}
 .blende.offen{transform:translateY(0);}
 @media (min-width:760px){
   .blende{inset:auto auto 16px 16px; width:430px; max-height:calc(100dvh - 120px);
@@ -308,13 +324,68 @@ footer{
   .blende.offen{transform:translateY(0);}
 }
 .blende-kopf{
-  display:flex; align-items:center; gap:10px; padding:16px 18px 12px;
-  border-bottom:1px solid var(--edge); flex:0 0 auto;}
-.blende-kopf h2{font-size:14.5px; font-weight:600; letter-spacing:.01em; margin-right:auto;}
-.blende-kopf .zu{width:30px; height:30px; border-radius:50%; background:var(--p2);
-  display:flex; align-items:center; justify-content:center; color:var(--tx2); font-size:15px;}
-.blende-kopf .zu:hover{background:var(--p3); color:var(--tx);}
+  display:flex; align-items:center; gap:10px; padding:16px 18px 13px;
+  flex:0 0 auto; position:relative;}
+/* Statt einer harten Linie ein Lichtstreif, der zu den Seiten ausklingt */
+.blende-kopf::after{content:""; position:absolute; left:14px; right:14px; bottom:0; height:1px;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.16) 20%, rgba(123,164,216,.30) 55%, transparent);}
+.blende-kopf h2{font-size:14.5px; font-weight:600; letter-spacing:.01em; margin-right:auto;
+  background:linear-gradient(90deg, #f3f6fb, #b9cdea); -webkit-background-clip:text; background-clip:text; color:transparent;}
+.blende-kopf .zu{width:30px; height:30px; border-radius:50%;
+  background:linear-gradient(160deg, rgba(255,255,255,.14), rgba(255,255,255,.05));
+  border:1px solid rgba(255,255,255,.12); box-shadow:inset 0 1px 0 rgba(255,255,255,.14);
+  display:flex; align-items:center; justify-content:center; color:var(--tx2); font-size:15px;
+  transition:background .2s, color .2s, transform .2s;}
+.blende-kopf .zu:hover{background:rgba(255,255,255,.18); color:var(--tx); transform:rotate(90deg);}
 .blende-inhalt{overflow-y:auto; padding:14px 16px 18px; flex:1 1 auto; -webkit-overflow-scrolling:touch;}
+
+/* Die Kurzanleitung: Karten zum Aufklappen. Das Aufgehen laeuft ueber die
+   Zeilenhoehe des Rasters (0fr bis 1fr), so gleitet es auf die echte Hoehe
+   des Texts, ohne sie zu kennen. */
+.hilfe-karte{margin:0 0 8px; border-radius:14px;
+  background:linear-gradient(150deg, rgba(255,255,255,.07), rgba(255,255,255,.02) 60%, color-mix(in srgb, var(--acc) 4%, transparent));
+  border:1px solid rgba(255,255,255,.085); box-shadow:inset 0 1px 0 rgba(255,255,255,.07);
+  transition:border-color .3s, background .3s, box-shadow .3s;}
+.hilfe-karte:hover{border-color:rgba(255,255,255,.16);}
+.hilfe-karte.offen{border-color:color-mix(in srgb, var(--acc) 30%, transparent);
+  background:linear-gradient(150deg, color-mix(in srgb, var(--acc) 15%, transparent), rgba(255,255,255,.035) 55%, rgba(255,255,255,.02));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 10px 26px rgba(0,0,0,.22);}
+.hilfe-kopf{display:flex; align-items:center; gap:11px; width:100%; padding:11px 12px; text-align:left;
+  background:none; border:0; color:inherit; cursor:pointer; border-radius:14px;}
+.hilfe-kopf:focus-visible{outline:2px solid var(--acc); outline-offset:-2px;}
+.hilfe-nr{flex:0 0 auto; font:600 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.04em;
+  color:color-mix(in srgb, var(--acc) 45%, #fff); padding:6px 6px; border-radius:8px;
+  background:linear-gradient(160deg, color-mix(in srgb, var(--acc) 24%, transparent), color-mix(in srgb, var(--acc) 8%, transparent));
+  border:1px solid color-mix(in srgb, var(--acc) 26%, transparent); transition:box-shadow .3s;}
+.hilfe-karte.offen .hilfe-nr{box-shadow:0 0 14px color-mix(in srgb, var(--acc) 35%, transparent);}
+.hilfe-kopftext{flex:1 1 auto; min-width:0;}
+.hilfe-titel{display:block; font-size:13px; font-weight:600; color:var(--tx);}
+.hilfe-anriss{display:block; font-size:11.5px; line-height:1.4; color:var(--tx3); margin-top:2px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-height:17px;
+  transition:opacity .25s, max-height .35s var(--ease), margin .35s var(--ease);}
+.hilfe-karte.offen .hilfe-anriss{opacity:0; max-height:0; margin-top:0;}
+.hilfe-pfeil{flex:0 0 22px; height:22px; border-radius:50%; position:relative;
+  background:rgba(255,255,255,.06); transition:transform .38s var(--ease), background .3s;}
+.hilfe-pfeil::before{content:""; position:absolute; left:8px; top:6.5px; width:5px; height:5px;
+  border-right:1.6px solid var(--tx2); border-bottom:1.6px solid var(--tx2); transform:rotate(45deg);}
+.hilfe-karte.offen .hilfe-pfeil{transform:rotate(180deg); background:color-mix(in srgb, var(--acc) 20%, transparent);}
+.hilfe-koerper{display:grid; grid-template-rows:0fr; transition:grid-template-rows .42s var(--ease);}
+.hilfe-karte.offen .hilfe-koerper{grid-template-rows:1fr;}
+.hilfe-koerper > div{overflow:hidden; min-height:0;}
+.hilfe-koerper p{margin:0; padding:0 14px 14px 45px; font-size:12.5px; line-height:1.65; color:var(--tx2);}
+@media (max-width:420px){ .hilfe-koerper p{padding-left:14px;} }
+@media (prefers-reduced-motion:reduce){
+  .hilfe-koerper, .hilfe-pfeil, .hilfe-anriss, .blende{transition:none;}
+}
+/* Das erklaerte Bauteil in drei Stufen: der Satz gross, der Absatz, die
+   Zahlen in einer eigenen Glaskarte */
+#teil-kurz{font-size:15.5px !important; font-weight:500;}
+#teil-zahl{margin:0 !important; padding:12px 13px !important; border-top:0 !important; border-radius:12px;
+  background:linear-gradient(150deg, color-mix(in srgb, var(--acc) 14%, transparent), rgba(255,255,255,.03));
+  border:1px solid color-mix(in srgb, var(--acc) 22%, transparent); color:var(--tx2) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08);}
+#teil-zahl::before{content:"IN ZAHLEN"; display:block; font-size:9px; letter-spacing:.16em;
+  color:color-mix(in srgb, var(--acc) 70%, #fff); margin-bottom:5px;}
 
 /* Griff oben zum Wischen */
 .griff{width:36px; height:4px; border-radius:99px; background:rgba(255,255,255,.2);
@@ -691,8 +762,13 @@ body.sicht #blende-detail, body.sicht #blende-teil{
      Dasselbe gilt fuer die Karte eines angetippten Bauteils: dort lag
      der lange Text zuletzt ueber der Fussleiste, und deren Knoepfe
      schienen durch die Zeilen. */
-  background:linear-gradient(180deg, #111420, #0a0c14);
-  box-shadow:0 10px 26px rgba(0,0,0,.55);
+  /* Undurchsichtig, aber wie Glas gemalt: dieselben Lichter wie die
+     echten Glasblenden, nur auf dunklem Grund statt auf dem Bild */
+  background:
+    radial-gradient(120% 70% at 0% 0%, rgba(160,190,240,.13), transparent 55%),
+    radial-gradient(90% 60% at 100% 100%, rgba(123,164,216,.12), transparent 60%),
+    linear-gradient(170deg, #161b2a, #0c0f18 60%, #0e1220);
+  box-shadow:0 14px 34px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.14);
 }
 
 /* ---------- Hintergrund-Auswahl ---------- */
@@ -920,9 +996,13 @@ body.sicht #blende-detail, body.sicht #blende-teil{
    Blenden. Seit die Fluegel das halbe Bild fuellen, steht die Anzeige
    fast immer vor etwas Hellem — und eine Zahl, die man nur vor
    schwarzem Himmel lesen kann, ist keine Anzeige. */
-#telemetrie{position:fixed; left:16px; top:calc(74px + env(safe-area-inset-top)); z-index:30; width:230px;
-  padding:12px 13px 11px; border-radius:var(--r2); font-size:11.5px;
-  background:rgba(9,12,19,.76);
+#telemetrie{position:fixed; left:16px; top:calc(74px + env(safe-area-inset-top)); z-index:30; width:236px;
+  padding:12px 12px 11px; border-radius:var(--r2); font-size:11.5px;
+  background:
+    radial-gradient(120% 50% at 0% 0%, rgba(160,190,240,.10), transparent 60%),
+    linear-gradient(170deg, rgba(20,26,40,.80), rgba(8,11,18,.80));
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow:0 18px 44px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.12);
   backdrop-filter:blur(16px) saturate(1.15);
   -webkit-backdrop-filter:blur(16px) saturate(1.15);
   max-height:calc(100dvh - 208px - env(safe-area-inset-top)); overflow-y:auto; overscroll-behavior:contain;
@@ -933,10 +1013,45 @@ body.sicht #blende-detail, body.sicht #blende-teil{
 @keyframes tmrein{from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:none;}}
 #telemetrie[hidden]{display:none;}
 .tm-kopf{font-size:9.5px; letter-spacing:.14em; color:var(--tx3); margin-bottom:9px;}
-.tm-knopf{display:block; width:100%; margin-top:9px; padding:6px 9px; border-radius:8px; text-align:left;
-  font-size:11px; color:var(--tx2); background:rgba(255,255,255,.04); border:1px solid var(--edge);}
-.tm-knopf:hover{color:var(--tx); border-color:var(--edge2);}
-.tm-knopf small{display:block; font-size:9.5px; color:var(--tx3); margin-top:2px;}
+/* Die Schalter: nach Gruppen, je ein Symbol, der Name, darunter was er
+   tut, rechts ein Schieber. An ist er blau und das Symbol leuchtet. */
+.tm-abschnitt{display:flex; align-items:center; gap:8px; margin:14px 1px 2px;
+  font-size:9px; letter-spacing:.16em; color:var(--tx3);}
+.tm-abschnitt::after{content:""; flex:1; height:1px;
+  background:linear-gradient(90deg, rgba(255,255,255,.14), transparent);}
+.tm-knopf{display:flex; align-items:center; gap:9px; width:100%; margin-top:6px; padding:7px 8px 7px 7px;
+  border-radius:11px; text-align:left; font-size:11px; color:var(--tx2);
+  background:linear-gradient(140deg, rgba(255,255,255,.065), rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.08); box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+  transition:background .3s, border-color .3s, box-shadow .3s, opacity .3s, transform .15s;}
+.tm-knopf:hover{border-color:rgba(255,255,255,.17); background:linear-gradient(140deg, rgba(255,255,255,.10), rgba(255,255,255,.03));}
+.tm-knopf:active{transform:scale(.985);}
+.tm-knopf:focus-visible{outline:2px solid var(--acc); outline-offset:2px;}
+.tm-knopf.an{color:var(--tx); border-color:color-mix(in srgb, var(--acc) 34%, transparent);
+  background:linear-gradient(140deg, color-mix(in srgb, var(--acc) 20%, transparent), color-mix(in srgb, var(--acc) 5%, transparent) 70%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10), 0 0 18px color-mix(in srgb, var(--acc) 10%, transparent);}
+/* Ruht er, wird nur Schrift und Symbol leiser; halb durchsichtig schien
+   der orange Solarfluegel durch den Schieber, und er sah nach Warnung aus */
+.tm-knopf.ruht .tm-titel, .tm-knopf.ruht small, .tm-knopf.ruht .tm-sym{opacity:.5;}
+.tm-knopf.ruht.an .tm-schieber{background:color-mix(in srgb, var(--acc) 38%, transparent); box-shadow:none;}
+.tm-sym{flex:0 0 26px; height:26px; border-radius:8px; display:grid; place-items:center;
+  background:rgba(255,255,255,.06); color:var(--tx2); transition:background .3s, color .3s, box-shadow .3s;}
+.tm-sym svg{width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.6;
+  stroke-linecap:round; stroke-linejoin:round;}
+.tm-knopf.an .tm-sym{background:color-mix(in srgb, var(--acc) 24%, transparent); color:color-mix(in srgb, var(--acc) 35%, #fff); box-shadow:0 0 14px color-mix(in srgb, var(--acc) 40%, transparent);}
+.tm-text{flex:1 1 auto; min-width:0;}
+.tm-titel{display:block; font-size:11.5px; font-weight:600; color:var(--tx1, var(--tx));}
+.tm-knopf small{display:block; font-size:9.5px; line-height:1.35; color:var(--tx3); margin-top:1px;}
+.tm-schieber{flex:0 0 28px; height:16px; border-radius:99px; position:relative;
+  background:rgba(255,255,255,.13); box-shadow:inset 0 1px 2px rgba(0,0,0,.35); transition:background .3s, box-shadow .3s;}
+.tm-schieber::after{content:""; position:absolute; top:2px; left:2px; width:12px; height:12px; border-radius:50%;
+  background:linear-gradient(180deg, #f4f7fb, #c9d2df); box-shadow:0 1px 3px rgba(0,0,0,.45);
+  transition:transform .3s var(--ease);}
+.tm-knopf.an .tm-schieber{background:linear-gradient(90deg, color-mix(in srgb, var(--acc) 65%, #000), var(--acc)); box-shadow:0 0 10px color-mix(in srgb, var(--acc) 55%, transparent);}
+.tm-knopf.an .tm-schieber::after{transform:translateX(12px);}
+@media (prefers-reduced-motion:reduce){
+  .tm-knopf, .tm-schieber, .tm-schieber::after, .tm-sym{transition:none;}
+}
 .tm-zeile{display:flex; align-items:baseline; justify-content:space-between; gap:10px;
   padding:3px 0; border-top:1px solid rgba(255,255,255,.05);}
 .tm-zeile:first-child{border-top:0;}
@@ -995,7 +1110,10 @@ body.sicht #blende-detail, body.sicht #blende-teil{
    Es ist deshalb nicht verloren: es hat einen eigenen Reiter im Log,
    und der zeigt alle vierzig Eintraege statt der fuenf juengsten. */
 @media (max-width:620px){
-  #telemetrie{left:10px; top:calc(64px + env(safe-area-inset-top)); width:204px; font-size:11px;
+  .tm-knopf small, .tm-titel{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .tm-knopf{padding:6px 7px 6px 6px; gap:7px;}
+  .tm-sym{flex-basis:24px; height:24px;}
+  #telemetrie{left:10px; top:calc(64px + env(safe-area-inset-top)); width:226px; font-size:11px;
     padding:10px 11px 9px; max-height:calc(100dvh - 206px - env(safe-area-inset-top));}
   /* Laeuft die Vorfuehrung, haengt unter dem Kopf ihr Band. Die Anzeige
      lag darueber und deckte "Vorfuehrung mit Beispieldaten" halb zu —
@@ -1091,13 +1209,16 @@ body.sicht #blende-detail, body.sicht #blende-teil{
     <canvas id="tm-puls" width="420" height="60"></canvas>
     <div id="tm-alarm"></div>
     <div id="tm-zeilen"></div>
-    <button id="tm-iss" class="tm-knopf" type="button"></button>
-    <button id="tm-wetter" class="tm-knopf" type="button"></button>
-    <button id="tm-wolken" class="tm-knopf" type="button"></button>
-    <button id="tm-gestern" class="tm-knopf" type="button"></button>
+    <div class="tm-abschnitt">KARTE</div>
     <button id="tm-sat" class="tm-knopf" type="button"></button>
     <button id="tm-schrift" class="tm-knopf" type="button"></button>
     <button id="tm-relief" class="tm-knopf" type="button"></button>
+    <div class="tm-abschnitt">ERDE</div>
+    <button id="tm-gestern" class="tm-knopf" type="button"></button>
+    <button id="tm-wolken" class="tm-knopf" type="button"></button>
+    <div class="tm-abschnitt">LIVE</div>
+    <button id="tm-iss" class="tm-knopf" type="button"></button>
+    <button id="tm-wetter" class="tm-knopf" type="button"></button>
     <div class="tm-kopf" id="tm-buchkopf" style="margin:12px 0 7px">BORDBUCH</div>
     <div id="tm-buch"></div>
   </div>
@@ -12913,14 +13034,46 @@ function echteIssJetzt(ms) {
   return { p, breite, laenge, hoehe: b.hoehe, tag: b.tag };
 }
 
-function echteIssKnopf() {
-  const k = document.getElementById("tm-iss");
+/* Ein Schalter unter Stationswerte: Symbol, Name, darunter was er tut
+   oder gerade tut, rechts ein Schieber. Ob er an ist, steht in
+   aria-pressed, fuer Vorleseprogramme wie fuer die Tests. "ruht" heisst:
+   eingeschaltet, wirkt aber gerade nicht (Beschriftung und Relief ohne
+   Satellitenbilder). Die Symbole sind feste Zeichnungen, keine Eingaben. */
+const TM_SYMBOLE = {
+  sat: '<svg viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4M4 16l8 4 8-4"/></svg>',
+  schrift: '<svg viewBox="0 0 24 24"><path d="M4 18L9 6l5 12M6.2 13.5h5.6"/><path d="M17 18v-6.5M17 12.5c.6-1.2 1.6-1.8 3-1.6"/></svg>',
+  relief: '<svg viewBox="0 0 24 24"><path d="M2.5 19l6.5-11 4 6.5 2.5-3.5 6 8z"/><path d="M7.5 10.5l1.5 1.2 1.3-1.5"/></svg>',
+  gestern: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.6 2.4 2.6 13.6 0 16M12 4c-2.6 2.4-2.6 13.6 0 16"/></svg>',
+  wolken: '<svg viewBox="0 0 24 24"><path d="M7 18h10.5a3.8 3.8 0 0 0 .4-7.6A6 6 0 0 0 6.3 11a3.5 3.5 0 0 0 .7 7z"/></svg>',
+  iss: '<svg viewBox="0 0 24 24"><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M3 12h6.5M14.5 12H21M4.5 7.5v9M19.5 7.5v9"/></svg>',
+  wetter: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.6"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M5.6 18.4l1.6-1.6M16.8 7.2l1.6-1.6"/></svg>',
+};
+function tmSchalter(id, an, titel, klein, symbol, ruht) {
+  const k = document.getElementById(id);
   if (!k) return;
-  k.textContent = Z.echteIss ? "Echte ISS ausblenden" : "Echte ISS zeigen";
-  const klein = document.createElement("small");
-  klein.textContent = Z.echteIss ? "fragt alle 20 s bei wheretheiss.at nach"
-                                 : "fragt dann bei wheretheiss.at nach, wo sie gerade ist";
-  k.append(klein);
+  k.textContent = "";
+  k.setAttribute("aria-pressed", an ? "true" : "false");
+  k.classList.toggle("an", !!an);
+  k.classList.toggle("ruht", !!ruht);
+  const sy = document.createElement("span");
+  sy.className = "tm-sym";
+  sy.innerHTML = TM_SYMBOLE[symbol] || "";
+  const tx = document.createElement("span");
+  tx.className = "tm-text";
+  const ti = document.createElement("span");
+  ti.className = "tm-titel";
+  ti.textContent = titel;
+  const kl = document.createElement("small");
+  kl.textContent = klein;
+  tx.append(ti, kl);
+  const sb = document.createElement("span");
+  sb.className = "tm-schieber";
+  sb.setAttribute("aria-hidden", "true");
+  k.append(sy, tx, sb);
+}
+function echteIssKnopf() {
+  tmSchalter("tm-iss", Z.echteIss, "Echte ISS",
+    Z.echteIss ? "fragt alle 20 s bei wheretheiss.at nach" : "wo sie gerade fliegt, von wheretheiss.at", "iss");
 }
 
 /* --- Das echte Weltraumwetter, auf Wunsch ---------------------------------
@@ -13166,13 +13319,8 @@ function kpMelden() {
 }
 
 function weltraumwetterKnopf() {
-  const k = document.getElementById("tm-wetter");
-  if (!k) return;
-  k.textContent = Z.weltraumwetter ? "Echtes Weltraumwetter aus" : "Echtes Weltraumwetter";
-  const klein = document.createElement("small");
-  klein.textContent = Z.weltraumwetter ? "fragt bei der NOAA nach Kp und Polarlicht"
-                                       : "Polarlicht nach Kp und Vorhersage der NOAA";
-  k.append(klein);
+  tmSchalter("tm-wetter", Z.weltraumwetter, "Weltraumwetter",
+    Z.weltraumwetter ? "fragt bei der NOAA nach Kp und Polarlicht" : "Polarlicht nach Kp und Vorhersage der NOAA", "wetter");
 }
 
 /* --- Die Wolken von heute, auf Wunsch --------------------------------------
@@ -13428,13 +13576,8 @@ function erdeGesternAnwenden() {
 }
 
 function erdeGesternKnopf() {
-  const k = document.getElementById("tm-gestern");
-  if (!k) return;
-  k.textContent = Z.erdeGestern ? "Erde von gestern aus" : "Erde von gestern";
-  const klein = document.createElement("small");
-  klein.textContent = Z.erdeGestern ? "das Echtfarbenbild von Suomi NPP, einmal am Tag von der NASA"
-                                    : "echte Farben und Wolken, wie sie gestern waren, statt Blue Marble";
-  k.append(klein);
+  tmSchalter("tm-gestern", Z.erdeGestern, "Erde von gestern",
+    Z.erdeGestern ? "Echtfarben von Suomi NPP, einmal am Tag" : "echte Farben und Wolken statt Blue Marble", "gestern");
 }
 
 /* --- Satellitenbilder, auf Wunsch ------------------------------------------
@@ -14044,25 +14187,18 @@ function nachtAus() {
 }
 
 function satellitKnopf() {
-  const k = document.getElementById("tm-sat");
-  if (!k) return;
-  k.textContent = Z.satellit ? "Satellitenbilder aus" : "Satellitenbilder";
-  const klein = document.createElement("small");
-  klein.textContent = Z.satellit ? "von Esri, nachts die Lichter der NASA; die ganze Erde lässt sich bis auf Straßen heranzoomen"
-                                 : "scharfe Bilder von Esri und nachts die Lichter der NASA beim Hineinzoomen in die ganze Erde";
-  k.append(klein);
+  tmSchalter("tm-sat", Z.satellit, "Satellitenbilder",
+    Z.satellit ? "zoomen bis auf Straßen, Bilder von Esri" : "die ganze Erde wie Google Earth heranzoomen", "sat");
+  /* Beschriftung und Relief wirken nur mit ihnen */
+  schriftKnopf();
+  reliefKnopf();
   const z = document.getElementById("zoom-sat");
   if (z) { z.classList.toggle("an", !!Z.satellit); z.title = Z.satellit ? "Satellitenbilder aus" : "Satellitenbilder von Esri"; }
 }
 
 function wolkenHeuteKnopf() {
-  const k = document.getElementById("tm-wolken");
-  if (!k) return;
-  k.textContent = Z.wolkenHeute ? "Wolken von heute aus" : "Wolken von heute";
-  const klein = document.createElement("small");
-  klein.textContent = Z.wolkenHeute ? "lädt alle drei Stunden die Karte, aus Daten von EUMETSAT"
-                                    : "statt der Aufnahme der NASA, aus Satellitendaten von EUMETSAT";
-  k.append(klein);
+  tmSchalter("tm-wolken", Z.wolkenHeute, "Wolken von heute",
+    Z.wolkenHeute ? "alle drei Stunden neu, aus Daten von EUMETSAT" : "statt der Aufnahme der NASA, von EUMETSAT", "wolken");
 }
 
 function erdeMasse() {
@@ -20970,15 +21106,45 @@ function zeichneHilfe() {
   rg.onclick = () => { blendeZu(); setTimeout(rundgangStart, 280); };
   box.append(rg);
 
-  for (const h of HILFE) {
-    const t = document.createElement("div");
-    t.style.cssText = "font-size:13px;font-weight:600;color:var(--tx1);margin:0 0 5px";
-    t.textContent = h.titel;
+  /* Die Abschnitte als Karten zum Aufklappen: zu sieht man den Titel und
+     den ersten Satz, auf den ganzen Text. Der erste ist offen. */
+  HILFE.forEach((h, i) => {
+    const karte = document.createElement("div");
+    karte.className = "hilfe-karte" + (i === 0 ? " offen" : "");
+    const kopf = document.createElement("button");
+    kopf.type = "button";
+    kopf.className = "hilfe-kopf";
+    kopf.setAttribute("aria-expanded", i === 0 ? "true" : "false");
+    const nr = document.createElement("span");
+    nr.className = "hilfe-nr";
+    nr.textContent = String(i + 1).padStart(2, "0");
+    const kt = document.createElement("span");
+    kt.className = "hilfe-kopftext";
+    const ti = document.createElement("span");
+    ti.className = "hilfe-titel";
+    ti.textContent = h.titel;
+    const an = document.createElement("span");
+    an.className = "hilfe-anriss";
+    an.textContent = (h.text.match(/^.*?[.!?](?=\s|$)/) || [h.text])[0];
+    kt.append(ti, an);
+    const pf = document.createElement("span");
+    pf.className = "hilfe-pfeil";
+    pf.setAttribute("aria-hidden", "true");
+    kopf.append(nr, kt, pf);
+    const koerper = document.createElement("div");
+    koerper.className = "hilfe-koerper";
+    const innen = document.createElement("div");
     const p2 = document.createElement("p");
-    p2.style.cssText = "font-size:12.5px;line-height:1.6;color:var(--tx2);margin:0 0 16px";
     p2.textContent = h.text;
-    box.append(t, p2);
-  }
+    innen.append(p2);
+    koerper.append(innen);
+    kopf.onclick = () => {
+      const offen = karte.classList.toggle("offen");
+      kopf.setAttribute("aria-expanded", offen ? "true" : "false");
+    };
+    karte.append(kopf, koerper);
+    box.append(karte);
+  });
 }
 
 const hilfeKnopf = $("#btn-hilfe");
@@ -21559,22 +21725,14 @@ function reliefUmschalten() {
   tmUhr = 0;
 }
 function reliefKnopf() {
-  const k = document.getElementById("tm-relief");
-  if (!k) return;
-  k.textContent = Z.relief ? "Relief aus" : "Relief";
-  const klein = document.createElement("small");
-  klein.textContent = Z.relief ? "Berge und Täler nach der echten Sonne schattiert"
-                               : "Berge und Täler nach der echten Sonne schattieren";
-  k.append(klein);
+  const ruht = Z.relief && !Z.satellit;
+  tmSchalter("tm-relief", Z.relief, "Relief",
+    ruht ? "wirkt mit Satellitenbildern" : "Berge und Täler nach der echten Sonne", "relief", ruht);
 }
 function schriftKnopf() {
-  const k = document.getElementById("tm-schrift");
-  if (!k) return;
-  k.textContent = Z.beschriftung ? "Beschriftung aus" : "Beschriftung";
-  const klein = document.createElement("small");
-  klein.textContent = Z.beschriftung ? "Länder, Grenzen und Orte über den Satellitenbildern"
-                                     : "Länder, Grenzen und Orte über die Satellitenbilder legen";
-  k.append(klein);
+  const ruht = Z.beschriftung && !Z.satellit;
+  tmSchalter("tm-schrift", Z.beschriftung, "Beschriftung",
+    ruht ? "wirkt mit Satellitenbildern" : "Länder, Orte und Grenzen darüber", "schrift", ruht);
 }
 function satellitUmschalten() {
   Z.satellit = !Z.satellit;

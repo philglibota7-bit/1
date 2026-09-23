@@ -393,6 +393,12 @@ Behoben:
 
 Die Zahl und alle sieben Knöpfe bleiben immer. Die Knöpfe animieren auch keine Größen mehr. Nach dem Drehen des Telefons wuchsen sie sonst eine Viertelsekunde lang in ihrer alten Breite nach.
 
+**Das Menü unter Stationswerte** ist nach Gruppen geordnet: KARTE (Satellitenbilder, Beschriftung, Relief), ERDE (Erde von gestern, Wolken von heute) und LIVE (echte ISS, Weltraumwetter). Jeder Schalter hat ein Symbol, seinen Namen, darunter in einer Zeile, was er tut oder gerade tut, und rechts einen Schieber. Vorher standen sieben gleiche Kästen untereinander, und die Aufschrift wechselte zwischen „Beschriftung“ und „Beschriftung aus“: Man musste lesen, um zu wissen, ob etwas an ist. Jetzt ist ein eingeschalteter Schalter getönt, sein Symbol leuchtet, und der Schieber steht rechts. Der Zustand steht zusätzlich in `aria-pressed`, für Vorleseprogramme. Beschriftung und Relief wirken nur mit Satellitenbildern; ohne sie werden Name und Symbol leiser, und darunter steht „wirkt mit Satellitenbildern“. Auf dem Handy ist das Menü etwas breiter, und zu lange Zeilen enden mit Auslassungspunkten statt umzubrechen.
+
+**Die Blenden sind aus Glas.** Oben links fällt Licht ein, unten rechts liegt ein Hauch der Themenfarbe, der Rand schimmert von Weiß über die Themenfarbe nach Violett, und hinter der offenen Blende wird das Bild stärker weichgezeichnet und gesättigt. Sie gleiten beim Öffnen aus der Tiefe und blenden dabei weich ein. Das Kreuz dreht sich beim Draufzeigen. Die Karten zu einem Astronauten und zu einem Bauteil liegen über der laufenden Szene. Durchsichtiges Glas kostete dort die Hälfte der Bildrate, deshalb sind sie undurchsichtig, aber mit denselben Lichtern gemalt.
+
+**Die Kurzanleitung klappt auf.** Jeder Abschnitt ist eine nummerierte Karte. Zu zeigt sie den Titel und den ersten Satz, auf den ganzen Text; sie gleitet dabei auf die echte Höhe des Texts. Der erste Abschnitt ist offen. Beim erklärten Bauteil steht der eine Satz groß, darunter der Absatz und die Zahlen in einer eigenen Karte „IN ZAHLEN“. Alle Tönungen folgen dem gewählten Farbthema.
+
 Bei vielen Astronauten greifen zwei Grenzen: höchstens elf Namensschilder (auf schmalen Schirmen fünf), sortiert nach Zustand, die verfolgte Figur fällt nie heraus; und wo sich mehrere einen Arbeitsplatz teilen müssen, rücken sie quer zur Fläche auseinander statt übereinander zu stehen.
 
 ## Tempo
@@ -433,7 +439,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-88 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+89 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
 - **Echte Arbeitsumgebung**:
@@ -615,6 +621,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Lichthöfe bleiben fest bei 12–20 statt 21–92 Punkten.
 
 **Bedienung**
+- **Menü und Blenden**: Auf dem Rechner und dem Handy stehen die Schalter in der Reihenfolge KARTE, ERDE, LIVE. Jeder hat Titel, Symbol und Beschreibung, der Zustand in `aria-pressed` stimmt, und kein Titel bricht um. Ohne Satellitenbilder ruhen Beschriftung und Relief; eingeschaltet ruhen sie nicht mehr, und der Schieber steht 12 Punkte weiter rechts. Die Kurzanleitung hat 14 Karten, die erste offen; eine andere klappt auf (323 Punkte hoch) und wieder zu (0). Die offene Blende zeichnet mit 26 Punkten weich und hat den schimmernden Rand. Die Tests für echte ISS, Weltraumwetter, Wolken von heute und Relief lesen den Zustand jetzt aus `aria-pressed` statt aus der Aufschrift. Gegengeprüft mit acht absichtlich kaputten Fassungen: ohne `aria-pressed`, ohne Ruhen, alte Reihenfolge, alle Karten zu, Aufklappen ohne Wirkung, altes Glas, Titel brechen auf dem Handy um, Beschriftung und Relief folgen den Satellitenbildern nicht. Alle acht schlagen an.
 - **Tastatur**:
   - Pfeile, N/P, W und Tab funktionieren.
   - Ein Ordnerpfad mit vier r lässt die Brücke offen.
