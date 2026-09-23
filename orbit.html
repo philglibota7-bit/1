@@ -1577,9 +1577,25 @@ function meldungenPruefen() {
       melden(a.name + ": " + a.taetigkeit, "GitHub Actions", a.id, stand);
     }
   }
-  if (MELDE_VORHER.size > BR.live.length + 30) {
+  /* Die Durchsicht eines PRs: freigegeben heisst meist "jetzt
+     zusammenfuehren", Aenderungen gewuenscht "jetzt ran". Beides ist
+     ein Moment, den man nicht erst beim naechsten Hinsehen erfahren
+     will. Auch hier meldet die erste Sichtung nichts. */
+  for (const a of BR.live) {
+    if (a.typ !== "github" || !Array.isArray(a.prs)) continue;
+    for (const pr of a.prs) {
+      const k = a.id + "#" + pr.nr, st = pr.review ? pr.review.stand : "";
+      const vorher = MELDE_VORHER.get(k);
+      MELDE_VORHER.set(k, st);
+      if (vorher === undefined || vorher === st) continue;
+      if (st === "frei") melden(a.name + ": PR #" + pr.nr + " freigegeben", anfang(pr.titel, 110), a.id, "frei#" + pr.nr);
+      else if (st === "aenderungen")
+        melden(a.name + ": PR #" + pr.nr + " – Änderungen gewünscht", anfang(pr.titel, 110), a.id, "aenderungen#" + pr.nr);
+    }
+  }
+  if (MELDE_VORHER.size > BR.live.length * 6 + 30) {
     const da = new Set(BR.live.map(x => x.id));
-    for (const k of MELDE_VORHER.keys()) if (!da.has(k)) MELDE_VORHER.delete(k);
+    for (const k of MELDE_VORHER.keys()) if (!da.has(k.split("#")[0])) MELDE_VORHER.delete(k);
   }
   titelSetzen();
 }
@@ -17077,7 +17093,8 @@ const HILFE = [
       + "mit dem, was sie gerade tun; eine Zeile antippen fährt zu ihrer Figur. Im Detailfenster "
       + "steht über der Tätigkeit der Auftrag — das, was du zuletzt verlangt hast. Erst wo, dann "
       + "wofür, dann was. Bei einem GitHub-Repo stehen dort die offenen Pull Requests mit dem Stand "
-      + "ihrer Actions und ihrer Durchsicht: freigegeben, Änderungen gewünscht oder angefragt.",
+      + "ihrer Actions und ihrer Durchsicht: freigegeben, Änderungen gewünscht oder angefragt. "
+      + "Wird einer freigegeben oder wünscht jemand Änderungen, meldet ORBIT sich.",
   },
   {
     titel: "Wer auf dich wartet",
