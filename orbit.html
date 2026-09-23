@@ -12707,10 +12707,14 @@ function zeichneErde(t) {
      Das kann nicht sein. Die Station ist vierhundert Kilometer hoch;
      sie sieht die Sonne LAENGER als der Boden unter ihr, nie kuerzer.
 
-     Richtig ist: der Unterpunkt kreuzt den Rand rund zwei Minuten vor
-     dem Sonnenuntergang der Station und rund zwei Minuten nach ihrem
-     Aufgang. Zwei Minuten sind bei zweiundneunzig Minuten Umlauf gut
-     zwei Hundertstel.
+     Richtig ist: der Unterpunkt kreuzt den Rand gut fuenf Minuten vor
+     dem Sonnenuntergang der Station und gut fuenf Minuten nach ihrem
+     Aufgang. Hier stand lange "zwei Minuten"; nachgerechnet ist es
+     mehr. Die Station tritt in den Schatten, wenn ihr Abstand von der
+     Achse Sonne–Erde unter den Erdradius faellt, also 69,8 Grad vor
+     dem Gegenpunkt der Sonne (asin 6371/6790). Der Punkt unter ihr hat
+     den Rand da schon zwanzig Grad hinter sich — bei zweiundneunzig
+     Minuten Umlauf sind das 5,2 Minuten, gut fuenf Hundertstel.
 
      Und der Rand steht nicht die halbe Nacht im Bild. Der sichtbare
      Bodenstreifen ist ein paar tausend Kilometer breit, die Station
@@ -12722,8 +12726,15 @@ function zeichneErde(t) {
 
      Gerechnet wird der Abstand zur naechsten der beiden Kreuzungen.
      Welche es ist, entscheidet zugleich, auf welcher Seite des Randes
-     der Tag liegt: vor dem Untergang links, vor dem Aufgang rechts. */
-  const VORLAUF = 0.022;              // gut zwei Minuten
+     der Tag liegt: vor dem Untergang links, vor dem Aufgang rechts.
+
+     Mit der echten Erde wird der Rand nicht getaktet, sondern
+     ausgerechnet — sonst laege er auf der Karte woanders als die Nacht
+     der Bodenspur. Die Sonne liegt in der Bahnebene; in dieser Ansicht
+     ist der Tagesrand damit eine Gerade durch den Mittelpunkt der
+     Scheibe, senkrecht zur Sonne. Nahe der Kante, wo man den Boden
+     sieht, steht er cot(phi) Radien neben der Mitte. */
+  const VORLAUF = 0.056;              // gut fuenf Minuten
   const SCHWENK = 0.19;               // wie lange der Rand im Bild steht
   const wickel = (x) => { let v = x % 1; if (v > 0.5) v -= 1; if (v < -0.5) v += 1; return v; };
   const dUnter = wickel(ph - (TAGANTEIL - VORLAUF));   // zum Untergang
@@ -12732,9 +12743,23 @@ function zeichneErde(t) {
   const d = nahUnter ? dUnter : dAuf;
   /* Vor der Kreuzung steht der Rand rechts, danach links — die
      Station faehrt nach rechts, der Rand kommt ihr also entgegen. */
-  const tags = Z.umlauf === false ? true : nahUnter;
-  const termX = Z.umlauf === false ? W * 1.7
-              : W * (0.5 - (d / SCHWENK) * 1.2);
+  let tags = Z.umlauf === false ? true : nahUnter;
+  let termX = Z.umlauf === false ? W * 1.7
+            : W * (0.5 - (d / SCHWENK) * 1.2);
+  if (Z.umlauf !== false && ERDKARTE.bereit) {
+    const w = umlaufWinkel(ph);
+    const s = Math.sin(w), c = Math.cos(w);
+    const mE = erdeMasse();
+    if (Math.abs(s) < 1e-4) {
+      /* Mittag: alles hell; Mitternacht: alles dunkel */
+      tags = true;
+      termX = c > 0 ? W * 5 : -W * 4;
+    } else {
+      /* Nach dem Mittag (s > 0) liegt der Tag links vom Rand, davor rechts */
+      tags = s > 0;
+      termX = klemm(mE.cx + mE.r * 0.97 * c / s, -W * 4, W * 5);
+    }
+  }
   const lauf = Z.umlauf === false ? 0.1 : klemm(0.5 + d / SCHWENK, 0, 1);
   /* Wie weit der Boden seit dem letzten Mal weitergezogen ist. Die
      Rate ist aus dem Flug hergeleitet: die Station umrundet die Erde
