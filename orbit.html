@@ -424,6 +424,8 @@ footer{
 .woche .wahl b{color:var(--tx); font-weight:600;}
 .woche .wahl .pz{display:flex; align-items:center; gap:7px;}
 .woche .wahl .pz i{flex:0 0 auto; width:8px; height:8px; border-radius:50%;}
+.woche .wahl .pz{margin-top:4px;}
+.woche .wahl .sz{margin-left:15px; font-size:11px; color:var(--tx3); overflow-wrap:anywhere;}
 .woche .lesen{font-size:10.5px; color:var(--tx3); margin-top:4px;}
 .heute-knoepfe .knopf{width:auto; height:32px; padding:0 14px; font-size:12px;}
 @media (max-width:460px){ .heute .wahl{margin-left:0;} }
@@ -2922,11 +2924,12 @@ async function wocheSammeln() {
       if (von === null || bis === null) continue;
       von = Math.max(von, g[i]); bis = Math.min(bis, g[i + 1]);
       if (von >= g[i + 1] || bis < g[i] || bis < von) continue;        // an diesem Tag keine Zeile
-      tage[i].stuecke.push({ name, von, bis, sid });
+      tage[i].stuecke.push({ name, von, bis, sid, auftrag: KOPF_AUFTRAG.get(f.pfad) || "" });
     }
   }
   if (WOCHE_GRENZEN.size > 800) WOCHE_GRENZEN.clear();
-  for (const p of HEUTE) for (const x of p.segmente) tage[6].stuecke.push({ name: p.name, von: x.von, bis: x.bis, sid: x.sid });
+  for (const p of HEUTE) for (const x of p.segmente)
+    tage[6].stuecke.push({ name: p.name, von: x.von, bis: x.bis, sid: x.sid, auftrag: x.auftrag || "" });
   WOCHE = { tage, farben: wocheFarben(tage), lesen };
 }
 
@@ -2936,12 +2939,18 @@ function vorfuehrungWoche(jetzt) {
   const g = mitternachte(jetzt);
   const tage = g.slice(0, 7).map((x, i) => ({ ab: x, bis: g[i + 1], stuecke: [] }));
   const plan = [
-    [0, "webshop", 8.9, 11.6], [0, "blog", 13.2, 14.4], [0, "webshop", 15.0, 17.8],
-    [1, "orbit", 9.4, 12.1], [1, "webshop", 13.0, 16.5],
-    [2, "webshop", 10.1, 11.9], [2, "orbit", 14.2, 18.3],
-    [3, "blog", 11.0, 12.2],
-    [4, "orbit", 16.4, 18.0],
-    [5, "webshop", 8.6, 12.4], [5, "orbit", 12.9, 15.2], [5, "blog", 16.0, 17.1],
+    [0, "webshop", 8.9, 11.6, "Die Versandkosten nach Gewicht staffeln"],
+    [0, "blog", 13.2, 14.4, "Den Entwurf über Caching kürzen"],
+    [0, "webshop", 15.0, 17.8, "Tests für die Versandkosten ergänzen"],
+    [1, "orbit", 9.4, 12.1, "Die Kobolde über den Gewittern nur am Horizont zeigen"],
+    [1, "webshop", 13.0, 16.5, "Den Warenkorb auf decimal.js umstellen"],
+    [2, "webshop", 10.1, 11.9, "Warum dauert der Checkout zwei Sekunden?"],
+    [2, "orbit", 14.2, 18.3, "Die Erde soll flüssig vorbeiziehen, nicht springen"],
+    [3, "blog", 11.0, 12.2, "Kommentare aus dem alten Blog übernehmen"],
+    [4, "orbit", 16.4, 18.0, "Sternschnuppen unter die Station legen"],
+    [5, "webshop", 8.6, 12.4, "Mengenrabatt ab drei Stück"],
+    [5, "orbit", 12.9, 15.2, "Der Tagesbogen soll zeigen, worum es ging"],
+    [5, "blog", 16.0, 17.1, "Artikel über die neue Kasse gegenlesen"],
   ];
   /* Welcher Wochentag heute ist, entscheidet, wo das Wochenende liegt:
      der Plan gilt vom Montag aus und wird auf die letzten sechs Tage
@@ -2952,12 +2961,13 @@ function vorfuehrungWoche(jetzt) {
   const ziel = new Map();
   [0, 1, 2, 5].forEach((k, j) => { if (werk[j] !== undefined) ziel.set(k, werk[j]); });
   [3, 4].forEach((k, j) => ziel.set(k, ruhe[j] !== undefined ? ruhe[j] : werk[4 + j]));
-  for (const [k, name, a, b] of plan) {
+  for (const [k, name, a, b, auftrag] of plan) {
     const i = ziel.get(k);
     if (i === undefined) continue;
-    tage[i].stuecke.push({ name, von: g[i] + a * 3600000, bis: g[i] + b * 3600000, sid: "vorf-w-" + k + "-" + a });
+    tage[i].stuecke.push({ name, von: g[i] + a * 3600000, bis: g[i] + b * 3600000, sid: "vorf-w-" + k + "-" + a, auftrag });
   }
-  for (const p of HEUTE) for (const x of p.segmente) tage[6].stuecke.push({ name: p.name, von: x.von, bis: x.bis, sid: x.sid });
+  for (const p of HEUTE) for (const x of p.segmente)
+    tage[6].stuecke.push({ name: p.name, von: x.von, bis: x.bis, sid: x.sid, auftrag: x.auftrag || "" });
   return { tage, farben: wocheFarben(tage), lesen: false };
 }
 
@@ -3035,6 +3045,10 @@ function zeichneWoche() {
       ? "  ·  " + t.sitzungen + (t.sitzungen === 1 ? " Sitzung" : " Sitzungen") + "  ·  " + dauer(t.gesamt) + " offen"
       : "  ·  keine Sitzung"));
     wahl.appendChild(kz);
+    /* Je Projekt die Sitzungen dieses Tages: von wann bis wann und womit
+       sie begannen. Damit ist die Woche ein kleines Arbeitsbuch — "was
+       war am Dienstag?" beantwortet sich hier. */
+    const st = WOCHE.tage[WOCHE_WAHL].stuecke;
     for (const p of t.projekte) {
       const z = document.createElement("div");
       z.className = "pz";
@@ -3043,6 +3057,21 @@ function zeichneWoche() {
       z.append(i2, document.createTextNode(p.name + "  ·  " + p.sitzungen
         + (p.sitzungen === 1 ? " Sitzung" : " Sitzungen") + "  ·  " + dauer(p.zeit)));
       wahl.appendChild(z);
+      const eigene = st.filter(x => x.name === p.name).sort((a, b) => a.von - b.von);
+      for (const x of eigene.slice(0, 4)) {
+        const e = document.createElement("div");
+        e.className = "sz";
+        const text = String(x.auftrag || "").replace(/\s+/g, " ").trim();
+        e.textContent = uhr(x.von) + "–" + uhr(x.bis)
+          + (text ? "  „" + (text.length > 90 ? text.slice(0, 89) + "…" : text) + "“" : "");
+        wahl.appendChild(e);
+      }
+      if (eigene.length > 4) {
+        const e = document.createElement("div");
+        e.className = "sz";
+        e.textContent = "und " + (eigene.length - 4) + " weitere";
+        wahl.appendChild(e);
+      }
     }
     w.appendChild(wahl);
   }
@@ -16997,7 +17026,7 @@ const HILFE = [
       + "laufenden ihren Auftrag und den Weg zur Figur. „Tag kopieren“ darunter gibt den ganzen "
       + "Tag als Text her, je Projekt die Sitzungen mit Zeitspanne und worum es ging — für die "
       + "Notiz am Abend oder das Standup am Morgen; „Als Datei sichern“ legt ihn als Markdown ab. "
-      + "Darunter die Woche: je Tag eine Säule, nach Projekt gefärbt, antippen zeigt den Tag. Läuft "
+      + "Darunter die Woche: je Tag eine Säule, nach Projekt gefärbt, antippen zeigt den Tag mit seinen Sitzungen. Läuft "
       + "eine Sitzung über Tage, zählt nur, an welchen Tagen sie wirklich Zeilen schrieb. "
       + "„Woche kopieren“ gibt sie mit den Summen je Projekt her.",
   },
