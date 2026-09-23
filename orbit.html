@@ -9633,7 +9633,7 @@ function bedienRand() {
   }
   return RAND;
 }
-let NAMEN_LETZT = [], BLASEN_LETZT = [];
+let NAMEN_LETZT = [], BLASEN_LETZT = [], HAKEN_LETZT = [];
 
 /* Drei Zeilen passen in eine Blase. Bei einem Gedanken, der gerade
    einlaeuft, sind es die letzten — dort steht das Neueste. Bei einer
@@ -12288,32 +12288,79 @@ function hakenPruefen(a, v, t) {
   if (HAKEN.length > 24) HAKEN.splice(0, HAKEN.length - 24);
 }
 
-function zeichneHaken(t) {
+/* Das Band weicht aus wie die Blasen: Namen, Figuren und Blasen
+   (frei). Am Handy lag es sonst drei Sekunden lang quer ueber den
+   Schildern der Nachbarn. Die Hoehe wird beim ersten Erscheinen
+   gewaehlt und dann behalten — ein Band, das beim Aufsteigen von
+   Luecke zu Luecke springt, ist schlimmer als eines, das kurz etwas
+   verdeckt. Findet sich keine Luecke, bleibt es an seinem Platz: der
+   Moment ist die Auskunft, und er dauert drei Sekunden. */
+function zeichneHaken(t, frei) {
+  HAKEN_LETZT = [];
   if (kinoAn || !HAKEN.length) return;
-  const DAUER = 3200;
+  const DAUER = 3200, STEIG = 20;
+  const schmal = W < 520;
   const stapel = new Map();
   cx.save();
   cx.font = "600 11px -apple-system, system-ui, sans-serif";
   cx.textBaseline = "middle";
-  for (let i = HAKEN.length - 1; i >= 0; i--) {
-    const h = HAKEN[i];
+  for (let i = HAKEN.length - 1; i >= 0; i--) if (t - HAKEN[i].um > DAUER) HAKEN.splice(i, 1);
+  /* Die aelteren zuerst: sie stehen schon und behalten ihren Platz, ein
+     neues Band sucht sich seinen darueber. */
+  for (const h of HAKEN) {
     const u = (t - h.um) / DAUER;
-    if (u > 1) { HAKEN.splice(i, 1); continue; }
     if (u < 0) continue;
     const v = SICHT.get(h.id);
     if (!v || !v.hakenOrt) continue;
     const ebene = stapel.get(h.id) || 0;
     stapel.set(h.id, ebene + 1);
     const a = Math.min(1, u * 7) * Math.min(1, (1 - u) * 3.5);
-    const steig = sparsam ? 0 : u * 20;
+    const steig = sparsam ? 0 : u * STEIG;
     const bericht = h.art === "bericht";
-    const text = bericht ? "Bericht von " + kuerzenHinten(h.text, 26)
-      : h.alle ? "Alle " + h.n + " Aufgaben erledigt" : kuerzenHinten(h.text, 30);
+    const text = bericht ? "Bericht von " + kuerzenHinten(h.text, schmal ? 16 : 26)
+      : h.alle ? "Alle " + h.n + " Aufgaben erledigt" : kuerzenHinten(h.text, schmal ? 20 : 30);
     const tb = cx.measureText(text).width;
     const hoch = 22, breit = tb + hoch + 12;
-    const x = Math.round(v.hakenOrt.x - breit / 2), y = Math.round(v.hakenOrt.y - hoch - steig - ebene * (hoch + 4));
+    const x = Math.round(v.hakenOrt.x - breit / 2);
+    if (h.versatz === undefined) {
+      const wunsch = v.hakenOrt.y - hoch - ebene * (hoch + 4);
+      let yy = wunsch;
+      if (frei) {
+        const rand = bedienRand(), oben = rand.oben + 6, unten = rand.unten - 6;
+        const weg = frei.filter(o => x < o.bx + o.bw + 4 && x + breit + 4 > o.bx);
+        /* Geprueft wird der ganze Weg nach oben, nicht nur der Anfang */
+        const stoert = (q) => weg.some(o => q - STEIG < o.by + o.bh + 4 && q + hoch + 4 > o.by);
+        if (stoert(yy)) {
+          const orte = [];
+          for (const o of weg) orte.push(o.by - hoch - 6, o.by + o.bh + 6 + STEIG);
+          /* Die naechste Luecke, bei gleichem Abstand die obere. Liegt
+             sie weit weg, fuehren Punkte zur Figur (unten). */
+          const gut = orte.filter(q => q - STEIG >= oben && q + hoch <= unten && !stoert(q))
+            .sort((a, b) => (Math.abs(a - wunsch) + (a > wunsch ? 1 : 0))
+                          - (Math.abs(b - wunsch) + (b > wunsch ? 1 : 0)))[0];
+          if (gut !== undefined) yy = gut;
+        }
+      }
+      h.versatz = yy - v.hakenOrt.y;
+      h.weit = Math.abs(yy - wunsch) > 28;
+    }
+    const y = Math.round(v.hakenOrt.y + h.versatz - steig);
     if (x + breit < 0 || x > W || y + hoch < 0 || y > H) continue;
+    if (frei) frei.push({ bx: x, by: y - STEIG + steig, bw: breit, bh: hoch + STEIG });
+    HAKEN_LETZT.push({ id: h.id, text, bx: x, by: y, bw: breit, bh: hoch });
     cx.globalAlpha = a;
+    /* Weit weg von der Figur: drei Punkte zu ihr, wie bei den Blasen —
+       sonst gehoert das Band im Gedraenge scheinbar dem Nachbarn. */
+    if (h.weit) {
+      const ax = v.hakenOrt.x, ay = v.hakenOrt.y;
+      const vonY = y > ay ? y : y + hoch;
+      cx.fillStyle = bericht ? (h.farbe || "#9ab") : "rgba(84,188,112,.9)";
+      for (const [f, r] of [[0.25, 2.6], [0.5, 2.1], [0.75, 1.6]]) {
+        cx.beginPath();
+        cx.arc(x + breit / 2 + (ax - x - breit / 2) * f, vonY + (ay - vonY) * f, r, 0, Math.PI * 2);
+        cx.fill();
+      }
+    }
     cx.fillStyle = bericht ? "rgba(12,18,30,.86)" : h.alle ? "rgba(18,52,32,.92)" : "rgba(10,24,17,.84)";
     rundRect(cx, x, y, breit, hoch, hoch / 2); cx.fill();
     cx.strokeStyle = bericht ? (h.farbe || "#9ab") : h.alle ? "rgba(120,214,146,.95)" : "rgba(84,168,106,.7)";
@@ -13388,9 +13435,14 @@ function rahmen(jetzt) {
       vorrat: anzugStand(a),
     });
 
-    /* Die Figur selbst ist ein Hindernis fuer Blasen */
-    hindernisse.push({ bx: x - groesse * 1.7, by: y - groesse * 2.0,
-                       bw: groesse * 3.4, bh: groesse * 4.2 });
+    /* Die Figur selbst ist ein Hindernis fuer Blasen — in Bildschirm-
+       koordinaten wie die Schilder und die Blasen. Vorher stand der
+       Kasten in Szenenkoordinaten: bei Zoom 1 ohne Verschieben ist das
+       dasselbe, herangefahren aber wichen die Blasen einem Kasten aus,
+       der ganz woanders lag und nur halb so gross war. */
+    const zs = KAM.zoom * kinoZoom;
+    hindernisse.push({ bx: mitte.x - groesse * 1.7 * zs, by: mitte.y - groesse * 2.0 * zs,
+                       bw: groesse * 3.4 * zs, bh: groesse * 4.2 * zs });
 
     /* Blase: bei eigenen Agenten das Denkprotokoll, bei Live-Quellen
        die aktuelle Taetigkeit. */
@@ -13565,6 +13617,10 @@ function rahmen(jetzt) {
   blasen.sort((a, b) => (b.seit || 0) - (a.seit || 0));
   const zeigen = blasen.slice(0, maxBlasen).sort((a, b) => a.y - b.y);
   const frei = hindernisse.slice();
+  /* Die Baender der Haekchen stehen schon — ihr Platz aus dem letzten
+     Bild, samt dem Stueck, das sie noch steigen. Eine Blase, die jetzt
+     erscheint, soll nicht auf ihnen landen. */
+  for (const k of HAKEN_LETZT) frei.push({ bx: k.bx, by: k.by - 20, bw: k.bw, bh: k.bh + 20 });
   for (const bl of zeigen) {
     const box = blaseLayout(bl.x, bl.y, bl.text, bl.vonVorn);
     /* Nicht unter den Kopf: dort liegen die Knoepfe darueber, und
@@ -13595,7 +13651,7 @@ function rahmen(jetzt) {
     BLASEN_LETZT.push({ text: bl.text, bx: box.bx, by: box.by, bw: box.bw, bh: box.bh });
   }
 
-  zeichneHaken(t);
+  zeichneHaken(t, frei);
   zeichneCrewPuls(liste);
   requestAnimationFrame(rahmen);
 }
@@ -17305,6 +17361,7 @@ window.__LOGPUSH = (e) => { Z.log.unshift(e); zeichneLog(); };
 window.__PHASE = (ph) => { PHASE_TEST = ph; };
 window.__GEWITTER = () => GEWITTER;
 window.__HAKEN = () => HAKEN;
+window.__HAKENBOX = () => HAKEN_LETZT;
 window.__KOBOLD = () => {
   const z = GEWITTER.zellen.filter(q => q.sicht > 0.9 && q.randNah)
     .sort((a, b) => Math.abs(a.sx - W / 2) - Math.abs(b.sx - W / 2))[0];
