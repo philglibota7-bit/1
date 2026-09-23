@@ -657,6 +657,10 @@ body.kino #zoomleiste{opacity:0 !important; pointer-events:none;}
 }
 #zoomleiste button:hover{color:var(--tx); border-color:var(--edge2);}
 #zoomleiste button:active{transform:scale(.93);}
+/* Der Knopf fuer Satellitenbilder gehoert zur ganzen Erde */
+#zoomleiste #zoom-sat{display:none;}
+body.erdansicht #zoomleiste #zoom-sat{display:flex;}
+#zoomleiste #zoom-sat.an{color:#9ed8ff; border-color:rgba(120,190,255,.55);}
 #zoomleiste .stufe{
   font-size:10.5px; color:var(--tx3); text-align:center; letter-spacing:.03em;
   font-variant-numeric:tabular-nums; padding:2px 0;
@@ -1086,6 +1090,7 @@ body.sicht #blende-detail, body.sicht #blende-teil{
     <button id="tm-iss" class="tm-knopf" type="button"></button>
     <button id="tm-wetter" class="tm-knopf" type="button"></button>
     <button id="tm-wolken" class="tm-knopf" type="button"></button>
+    <button id="tm-sat" class="tm-knopf" type="button"></button>
     <div class="tm-kopf" id="tm-buchkopf" style="margin:12px 0 7px">BORDBUCH</div>
     <div id="tm-buch"></div>
   </div>
@@ -1115,6 +1120,9 @@ body.sicht #blende-detail, body.sicht #blende-teil{
   <button id="zoom-rein" title="Heranzoomen">+</button>
   <div class="stufe" id="zoom-stufe">1,0×</div>
   <button id="zoom-raus" title="Herauszoomen">−</button>
+  <button id="zoom-sat" title="Satellitenbilder von Esri">
+    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 7 9 3 5 7l4 4M17 11l4 4-4 4-4-4M8 12l4 4M16 8l-3 3M9 16a3 3 0 0 0 3 3M6 16a6 6 0 0 0 6 6"/></svg>
+  </button>
   <button id="zoom-weg" title="Ansicht zurücksetzen">
     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg>
   </button>
@@ -1408,6 +1416,7 @@ let Z = {
   echteIss: false,    // wo die echte ISS ist, von wheretheiss.at — nur auf Wunsch
   weltraumwetter: false, // Kp und Polarlicht-Vorhersage der NOAA — nur auf Wunsch
   wolkenHeute: false, // die Wolken von heute statt der Aufnahme — nur auf Wunsch
+  satellit: false,    // Satellitenbilder von Esri fuer die ganze Erde — nur auf Wunsch
   bruecke: {
     typen: { session: true, ordner: true, prozess: true, github: true },
     ordner: [],                 // beobachtete Projektordner
@@ -1434,6 +1443,7 @@ function laden() {
       if (typeof d.echteIss === "boolean") Z.echteIss = d.echteIss;
       if (typeof d.weltraumwetter === "boolean") Z.weltraumwetter = d.weltraumwetter;
       if (typeof d.wolkenHeute === "boolean") Z.wolkenHeute = d.wolkenHeute;
+      if (typeof d.satellit === "boolean") Z.satellit = d.satellit;
       /* Die Zeitraffung ist eine Einstellung wie der Hintergrund — wer
          sie auf das Zwoelffache gestellt hat, will das beim naechsten
          Mal nicht wieder suchen muessen. Angehalten wird NICHT
@@ -1474,6 +1484,7 @@ function sichern() {
       key: Z.key, maxTok: Z.maxTok, gewaehlt: Z.gewaehlt,
       thema: Z.thema, umlauf: Z.umlauf, melden: Z.melden, bruecke: Z.bruecke, rate: ZEIT.rate,
       echteIss: Z.echteIss, weltraumwetter: Z.weltraumwetter, wolkenHeute: Z.wolkenHeute,
+      satellit: Z.satellit,
     }));
   } catch (e) {
     /* Speicher voll oder privater Modus — die App laeuft trotzdem weiter */
@@ -11153,7 +11164,37 @@ uniform sampler2D uTag, uWolken, uLichter, uKorn;
    ist es (0, 1, 0, 0), und alles bleibt, wie es war. */
 uniform vec4 uPolar;
 uniform sampler2D uOval;
+/* Satellitenbilder in Kacheln (Web-Mercator), ringfoermig im Speicher:
+   Kachel (x, y) liegt im Platz (x mod NX, y mod NY). uSatFenster: erste
+   Kachel des Fensters x0, y0, dann 2 hoch Zoomstufe, dann das Gewicht
+   (0 = aus). uSatRaster: NX, NY. uWolkenWeg: wie weit die Wolken beim
+   Hineinzoomen ausgeblendet sind. */
+uniform sampler2D uSat;
+uniform vec4 uSatFenster;
+uniform vec2 uSatRaster;
+uniform float uWolkenWeg;
 const float PI = 3.14159265;
+
+/* Das Satellitenbild an einem Punkt der Kugel, mit Deckkraft: 0, wo es
+   (noch) keine Kachel gibt oder der Punkt ausserhalb des Fensters liegt.
+   Zum Rand des Fensters hin weich, damit keine Kante zur Karte der NASA
+   entsteht. Jenseits von 85 Grad hat Web-Mercator keine Kacheln. */
+vec4 satellit(vec3 p) {
+  if (uSatFenster.w <= 0.0) return vec4(0.0);
+  float b = asin(clamp(p.z, -1.0, 1.0));
+  if (abs(b) > 1.4844) return vec4(0.0);
+  float n = uSatFenster.z;
+  float X = (atan(p.y, p.x) / (2.0 * PI) + 0.5) * n;
+  float Y = (0.5 - log(tan(PI / 4.0 + b / 2.0)) / (2.0 * PI)) * n;
+  float dx = mod(X - uSatFenster.x, n);
+  float dy = Y - uSatFenster.y;
+  if (dx >= uSatRaster.x || dy < 0.0 || dy >= uSatRaster.y) return vec4(0.0);
+  vec2 platz = mod(floor(vec2(X, Y)), uSatRaster);
+  vec4 c = texture2D(uSat, (platz + fract(vec2(X, Y))) / uSatRaster);
+  float rand = min(min(dx, uSatRaster.x - dx), min(dy, uSatRaster.y - dy));
+  c.a *= smoothstep(0.0, 0.7, rand) * uSatFenster.w;
+  return c;
+}
 
 /* Wie stark leuchtet das Polarlicht ueber einem Punkt der Kugel, ohne
    Farbe und ohne Ruecksicht auf die Sonne? Fuer die Oberflaeche und fuer
@@ -11268,6 +11309,10 @@ void main() {
   float n2 = texture2D(uKorn, uv * vec2(67.0, 33.5) + 0.37).r;
   float fein = (n1 - 0.5) * 0.6 + (n2 - 0.5) * 0.4;
   float wolke = smoothstep(0.14, 0.88, w + fein * w * (1.0 - w) * 1.1);
+  /* Hineingezoomt sind die Wolken acht Kilometer grobe Flecken ueber
+     einem scharfen Boden; wie jede Satellitenkarte zeigt die Kugel dann
+     den Boden ohne sie */
+  wolke *= 1.0 - uWolkenWeg;
 
   /* Richtung zur Sonne, in der Ebene des Bodens hier, als Schritt auf
      der Karte. Damit fallen die Wolkenschatten auf die sonnenabgewandte
@@ -11285,13 +11330,20 @@ void main() {
   vec3 farbe = vec3(0.0);
   if (uSchicht < 0.5 || uSchicht > 2.5) {
     vec3 boden = texture2D(uTag, uv).rgb;
+    /* Wo geladen, das Satellitenbild statt der Karte der NASA: gut 150
+       Meter je Kachelpunkt bei Zoomstufe 10, gut zwei bei 16 */
+    vec4 sat = satellit(p);
+    boden = mix(boden, sat.rgb, sat.a);
     /* Blue Marble ist fuer Karten gemacht, hell und satt. Aus dem Orbit
        liegt ueber allem ein Hauch Luft: etwas weniger Saettigung, etwas
        tiefere Schatten. */
     float grau = dot(boden, vec3(0.3, 0.55, 0.15));
-    boden = mix(vec3(grau), boden, 0.86);
-    boden = pow(boden, vec3(1.12)) * 0.95;
-    float schatten = smoothstep(0.2, 0.9, texture2D(uWolken, uv - schritt).r);
+    vec3 getoent = pow(mix(vec3(grau), boden, 0.86), vec3(1.12)) * 0.95;
+    /* Nah herangezoomt schaut man durch weniger Luft: dann bleibt von
+       dieser Toenung nur gut ein Drittel, und das Satellitenbild behaelt
+       seine Farben. Ohne Zoom ist es genau die Toenung wie immer. */
+    boden = mix(boden, getoent, 1.0 - 0.6 * uWolkenWeg);
+    float schatten = smoothstep(0.2, 0.9, texture2D(uWolken, uv - schritt).r) * (1.0 - uWolkenWeg);
     boden *= 1.0 - schatten * 0.42 * (1.0 - wolke);
     vec3 weiss = vec3(0.82, 0.84, 0.87) + kamm * 0.16;
     farbe = mix(boden, weiss, min(1.0, wolke * 1.15));
@@ -11442,14 +11494,21 @@ function erdkarteAufbauen() {
       /* Die Polarlicht-Karte der NOAA: erst ein einzelner leerer Punkt,
          die echte kommt, wenn sie gewuenscht und geladen ist */
       const ovalTx = textur(4, { daten: new Uint8Array(4), b: 1, h: 1 }, gl.LUMINANCE, false, false);
+      /* Die Satellitenbilder: erst ein einzelner durchsichtiger Punkt, das
+         Mosaik wird angelegt, wenn sie gewuenscht sind */
+      ERDKARTE.satTx = textur(5, { daten: new Uint8Array(4), b: 1, h: 1 }, gl.RGBA, false, false);
       const u = {};
       for (const n of ["uGroesse", "uMitte", "uRadius", "uBlick", "uSonne", "uMond", "uSchicht",
-                       "uTag", "uWolken", "uLichter", "uKorn", "uPolar", "uOval"])
+                       "uTag", "uWolken", "uLichter", "uKorn", "uPolar", "uOval",
+                       "uSat", "uSatFenster", "uSatRaster", "uWolkenWeg"])
         u[n] = gl.getUniformLocation(prog, n);
       gl.uniform1i(u.uTag, 0); gl.uniform1i(u.uWolken, 1);
       gl.uniform1i(u.uLichter, 2); gl.uniform1i(u.uKorn, 3);
-      gl.uniform1i(u.uOval, 4);
+      gl.uniform1i(u.uOval, 4); gl.uniform1i(u.uSat, 5);
       gl.uniform4f(u.uPolar, 0, 1, 0, 0);
+      gl.uniform4f(u.uSatFenster, 0, 0, 1, 0);
+      gl.uniform2f(u.uSatRaster, 1, 1);
+      gl.uniform1f(u.uWolkenWeg, 0);
       ERDKARTE.ovalTx = ovalTx;
       ERDKARTE.ovalGeladen = null;
       const fehler = gl.getError();
@@ -11614,6 +11673,13 @@ function erdkarteMalen(ziel, bw, bh, mx, my, rr, blick, schicht) {
     const pw = polarWerte();
     gl.uniform4f(u.uPolar, pw.ruck, pw.hell, o ? 1 : 0, pw.rot);
   }
+  /* Die Satellitenbilder gelten fuer die ganze Erde, und nur, wenn der
+     Aufrufer sie ausdruecklich will (blick.sat) — Pruefungen und die
+     Scheibe unter der Station malen ohne sie */
+  const sat = schicht > 2.5 && blick.sat ? blick.sat : null;
+  gl.uniform4f(u.uSatFenster, sat ? sat.x0 : 0, sat ? sat.y0 : 0, sat ? sat.n : 1, sat ? sat.gewicht : 0);
+  gl.uniform2f(u.uSatRaster, sat ? sat.nx : 1, sat ? sat.ny : 1);
+  gl.uniform1f(u.uWolkenWeg, sat ? sat.wolkenWeg : 0);
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -11905,7 +11971,10 @@ function erdeBei(px, py) {
    waere sie von hier aus nicht einmal ein Bildpunkt. Die Bahn liegt
    dafuer in echter Hoehe ueber dem Boden, 420 von 6371 Kilometern. */
 const ERDANSICHT = { an: false, blend: 0, drang: 1, drangUm: 0, blick: null, geo: null,
-                     neig: 50 * Math.PI / 180, az: 0, zoom: 1 };
+                     neig: 50 * Math.PI / 180, az: 0, zoom: 1, frei: null, freiVersion: 0 };
+/* Mit Satellitenbildern laesst sich bis auf Strassen heranzoomen: gut
+   fuenftausendfach, dann ist ein Bildpunkt rund zwei Meter */
+const SAT_ZOOM_MAX = 6000;
 const ERDANSICHT_NEIGUNG = 50 * Math.PI / 180;
 
 function erdansicht(an, vomRundgang) {
@@ -11914,7 +11983,7 @@ function erdansicht(an, vomRundgang) {
   ERDANSICHT.an = !!an;
   ERDANSICHT.drang = 1;
   /* Jedes Mal wieder aus der gewohnten Richtung */
-  if (ERDANSICHT.an && !vorher) { ERDANSICHT.neig = ERDANSICHT_NEIGUNG; ERDANSICHT.az = 0; ERDANSICHT.zoom = 1; }
+  if (ERDANSICHT.an && !vorher) { ERDANSICHT.neig = ERDANSICHT_NEIGUNG; ERDANSICHT.az = 0; ERDANSICHT.zoom = 1; ERDANSICHT.frei = null; }
   if (ERDANSICHT.an) {
     /* Was sonst ueber der Szene liegt, gehoert zur Station — ausser dem
        Rundgang, wenn er selbst die ganze Erde zeigt */
@@ -11938,6 +12007,16 @@ function erdansicht(an, vomRundgang) {
 function erdansichtBlick(phi, ms) {
   const b = erdBlick(phi, ms);
   const m = b.m;
+  /* Frei: die Kamera steht erdfest ueber einem Punkt, den man mit Ziehen
+     und Zoomen waehlt, wie bei einer Kartenansicht. Die Station fliegt
+     dann durchs Bild, statt es mitzunehmen. */
+  const fr = ERDANSICHT.frei;
+  if (fr) {
+    const mo = mondErdfest(ms);
+    const anteil = (1 - Math.cos(mo.elong * Math.PI / 180)) / 2;
+    return { m: [...fr.ex, ...fr.ey, ...fr.ez], S: b.S,
+             mond: { v: mo.v, elong: mo.elong, anteil, licht: Math.pow(anteil, 3.3) } };
+  }
   const V = [m[0], m[1], m[2]], O = [m[3], m[4], m[5]], Z = [m[6], m[7], m[8]];
   const c = Math.cos(ERDANSICHT.neig), s = Math.sin(ERDANSICHT.neig);
   const ca = Math.cos(ERDANSICHT.az), sa = Math.sin(ERDANSICHT.az);
@@ -11954,6 +12033,114 @@ function erdansichtBlick(phi, ms) {
   const anteil = (1 - Math.cos(mo.elong * Math.PI / 180)) / 2;
   return { m: [ex[0], ex[1], ex[2], ey[0], ey[1], ey[2], ez[0], ez[1], ez[2]], S: b.S,
            mond: { v: mo.v, elong: mo.elong, anteil, licht: Math.pow(anteil, 3.3) } };
+}
+
+/* --- Der freie Blick -------------------------------------------------------
+   Ein erdfester Rahmen: ez zeigt zum Punkt in der Mitte der Kugel, ey nach
+   oben, ex nach rechts (ex x ey = ez, wie im Schattierer). Neu aufgebaut
+   wird er aus einer neuen Mitte und dem alten Oben, damit sich das Bild
+   beim Ziehen nicht verdreht. */
+function freiRahmen(ez, eyAlt) {
+  const l = Math.hypot(...ez) || 1;
+  ez = ez.map(x => x / l);
+  const d = eyAlt[0] * ez[0] + eyAlt[1] * ez[1] + eyAlt[2] * ez[2];
+  let ey = [eyAlt[0] - ez[0] * d, eyAlt[1] - ez[1] * d, eyAlt[2] - ez[2] * d];
+  let ly = Math.hypot(...ey);
+  if (ly < 1e-6) { ey = Math.abs(ez[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0]; const d2 = ey[0] * ez[0] + ey[1] * ez[1] + ey[2] * ez[2]; ey = [ey[0] - ez[0] * d2, ey[1] - ez[1] * d2, ey[2] - ez[2] * d2]; ly = Math.hypot(...ey); }
+  ey = ey.map(x => x / ly);
+  const ex = [ey[1] * ez[2] - ey[2] * ez[1], ey[2] * ez[0] - ey[0] * ez[2], ey[0] * ez[1] - ey[1] * ez[0]];
+  return { ex, ey, ez };
+}
+/* In den freien Blick wechseln, ohne dass das Bild springt: der Rahmen ist
+   der, mit dem gerade gezeichnet wurde */
+function freiAn() {
+  if (ERDANSICHT.frei || !ERDANSICHT.blick) return;
+  const m = ERDANSICHT.blick.m;
+  ERDANSICHT.frei = { ex: m.slice(0, 3), ey: m.slice(3, 6), ez: m.slice(6, 9) };
+  ERDANSICHT.freiVersion++;
+}
+/* Der Rahmen, in dem der Punkt P der Kugel bei (zx, zy) auf dem Schirm
+   liegt — in Radien von der Mitte, y nach unten —, ohne dass sich das
+   Bild dabei verdreht. Geschlossen gerechnet, ohne Naeherung: in Breite
+   und Laenge um das Oben des Bezugsrahmens als Pol, mit seiner Mitte als
+   Nullmeridian. Dort ist die Laenge von P gegenueber der Mitte d mit
+   x = cos(Breite von P) sin d, und die Breite der Mitte folgt aus
+   oben = R cos(Breite der Mitte + psi). Von zwei moeglichen Laengen
+   gilt die, die dem jetzigen Rahmen naeher liegt; ueber den Pol hinaus
+   geht es nicht, dort stuende das Bild sonst Kopf. */
+function freiLoesen(bezug, jetzt, P, zx, zy) {
+  const N = bezug.ey, A = bezug.ez, B = bezug.ex;
+  const pn = (u, v) => u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+  const sb = klemm(pn(P, N), -1, 1), cb = Math.sqrt(1 - sb * sb);
+  const lp = Math.atan2(pn(P, B), pn(P, A));
+  /* Wie weit seitlich P kommen kann, ohne dass sich das Bild verdreht,
+     haengt an seiner Breite. Kurz vor dieser Grenze wird es weich: dort
+     muesste die Kugel sonst immer schneller um den Pol wirbeln. */
+  let w = zx / Math.max(cb, 1e-12);
+  if (Math.abs(w) > 0.85) w = Math.sign(w) * (0.85 + 0.15 * Math.tanh((Math.abs(w) - 0.85) / 0.15));
+  const d1 = Math.asin(w), d2 = Math.PI - d1;
+  const dJetzt = lp - Math.atan2(pn(jetzt.ez, B), pn(jetzt.ez, A));
+  const abst = (a) => Math.abs(Math.atan2(Math.sin(a - dJetzt), Math.cos(a - dJetzt)));
+  const d = abst(d1) <= abst(d2) ? d1 : d2;
+  const c = cb * Math.cos(d), R = Math.hypot(sb, c), psi = Math.atan2(c, sb);
+  /* Die Breite der Mitte ist nur bis auf volle Umdrehungen bestimmt: erst
+     auf -180 bis 180 Grad bringen, dann am Pol begrenzen */
+  let bc = Math.acos(klemm(-zy / Math.max(R, 1e-12), -1, 1)) - psi;
+  bc = Math.atan2(Math.sin(bc), Math.cos(bc));
+  const pol = 89.5 * Math.PI / 180;
+  bc = klemm(bc, -pol, pol);
+  const lc = lp - d;
+  const cc = Math.cos(bc), sc = Math.sin(bc), cl = Math.cos(lc), sl = Math.sin(lc);
+  const u = [0, 1, 2].map(k => cl * A[k] + sl * B[k]);
+  return { ex: [0, 1, 2].map(k => cl * B[k] - sl * A[k]),
+           ey: [0, 1, 2].map(k => cc * N[k] - sc * u[k]),
+           ez: [0, 1, 2].map(k => cc * u[k] + sc * N[k]) };
+}
+/* Der Punkt der Kugel unter (px, py), im Rahmen f bei Radius r — oder null
+   daneben */
+function freiPunkt(f, px, py, r) {
+  const g = ERDANSICHT.geo;
+  const qx = (px - g.cx) / r, qy = (py - g.cy) / r, q2 = qx * qx + qy * qy;
+  if (q2 >= 0.995) return null;
+  const qz = Math.sqrt(1 - q2);
+  return [0, 1, 2].map(k => f.ex[k] * qx - f.ey[k] * qy + f.ez[k] * qz);
+}
+/* Verschieben: was man greift, geht mit dem Finger — genau, nicht nur
+   in der Naehe der Mitte. (x0, y0) ist, wo gegriffen wurde, im Rahmen f0
+   bei Radius r; (x1, y1), wo der Zeiger jetzt ist. Wer neben der Kugel
+   greift, schiebt sie wie bisher im Verhaeltnis zum Weg. */
+function freiSchieben(f0, x0, y0, x1, y1, r) {
+  const g = ERDANSICHT.geo;
+  const P = g && freiPunkt(f0, x0, y0, r);
+  if (!P) {
+    const dx = x1 - x0, dy = y1 - y0;
+    ERDANSICHT.frei = freiRahmen([0, 1, 2].map(k => f0.ez[k] - f0.ex[k] * dx / r + f0.ey[k] * dy / r), f0.ey);
+  } else {
+    /* Ueber den Rand der Kugel hinaus kann der gegriffene Ort nicht: er
+       bleibt knapp innerhalb stehen */
+    let zx = (x1 - g.cx) / r, zy = (y1 - g.cy) / r;
+    const z2 = zx * zx + zy * zy;
+    if (z2 > 0.97) { const k = Math.sqrt(0.97 / z2); zx *= k; zy *= k; }
+    /* Das Oben kommt vom Anfang des Ziehens; der jetzige Stand entscheidet
+       nur, welche der beiden Loesungen gilt */
+    ERDANSICHT.frei = freiLoesen(f0, ERDANSICHT.frei || f0, P, zx, zy);
+  }
+  ERDANSICHT.freiVersion++;
+}
+/* Zoomen auf einen Punkt: der Ort unter dem Zeiger bleibt unter dem
+   Zeiger. Beim Herauszoomen kann er dort nicht bleiben, wenn der Zeiger
+   dann schon neben der Kugel laege; dann rueckt er so weit wie noetig
+   zur Mitte. */
+function freiZoomAuf(px, py, rAlt, rNeu) {
+  const g = ERDANSICHT.geo, fr = ERDANSICHT.frei;
+  if (!g || !fr) return;
+  const P = freiPunkt(fr, px, py, rAlt);
+  if (!P) return;
+  let zx = (px - g.cx) / rNeu, zy = (py - g.cy) / rNeu;
+  const z2 = zx * zx + zy * zy;
+  if (z2 > 0.97) { const s = Math.sqrt(0.97 / z2); zx *= s; zy *= s; }
+  ERDANSICHT.frei = freiLoesen(fr, fr, P, zx, zy);
+  ERDANSICHT.freiVersion++;
 }
 
 function erdansichtMasse() {
@@ -12001,32 +12188,45 @@ function zeichneErdansicht(t, dt) {
      Aufloesung knapp zwanzig Millisekunden je Bild. Die Sterne kommen
      danach, vom echten Himmel (erdansichtHimmel). */
   const q = ERDANSICHT_BILD;
-  /* Die Kugel selbst, in einem Quadrat mit Platz fuer den Luftsaum.
-     Hineingezoomt waechst das Quadrat; mehr als 2048 Bildpunkte je
-     Seite rechnet der Schattierer nicht, der Rest wird hochgezogen. */
+  /* Satellitenbilder: Stufe und Fenster zum Blick, Kacheln anstossen */
+  const sat = satVorbereiten(g, blick);
+  if (sat) blick.sat = sat;
+  /* Die Kugel selbst, mit Platz fuer den Luftsaum — aber nur der Teil,
+     der auf dem Schirm liegt. Hineingezoomt ist die Kugel viel groesser
+     als der Schirm; gerechnet wird trotzdem nur, was man sieht, hoechstens
+     2048 Bildpunkte auf der laengeren Seite. */
   const kante = Math.ceil(g.r * 1.12);
-  const fein = Math.min(DPR, 1.5, 2048 / (kante * 2));
-  const bw = Math.max(8, Math.round(kante * 2 * fein));
+  const ax = Math.max(0, Math.floor(g.cx - kante)), ay = Math.max(0, Math.floor(g.cy - kante));
+  const bx = Math.min(W, Math.ceil(g.cx + kante)), by = Math.min(H, Math.ceil(g.cy + kante));
+  const rw = Math.max(1, bx - ax), rh = Math.max(1, by - ay);
+  const fein = Math.min(DPR, 1.5, 2048 / Math.max(rw, rh));
+  const bw = Math.max(8, Math.round(rw * fein)), bh = Math.max(8, Math.round(rh * fein));
   if (!q.c) q.c = document.createElement("canvas");
-  if (q.c.width !== bw || q.c.height !== bw) { q.c.width = bw; q.c.height = bw; q.stand = null; }
+  if (q.c.width !== bw || q.c.height !== bh) { q.c.width = bw; q.c.height = bh; q.stand = null; }
   /* Neu gerechnet wird nur, wenn sich die Kugel sichtbar gedreht hat,
      oder alle zwei Sekunden fuer die Sonne. Wie weit "sichtbar" ist,
      haengt daran, was das Rechnen kostet: mit Grafikchip ein paar
      Millisekunden, dann reicht ein halber Bildpunkt am Rand; ohne einer
      bis zu drei Bildpunkte — sonst frisst die Kugel die ganze Bildrate,
      um sich in Schritten zu drehen, die niemand sieht. Gezogen wird
-     immer sofort. */
+     immer sofort. Im freien Blick steht die Kamera erdfest, dort dreht
+     die Bahn nichts; neue Satellitenkacheln kommen hoechstens alle
+     zehntel Sekunde dazu. */
   const alt = q.stand;
   const schwelle = klemm((ERDANSICHT.kosten || 4) / 8, 0.5, 3);
-  if (!alt || Math.abs(phi - alt.phi) * g.r * fein > schwelle || uhr - alt.um > 2000
-      || alt.neig !== ERDANSICHT.neig || alt.az !== ERDANSICHT.az) {
+  const frei = !!ERDANSICHT.frei;
+  if (!alt || (!frei && Math.abs(phi - alt.phi) * g.r * fein > schwelle) || uhr - alt.um > 2000
+      || alt.neig !== ERDANSICHT.neig || alt.az !== ERDANSICHT.az || alt.r !== g.r
+      || alt.ax !== ax || alt.ay !== ay || alt.frei !== ERDANSICHT.freiVersion
+      || (alt.sat !== SATBILD.version && uhr - alt.um > 100)) {
     const t0 = performance.now();
     const kg = q.c.getContext("2d");
-    kg.clearRect(0, 0, bw, bw);
-    erdkarteMalen((lw) => kg.drawImage(lw, 0, 0), bw, bw, bw / 2, bw / 2, g.r * fein, blick, 3);
+    kg.clearRect(0, 0, bw, bh);
+    erdkarteMalen((lw) => kg.drawImage(lw, 0, 0), bw, bh, (g.cx - ax) * fein, (g.cy - ay) * fein, g.r * fein, blick, 3);
     const dauer = performance.now() - t0;
     ERDANSICHT.kosten = ERDANSICHT.kosten ? ERDANSICHT.kosten * 0.8 + dauer * 0.2 : dauer;
-    q.stand = { phi, um: uhr, neig: ERDANSICHT.neig, az: ERDANSICHT.az };
+    q.stand = { phi, um: uhr, neig: ERDANSICHT.neig, az: ERDANSICHT.az, r: g.r, ax, ay,
+                frei: ERDANSICHT.freiVersion, sat: SATBILD.version };
   }
 
   cx.save();
@@ -12035,10 +12235,23 @@ function zeichneErdansicht(t, dt) {
   cx.fillStyle = "#04070d";
   cx.fillRect(0, 0, cv.width, cv.height);
   erdansichtHimmel(g, blick, Date.now());
-  cx.drawImage(q.c, 0, 0, bw, bw,
-    Math.round((g.cx - kante) * DPR), Math.round((g.cy - kante) * DPR),
-    Math.round(kante * 2 * DPR), Math.round(kante * 2 * DPR));
+  cx.drawImage(q.c, 0, 0, bw, bh, Math.round(ax * DPR), Math.round(ay * DPR),
+    Math.round(rw * DPR), Math.round(rh * DPR));
   erdansichtBlitze(g, blick, uhr);
+  /* Esri verlangt die Quellenangabe, sobald seine Bilder zu sehen sind */
+  ERDANSICHT.quelle = sat && sat.gewicht > 0 ? SAT_QUELLE : null;
+  if (ERDANSICHT.quelle) {
+    const rb = bedienRand();
+    cx.save();
+    cx.font = `500 ${10 * DPR}px -apple-system, system-ui, sans-serif`;
+    cx.textAlign = "left"; cx.textBaseline = "bottom";
+    cx.lineWidth = 3 * DPR; cx.strokeStyle = "rgba(4,7,14,.75)";
+    const qx = 12 * DPR, qy = ((rb.unten || H) - 6) * DPR;
+    cx.strokeText(SAT_QUELLE, qx, qy);
+    cx.fillStyle = "rgba(220,230,245,.78)";
+    cx.fillText(SAT_QUELLE, qx, qy);
+    cx.restore();
+  }
 
   /* Die Bahn: ein Kreis in echter Hoehe, als Ellipse gesehen. Was hinter
      der Kugel liegt, bleibt verdeckt; vorn ist sie hell, dort, wo die
@@ -12394,7 +12607,9 @@ function erdansichtBlitze(g, blick, uhr) {
     const u = (uhr - b.t0) / b.dauer;
     const f = u * b.schlaege, schlag = Math.floor(f);
     const hell = Math.exp(-(f - schlag) * 4.5) * (1 - schlag * 0.25) * (0.55 + 0.45 * b.z.kraft);
-    const rad = g.r * 0.034 * DPR * (0.7 + 0.6 * b.z.kraft);
+    /* Eine Gewitterzelle leuchtet gut zweihundert Kilometer weit; nah
+       herangezoomt waere das der ganze Schirm, also gedeckelt */
+    const rad = Math.min(g.r * 0.034, 90) * DPR * (0.7 + 0.6 * b.z.kraft);
     /* Zum Rand hin von der Seite gesehen: eine flache Ellipse */
     cx.save();
     cx.translate(sx, sy);
@@ -12906,6 +13121,189 @@ function wolkenAnwenden() {
   GEWITTER.zellen = ERDKARTE.zellen;
   ERDE.schubGebacken = null;
   ERDANSICHT_BILD.stand = null;
+}
+
+/* --- Satellitenbilder, auf Wunsch ------------------------------------------
+   Die Karte der NASA hat knapp zehn Kilometer je Punkt: fuer die ganze
+   Kugel genug, zum Hineinzoomen nicht. Auf Wunsch laedt ORBIT fuer den
+   sichtbaren Ausschnitt Satellitenbilder von Esri (World Imagery, aus
+   Aufnahmen von Maxar, Earthstar Geographics und anderen), dieselbe Quelle,
+   die God's Eye View ohne Schluessel nutzt. Esri erlaubt das mit
+   Quellenangabe und ohne Schluessel, kann den Dienst aber aendern.
+
+   Kacheln: 256 mal 256 Punkte in Web-Mercator, Zoomstufe z teilt die Welt
+   in 2 hoch z Spalten und Zeilen. Gewaehlt wird die Stufe, deren Punkte
+   auf dem Schirm etwa einen Bildpunkt gross sind. Im Grafikspeicher
+   liegt ein Fenster aus NX mal NY Kacheln um die Blickmitte, ringfoermig:
+   Kachel (x, y) liegt im Platz (x mod NX, y mod NY). Wandert der Blick um
+   eine Kachel, wird nur die neue Reihe nachgeladen. Ein Platz, dessen
+   Kachel noch fehlt, ist durchsichtig; dort bleibt die Karte der NASA.
+
+   Ausgeschaltet geht keine Anfrage hinaus. Eingeschaltet erfaehrt Esri,
+   welchen Ausschnitt man sich ansieht, so wie bei jeder Online-Karte. */
+const SATBILD = { nx: 16, ny: 10, z: -1, x0: 0, y0: 0, platz: [], angelegt: false,
+                  cache: new Map(), laden: new Map(), warte: [], version: 0,
+                  anfragen: 0, fehler: 0, leer: null, gewicht: 0, wolkenWeg: 0 };
+const SAT_ADRESSE = "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/";
+const SAT_QUELLE = "Bilder: Esri, Maxar, Earthstar Geographics, GIS User Community";
+const SAT_MAXZ = 16, SAT_MINZ = 5, SAT_GLEICHZEITIG = 8, SAT_CACHE = 400;
+
+/* Web-Mercator: Breite und Laenge in Grad zu Kachelkoordinaten */
+function satKachel(breite, laenge, z) {
+  const n = Math.pow(2, z), b = klemm(breite, -85.05, 85.05) * Math.PI / 180;
+  return { x: (laenge / 360 + 0.5) * n, y: (0.5 - Math.log(Math.tan(Math.PI / 4 + b / 2)) / (2 * Math.PI)) * n };
+}
+
+/* Fuer die ganze Erde: welche Stufe, welches Fenster, und die Kacheln
+   dazu anstossen. Gibt zurueck, was der Schattierer braucht, oder null. */
+function satVorbereiten(g, blick) {
+  const S_ = SATBILD;
+  if (!Z.satellit || !ERDKARTE.bereit || !ERDKARTE.gl) { S_.gewicht = 0; S_.wolkenWeg = 0; return null; }
+  /* Die Blickmitte: der Punkt der Kugel unter der Mitte des Schirms, oder
+     der naechste auf ihr, wenn die ganze Kugel zu sehen ist */
+  const rand = bedienRand();
+  const mxs = W / 2, mys = ((rand.oben || 70) + (rand.unten || H)) / 2;
+  let qx = (mxs - g.cx) / g.r, qy = (mys - g.cy) / g.r;
+  const r2 = qx * qx + qy * qy;
+  if (r2 > 0.98) { const k = Math.sqrt(0.98 / r2); qx *= k; qy *= k; }
+  const v = [qx, -qy, Math.sqrt(Math.max(0, 1 - qx * qx - qy * qy))];
+  const M = blick.m;
+  const p = [M[0] * v[0] + M[3] * v[1] + M[6] * v[2], M[1] * v[0] + M[4] * v[1] + M[7] * v[2],
+             M[2] * v[0] + M[5] * v[1] + M[8] * v[2]];
+  const [breite, laenge] = breiteLaenge(p);
+  /* Meter je Bildpunkt dort (ohne die Verkuerzung zum Rand hin) und die
+     Stufe, deren Kachelpunkte etwa so gross sind */
+  const mpp = 6371000 / (g.r * DPR);
+  const cosb = Math.max(0.05, Math.cos(breite * Math.PI / 180));
+  let z = Math.round(Math.log2(156543.034 * cosb / mpp));
+  /* Deckt das Fenster den Schirm nicht, eine Stufe groeber */
+  const schirm = Math.max(W, H) * DPR * mpp;
+  while (z > SAT_MINZ && schirm / (256 * 156543.034 * cosb / Math.pow(2, z)) > Math.min(S_.nx, S_.ny * 1.6) - 1) z--;
+  z = Math.min(z, SAT_MAXZ);
+  /* Ueberblenden: unter Stufe 5 ist die Karte der NASA so fein wie die
+     Kacheln, darueber uebernehmen sie; die Wolken gehen ab Stufe 7 */
+  const zRoh = Math.log2(156543.034 * cosb / mpp);
+  S_.gewicht = klemm(zRoh - 4.3, 0, 1);
+  S_.wolkenWeg = klemm((zRoh - 7) / 3, 0, 1);
+  if (z < SAT_MINZ || S_.gewicht <= 0) return { x0: 0, y0: 0, n: 1, nx: 1, ny: 1, gewicht: 0, wolkenWeg: S_.wolkenWeg };
+  satAnlegen();
+  const n = Math.pow(2, z);
+  const k = satKachel(breite, laenge, z);
+  const x0 = Math.floor(k.x - S_.nx / 2);
+  const y0 = n <= S_.ny ? 0 : klemm(Math.floor(k.y - S_.ny / 2), 0, n - S_.ny);
+  if (z !== S_.z || x0 !== S_.x0 || y0 !== S_.y0) satFenster(z, x0, y0, k);
+  return { x0: ((S_.x0 % n) + n) % n, y0: S_.y0, n, nx: S_.nx, ny: S_.ny, gewicht: S_.gewicht, wolkenWeg: S_.wolkenWeg };
+}
+
+/* Das Mosaik im Grafikspeicher einmal anlegen: WebGL fuellt es mit Nullen,
+   also durchsichtig */
+function satAnlegen() {
+  const S_ = SATBILD;
+  if (S_.angelegt) return;
+  const gl = ERDKARTE.gl;
+  gl.activeTexture(gl.TEXTURE5);
+  gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.satTx);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, S_.nx * 256, S_.ny * 256, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  S_.platz = new Array(S_.nx * S_.ny).fill(null);
+  S_.leer = new Uint8Array(256 * 256 * 4);
+  S_.angelegt = true;
+}
+
+/* Ein neues Fenster: jeder Platz bekommt die Kachel, die jetzt zu ihm
+   gehoert. Liegt sie schon da, bleibt sie; sonst wird der Platz geleert
+   und die Kachel aus dem Speicher genommen oder angefragt, die naechsten
+   zur Blickmitte zuerst. */
+function satFenster(z, x0, y0, mitte) {
+  const S_ = SATBILD, n = Math.pow(2, z);
+  S_.z = z; S_.x0 = x0; S_.y0 = y0;
+  const gewuenscht = [];
+  for (let j = 0; j < Math.min(S_.ny, n); j++) {
+    for (let i = 0; i < S_.nx; i++) {
+      const x = (((x0 + i) % n) + n) % n, y = y0 + j;
+      const schluessel = z + "/" + x + "/" + y;
+      /* Wie im Schattierer: aus der Kachel selbst, nicht aus ihrer Lage im
+         Fenster — n ist ein Vielfaches von NX, also bleibt das ueber die
+         Datumsgrenze hinweg eindeutig */
+      const platz = (x % S_.nx) + (y % S_.ny) * S_.nx;
+      if (S_.platz[platz] === schluessel) continue;
+      S_.platz[platz] = schluessel;
+      const b = S_.cache.get(schluessel);
+      if (b) satHochladen(platz, b);
+      else {
+        satHochladen(platz, null);
+        gewuenscht.push({ schluessel, platz, d: Math.hypot(x0 + i + 0.5 - mitte.x, y + 0.5 - mitte.y) });
+      }
+    }
+  }
+  gewuenscht.sort((a, b) => a.d - b.d);
+  /* Was nicht mehr im Fenster liegt, braucht niemand mehr */
+  const noch = new Set(S_.platz);
+  S_.warte = gewuenscht.concat(S_.warte.filter(w => noch.has(w.schluessel) && !gewuenscht.some(g2 => g2.schluessel === w.schluessel)));
+  satWeiter();
+}
+
+function satHochladen(platz, bild) {
+  const S_ = SATBILD, gl = ERDKARTE.gl;
+  if (!gl || !S_.angelegt) return;
+  gl.activeTexture(gl.TEXTURE5);
+  gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.satTx);
+  const px = (platz % S_.nx) * 256, py = Math.floor(platz / S_.nx) * 256;
+  if (bild) gl.texSubImage2D(gl.TEXTURE_2D, 0, px, py, gl.RGBA, gl.UNSIGNED_BYTE, bild);
+  else gl.texSubImage2D(gl.TEXTURE_2D, 0, px, py, 256, 256, gl.RGBA, gl.UNSIGNED_BYTE, S_.leer);
+  S_.version++;
+}
+
+/* Hoechstens acht Anfragen zugleich; was ankommt und noch gebraucht wird,
+   geht sofort auf den Grafikchip */
+function satWeiter() {
+  const S_ = SATBILD;
+  while (S_.laden.size < SAT_GLEICHZEITIG && S_.warte.length) {
+    const w = S_.warte.shift();
+    if (S_.laden.has(w.schluessel) || S_.cache.has(w.schluessel)) continue;
+    const [z, x, y] = w.schluessel.split("/");
+    const b = new Image();
+    b.crossOrigin = "anonymous";
+    S_.laden.set(w.schluessel, b);
+    S_.anfragen++;
+    const fertig = (ok) => {
+      S_.laden.delete(w.schluessel);
+      if (ok && Z.satellit) {
+        S_.cache.set(w.schluessel, b);
+        if (S_.cache.size > SAT_CACHE) S_.cache.delete(S_.cache.keys().next().value);
+        const platz = S_.platz.indexOf(w.schluessel);
+        if (platz >= 0) satHochladen(platz, b);
+      } else if (!ok) S_.fehler++;
+      satWeiter();
+    };
+    b.onload = () => fertig(true);
+    b.onerror = () => fertig(false);
+    b.src = SAT_ADRESSE + z + "/" + y + "/" + x;
+  }
+}
+
+/* Ausgeschaltet: nichts mehr anfragen, das Mosaik vergessen */
+function satAus() {
+  const S_ = SATBILD;
+  for (const b of S_.laden.values()) b.src = "";
+  S_.laden.clear(); S_.warte = [];
+  S_.z = -1; S_.gewicht = 0; S_.wolkenWeg = 0;
+  if (S_.angelegt) S_.platz.fill(null);
+  if (S_.angelegt && ERDKARTE.gl) {
+    for (let i = 0; i < S_.platz.length; i++) satHochladen(i, null);
+  }
+  S_.version++;
+}
+
+function satellitKnopf() {
+  const k = document.getElementById("tm-sat");
+  if (!k) return;
+  k.textContent = Z.satellit ? "Satellitenbilder aus" : "Satellitenbilder";
+  const klein = document.createElement("small");
+  klein.textContent = Z.satellit ? "von Esri; die ganze Erde lässt sich bis auf Straßen heranzoomen"
+                                 : "scharfe Bilder von Esri beim Hineinzoomen in die ganze Erde";
+  k.append(klein);
+  const z = document.getElementById("zoom-sat");
+  if (z) { z.classList.toggle("an", !!Z.satellit); z.title = Z.satellit ? "Satellitenbilder aus" : "Satellitenbilder von Esri"; }
 }
 
 function wolkenHeuteKnopf() {
@@ -14988,8 +15386,21 @@ function zoomeAuf(px, py, faktor) {
          zweieinhalbmal so gross ist oder halb so klein. Wer darueber
          hinaus weiter hineinzoomt, kommt zur Station zurueck. */
       const alt = ERDANSICHT.zoom;
-      ERDANSICHT.zoom = klemm(alt * faktor, 0.55, 2.4);
-      if (faktor > 1.01 && alt >= 2.4 * 0.999) {
+      /* Mit Satellitenbildern weiter, bis auf Strassen, und immer auf den
+         Punkt unter dem Zeiger */
+      const maxZ = Z.satellit ? SAT_ZOOM_MAX : 2.4;
+      const rAlt = ERDANSICHT.geo ? ERDANSICHT.geo.r : null;
+      if (Z.satellit && (ERDANSICHT.frei || alt * faktor > 1.0001)) freiAn();
+      ERDANSICHT.zoom = klemm(alt * faktor, 0.55, maxZ);
+      if (ERDANSICHT.frei && rAlt && ERDANSICHT.zoom !== alt) {
+        freiZoomAuf(px, py, rAlt, rAlt * ERDANSICHT.zoom / alt);
+        ERDANSICHT.geo = { ...ERDANSICHT.geo, r: rAlt * ERDANSICHT.zoom / alt };
+        /* Wer beim Ziehen zoomt, zieht danach vom neuen Stand aus weiter,
+           gegriffen dort, wo der Zeiger gerade ist */
+        if (zieh && zieh.frei) { zieh.frei = ERDANSICHT.frei; zieh.r = ERDANSICHT.geo.r; zieh.x0 = px; zieh.y0 = py; }
+      }
+      zoomLeisteAktualisieren();
+      if (faktor > 1.01 && alt >= maxZ * 0.999) {
         ERDANSICHT.drangUm = jetzt;
         ERDANSICHT.drang *= faktor;
         if (ERDANSICHT.drang > 1.22) erdansicht(false);
@@ -20113,10 +20524,17 @@ let zieh = null;
 let kneifAbstand = 0;
 
 function zoomLeisteAktualisieren() {
-  $("#zoom-stufe").textContent = ERDANSICHT.an ? "Erde"
+  /* In der ganzen Erde, weit hineingezoomt: wie breit der Ausschnitt ist */
+  let erde = "Erde";
+  if (ERDANSICHT.an && ERDANSICHT.zoom > 2.4 && ERDANSICHT.geo) {
+    const km = W * 6371 / ERDANSICHT.geo.r;
+    erde = km >= 10 ? Math.round(km) + " km" : km >= 1 ? km.toFixed(1).replace(".", ",") + " km" : Math.round(km * 1000) + " m";
+  }
+  $("#zoom-stufe").textContent = ERDANSICHT.an ? erde
     : KAM.zielZoom.toFixed(1).replace(".", ",") + "×";
 }
 function zeigeZoomLeiste() {
+  document.body.classList.toggle("erdansicht", !!ERDANSICHT.an);
   zoomLeisteAktualisieren();
   const noetig = ERDANSICHT.an || Math.abs(KAM.zielZoom - 1) > 0.02
     || Math.abs(KAM.zielX) > 4 || Math.abs(KAM.zielY) > 4;
@@ -20176,7 +20594,8 @@ cv.addEventListener("pointerdown", (ev) => {
   ZEIGER.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
   if (ZEIGER.size === 1) {
     zieh = { x0: ev.clientX, y0: ev.clientY, kx: KAM.zielX, ky: KAM.zielY, bewegt: false,
-             neig: ERDANSICHT.neig, az: ERDANSICHT.az };
+             neig: ERDANSICHT.neig, az: ERDANSICHT.az, frei: ERDANSICHT.frei,
+             r: ERDANSICHT.geo ? ERDANSICHT.geo.r : 200 };
   } else if (ZEIGER.size === 2) {
     const [a, b] = [...ZEIGER.values()];
     kneifAbstand = Math.hypot(a.x - b.x, a.y - b.y);
@@ -20210,6 +20629,15 @@ cv.addEventListener("pointermove", (ev) => {
   /* Ueber der ganzen Erde dreht Ziehen die Kugel: was man greift,
      geht mit dem Finger — seitwaerts um die Station herum, hoch und
      runter gekippt, von fast senkrecht darueber bis flach von der Seite */
+  if (zieh.bewegt && ERDANSICHT.an && (Z.satellit || zieh.frei)) {
+    /* Mit Satellitenbildern ist die Kugel eine Karte: Ziehen verschiebt.
+       Ebenso, wenn sie danach ausgeschaltet wurden: der freie Blick bleibt
+       dann ueber demselben Ort, und Neigen und Drehen um die Station
+       gelten in ihm nicht — Ziehen taete sonst gar nichts. */
+    if (!zieh.frei) { freiAn(); zieh.frei = ERDANSICHT.frei; zieh.r = ERDANSICHT.geo ? ERDANSICHT.geo.r : 200; zieh.x0 = ev.clientX; zieh.y0 = ev.clientY; }
+    freiSchieben(zieh.frei, zieh.x0, zieh.y0, ev.clientX, ev.clientY, zieh.r);
+    return;
+  }
   if (zieh.bewegt && ERDANSICHT.an) {
     const r = (ERDANSICHT.geo && ERDANSICHT.geo.r) || 200;
     ERDANSICHT.az = zieh.az - dx / r;
@@ -20315,7 +20743,30 @@ cv.addEventListener("dblclick", (ev) => {
 
 $("#zoom-rein").onclick = () => zoomeAuf(W / 2, H / 2, 1.45);
 $("#zoom-raus").onclick = () => zoomeAuf(W / 2, H / 2, 1 / 1.45);
-$("#zoom-weg").onclick = () => { if (ERDANSICHT.an) erdansicht(false); kameraZurueck(); };
+$("#zoom-weg").onclick = () => {
+  /* Hineingezoomt in die ganze Erde: erst zurueck zur ganzen Kugel */
+  if (ERDANSICHT.an && (ERDANSICHT.frei || ERDANSICHT.zoom > 2.4)) {
+    ERDANSICHT.frei = null; ERDANSICHT.zoom = 1; ERDANSICHT.freiVersion++;
+    ERDANSICHT.neig = ERDANSICHT_NEIGUNG; ERDANSICHT.az = 0;
+    zoomLeisteAktualisieren();
+    return;
+  }
+  if (ERDANSICHT.an) erdansicht(false);
+  kameraZurueck();
+};
+$("#zoom-sat").onclick = () => satellitUmschalten();
+$("#tm-sat").onclick = () => satellitUmschalten();
+function satellitUmschalten() {
+  Z.satellit = !Z.satellit;
+  if (!Z.satellit) {
+    satAus();
+    if (ERDANSICHT.zoom > 2.4) ERDANSICHT.zoom = 2.4;
+  }
+  sichern();
+  satellitKnopf();
+  zoomLeisteAktualisieren();
+  tmUhr = 0;
+}
 
 window.addEventListener("resize", groesseAnpassen);
 /* Die Schrift kommt manchmal spaeter an und ist anders breit als der
@@ -20337,6 +20788,7 @@ zeitKnopfStand();
 echteIssKnopf();
 weltraumwetterKnopf();
 wolkenHeuteKnopf();
+satellitKnopf();
 if (umlaufSchalter) umlaufSchalter.classList.toggle("an", Z.umlauf !== false);
 themaAnwenden();
 groesseAnpassen();
