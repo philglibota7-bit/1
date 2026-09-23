@@ -18468,6 +18468,11 @@ function zeichneTelemetrie(t) {
       return br > 0.55 ? "über dem Horizont" : "schwach";
     })(),
       TAGLICHT > 0.92 ? 0 : polarNaehe(ph)],
+    /* Laeuft ein grosser Meteorstrom, steht er hier mit seinem Faktor */
+    ...(() => {
+      const st = meteorStrom(Date.now());
+      return st.name ? [["METEORE", st.name + " · " + Math.round(st.faktor) + "-mal so viele"]] : [];
+    })(),
     ["BESATZUNG", alle.length + (laufend ? " · " + laufend + " arbeitet" : " · bereit")],
     /* Wie lange ist der laengste Einsatz schon im Gang? Der Balken
        misst gegen die geplanten 6,5 Stunden plus die halbe Stunde
