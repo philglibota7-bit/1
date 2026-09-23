@@ -315,6 +315,11 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
   - In der Zoomleiste steht, wie breit der Ausschnitt ist, etwa „39 km“. Der Knopf mit dem Pfeil im Kreis bringt erst zur ganzen Kugel zurück, dann zur Station. Der Text zur ganzen Erde nennt Stufe und Auflösung.
   - **Der Kompass.** Die freie Kugel übernimmt die Drehung, mit der sie gerade gezeigt wurde, und Norden steht dann nicht unbedingt oben. Oben in der Zoomleiste zeigt eine Nadel, wo Norden liegt: die Richtung zum Pol in der Ebene, die die Kugel in der Blickmitte berührt. Antippen dreht das Bild um die Blickmitte, bis Norden oben ist, schnell am Anfang und sanft am Ende. Der Ort in der Mitte bleibt dabei, wo er war. Direkt über einem Pol gibt es kein Norden, dann tut der Knopf nichts und sagt das.
   - Esri verlangt eine Quellenangabe. „Powered by Esri · Bilder: Esri, Maxar, Earthstar Geographics, GIS User Community“ steht unten links, sobald Kacheln zu sehen sind, auf dem Handy in zwei Zeilen.
+  - **Die Beschriftung.** Wie bei Google Earth stehen über den Bildern die Namen der Länder, Städte, Orte, Seen und Parks, dazu die Grenzen bis zu den Landkreisen. Sie kommen als durchsichtige Kacheln im selben Netz von Esri („World Boundaries and Places“, aus Daten von HERE, Garmin und OpenStreetMap), ohne Schlüssel und mit offener Antwort für Browser. Voreingestellt ist sie an; unter Stationswerte lässt sie sich ausblenden, und das wird gemerkt.
+    - Jede Schrift wird vor dem Hochladen über ihr Bild gemalt. Wie viel Schrift einen Punkt deckt, steht im Alphakanal. So kann der Schattierer sie aus sich selbst leuchten lassen, wie bei Google Earth: bei Nacht und in der Dämmerung so lesbar wie am Mittag, über Wolken und Luft. Nur wo die Schrift einen Punkt fast ganz deckt; an ihren weichen Kanten bleibt das beleuchtete Bild, sonst schiene dort nachts der Tag durch. Über den scharfen Nachtlichtern steht dann „München“ auf dem hellen Fleck.
+    - Die Schrift in den Kacheln ist für Schirme gemacht, auf denen ein Kachelpunkt ein Bildpunkt ist. Auf einem Retina-Schirm wären die Namen halb so groß und kaum zu lesen. Dort kommt die Schrift deshalb eine Stufe gröber, doppelt so groß, und auf dem Handy zwei Stufen. Eine gröbere Kachel deckt vier oder sechzehn Bildkacheln, und jede wird nur einmal geholt. Ändert sich die Schärfe des Schirms, etwa auf einem zweiten Bildschirm, kommen die Schriften neu.
+    - Fehlt eine Schrift, bleibt das Bild, ohne Fehler. Bis zum nächsten Einschalten wird sie nicht noch einmal angefragt.
+    - Unten links steht dann zusätzlich „Beschriftung: Esri, HERE, Garmin, © OpenStreetMap contributors, GIS User Community“. Auf dem Handy wird jede Angabe am letzten Komma umbrochen, das noch passt.
   - Ausgeschaltet geht keine Anfrage mehr hinaus. Der Zoom geht auf 2,4 zurück, man bleibt über demselben Ort, und Ziehen verschiebt weiter.
   - **Scharfe Nachtlichter.** Die Karte der Stadtlichter hat knapp zehn Kilometer je Punkt. Hineingezoomt wird eine Stadt darauf zu einem weichen orangen Fleck, bei tiefem Zoom über den ganzen Schirm. Mit Satellitenbildern holt ORBIT deshalb für den Ausschnitt ein Bild aus Black Marble 2016 vom Kartendienst der NASA (GIBS, als WMS): gut einen halben Kilometer fein, ohne Schlüssel, gemeinfrei, mit offener Antwort für Browser.
     - Gefragt wird erst ab einem Ausschnitt unter 3000 Kilometern Breite, nur wenn ein Teil davon auf der Nachtseite liegt, und erst, wenn der Blick eine halbe Sekunde stillsteht. Unter 1500 Kilometern gilt die feine Karte ganz.
@@ -421,7 +426,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-86 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+87 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
 - **Echte Arbeitsumgebung**:
@@ -563,6 +568,16 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
     - Antippen dreht in mehreren Bildern, nicht in einem. Danach steht Norden genau oben, der Ort über der Mitte liegt genau nördlich, und die Mitte hat sich nicht bewegt.
     - Über dem Nordpol gibt es kein Norden: Der Knopf sagt das und dreht nicht.
     - Gegengeprüft mit drei absichtlich kaputten Fassungen: Nadel verkehrt herum, Drehung verschiebt die Mitte, Knopf bleibt nach dem Zurück stehen. Alle drei schlagen an.
+  - Beschriftung über den Satellitenbildern:
+    - Bilder und Schrift sind nachgebaut: jedes Bild einheitlich grau, jede Schrift ein weißes Quadrat mitten in ihrer Kachel, sonst durchsichtig. Andere Adressen sind gesperrt.
+    - Voreingestellt an: Zu jeder der 42 Bildkacheln über München geht genau eine Schriftkachel derselben Stelle hinaus. In der Kachelmitte ist das Bild an 60 von 60 Stellen weiß, am Rand an keiner, und dort ist es an allen 1149 das graue Bild, nicht die Karte der NASA. Die Quellenangabe steht da.
+    - Aus: keine neue Anfrage, überall grau, keine Quellenangabe, und das wird gemerkt. Wieder an: die Schrift aus dem Speicher, ohne neue Anfrage.
+    - Nachts über Colorado, um vier Uhr früh: Der Rand ist an allen 1902 Stellen dunkel, die Schrift an 60 von 60 hell.
+    - Fehlt die Schrift (404), liegt das Bild trotzdem an allen Stellen, ohne Fehler.
+    - Auf dem Handy (390 Punkte breit) stehen die Angaben in vier Zeilen, jede höchstens 330 von 366 Punkten breit, ohne dass etwas fehlt.
+    - Auf einem Retina-Schirm (doppelt scharf): 88 Bildkacheln der Stufe 11, dazu 24 Schriftkacheln der Stufe 10, keine doppelt. Das weiße Quadrat liegt an 60 von 60 Stellen in der Mitte der gröberen Kachel, also richtig ausgeschnitten.
+    - Gegengeprüft mit zwölf absichtlich kaputten Fassungen: Schrift nicht gemalt, nachts dunkel, ohne Alphakanal, Bild verworfen, wenn die Schrift fehlt, Umschalten ohne neues Füllen, nicht gemerkt, ohne Quellenangabe, kein Umbruch am Komma, ganze Schriftkachel statt Ausschnitt, Ausschnitt vertauscht, gleiche Stufe auf Retina, jede Schrift einzeln geholt. Alle zwölf schlagen an, jede nur an der Stelle, die sie treffen soll.
+    - Mit den echten Kacheln (mit curl geholt, siehe unten) über München, Rom, Manhattan und bei Nacht über Bayern angesehen.
   - Nähte im Nachthimmelsleuchten: 36 → 0,7.
   - Mondlicht: Neumond 11, Halbmond 16, Vollmond 35; die Tagseite bleibt gleich.
 - **Nahansicht**:
@@ -621,6 +636,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Der Umlauf ist zwölffach gerafft, die Sonne läuft in Echtzeit. Deshalb verschiebt sich die Bahn von Runde zu Runde nur um knapp zwei Grad statt um 23.
   - Die Wolken sind eine Aufnahme, kein Wetter von heute; die von heute gibt es auf Wunsch. Sie hängen an einem privat betriebenen Dienst (Live Cloud Maps), nicht an EUMETSAT selbst. Fällt er weg, bleiben die zuletzt geladenen Wolken bis zum Neuladen der Seite, danach die Aufnahme. Angeglichen ist die Menge je Breite, nicht die wirkliche Dicke: Eine dünne, kalte Schleierwolke kann heller herauskommen als eine dicke, warme.
   - Auf einem Mac mit Grafikchip ist die Erde nicht gemessen, nur in Software-Rasterung.
+  - **Die Beschriftung dreht sich mit der Karte.** Sie ist in die Kacheln gemalt, nicht wie bei Google Earth eigene Schrift auf dem Schirm. Steht Norden nicht oben, steht sie schief; der Kompass dreht Norden mit einem Tipp wieder nach oben. Auf dem Retina-Schirm ist sie hochgerechnet und darum etwas weicher als das Bild. Die Namen sind die von Esri, oft zweisprachig („München Munich“, „Roma Rome“), und die Grenzen der Landkreise sind dicht.
   - **Die Satellitenbilder hängen an Esri.** Der Dienst ist ohne Schlüssel erreichbar, aber Esri regelt den Zugang und kann ihn ändern. Getestet ist mit nachgebauten Kacheln. Die echten habe ich hier mit curl geholt und dem Testbrowser untergeschoben, denn dem fehlt der Weg nach draußen. Ob der Betrachter von claude.ai fremde Bilder lädt, ist nicht geprüft.
   - Die Bilder sind ein Mosaik vieler Aufnahmen aus verschiedenen Jahren. Helligkeitssprünge an ihren Nähten und unscharfe Flecken stammen von Esri, das habe ich an den rohen Kacheln nachgesehen.
   - **Die Erde von gestern ist ein Mosaik aus vierzehn Überflügen.** An den Nähten stoßen Aufnahmen verschiedener Stunden aneinander, dort springen Wolken und Helligkeit, etwa als gerade Kante über Arabien. Über den tropischen Meeren liegt in jedem Überflug ein heller Streifen der Sonnenspiegelung, schwach auch auf der Kugel. Beides stammt aus dem Bild selbst; herausrechnen ließ es sich nicht sauber. Die Wolken sind die von gestern Mittag Ortszeit, nicht die von jetzt.

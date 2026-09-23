@@ -1096,6 +1096,7 @@ body.sicht #blende-detail, body.sicht #blende-teil{
     <button id="tm-wolken" class="tm-knopf" type="button"></button>
     <button id="tm-gestern" class="tm-knopf" type="button"></button>
     <button id="tm-sat" class="tm-knopf" type="button"></button>
+    <button id="tm-schrift" class="tm-knopf" type="button"></button>
     <div class="tm-kopf" id="tm-buchkopf" style="margin:12px 0 7px">BORDBUCH</div>
     <div id="tm-buch"></div>
   </div>
@@ -1425,6 +1426,7 @@ let Z = {
   weltraumwetter: false, // Kp und Polarlicht-Vorhersage der NOAA — nur auf Wunsch
   wolkenHeute: false, // die Wolken von heute statt der Aufnahme — nur auf Wunsch
   erdeGestern: false, // die Erde von gestern in Echtfarben (VIIRS) — nur auf Wunsch
+  beschriftung: true, // Laender, Grenzen und Orte ueber den Satellitenbildern
   satellit: false,    // Satellitenbilder von Esri fuer die ganze Erde — nur auf Wunsch
   bruecke: {
     typen: { session: true, ordner: true, prozess: true, github: true },
@@ -1453,6 +1455,7 @@ function laden() {
       if (typeof d.weltraumwetter === "boolean") Z.weltraumwetter = d.weltraumwetter;
       if (typeof d.wolkenHeute === "boolean") Z.wolkenHeute = d.wolkenHeute;
       if (typeof d.erdeGestern === "boolean") Z.erdeGestern = d.erdeGestern;
+      if (typeof d.beschriftung === "boolean") Z.beschriftung = d.beschriftung;
       if (typeof d.satellit === "boolean") Z.satellit = d.satellit;
       /* Die Zeitraffung ist eine Einstellung wie der Hintergrund — wer
          sie auf das Zwoelffache gestellt hat, will das beim naechsten
@@ -1493,7 +1496,7 @@ function sichern() {
       log: Z.log.slice(0, 60),
       key: Z.key, maxTok: Z.maxTok, gewaehlt: Z.gewaehlt,
       thema: Z.thema, umlauf: Z.umlauf, melden: Z.melden, bruecke: Z.bruecke, rate: ZEIT.rate,
-      echteIss: Z.echteIss, weltraumwetter: Z.weltraumwetter, wolkenHeute: Z.wolkenHeute, erdeGestern: Z.erdeGestern,
+      echteIss: Z.echteIss, weltraumwetter: Z.weltraumwetter, wolkenHeute: Z.wolkenHeute, erdeGestern: Z.erdeGestern, beschriftung: Z.beschriftung,
       satellit: Z.satellit,
     }));
   } catch (e) {
@@ -11208,7 +11211,11 @@ const float PI = 3.14159265;
 /* Das Satellitenbild an einem Punkt der Kugel, mit Deckkraft: 0, wo es
    (noch) keine Kachel gibt oder der Punkt ausserhalb des Fensters liegt.
    Zum Rand des Fensters hin weich, damit keine Kante zur Karte der NASA
-   entsteht. Jenseits von 85 Grad hat Web-Mercator keine Kacheln. */
+   entsteht. Jenseits von 85 Grad hat Web-Mercator keine Kacheln.
+   Im Alphakanal der Kachel steht, wie wenig Beschriftung dort liegt (1 =
+   keine): die Namen und Grenzen sind schon ins Bild gemalt, wie viel davon
+   den Punkt deckt, merkt sich satSchrift. */
+float satSchrift = 0.0;
 vec4 satellit(vec3 p) {
   if (uSatFenster.w <= 0.0) return vec4(0.0);
   float b = asin(clamp(p.z, -1.0, 1.0));
@@ -11224,8 +11231,9 @@ vec4 satellit(vec3 p) {
   if (texture2D(uSatGueltig, (platz + 0.5) / uSatRaster).r < 0.5) return vec4(0.0);
   vec4 c = texture2D(uSat, (platz + fract(vec2(X, Y))) / uSatRaster);
   float rand = min(min(dx, uSatRaster.x - dx), min(dy, uSatRaster.y - dy));
-  c.a *= smoothstep(0.0, 0.7, rand) * uSatFenster.w;
-  return c;
+  float deck = smoothstep(0.0, 0.7, rand) * uSatFenster.w;
+  satSchrift = (1.0 - c.a) * deck;
+  return vec4(c.rgb, deck);
 }
 
 /* Wie stark leuchtet das Polarlicht ueber einem Punkt der Kugel, ohne
@@ -11468,6 +11476,12 @@ void main() {
   f += mix(vec3(0.25, 1.0, 0.5), vec3(0.95, 0.3, 0.42), uPolar.w * 0.4) * polar * 0.32;
   float rand = pow(1.0 - sqrt(1.0 - r2), 3.0);
   f = mix(f, vec3(0.42, 0.62, 1.0) * (0.12 + 0.88 * licht), rand * 0.6);
+  /* Die Beschriftung leuchtet wie bei Google Earth aus sich selbst: bei
+     Nacht und in der Daemmerung so lesbar wie am Mittag, ueber Wolken
+     und Luft. Nur wo sie den Punkt fast ganz deckt; an ihren weichen
+     Kanten bleibt das beleuchtete Bild, sonst schiene dort nachts der
+     Tag durch. */
+  f = mix(f, sat.rgb, smoothstep(0.35, 0.9, satSchrift));
   gl_FragColor = vec4(f + korn, 1.0);
 }`;
 }
@@ -12366,17 +12380,28 @@ function zeichneErdansicht(t, dt) {
      NASA bittet darum, sobald ihre Nachtlichter zu sehen sind */
   ERDANSICHT.quelle = sat && sat.gewicht > 0 ? SAT_QUELLE : null;
   ERDANSICHT.quelleNacht = NACHTLICHT.sichtbar ? NACHT_QUELLE : null;
-  if (ERDANSICHT.quelle || ERDANSICHT.quelleNacht) {
+  ERDANSICHT.quelleSchrift = sat && sat.gewicht > 0 && Z.beschriftung ? SCHRIFT_QUELLE : null;
+  if (ERDANSICHT.quelle || ERDANSICHT.quelleNacht || ERDANSICHT.quelleSchrift) {
     const rb = bedienRand();
     cx.save();
     cx.font = `500 ${10 * DPR}px -apple-system, system-ui, sans-serif`;
     cx.textAlign = "left"; cx.textBaseline = "bottom";
     cx.lineWidth = 3 * DPR; cx.strokeStyle = "rgba(4,7,14,.75)";
     const qx = 12 * DPR, qy = ((rb.unten || H) - 6) * DPR;
-    /* Auf dem Handy passt sie nicht in eine Zeile: dann in zwei, am Punkt */
-    const zeilen = [];
-    if (ERDANSICHT.quelle) zeilen.push(...(cx.measureText(SAT_QUELLE).width > (W - 24) * DPR ? SAT_QUELLE.split(" · ") : [SAT_QUELLE]));
-    if (ERDANSICHT.quelleNacht) zeilen.push(NACHT_QUELLE);
+    /* Auf dem Handy passt eine Angabe nicht in eine Zeile: dann am Punkt
+       geteilt, sonst am letzten Komma, das noch passt, und der Rest ebenso */
+    const zeilen = [], breit = (W - 24) * DPR;
+    const passend = (t) => {
+      if (cx.measureText(t).width <= breit) return [t];
+      if (t.includes(" · ")) return t.split(" · ").flatMap(passend);
+      let i = t.lastIndexOf(", ");
+      while (i > 0 && cx.measureText(t.slice(0, i + 1)).width > breit) i = t.lastIndexOf(", ", i - 1);
+      return i > 0 ? [t.slice(0, i + 1), ...passend(t.slice(i + 2))] : [t];
+    };
+    if (ERDANSICHT.quelle) zeilen.push(...passend(SAT_QUELLE));
+    if (ERDANSICHT.quelleSchrift) zeilen.push(...passend(SCHRIFT_QUELLE));
+    if (ERDANSICHT.quelleNacht) zeilen.push(...passend(NACHT_QUELLE));
+    ERDANSICHT.quellZeilen = zeilen;
     cx.fillStyle = "rgba(220,230,245,.78)";
     zeilen.forEach((z, i) => {
       const y = qy - (zeilen.length - 1 - i) * 13 * DPR;
@@ -13387,11 +13412,16 @@ function erdeGesternKnopf() {
 const SATBILD = { nx: 16, ny: 10, z: -1, x0: 0, y0: 0, platz: [], angelegt: false,
                   cache: new Map(), laden: new Map(), warte: [], version: 0,
                   anfragen: 0, fehler: 0, gewicht: 0, wolkenWeg: 0,
-                  gueltig: null, gueltigNeu: false, sicht: new Map(), sichtStand: "" };
+                  gueltig: null, gueltigNeu: false, sicht: new Map(), sichtStand: "",
+                  schriftK: -1, schriftAnfragen: 0 };
 const SAT_ADRESSE = "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/";
 /* So verlangt es Esri: "Powered by Esri" und die Quellen des Dienstes */
 const SAT_QUELLE = "Powered by Esri · Bilder: Esri, Maxar, Earthstar Geographics, GIS User Community";
 const SAT_MAXZ = 16, SAT_MINZ = 5, SAT_GLEICHZEITIG = 8, SAT_CACHE = 400;
+/* Die Beschriftung: Laender, Grenzen und Orte als durchsichtige Kacheln im
+   selben Netz, von Esri aus Daten von HERE, Garmin und OpenStreetMap */
+const SAT_SCHRIFT = "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/";
+const SCHRIFT_QUELLE = "Beschriftung: Esri, HERE, Garmin, © OpenStreetMap contributors, GIS User Community";
 
 /* Web-Mercator: Breite und Laenge in Grad zu Kachelkoordinaten */
 function satKachel(breite, laenge, z) {
@@ -13409,6 +13439,8 @@ function satVorbereiten(g, blick) {
      auch ueber die Datumsgrenze hinweg ihren eigenen Platz hat. */
   const [nx, ny] = W >= H ? [16, 10] : [8, 16];
   if (nx !== S_.nx || ny !== S_.ny) { satAus(); S_.nx = nx; S_.ny = ny; S_.angelegt = false; }
+  const sk = satSchriftStufe();
+  if (sk !== S_.schriftK) { S_.schriftK = sk; satSchriftNeu(); }
   /* Die Blickmitte: der Punkt der Kugel unter der Mitte des Schirms, oder
      der naechste auf ihr, wenn die ganze Kugel zu sehen ist */
   const rand = bedienRand();
@@ -13588,12 +13620,33 @@ function satNachfordern(g, M, z, mitte) {
   satWeiter();
 }
 
-function satHochladen(platz, bild) {
+let satLeinwand = null;
+function satHochladen(platz, kachel) {
   const S_ = SATBILD, gl = ERDKARTE.gl;
-  if (!gl || !S_.angelegt || !bild) return;
+  if (!gl || !S_.angelegt || !kachel) return;
+  let quelle = kachel.bild;
+  /* Mit Beschriftung: die Schrift ueber das Bild gemalt, und in den
+     Alphakanal, wie viel sie deckt (255 = nichts), damit der Schattierer
+     sie nachts nicht mit abdunkelt. Als ImageData, denn eine Leinwand
+     speichert vormultipliziert und verloere unter der Schrift das Bild. */
+  if (kachel.schrift && Z.beschriftung) {
+    if (!satLeinwand) { satLeinwand = document.createElement("canvas"); satLeinwand.width = satLeinwand.height = 256; }
+    const g = satLeinwand.getContext("2d", { willReadFrequently: true });
+    g.clearRect(0, 0, 256, 256);
+    g.imageSmoothingQuality = "high";
+    const st = kachel.stufe || 0, teil = 256 >> st, m = (1 << st) - 1;
+    g.drawImage(kachel.schrift, (kachel.x & m) * teil, (kachel.y & m) * teil, teil, teil, 0, 0, 256, 256);
+    const deck = g.getImageData(0, 0, 256, 256).data;
+    g.globalCompositeOperation = "destination-over";
+    g.drawImage(kachel.bild, 0, 0, 256, 256);
+    g.globalCompositeOperation = "source-over";
+    const bild = g.getImageData(0, 0, 256, 256), d = bild.data;
+    for (let i = 3; i < d.length; i += 4) d[i] = 255 - deck[i];
+    quelle = bild;
+  }
   gl.activeTexture(gl.TEXTURE5);
   gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.satTx);
-  gl.texSubImage2D(gl.TEXTURE_2D, 0, (platz % S_.nx) * 256, Math.floor(platz / S_.nx) * 256, gl.RGBA, gl.UNSIGNED_BYTE, bild);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, (platz % S_.nx) * 256, Math.floor(platz / S_.nx) * 256, gl.RGBA, gl.UNSIGNED_BYTE, quelle);
   S_.gueltig[platz] = 255;
   S_.gueltigNeu = true;
   S_.version++;
@@ -13601,6 +13654,60 @@ function satHochladen(platz, bild) {
 
 /* Hoechstens acht Anfragen zugleich; was ankommt und noch gebraucht wird,
    geht sofort auf den Grafikchip */
+/* Die Schrift in den Kacheln von Esri ist fuer Schirme gemacht, auf denen
+   ein Kachelpunkt ein Bildpunkt ist. Auf scharfen Schirmen (Retina) waeren
+   die Namen halb so gross und kaum zu lesen: dort kommt die Schrift eine
+   Stufe groeber, doppelt so gross, auf dem Handy zwei Stufen. So steht sie
+   wie bei Google Earth etwa in Lesegroesse da. */
+function satSchriftStufe() {
+  return Math.max(0, Math.min(2, Math.round(Math.log2(DPR))));
+}
+/* Die Schriftkacheln, geteilt: eine groebere deckt vier oder sechzehn
+   Bildkacheln und wird doch nur einmal geholt. Fehlt eine, bleibt das
+   vermerkt, bis die Beschriftung neu eingeschaltet wird. */
+const SCHRIFTKACHELN = new Map();
+function schriftHolen(z, x, y, fertig) {
+  const k = z + "/" + x + "/" + y;
+  let e = SCHRIFTKACHELN.get(k);
+  if (e) {
+    SCHRIFTKACHELN.delete(k); SCHRIFTKACHELN.set(k, e);
+    if (e.warten) e.warten.push(fertig); else fertig(e.bild);
+    return;
+  }
+  const b = new Image();
+  b.crossOrigin = "anonymous";
+  e = { bild: null, warten: [fertig] };
+  SCHRIFTKACHELN.set(k, e);
+  const ende = (ok) => {
+    e.bild = ok ? b : null;
+    const w = e.warten;
+    e.warten = null;
+    for (const f of w) f(e.bild);
+  };
+  b.onload = () => ende(true);
+  b.onerror = () => ende(false);
+  SATBILD.schriftAnfragen++;
+  b.src = SAT_SCHRIFT + z + "/" + y + "/" + x;
+  for (const [kk, v] of SCHRIFTKACHELN) {
+    if (SCHRIFTKACHELN.size <= SAT_CACHE / 2) break;
+    if (!v.warten) SCHRIFTKACHELN.delete(kk);
+  }
+}
+/* Alle Plaetze neu fuellen. Mit Beschriftung die Kacheln im Speicher
+   vergessen, deren Schrift fehlt oder nicht zur Stufe passt (die Bilder
+   kommen dann meist aus dem Speicher des Browsers). */
+function satSchriftNeu() {
+  const S_ = SATBILD;
+  if (Z.beschriftung) {
+    for (const [k, v] of [...S_.cache]) if (!v.schrift || v.stufe !== S_.schriftK) S_.cache.delete(k);
+    for (const [k, v] of [...SCHRIFTKACHELN]) if (!v.warten && !v.bild) SCHRIFTKACHELN.delete(k);
+  }
+  for (const e of S_.laden.values()) e.b.src = "";
+  S_.laden.clear(); S_.warte = [];
+  if (S_.angelegt) { S_.gueltig.fill(0); S_.gueltigNeu = true; }
+  S_.sichtStand = "";
+  S_.version++;
+}
 function satWeiter() {
   const S_ = SATBILD;
   while (S_.laden.size < SAT_GLEICHZEITIG && S_.warte.length) {
@@ -13609,21 +13716,24 @@ function satWeiter() {
     const [z, x, y] = w.schluessel.split("/");
     const b = new Image();
     b.crossOrigin = "anonymous";
-    S_.laden.set(w.schluessel, b);
+    const sk = S_.schriftK, e = { b, offen: Z.beschriftung ? 2 : 1, ok: false, schrift: null };
+    S_.laden.set(w.schluessel, e);
     S_.anfragen++;
-    const fertig = (ok) => {
-      if (S_.laden.get(w.schluessel) !== b) return;
+    const fertig = () => {
+      if (S_.laden.get(w.schluessel) !== e || --e.offen > 0) return;
       S_.laden.delete(w.schluessel);
-      if (ok && Z.satellit) {
-        S_.cache.set(w.schluessel, b);
+      if (e.ok && Z.satellit) {
+        const kachel = { bild: b, schrift: e.schrift, stufe: sk, x: +x, y: +y };
+        S_.cache.set(w.schluessel, kachel);
         if (S_.cache.size > SAT_CACHE) S_.cache.delete(S_.cache.keys().next().value);
-        if (S_.angelegt && S_.platz[w.platz] === w.schluessel) satHochladen(w.platz, b);
+        if (S_.angelegt && S_.platz[w.platz] === w.schluessel) satHochladen(w.platz, kachel);
         if (S_.gueltigNeu && ERDKARTE.gl) satGueltigHochladen();
-      } else if (!ok) S_.fehler++;
+      } else if (!e.ok) S_.fehler++;
       satWeiter();
     };
-    b.onload = () => fertig(true);
-    b.onerror = () => fertig(false);
+    b.onload = () => { e.ok = true; fertig(); };
+    b.onerror = fertig;
+    if (Z.beschriftung) schriftHolen(z - sk, x >> sk, y >> sk, (bild) => { e.schrift = bild; fertig(); });
     b.src = SAT_ADRESSE + z + "/" + y + "/" + x;
   }
 }
@@ -13632,7 +13742,7 @@ function satWeiter() {
 function satAus() {
   const S_ = SATBILD;
   if (typeof nachtAus === "function") nachtAus();
-  for (const b of S_.laden.values()) b.src = "";
+  for (const e of S_.laden.values()) e.b.src = "";
   S_.laden.clear(); S_.warte = [];
   S_.z = -1; S_.gewicht = 0; S_.wolkenWeg = 0;
   S_.sicht = new Map(); S_.sichtStand = "";
@@ -19702,6 +19812,7 @@ $("#tm-wolken").onclick = () => {
   sichern();
   wolkenHeuteKnopf();
 erdeGesternKnopf();
+schriftKnopf();
   tmUhr = 0;
 };
 $("#btn-vorf").onclick = () => vorfuehrungBeenden();
@@ -20618,6 +20729,8 @@ const HILFE = [
       + "zur Karte wie bei Google Earth: Du zoomst bis auf Straßen heran, immer auf den Punkt unter dem "
       + "Zeiger, und Ziehen verschiebt. Die Bilder kommen von Esri, erst beim Hineinzoomen und nur für den "
       + "Ausschnitt, den du siehst; der Knopf mit dem Pfeil im Kreis bringt dich zur ganzen Kugel zurück. "
+      + "Darüber stehen wie bei Google Earth die Namen der Länder, Städte und Orte und die Grenzen, ebenfalls "
+      + "von Esri; unter Stationswerte lassen sie sich ausblenden. "
       + "Die Nadel oben in der Zoomleiste zeigt, wo Norden liegt; tippst du sie an, dreht sich Norden nach oben. "
       + "Nachts kommen beim Hineinzoomen die Lichter der Städte scharf dazu, aus Black Marble der NASA. "
       + "Ohne WebGL oder ohne die Kartenbilder zeichnet ORBIT eine gerechnete Erde.",
@@ -21270,6 +21383,23 @@ $("#zoom-weg").onclick = () => {
 $("#zoom-sat").onclick = () => satellitUmschalten();
 $("#zoom-nord").onclick = () => { if (ERDANSICHT.frei && KOMPASS.winkel !== null) KOMPASS.dreht = true; };
 $("#tm-sat").onclick = () => satellitUmschalten();
+$("#tm-schrift").onclick = () => schriftUmschalten();
+function schriftUmschalten() {
+  Z.beschriftung = !Z.beschriftung;
+  satSchriftNeu();
+  sichern();
+  schriftKnopf();
+  tmUhr = 0;
+}
+function schriftKnopf() {
+  const k = document.getElementById("tm-schrift");
+  if (!k) return;
+  k.textContent = Z.beschriftung ? "Beschriftung aus" : "Beschriftung";
+  const klein = document.createElement("small");
+  klein.textContent = Z.beschriftung ? "Länder, Grenzen und Orte über den Satellitenbildern"
+                                     : "Länder, Grenzen und Orte über die Satellitenbilder legen";
+  k.append(klein);
+}
 function satellitUmschalten() {
   Z.satellit = !Z.satellit;
   if (!Z.satellit) {
