@@ -17091,7 +17091,11 @@ function regenFilmTakt(jetzt) {
   if (F && (!Z.regen || !ERDANSICHT.an || F.z !== R_.z || F.x0 !== R_.x0 || F.y0 !== R_.y0)) regenFilmEnde();
   else if (F) {
     while (F.laden < REGEN_GLEICHZEITIG && F.warte.length) { const [k, s] = F.warte.shift(); regenFilmHolen(F, k, s); }
-    if (!F.bereit && !F.warte.length && !F.laden) F.bereit = true;
+    if (!F.bereit && !F.warte.length && !F.laden) {
+      F.bereit = true;
+      /* Kam keine einzige der fehlenden Kacheln, gibt es keinen Film */
+      if (F.gesamt && F.fehler >= F.gesamt) { regenFilmEnde(); R_.filmFehlerBis = jetzt + 5000; regenFilmKnopf(true); return; }
+    }
     if (F.bereit && jetzt >= F.naechste) {
       F.i = (F.i + 1) % F.bilder.length;
       regenFilmZeigen(F.i);
@@ -17120,6 +17124,7 @@ function regenFilmKnopf(sofort) {
   if (!da) text = "";
   else if (F && F.bereit && F.i >= 0) { text = uhr(F.bilder[F.i].t); aktiv = F.i; }
   else if (laeuft) text = "lädt " + (F && F.gesamt ? Math.round((1 - (F.warte.length + F.laden) / F.gesamt) * 100) : 0) + " %";
+  else if (performance.now() < (R_.filmFehlerBis || 0)) text = "Film nicht geladen";
   else text = "Regen " + uhr(R_.bild.t);
   const anzahl = da ? R_.liste.length : 0;
   const stand = [da, laeuft, text, aktiv, anzahl].join("|");
