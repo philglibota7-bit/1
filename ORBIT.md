@@ -249,6 +249,7 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
   - **In der Szene** rückt die Grenze des Polarlichts je Kp-Stufe um zwei Grad magnetischer Breite zum Äquator, und es wird heller. Bei Kp 7 leuchtet es auch über Europa, bei Kp 0 über Kanada nur schwach. Bei einem Sturm stehen die Vorhänge höher und bekommen oben das Rot des Sauerstoffs, wie bei den Stürmen im Mai 2024. Die Helligkeit ist über dem gewöhnlichen Tag gestaucht, sonst stünde im Sturm jeder Vorhang am Anschlag, und aus Knoten und Lücken würde eine gleichmäßige Wand. Liegt die Karte der NOAA vor, zählt sie: das Hellste im Umkreis von 24 Grad, so weit sieht die Crew Polarlicht über den Horizont hinaus, das Nahe mehr als das Ferne.
   - **Auf der Kugel** liegt die Karte der NOAA statt des gerechneten Ovals. Zehn Prozent, so viel hat das Oval in einer ruhigen Nacht, werden so hell wie das gerechnete bei Kp 0, dreißig Prozent so hell wie bei Kp 2, darüber geht es in die Sättigung. Ein Prozent ist Grundrauschen und bleibt dunkel. Die Vorhänge bleiben, denn die Karte ist nur ein Grad fein. Ohne Karte rückt das gerechnete Oval mit Kp: um Mitternacht gut zwei Grad je Stufe, mittags knapp eins, und es wird breiter.
   - Die Stationswerte nennen den Kp in der üblichen Schreibweise und die Sturmstufe der NOAA, etwa „Kp 7+ · Sturm G3 · stark“. Beginnt ein Sturm oder wird er stärker, steht es im Bordbuch. Ein Tipp auf die Nachtseite der Kugel nennt die Wahrscheinlichkeit dort, etwa „Polarlicht 45 %“.
+  - **Der Sonnenwind.** Im selben Takt holt ORBIT zwei kleine Zusammenfassungen von je sechzig Bytes: wie schnell der Sonnenwind an der Messsonde vor der Erde vorbeizieht und wohin sein Magnetfeld zeigt. Zeigt es nach Süden, koppelt es an das Erdfeld, und das Polarlicht wird unruhig. Die Vorhänge laufen schneller, bei 400 km/s und 6 nT nach Süden doppelt so schnell, höchstens zweieinviertelmal, und es leuchtet in Schüben auf wie bei einem Teilsturm. Nach Norden bleibt es ruhig, egal wie schnell der Wind ist. Der Kp folgt dem erst Stunden später; der Wind ist das, was gerade ankommt. In den Stationswerten steht er als „620 km/s · Feld 12 nT nach Süden“, und dreht das Feld kräftig nach Süden, steht es einmal im Bordbuch.
   - Um wie viel Kp das Oval verschiebt, ist die übliche Faustregel, keine Modellrechnung. Bei Kp 9 liegt die Mitte des Ovals um Mitternacht damit bei 53 Grad magnetischer Breite; das passt zum Mai 2024, als es bis Mitteleuropa zu sehen war.
 - **Wolken.**
   - Ihre Schatten fallen auf die sonnenabgewandte Seite, und die sonnenzugewandte Flanke ist heller.
@@ -389,7 +390,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-79 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+80 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
 - **Echte Arbeitsumgebung**:
@@ -481,8 +482,9 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
     - Szene: Über Europa ist das Polarlicht am gewöhnlichen Tag 0,04 stark, bei Kp 7+ 1,69; über Kanada 0,67 und 2,4; am Äquator nie.
     - Kugel: Ein Fleck der Karte über Kansas liegt genau dort, 19,6 Stufen grüner. Zwanzig Grad östlich, westlich und südlich davon und auf dem gerechneten Oval ist nichts, höchstens 0,4. Über den Nullmeridian läuft ein Band ohne Naht, mit dem 1,07- und 1,16-fachen des Umfelds. Ohne Karte rückt das gerechnete Oval bei Kp 7+ entlang 100 Grad West von 59 auf 48 Grad Nord.
     - Ein Tipp auf die Nachtseite nennt „Polarlicht 45 %“, wo die Karte 45 hat.
+    - Sonnenwind: Mit 283 km/s und dem Feld nach Norden steht „283 km/s · Feld nach Norden“ da, und die Vorhänge laufen mit der Bilduhr, ohne Zuschlag. Mit 620 km/s und 12 nT nach Süden laufen sie in einer Sekunde 2,27 Sekunden weit, erwartet 2,25, und das Bordbuch meldet es. Bei angehaltener Zeit verschiebt ein um fünf Sekunden verstellter Zuschlag die Vorhänge im nächsten Bild um 5,3 Stufen, ein Bild ohne Verstellen um 0,2. Gegengeprüft: Zählt das Feld auch nach Norden, oder zeichnet die Szene mit der Bilduhr statt mit der des Winds, schlägt der Test an.
     - Ausgeschaltet ist die Kugel innen bildpunktgleich mit Version 19, das Polarlicht der Szene auch. Im äußersten Bildpunkt der Kugel ist sie halb durchsichtig; dort schwankt schon Version 19 zwischen zwei gleichen Aufrufen um ein paar Stufen.
-    - Gegengeprüft mit sechs absichtlich kaputten Fassungen: ohne Ausrichtung der Zeilen beim Hochladen, mit gespiegelter Breite, ohne angehängte Spalte, ohne Kp in der Szene, mit der Karte zusätzlich statt anstelle des Ovals und mit um 180 Grad verschobener Länge. Alle sechs schlagen an. Die fehlende Spalte fällt auf der Kugel mit dem 0,63-fachen des Umfelds auf.
+    - Gegengeprüft mit sechs weiteren absichtlich kaputten Fassungen: ohne Ausrichtung der Zeilen beim Hochladen, mit gespiegelter Breite, ohne angehängte Spalte, ohne Kp in der Szene, mit der Karte zusätzlich statt anstelle des Ovals und mit um 180 Grad verschobener Länge. Alle sechs schlagen an. Die fehlende Spalte fällt auf der Kugel mit dem 0,63-fachen des Umfelds auf.
   - Nähte im Nachthimmelsleuchten: 36 → 0,7.
   - Mondlicht: Neumond 11, Halbmond 16, Vollmond 35; die Tagseite bleibt gleich.
 - **Nahansicht**:

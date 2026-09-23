@@ -12498,11 +12498,17 @@ function echteIssKnopf() {
    Kp 9 liegt die Mitte des Ovals damit um Mitternacht bei 53 Grad, was
    zu den Stuermen im Mai 2024 passt, als es bis Mitteleuropa zu sehen
    war. */
-const WELTRAUMWETTER = { kp: null, oval: null, kpFehler: null, ovalFehler: null,
+const WELTRAUMWETTER = { kp: null, oval: null, wind: null, kpFehler: null, ovalFehler: null,
                          kpLaeuft: false, ovalLaeuft: false, kpUm: 0, ovalUm: 0,
-                         anfragen: 0, gemeldet: 0 };
+                         anfragen: 0, gemeldet: 0, windGemeldet: false };
 const KP_ADRESSE = "https://services.swpc.noaa.gov/json/planetary_k_index_1m.json";
 const OVAL_ADRESSE = "https://services.swpc.noaa.gov/json/ovation_aurora_latest.json";
+/* Der Sonnenwind, wie er gerade an der Messsonde vor der Erde vorbeizieht:
+   zwei kleine Zusammenfassungen von je sechzig Bytes */
+const WIND_ADRESSEN = {
+  v: "https://services.swpc.noaa.gov/products/summary/solar-wind-speed.json",
+  b: "https://services.swpc.noaa.gov/products/summary/solar-wind-mag-field.json",
+};
 const KP_TAKT = 300000, OVAL_TAKT = 600000;
 
 function weltraumwetterTakt() {
@@ -12521,6 +12527,22 @@ function weltraumwetterTakt() {
       /* Nicht fuenf Minuten warten: in einer Minute noch einmal */
       W_.kpUm = Date.now() - KP_TAKT + 60000;
     }, () => { W_.kpLaeuft = false; });
+    /* Im selben Takt der Sonnenwind. Faellt er aus, bleibt der letzte
+       Wert eine Stunde gueltig, dann gilt wieder Windstille. */
+    swpcHolen(WIND_ADRESSEN.v, (d) => {
+      const e = Array.isArray(d) ? d[d.length - 1] : d;
+      const v = e && e.proton_speed != null ? Number(e.proton_speed) : NaN;
+      if (!(v > 100 && v < 3500)) throw new Error("unlesbar");
+      W_.wind = { ...(W_.wind || {}), v, tv: Date.now() };
+      windMelden();
+    }, () => {}, () => {});
+    swpcHolen(WIND_ADRESSEN.b, (d) => {
+      const e = Array.isArray(d) ? d[d.length - 1] : d;
+      const bz = e && e.bz_gsm != null ? Number(e.bz_gsm) : NaN;
+      if (!Number.isFinite(bz) || Math.abs(bz) > 300) throw new Error("unlesbar");
+      W_.wind = { ...(W_.wind || {}), bz, tb: Date.now() };
+      windMelden();
+    }, () => {}, () => {});
   }
   if (ERDANSICHT.an && !W_.ovalLaeuft && jetzt - W_.ovalUm >= OVAL_TAKT) {
     W_.ovalLaeuft = true; W_.ovalUm = jetzt;
@@ -12624,6 +12646,43 @@ function polarWerte() {
   const kp = kpJetzt() ?? 2;
   return { kp, ruck: kp - 2, hell: klemm(0.45 + 0.275 * kp, 0.35, 2.4),
            rot: klemm((kp - 4.5) / 4, 0, 1), echt: ovalJetzt() ? 1 : 0 };
+}
+
+/* Der Sonnenwind: wie schnell er weht und wohin sein Magnetfeld zeigt.
+   Zeigt es nach Sueden (Bz negativ), koppelt es an das Erdfeld, und das
+   Polarlicht wird unruhig: die Vorhaenge laufen schneller, und es
+   leuchtet in Schueben auf. Nach Norden bleibt es ruhig, egal wie schnell
+   der Wind ist. Der Kp folgt dem erst Stunden spaeter; der Wind ist das,
+   was gerade ankommt. 400 km/s und 6 nT nach Sueden ergeben 1, mehr als
+   1,5 wird es nicht. */
+function windJetzt() {
+  const w = Z.weltraumwetter ? WELTRAUMWETTER.wind : null;
+  if (!w) return null;
+  const jetzt = Date.now();
+  const v = w.tv && jetzt - w.tv < 3600000 ? w.v : null;
+  const bz = w.tb && jetzt - w.tb < 3600000 ? w.bz : null;
+  return v === null && bz === null ? null : { v, bz };
+}
+function windAktiv() {
+  const w = windJetzt();
+  if (!w || w.v === null || w.bz === null) return 0;
+  return klemm(w.v / 400 * Math.max(0, -w.bz) / 6, 0, 1.5);
+}
+function windText(w) {
+  const teile = [];
+  if (w.v !== null) teile.push(Math.round(w.v) + " km/s");
+  if (w.bz !== null) teile.push(Math.abs(w.bz) < 0.5 ? "Feld quer"
+    : "Feld " + (w.bz < 0 ? Math.round(-w.bz) + " nT nach Süden" : "nach Norden"));
+  return teile.join(" · ");
+}
+/* Dreht das Feld kraeftig nach Sueden, steht es einmal im Bordbuch;
+   erst wenn es sich wieder beruhigt hat, darf es erneut */
+function windMelden() {
+  const a = windAktiv(), w = windJetzt();
+  if (a >= 1 && !WELTRAUMWETTER.windGemeldet && w) {
+    WELTRAUMWETTER.windGemeldet = true;
+    bordbuch("Sonnenwind " + windText(w) + ": das Polarlicht wird unruhig");
+  } else if (a < 0.3) WELTRAUMWETTER.windGemeldet = false;
 }
 
 /* Kp in der ueblichen Schreibweise: 1- ist 0,67, 0+ ist 0,33 */
@@ -14111,11 +14170,21 @@ function zeichneErde(t) {
 
      Mit der echten Erde kommt es aus dem Ort, siehe polarNaehe(). */
   const breite = polarNaehe(ph);
+  /* Die Uhr der Vorhaenge: mit dem Sonnenwind laeuft sie schneller. Nur
+     der Zuschlag wird aufsummiert; ohne Wind ist sie genau die Bilduhr. */
+  const pz = zeichneErde.polar || (zeichneErde.polar = { t, plus: 0 });
+  const wa = windAktiv();
+  pz.plus += Math.max(0, Math.min(200, t - pz.t)) * 1.5 * wa;
+  pz.t = t;
+  const tp = t + pz.plus;
   if (TAGLICHT < 0.92 && breite > 0.04) {
     /* Ueber dem gewoehnlichen Tag gestaucht: sonst stuende im Sturm
        jeder Vorhang am Anschlag, und aus Knoten und Luecken wuerde eine
        gleichmaessige Wand. Die Kraft geht stattdessen in die Hoehe. */
-    const roh = (1 - TAGLICHT) * breite;
+    /* In Schueben: bei suedwaerts gerichtetem Feld leuchtet es alle
+       halbe Minute oder so kraeftiger auf, wie bei einem Teilsturm */
+    const schub = wa > 0 ? 1 + 0.35 * wa * Math.max(0, Math.sin(tp * 0.0009) * Math.sin(tp * 0.00023 + 0.8)) : 1;
+    const roh = (1 - TAGLICHT) * breite * schub;
     const staerke = roh <= 1 ? roh : 1 + (roh - 1) * 0.4;
     /* Bei einem Sturm stehen die Vorhaenge hoeher, und oben kommt das
        Rot des Sauerstoffs dazu. Am gewoehnlichen Tag bleibt beides aus. */
@@ -14171,8 +14240,8 @@ function zeichneErde(t) {
       /* Zwei Wellen unterschiedlicher Laenge uebereinander ergeben das
          unregelmaessige Wandern echter Vorhaenge. Dazu ein fester
          Zufall je Vorhang fuer Hoehe und Breite. */
-      const welle = 0.5 + 0.5 * Math.sin(f * 11 + t * 0.00021)
-                  * Math.sin(f * 4.3 - t * 0.00013 + 1.7);
+      const welle = 0.5 + 0.5 * Math.sin(f * 11 + tp * 0.00021)
+                  * Math.sin(f * 4.3 - tp * 0.00013 + 1.7);
       const eigen = 0.35 + streu(i, 11, 17) * 1.3;
       const hoehe = rr * 0.012 * (0.25 + welle * 1.6) * eigen * hoch;
       const a = Math.min(0.8, staerke * (0.05 + welle * 0.3) * (0.6 + streu(i, 5, 23) * 0.8));
@@ -18917,6 +18986,14 @@ function zeichneTelemetrie(t) {
       return [["WELTRAUMWETTER", kpText(kp) + " · " + kpLage(kp), kp / 9,
                g >= 3 ? "schlecht" : g ? "warm" : "gut"]];
     })(),
+    /* Und der Sonnenwind, sobald er da ist. Der Balken ist die Unruhe,
+       die er ins Polarlicht bringt. */
+    ...(() => {
+      const w = windJetzt();
+      if (!w) return [];
+      const a = windAktiv();
+      return [["SONNENWIND", windText(w), a / 1.5, a >= 1 ? "warm" : "gut"]];
+    })(),
     /* Die echte ISS, wenn gewuenscht */
     ...(() => {
       if (!Z.echteIss) return [];
@@ -19425,7 +19502,9 @@ const HILFE = [
       + "den magnetischen Polen vorbeikommt, über Kanada oder südlich von Australien. Unter Stationswerte "
       + "kannst du das echte Weltraumwetter einschalten; dann fragt ORBIT bei der NOAA nach dem Kp-Index "
       + "und nach ihrer Vorhersage des Polarlichts. Bei einem Sturm wird es heller, reicht weiter nach "
-      + "Süden und bekommt rote Spitzen, und auf der ganzen Erde liegt die Vorhersage der NOAA.",
+      + "Süden und bekommt rote Spitzen, und auf der ganzen Erde liegt die Vorhersage der NOAA. Zeigt "
+      + "das Magnetfeld des Sonnenwinds nach Süden, wird es unruhig: die Vorhänge laufen schneller und "
+      + "leuchten in Schüben auf.",
   },
   {
     titel: "Der Lebenserhalt",
