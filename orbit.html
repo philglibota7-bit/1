@@ -396,6 +396,13 @@ footer{
 .heute .wahl .auftrag{margin-top:4px; overflow-wrap:anywhere;}
 .heute .wahl .was{display:block; font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--tx3);}
 .heute .wahl .zur-figur{width:auto; height:30px; margin-top:8px; padding:0 14px; font-size:12px;}
+.fortsetzen{display:flex; gap:8px; align-items:center; margin-top:6px;}
+.fortsetzen input{flex:1 1 auto; min-width:0; height:34px; padding:0 10px; border-radius:var(--r1);
+  font:12px ui-monospace, "SF Mono", Menlo, monospace; color:var(--tx); background:rgba(0,0,0,.28);
+  border:1px solid var(--edge);}
+.fortsetzen .knopf{flex:0 0 auto; width:auto; height:34px; padding:0 12px; font-size:12px; white-space:nowrap;}
+.heute .wahl .fortsetzen input{height:30px; font-size:11px;}
+.heute .wahl .fortsetzen .knopf{height:30px;}
 @media (max-width:460px){ .heute .wahl{margin-left:0;} }
 .d-kind{display:flex; align-items:center; gap:9px; width:100%; text-align:left;
   padding:7px 9px; margin:0 0 5px; border-radius:9px; border:1px solid rgba(255,255,255,.06);
@@ -2319,6 +2326,11 @@ async function sammleSitzungsregister(ohnePs) {
    ueberhaupt aufmacht: welche meiner Sitzungen haengt an mir? Also
    bekommt sie einen eigenen Zustand, und die Figur winkt. */
 const REGISTER_ZUSTAND = { busy: "sendet", waiting: "winkt", idle: "ruht" };
+/* Der letzte Stand aus dem Vordergrund-Lauf: welche Sitzungen gerade ein
+   lebender Prozess offen hat. Der Tagesbogen fragt danach — eine Sitzung
+   von heute Morgen, die seit Stunden still in einem Terminal steht, ist
+   keine Figur mehr, aber auch nicht zu Ende. */
+let SITZUNGSREGISTER = {};
 const WARTET_TEXT = {
   "permission prompt": "wartet auf deine Freigabe",
   "input needed": "wartet auf deine Eingabe",
@@ -2450,7 +2462,7 @@ async function heuteSammeln() {
       const name = ort.split("/").pop() || ort;
       if (!nachProjekt.has(name)) nachProjekt.set(name, []);
       nachProjekt.get(name).push({ von: Math.max(ab, Math.min(f.ct || f.mt, f.mt)), bis: f.mt,
-                                   sid: f.name.replace(/\.jsonl$/, ""),
+                                   sid: f.name.replace(/\.jsonl$/, ""), ort,
                                    auftrag: KOPF_AUFTRAG.get(f.pfad) || "" });
     }
   }
@@ -2484,6 +2496,7 @@ function zeichneHeute() {
      nicht alle paar Sekunden ins Leere fallen. */
   const fokusZeile = box.contains(document.activeElement)
     ? [...box.querySelectorAll(".zeile")].indexOf(document.activeElement) : -1;
+  const fokusBefehl = fortsetzenFokus();
   box.innerHTML = "";
   if (!HEUTE.length) return;
   const jetzt = Date.now();
@@ -2578,6 +2591,7 @@ function zeichneHeute() {
     const z = box.querySelectorAll(".zeile")[fokusZeile];
     if (z) z.focus();
   }
+  fokusBefehl();
 }
 
 /* Was zu einer angetippten Sitzung des Tages dasteht: Projekt, von wann
@@ -2606,6 +2620,10 @@ function heuteWahl(p, sg, lebt) {
     t.textContent = "„" + (text.length > 220 ? text.slice(0, 219) + "…" : text) + "“";
     q.append(was, t);
     w.appendChild(q);
+  }
+  if (!live && nativVorhanden() && !VORF.an && sg.ort) {
+    const offen = SITZUNGSREGISTER[sg.sid];
+    w.appendChild(offen ? nochOffen(offen, true) : fortsetzenZeile(sg.ort, sg.sid, false));
   }
   if (live) {
     const k = document.createElement("button");
@@ -2723,6 +2741,7 @@ async function sammleSessions() {
 
   /* Den geratenen Zustand durch den echten ersetzen, wo es ihn gibt */
   const register = await sammleSitzungsregister();
+  SITZUNGSREGISTER = register;
   for (const s of raus) {
     const r = s.sid && register[s.sid];
     if (!r) continue;
@@ -14727,6 +14746,7 @@ function zeichneDetail(id) {
   btn.style.display = extern ? "flex" : "none";
   btn.onclick = () => externOeffnen(extern);
 
+  const fokusZurueck = fortsetzenFokus();
   box.innerHTML = "";
 
   /* Kopfzeile: Art und Zustand */
@@ -15029,6 +15049,106 @@ function zeichneDetail(id) {
     reihe.append(vs, fi);
     box.appendChild(reihe);
   }
+  if (a.typ === "session" && a.sid && nativVorhanden() && !a.vorfuehrung && !a.heimwaerts) {
+    box.appendChild(abschnitt("Fortsetzen"));
+    box.appendChild(a.register ? nochOffen(a.register, false) : fortsetzenZeile(a.ort, a.sid, true));
+  }
+  fokusZurueck();
+}
+
+/* --- Fortsetzen --------------------------------------------------------
+   Eine Sitzung von vorhin oder gestern wieder aufnehmen: Claude Code tut
+   das mit "claude --resume <Sitzung>", und zwar im Ordner, in dem sie
+   lief — die Protokolle liegen je Ordner. ORBIT fuehrt nichts aus, es
+   legt nur den fertigen Befehl in die Zwischenablage. Der Pfad wird fuer
+   die Shell in einfache Anfuehrungszeichen gesetzt, damit auch ein
+   Ordner mit Leerzeichen oder Apostroph beim Einfuegen richtig ankommt. */
+function shellWort(w) {
+  const t = String(w);
+  return /^[A-Za-z0-9_\/.\-+:@%=]+$/.test(t) ? t : "'" + t.replace(/'/g, "'\\''") + "'";
+}
+function fortsetzenBefehl(ort, sid) {
+  const weiter = "claude --resume " + shellWort(sid);
+  return ort && ort.startsWith("/") ? "cd " + shellWort(ort) + " && " + weiter : weiter;
+}
+/* In die Zwischenablage: im Programm ueber Neutralino (freigegeben ist
+   nur das Schreiben), sonst ueber den Browser. Geht beides nicht, bleibt
+   der Befehl markiert stehen, zum Kopieren von Hand. */
+async function inZwischenablage(text) {
+  try {
+    if (nativVorhanden() && Neutralino.clipboard && Neutralino.clipboard.writeText) {
+      await Neutralino.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* weiter mit dem Browser */ }
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(text); return true; }
+  } catch { /* von Hand */ }
+  return false;
+}
+/* Detail und Tagesbogen werden bei jedem Durchlauf der Bruecke neu
+   gebaut, alle paar Sekunden. Die Zeile bleibt dabei dasselbe Element:
+   sonst sprang "Kopiert ✓" sofort zurueck, und ein Befehl, den jemand
+   von Hand markiert hatte, verlor mitten im Kopieren die Markierung. */
+const FORTSETZEN = new Map();
+function fortsetzenZeile(ort, sid, mitHinweis) {
+  const befehl = fortsetzenBefehl(ort, sid);
+  const schluessel = (mitHinweis ? "d " : "t ") + befehl;
+  const schon = FORTSETZEN.get(schluessel);
+  if (schon) return schon;
+  if (FORTSETZEN.size > 60) FORTSETZEN.clear();
+  const z = document.createElement("div");
+  z.className = "fortsetzen";
+  const feld = document.createElement("input");
+  feld.type = "text"; feld.readOnly = true; feld.value = befehl; feld.spellcheck = false;
+  feld.setAttribute("aria-label", "Befehl zum Fortsetzen der Sitzung");
+  feld.onfocus = () => feld.select();
+  const k = document.createElement("button");
+  k.className = "knopf leer";
+  k.textContent = "Kopieren";
+  k.onclick = async (ev) => {
+    ev.stopPropagation();
+    const ok = await inZwischenablage(befehl);
+    if (!ok) { feld.focus(); feld.select(); }
+    k.textContent = ok ? "Kopiert ✓" : (window.NL_OS === "Darwin" ? "Mit ⌘C kopieren" : "Mit Strg+C kopieren");
+    clearTimeout(k._uhr);
+    k._uhr = setTimeout(() => { k.textContent = "Kopieren"; }, 1800);
+  };
+  z.append(feld, k);
+  let teil = z;
+  if (mitHinweis) {
+    const hinweis = document.createElement("div");
+    hinweis.className = "d-fussnote";
+    hinweis.textContent = "Im Terminal einfügen — die Sitzung geht dort weiter, wo sie aufgehört hat.";
+    teil = document.createElement("div");
+    teil.append(z, hinweis);
+  }
+  FORTSETZEN.set(schluessel, teil);
+  return teil;
+}
+/* Hat ein lebender Prozess die Sitzung offen, geht es in dessen Fenster
+   weiter — ein zweites "claude --resume" daneben oeffnete denselben
+   Verlauf ein zweites Mal. Also statt des Befehls dieser Satz. */
+function nochOffen(r, kurz) {
+  const d = document.createElement("div");
+  d.className = "d-fussnote noch-offen";
+  d.textContent = (kurz ? "Noch offen" : "Die Sitzung ist noch offen")
+    + (r.pid ? " (Prozess " + r.pid + ")" : "") + " — dort geht es weiter.";
+  return d;
+}
+/* Vor dem Neubau: stand der Fokus in einer solchen Zeile — im Feld oder
+   auf dem Knopf —, kommt er danach dorthin zurueck, samt Markierung. Das
+   Element ist ja dasselbe geblieben; nur das Herausnehmen nimmt ihm den
+   Fokus. */
+function fortsetzenFokus() {
+  const e = document.activeElement;
+  if (!e || !e.closest || !e.closest(".fortsetzen")) return () => {};
+  const von = e.selectionStart, bis = e.selectionEnd;
+  return () => {
+    if (!e.isConnected || document.activeElement === e) return;
+    e.focus({ preventScroll: true });
+    if (typeof von === "number") e.setSelectionRange(von, bis);
+  };
 }
 
 /* --- GitHub: Pull Requests und Actions --------------------------------
@@ -16236,10 +16356,13 @@ const HILFE = [
       + "seiner Sitzung, die letzten anderthalb Minuten, daneben die Aufrufe je Minute. Im "
       + "Detailfenster stehen dazu der Takt der letzten Stunde, die Arbeitsschritte und welche "
       + "Dateien die Sitzung geändert hat. Im Mac-Programm öffnet es die Sitzung oder den Ordner "
-      + "direkt in VS Code oder im Finder. Unter Brücke steht der ganze Tag: je Projekt eine Zeile, "
+      + "direkt in VS Code oder im Finder, und unter „Fortsetzen“ steht der fertige Befehl, mit dem "
+      + "die Sitzung im Terminal weitergeht: kopieren, einfügen — ORBIT selbst führt nichts aus. "
+      + "Unter Brücke steht der ganze Tag: je Projekt eine Zeile, "
       + "jede Sitzung ein Balken von ihrem Beginn bis zu ihrem letzten Eintrag, die laufenden "
       + "hervorgehoben — und oben, wie lange heute insgesamt etwas lief. Eine Zeile antippen zeigt, "
-      + "womit eine Sitzung begann, bei einer laufenden ihren Auftrag und den Weg zur Figur.",
+      + "womit eine Sitzung begann, im Mac-Programm samt dem Befehl zum Fortsetzen, bei einer "
+      + "laufenden ihren Auftrag und den Weg zur Figur.",
   },
   {
     titel: "Was die Hand tut",
