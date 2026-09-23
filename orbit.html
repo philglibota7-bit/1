@@ -13070,7 +13070,11 @@ function breiteLaenge(p) {
    Kante der Scheibe — in der Blickmatrix ist das die zweite Spalte. */
 function unterUns() {
   if (!ERDKARTE.bereit || !ERDKARTE.blick) return null;
-  const m = ERDKARTE.blick.m;
+  /* Ist die ganze Erde offen, wird die Szene darunter nicht gezeichnet, und
+     ihr Blick bliebe stehen: nach ein paar Minuten stand dann ein Meer am
+     Punkt der Station, das sie laengst hinter sich hatte. Dort also aus der
+     Bahn von jetzt, wie der Punkt selbst. */
+  const m = ERDANSICHT.an ? erdBlick(umlaufWinkel(window.__PHASE_WERT || 0), Date.now()).m : ERDKARTE.blick.m;
   const [b, l] = breiteLaenge([m[3], m[4], m[5]]);
   const ort = ortBei(b, l);
   return { breite: b, laenge: l, name: ort ? ort.name : null, meer: ort ? ort.meer : false };
