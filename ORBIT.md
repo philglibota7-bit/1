@@ -277,6 +277,11 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
   - Die Überblendung läuft nach der Uhr und nicht nach Bildern. Eine Blende mit festem Schritt je Bild stand ohne Grafikchip nach Sekunden noch auf halbem Weg, und die Station schimmerte durch die Erde.
   - Liegt die Kugel ganz über allem, wird die Station nicht gezeichnet. Was an Bord läuft, läuft weiter. Die Kugel selbst wird nur neu gerechnet, wenn sie sich um einen halben Bildpunkt gedreht hat, und alle zwei Sekunden für die Sonne.
   - Auf dem Handy bestimmt die Breite die Größe: Die Bahn reicht links und rechts ein Fünfzehntel über die Kugel hinaus und passt noch ins Bild.
+- **Die echte ISS, auf Wunsch.** Die Station hier fliegt eine Bahn wie die ISS, aber nicht die echte an ihrer echten Stelle. Wer sehen will, wo die gerade ist, schaltet es unter Stationswerte ein.
+  - Dann fragt ORBIT alle zwanzig Sekunden bei wheretheiss.at nach, einem öffentlichen Dienst ohne Schlüssel, der Browsern die Antwort erlaubt. Mitgeschickt wird nichts als die Anfrage selbst.
+  - Ausgeschaltet geht keine einzige Anfrage hinaus. Gefragt wird nur, solange die Stationswerte oder die ganze Erde offen sind.
+  - In den Stationswerten steht, worüber sie fliegt, mit Breite, Länge und ob dort Tag ist. In der ganzen Erde erscheint sie als zweiter, türkiser Punkt in ihrer echten Höhe.
+  - Zwischen zwei Antworten läuft sie auf dem Großkreis durch die letzten beiden Punkte weiter. Als Zeit gilt die eigene Uhr beim Empfang, nicht der Zeitstempel des Dienstes: Geht die Uhr des Rechners ein paar Minuten falsch, wäre die Antwort sonst sofort zu alt. Nach zwei Minuten ohne Antwort steht „nicht erreichbar“ da.
 - **Rückfall.** Fehlt eines der Bilder, kann der Browser kein WebGL oder geht der Grafikkontext verloren, zeichnet ORBIT die gerechnete Erde wie bisher. Solange die Karten laden, wartet die Seite bis zu zwei Sekunden mit der Erde. So zeigt sie nicht erst die gerechnete und springt dann um.
 - **Kosten.**
   - Neu gemalt wird nur, wenn sich die Scheibe weit genug gedreht hat. Das regelt dieselbe Schwelle wie vorher beim Durchziehen.
@@ -376,7 +381,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-78 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+79 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
 - **Echte Arbeitsumgebung**:
@@ -458,6 +463,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Gewitter: 19 Blitze in 12 s am Abend, keiner bei Tag, gegengeprüft.
   - Kobolde.
   - Sternschnuppen: je 200, keine im Sternhimmel.
+  - Echte ISS: Die Antworten des Dienstes sind nachgebaut, mit den Feldern der echten API. Ausgeschaltet geht keine Anfrage hinaus. Eingeschaltet kommt die erste sofort, die nächste nach zwanzig Sekunden, nicht früher. Über Bayern steht „Deutschland · 48° N · 12° O · Tag“. Auf der Kugel liegt der Punkt auf 0,003 Bildpunkte genau an ihrer Stelle, zwischen den Antworten weitergerechnet. Fällt der Dienst aus, steht „nicht erreichbar“ da. Wieder ausgeschaltet kommt keine Anfrage mehr.
   - Meteorströme: Am 12. August um 20 Uhr UTC laufen die Perseiden mit elffacher Rate und stehen im Bordbuch, am 14. Dezember die Geminiden mit sechzehnfacher. Am 23. September läuft keiner.
   - Nähte im Nachthimmelsleuchten: 36 → 0,7.
   - Mondlicht: Neumond 11, Halbmond 16, Vollmond 35; die Tagseite bleibt gleich.
@@ -509,7 +515,8 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 - Die Bildraten sind in reiner Software-Rasterung gemessen (SwiftShader, ohne Grafikkarte) und damit der schlechteste Fall. Bei 24 Figuren liegt sie dort bei 37 statt 60, bei Nacht und 1400 × 900 Punkten bei 23.
 - **Der flüssige Boden ist auf einem Mac nicht gemessen.** Die Regelung misst dort selbst, was das Zusammensetzen kostet; hier ließ sich nur die Software-Rasterung messen, und dort kostet er bei doppelter Auflösung zwei Bilder je Sekunde.
 - **Die Erde ist echt, die Bahn nicht.**
-  - Die Station fliegt eine Bahn mit der Neigung der ISS, aber nicht die echte ISS an ihrer echten Stelle. Dafür bräuchte es aktuelle Bahndaten aus dem Netz.
+  - Die Station fliegt eine Bahn mit der Neigung der ISS, aber nicht die echte ISS an ihrer echten Stelle. Wo die echte ist, zeigt ORBIT auf Wunsch zusätzlich an; die Szene selbst folgt ihr nicht.
+  - Ob wheretheiss.at aus dem Betrachter von claude.ai heraus erreichbar ist, habe ich nicht geprüft. Dort könnte die Seite fremde Adressen sperren; dann steht „nicht erreichbar“ da.
   - Der Umlauf ist zwölffach gerafft, die Sonne läuft in Echtzeit. Deshalb verschiebt sich die Bahn von Runde zu Runde nur um knapp zwei Grad statt um 23.
   - Die Wolken sind eine Aufnahme, kein Wetter von heute.
   - Auf einem Mac mit Grafikchip ist die Erde nicht gemessen, nur in Software-Rasterung.

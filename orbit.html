@@ -925,6 +925,10 @@ body.sicht #blende-detail, body.sicht #blende-teil{
 @keyframes tmrein{from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:none;}}
 #telemetrie[hidden]{display:none;}
 .tm-kopf{font-size:9.5px; letter-spacing:.14em; color:var(--tx3); margin-bottom:9px;}
+.tm-knopf{display:block; width:100%; margin-top:9px; padding:6px 9px; border-radius:8px; text-align:left;
+  font-size:11px; color:var(--tx2); background:rgba(255,255,255,.04); border:1px solid var(--edge);}
+.tm-knopf:hover{color:var(--tx); border-color:var(--edge2);}
+.tm-knopf small{display:block; font-size:9.5px; color:var(--tx3); margin-top:2px;}
 .tm-zeile{display:flex; align-items:baseline; justify-content:space-between; gap:10px;
   padding:3px 0; border-top:1px solid rgba(255,255,255,.05);}
 .tm-zeile:first-child{border-top:0;}
@@ -1079,6 +1083,7 @@ body.sicht #blende-detail, body.sicht #blende-teil{
     <canvas id="tm-puls" width="420" height="60"></canvas>
     <div id="tm-alarm"></div>
     <div id="tm-zeilen"></div>
+    <button id="tm-iss" class="tm-knopf" type="button"></button>
     <div class="tm-kopf" id="tm-buchkopf" style="margin:12px 0 7px">BORDBUCH</div>
     <div id="tm-buch"></div>
   </div>
@@ -1398,6 +1403,7 @@ let Z = {
   thema: "orion",
   umlauf: true,       // Tag-Nacht-Wechsel im Orbit
   melden: null,       // Mitteilungen; null = Voreinstellung: im Programm an, im Browser aus
+  echteIss: false,    // wo die echte ISS ist, von wheretheiss.at — nur auf Wunsch
   bruecke: {
     typen: { session: true, ordner: true, prozess: true, github: true },
     ordner: [],                 // beobachtete Projektordner
@@ -1421,6 +1427,7 @@ function laden() {
       if (typeof d.thema === "string") Z.thema = d.thema;
       if (typeof d.umlauf === "boolean") Z.umlauf = d.umlauf;
       if (typeof d.melden === "boolean") Z.melden = d.melden;
+      if (typeof d.echteIss === "boolean") Z.echteIss = d.echteIss;
       /* Die Zeitraffung ist eine Einstellung wie der Hintergrund — wer
          sie auf das Zwoelffache gestellt hat, will das beim naechsten
          Mal nicht wieder suchen muessen. Angehalten wird NICHT
@@ -1460,6 +1467,7 @@ function sichern() {
       log: Z.log.slice(0, 60),
       key: Z.key, maxTok: Z.maxTok, gewaehlt: Z.gewaehlt,
       thema: Z.thema, umlauf: Z.umlauf, melden: Z.melden, bruecke: Z.bruecke, rate: ZEIT.rate,
+      echteIss: Z.echteIss,
     }));
   } catch (e) {
     /* Speicher voll oder privater Modus — die App laeuft trotzdem weiter */
@@ -11985,6 +11993,27 @@ function zeichneErdansicht(t, dt) {
   /* Die Station: ein heller Punkt mit Schein, und darueber, wer an Bord ist */
   const st = aufSchirm([hoch * O[0], hoch * O[1], hoch * O[2]]);
   ERDANSICHT.station = { x: st.x / DPR, y: st.y / DPR };
+  /* Die echte ISS, wenn gewuenscht: ein zweiter, kleiner Punkt in ihrer
+     echten Hoehe, anders gefaerbt, damit man die beiden nicht verwechselt */
+  ERDANSICHT.echteIss = null;
+  const echt = Z.echteIss ? echteIssJetzt(Date.now()) : null;
+  if (echt) {
+    const k = 1 + echt.hoehe / 6371;
+    const e = aufSchirm(echt.p.map(x => x * k));
+    if (!e.verdeckt) {
+      ERDANSICHT.echteIss = { x: e.x / DPR, y: e.y / DPR };
+      cx.strokeStyle = "rgba(120,230,255,.9)"; cx.lineWidth = 1.5 * DPR;
+      cx.beginPath(); cx.arc(e.x, e.y, 6 * DPR, 0, Math.PI * 2); cx.stroke();
+      cx.fillStyle = "#9ef0ff";
+      cx.beginPath(); cx.arc(e.x, e.y, 2.4 * DPR, 0, Math.PI * 2); cx.fill();
+      cx.font = `600 ${10.5 * DPR}px -apple-system, system-ui, sans-serif`;
+      cx.textAlign = "left";
+      cx.lineWidth = 3 * DPR; cx.strokeStyle = "rgba(4,7,14,.8)";
+      cx.strokeText("echte ISS", e.x + 10 * DPR, e.y + 4 * DPR);
+      cx.fillStyle = "rgba(160,236,255,.95)";
+      cx.fillText("echte ISS", e.x + 10 * DPR, e.y + 4 * DPR);
+    }
+  }
   /* Fuer die Pruefung: wo die Bahn zehn Grad voraus auf dem Schirm liegt */
   const w10 = 10 * Math.PI / 180;
   const vor = aufSchirm([0, 1, 2].map(k => hoch * (Math.cos(w10) * O[k] + Math.sin(w10) * V[k])));
@@ -12290,6 +12319,82 @@ function erdansichtBei(px, py) {
   const [b, l] = breiteLaenge(p);
   const ort = ortBei(b, l);
   return { breite: b, laenge: l, name: ort ? ort.name : null, meer: ort ? ort.meer : false };
+}
+
+/* --- Die echte ISS -------------------------------------------------------
+   Die Station hier fliegt eine Bahn wie die ISS, aber nicht die echte an
+   ihrer echten Stelle. Wer sehen will, wo die gerade ist, kann es in den
+   Stationswerten einschalten. Dann fragt ORBIT alle zwanzig Sekunden bei
+   wheretheiss.at nach, einem oeffentlichen Dienst ohne Schluessel, der
+   Browsern die Antwort erlaubt. Mitgeschickt wird nichts als die Anfrage
+   selbst. Ausgeschaltet geht keine einzige hinaus, und gefragt wird nur,
+   solange die Stationswerte oder die ganze Erde offen sind. Zwischen zwei
+   Antworten laeuft sie auf dem Grosskreis durch die letzten beiden Punkte
+   weiter. */
+const ECHTEISS = { fixes: [], fehler: null, laeuft: false, um: 0, anfragen: 0 };
+const ISS_ADRESSE = "https://api.wheretheiss.at/v1/satellites/25544";
+
+function echteIssTakt() {
+  if (!Z.echteIss || !(telemetrieAn || ERDANSICHT.an) || document.hidden) return;
+  const jetzt = Date.now();
+  if (ECHTEISS.laeuft || jetzt - ECHTEISS.um < 20000) return;
+  ECHTEISS.laeuft = true;
+  ECHTEISS.um = jetzt;
+  ECHTEISS.anfragen++;
+  const ab = typeof AbortController === "function" ? new AbortController() : null;
+  const wecker = setTimeout(() => ab && ab.abort(), 8000);
+  fetch(ISS_ADRESSE, { cache: "no-store", signal: ab ? ab.signal : undefined })
+    .then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))
+    .then(d => {
+      const lat = Number(d.latitude), lon = Number(d.longitude), hoehe = Number(d.altitude);
+      if (![lat, lon, hoehe].every(Number.isFinite) || Math.abs(lat) > 90) throw new Error("unlesbar");
+      /* Die eigene Uhr beim Empfang, nicht der Zeitstempel des Dienstes:
+         geht die Uhr des Rechners ein paar Minuten falsch, waere die
+         Antwort sonst sofort zu alt, und die ISS erschiene nie. */
+      const t = Date.now();
+      const RAD = Math.PI / 180, cl = Math.cos(lat * RAD);
+      const fix = { t, p: [cl * Math.cos(lon * RAD), cl * Math.sin(lon * RAD), Math.sin(lat * RAD)],
+                    hoehe, tag: d.visibility === "daylight" };
+      const letzter = ECHTEISS.fixes[ECHTEISS.fixes.length - 1];
+      if (!letzter || fix.t > letzter.t) ECHTEISS.fixes = ECHTEISS.fixes.concat(fix).slice(-2);
+      ECHTEISS.fehler = null;
+    })
+    .catch(() => { ECHTEISS.fehler = "nicht erreichbar"; })
+    .finally(() => { clearTimeout(wecker); ECHTEISS.laeuft = false; });
+}
+
+/* Wo sie jetzt ist: zwischen und hinter den letzten beiden Antworten auf
+   dem Grosskreis. Aelter als zwei Minuten gilt nichts mehr. */
+function echteIssJetzt(ms) {
+  const f = ECHTEISS.fixes;
+  if (!f.length) return null;
+  const b = f[f.length - 1];
+  if (ms - b.t > 120000) return null;
+  let p = b.p;
+  if (f.length > 1) {
+    const a = f[0];
+    const c = Math.max(-1, Math.min(1, a.p[0] * b.p[0] + a.p[1] * b.p[1] + a.p[2] * b.p[2]));
+    const th = Math.acos(c);
+    if (th > 1e-6 && b.t > a.t) {
+      const u = (ms - a.t) / (b.t - a.t), sn = Math.sin(th);
+      const k1 = Math.sin((1 - u) * th) / sn, k2 = Math.sin(u * th) / sn;
+      p = [0, 1, 2].map(k => k1 * a.p[k] + k2 * b.p[k]);
+      const l = Math.hypot(...p);
+      p = p.map(x => x / l);
+    }
+  }
+  const [breite, laenge] = breiteLaenge(p);
+  return { p, breite, laenge, hoehe: b.hoehe, tag: b.tag };
+}
+
+function echteIssKnopf() {
+  const k = document.getElementById("tm-iss");
+  if (!k) return;
+  k.textContent = Z.echteIss ? "Echte ISS ausblenden" : "Echte ISS zeigen";
+  const klein = document.createElement("small");
+  klein.textContent = Z.echteIss ? "fragt alle 20 s bei wheretheiss.at nach"
+                                 : "fragt dann bei wheretheiss.at nach, wo sie gerade ist";
+  k.append(klein);
 }
 
 function erdeMasse() {
@@ -14768,6 +14873,7 @@ function rahmen(jetzt) {
   lebenTakt(t, dt, umlaufPhase);
   funkTakt(t, dt);
   durchgangTakt(t, dt);
+  echteIssTakt();
 
   /* Liegt die ganze Erde voll ueber allem, wird die Station nicht
      gezeichnet — zu sehen waere von ihr nichts. Was an Bord laeuft,
@@ -18091,6 +18197,14 @@ $("#s-loeschen").onclick = () => {
 $("#btn-crew").onclick = () => blendeAuf("blende-crew");
 $("#puls-knopf").onclick = () => blendeAuf("blende-crew");
 $("#btn-wartet").onclick = () => naechsterWartender();
+$("#tm-iss").onclick = () => {
+  Z.echteIss = !Z.echteIss;
+  if (!Z.echteIss) { ECHTEISS.fixes = []; ECHTEISS.fehler = null; }
+  else ECHTEISS.um = 0;
+  sichern();
+  echteIssKnopf();
+  tmUhr = 0;
+};
 $("#btn-vorf").onclick = () => vorfuehrungBeenden();
 $("#vorf-band").onclick = () => vorfuehrungBeenden();
 
@@ -18475,6 +18589,15 @@ function zeichneTelemetrie(t) {
       return br > 0.55 ? "über dem Horizont" : "schwach";
     })(),
       TAGLICHT > 0.92 ? 0 : polarNaehe(ph)],
+    /* Die echte ISS, wenn gewuenscht */
+    ...(() => {
+      if (!Z.echteIss) return [];
+      const e = echteIssJetzt(Date.now());
+      if (!e) return [["ECHTE ISS", ECHTEISS.fehler || "wird gefragt …"]];
+      const ort = ortBei(e.breite, e.laenge);
+      return [["ECHTE ISS", (ort && ort.name ? ort.name + " · " : "") + gradText(e.breite, e.laenge)
+        + " · " + (e.tag ? "Tag" : "Nacht")]];
+    })(),
     /* Laeuft ein grosser Meteorstrom, steht er hier mit seinem Faktor */
     ...(() => {
       const st = meteorStrom(Date.now());
@@ -18954,7 +19077,8 @@ const HILFE = [
       + "und wo sie gerade ist. Tippst du auf die Erde, steht da, welches Land oder Meer an der Stelle "
       + "liegt. Zoomst du weiter heraus, als es geht, oder drückst E, siehst du die ganze Erde: die Kugel "
       + "mit Tag, Dämmerung und den Lichtern der Nacht, darum die Bahn in echter Höhe und oben die "
-      + "Station. Ziehen dreht die Kugel, Zoomen macht sie größer, ein Tipp auf die Station bringt dich zurück. Ohne WebGL oder ohne die Kartenbilder "
+      + "Station. Ziehen dreht die Kugel, Zoomen macht sie größer, ein Tipp auf die Station bringt dich zurück. Unter Stationswerte "
+      + "kannst du dazu die echte ISS einschalten; dann fragt ORBIT bei wheretheiss.at nach, wo sie gerade ist. Ohne WebGL oder ohne die Kartenbilder "
       + "zeichnet ORBIT eine gerechnete Erde.",
   },
   {
@@ -19581,6 +19705,7 @@ laden();
 /* Alles, was den gemerkten Zustand an der Bedienung anzeigt, gehoert
    hierher — nach dem Laden. */
 zeitKnopfStand();
+echteIssKnopf();
 if (umlaufSchalter) umlaufSchalter.classList.toggle("an", Z.umlauf !== false);
 themaAnwenden();
 groesseAnpassen();
