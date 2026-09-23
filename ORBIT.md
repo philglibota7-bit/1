@@ -506,6 +506,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Der Flug wird bei angehaltener Szene in vierzig Schritten nachgerechnet. Er liegt auf dem Großkreis (Abweichung 10⁻¹⁶) und springt nie weiter als erlaubt. Bei München nach Tokio geht der Zoom genau bis 1,57-fach hinaus.
   - Am Ziel: München genau in der Mitte, Norden oben, der Ring auf den Bildpunkt über München, auch 5 Grad verschoben. Die Karte ist offen, Esc schließt erst sie, dann die Erde.
   - Zoom 2,4 ohne, 220 mit Satellitenbildern, Italien 11,8. Das Mausrad bei 30 % des Wegs hält den Flug an, ohne Sprung. Ohne Erde gibt es keine Orte.
+  - Die ganze Reihe fand danach einen echten Fehler: „kasse“ fand zuerst die Stadt Kassel und nicht die Sitzung webshop-kasse, denn nach einem Bindestrich galt kein Wortanfang. Jetzt beginnen Wörter auch nach Bindestrich, Unterstrich, Schrägstrich und Punkt, und Orte stehen bei gleich gutem Treffer hinter der Crew. „kassel“ findet weiter Kassel.
   - Dabei gefunden: Das Ende des Flugs verglich einen Bruch mit 1, und (t0 + d − t0) / d liegt in 42 % der Fälle knapp darunter. Jetzt wird die Uhr verglichen, mit einem Test genau dafür.
   - Zehn kaputte Fassungen schlagen an.
 - **Lieferungen** (lieferung.mjs, Flugzeiten für den Test verkürzt):

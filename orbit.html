@@ -24593,11 +24593,16 @@ function paletteFiltern(roh) {
     let punkte = 0, ok = true;
     for (const w of woerter) {
       if (titel.startsWith(w)) punkte += 4;
-      else if ((" " + titel).includes(" " + w)) punkte += 3;
+      /* Auch nach Bindestrich, Unterstrich, Schraegstrich und Punkt beginnt
+         ein Wort: "kasse" trifft "webshop-kasse" am Wortanfang */
+      else if (new RegExp("[\\s\\-_/.:]" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(titel)) punkte += 3;
       else if (titel.includes(w)) punkte += 2;
       else if (rest.includes(w)) punkte += 1;
       else { ok = false; break; }
     }
+    /* Orte einen Punkt tiefer: bei gleich gutem Treffer steht die Crew vorn.
+       Sonst fand "kasse" zuerst Kassel statt der Sitzung webshop-kasse. */
+    if (ok && x.gruppe === "Orte" && punkte > 1) punkte -= 1;
     if (ok) treffer.push({ ...x, punkte });
   }
   /* Gruppen nach ihrem besten Treffer, darin die Treffer nach Punkten */
