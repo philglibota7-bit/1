@@ -358,6 +358,7 @@ footer{
 .palette-unter{font-size:11.5px; color:var(--tx3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .palette-zustand{font-size:11px; color:var(--tx3); flex:0 0 auto;}
 .palette-zustand.an{color:var(--good);}
+.palette-zustand.wartet{color:var(--warn);}
 .palette-leer{padding:26px 16px; text-align:center; color:var(--tx3); font-size:13px;}
 .palette-fuss{display:flex; flex-wrap:wrap; gap:6px 16px; padding:9px 16px 10px; border-top:1px solid var(--edge);
   font-size:11px; color:var(--tx3);}
@@ -22161,8 +22162,14 @@ function paletteNorm(t) {
 function paletteQuellen() {
   const e = [];
   for (const a of alleAstronauten()) {
+    /* Bei den eigenen Agenten ist die "Taetigkeit" ihr ganzer Auftrag an
+       sich selbst ("Du bist Kepler, ein Rechercheur. …"); als Untertitel
+       genuegt die Rolle daraus */
+    const rolle = a.typ === "agent" ? (/^Du bist [^,.]+, (?:ein|eine|der|die) ([^.,]+)/.exec(a.taetigkeit || "") || [])[1] : "";
+    const unter = a.typ === "agent" ? "Eigener Agent" + (rolle ? " · " + rolle : "") + (a.ort ? " · " + a.ort : "")
+                                    : a.taetigkeit || a.ort || "";
     e.push({ gruppe: "Crew", zeichen: TYP_ZEICHEN[a.typ] || "", farbe: a.farbe, titel: a.name,
-      unter: a.taetigkeit || a.ort || "", stich: [a.typ === "unteragent" ? "unteragent agent" : a.typ, a.ort, a.branch, a.eltern].join(" "),
+      unter, stich: [a.typ === "unteragent" ? "unteragent agent" : a.typ, a.ort, a.branch, a.eltern, a.typ === "agent" ? a.taetigkeit : ""].join(" "),
       zustand: a.zustand === "winkt" ? "wartet" : "", tun: () => { detailOeffnen(a.id); fahreZu(a.id, Math.max(2.4, KAM.zielZoom)); } });
   }
   const aktion = (titel, unter, stich, taste, tun) => e.push({ gruppe: "Aktionen", zeichen: "›", titel, unter, stich, taste, tun });
@@ -22282,7 +22289,7 @@ function paletteZeichnen() {
     l.append(z, t);
     if (x.zustand || x.taste) {
       const r = document.createElement("span");
-      r.className = x.zustand ? "palette-zustand" + (x.an || x.zustand === "gewählt" ? " an" : "") : "palette-taste";
+      r.className = x.zustand ? "palette-zustand" + (x.an || x.zustand === "gewählt" ? " an" : x.zustand === "wartet" ? " wartet" : "") : "palette-taste";
       r.textContent = x.zustand || x.taste; l.append(r);
     }
     l.onmousemove = () => { if (PALETTE.wahl !== i) paletteWahl(i, false); };
