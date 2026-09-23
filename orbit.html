@@ -26219,6 +26219,15 @@ function paletteQuellen() {
   const aktion = (titel, unter, stich, taste, tun) => e.push({ gruppe: "Aktionen", zeichen: "›", titel, unter, stich, taste, tun });
   if (BR.live.some(a => a.zustand === "winkt" && SICHT.has(a.id)))
     aktion("Zum Nächsten, der wartet", "Freigabe oder Rückfrage", "warten winkt freigabe", "W", () => naechsterWartender());
+  /* Was gerade nicht stimmt: je Kreis und je Konflikt ein Eintrag, der
+     zur Figur fuehrt, beim Konflikt zu der, die zuletzt geaendert hat */
+  const hin = (id) => () => { if (ERDANSICHT.an) erdansicht(false); detailOeffnen(id); fahreZu(id, Math.max(2.4, KAM.zielZoom)); };
+  for (const { a, s: s_ } of SCHLEIFE.liste.slice(0, 3))
+    aktion("⟲ Im Kreis: " + a.name, anfang(s_.befehl, 40) + " · " + s_.n + "× derselbe Fehler",
+      "kreis schleife fehler warnung " + s_.befehl, "", hin(a.id));
+  for (const k of KONFLIKT.liste.slice(0, 3))
+    aktion("⚠ Konflikt: " + k.name, k.a.name + " und " + k.b.name + " ändern beide diese Datei",
+      "konflikt datei gleiche warnung " + k.pfad, "", hin(k.b.id));
   aktion(RUNDGANG.laeuft ? "Rundgang beenden" : "Rundgang", "Einmal um die Station", "tour fuehrung", "R",
     () => { if (ERDANSICHT.an) erdansicht(false); RUNDGANG.laeuft ? rundgangEnde() : rundgangStart(); });
   if (ERDKARTE.bereit) aktion(ERDANSICHT.an ? "Zurück zur Station" : "Ganze Erde", "Hinauszoomen bis zur Kugel", "globus kugel welt erde",
