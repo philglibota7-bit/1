@@ -802,6 +802,36 @@ body.erdansicht #zoomleiste #zoom-sat{display:flex;}
 #zoomleiste #zoom-nord{display:none;}
 body.erdansicht.erdfrei #zoomleiste #zoom-nord{display:flex;}
 #zoom-nadel{transform-origin:12px 12px; transition:transform .12s linear;}
+/* ---------- Regenfilm: Knopf und Zeitleiste auf der Erde ---------- */
+#regen-film{
+  position:fixed; z-index:6; left:50%; bottom:calc(150px + env(safe-area-inset-bottom));
+  display:flex; align-items:center; gap:10px; padding:5px 13px 5px 5px; border-radius:14px;
+  background:linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.035)), rgba(10,12,20,.72);
+  border:1px solid var(--edge); color:var(--tx2);
+  box-shadow:0 8px 24px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.09);
+  -webkit-backdrop-filter:blur(14px) saturate(1.2); backdrop-filter:blur(14px) saturate(1.2);
+  font-size:11.5px; font-weight:500; letter-spacing:.02em; font-variant-numeric:tabular-nums;
+  opacity:0; pointer-events:none; transform:translate(-50%, 10px); transition:opacity .3s var(--ease), transform .3s var(--ease);
+}
+#regen-film.da{opacity:1; pointer-events:auto; transform:translate(-50%, 0);}
+body.kino #regen-film{opacity:0 !important; pointer-events:none;}
+#regen-film button{
+  width:30px; height:30px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+  background:rgba(255,255,255,.06); border:1px solid var(--edge); color:var(--tx);
+  transition:all .18s var(--ease);
+}
+#regen-film button:hover{border-color:var(--edge2);}
+#regen-film button:active{transform:scale(.93);}
+#regen-film button:focus-visible{outline:2px solid var(--acc); outline-offset:2px;}
+#regen-film .halt, #regen-film.laeuft .spielen{display:none;}
+#regen-film.laeuft .halt{display:block;}
+#regen-film.laeuft button{color:#9ed8ff; border-color:rgba(120,190,255,.55); box-shadow:0 0 12px rgba(120,190,255,.3);}
+#regen-film-zeit{min-width:72px; color:var(--tx);}
+#regen-film-leiste{display:flex; align-items:flex-end; gap:3px; height:14px;}
+#regen-film-leiste i{width:4px; height:6px; border-radius:2px; background:rgba(255,255,255,.2); transition:height .15s, background .15s;}
+#regen-film-leiste i.vorbei{background:rgba(158,216,255,.45);}
+#regen-film-leiste i.jetzt{height:10px; background:rgba(255,255,255,.45);}
+#regen-film-leiste i.an{height:14px; background:#9ed8ff; box-shadow:0 0 8px rgba(158,216,255,.7);}
 #zoomleiste .stufe{
   font-size:10.5px; color:var(--tx3); text-align:center; letter-spacing:.03em;
   font-variant-numeric:tabular-nums; padding:2px 0;
@@ -1336,6 +1366,14 @@ body.sicht #blende-detail, body.sicht #blende-teil{
   </button>
 </div>
 
+<div id="regen-film">
+  <button id="regen-film-knopf" type="button" aria-pressed="false" title="Die letzten zwei Stunden im Zeitraffer" aria-label="Die letzten zwei Stunden im Zeitraffer">
+    <svg class="spielen" viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M8 5.5v13l10.5-6.5z"/></svg>
+    <svg class="halt" viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><rect x="6.5" y="5.5" width="4" height="13" rx="1.2"/><rect x="13.5" y="5.5" width="4" height="13" rx="1.2"/></svg>
+  </button>
+  <span id="regen-film-zeit"></span>
+  <span id="regen-film-leiste" aria-hidden="true"></span>
+</div>
 <div id="kino-tipp">Tippen zum Beenden</div>
 <div id="rundgang">
   <div class="rg-zahl" id="rg-zahl"></div>
@@ -16570,7 +16608,7 @@ function wolkenAnwenden() {
 const REGEN = { bild: null, um: 0, laeuft: false, fehler: null, anfragen: 0, kachelAnfragen: 0,
                 kachelFehler: 0, z: -1, x0: 0, y0: 0, kacheln: new Map(), laden: new Set(),
                 version: 0, farbig: false, gewicht: 0, angelegt: false, stufenNeu: false,
-                zellen: null, zellenStand: "" };
+                zellen: null, zellenStand: "", liste: [], film: null, filmWunsch: false };
 const REGEN_INDEX = "https://api.rainviewer.com/public/weather-maps.json";
 const REGEN_QUELLE = "Regenradar: RainViewer";
 const REGEN_K = 4, REGEN_PX = 512, REGEN_MINZ = 2, REGEN_MAXZ = 6;
@@ -16599,6 +16637,9 @@ function regenTakt() {
       if (!b || typeof b.path !== "string" || !/^\/v2\/radar\/[0-9a-z]{4,40}$/i.test(b.path)
           || typeof d.host !== "string" || !/^https:\/\/([a-z0-9-]+\.)*rainviewer\.com$/i.test(d.host)
           || !isFinite(b.time)) throw new Error("unlesbar");
+      /* Alle Bilder der letzten zwei Stunden, fuer den Film; jedes geprueft */
+      R_.liste = liste.filter(x => x && typeof x.path === "string" && /^\/v2\/radar\/[0-9a-z]{4,40}$/i.test(x.path)
+        && isFinite(x.time)).slice(-13).map(x => ({ path: x.path, t: x.time * 1000 }));
       if (!R_.bild || R_.bild.path !== b.path) {
         R_.bild = { host: d.host, path: b.path, t: b.time * 1000 };
         /* Die Kacheln des alten Bilds bleiben stehen, bis die neuen da sind */
@@ -16627,10 +16668,15 @@ function regenLesen(bild) {
   const d = g.getImageData(0, 0, N, N).data;
   const code = new Uint8Array(N * N);
   /* Messwerte oder buntes Bild? In den Messwerten hat jeder Punkt ein
-     Alpha (63 oder 255), im bunten Bild ist fast alles durchsichtig. */
-  let leer = 0;
-  for (let i = 3; i < d.length; i += 64) if (d[i] === 0) leer++;
-  const farbig = leer > d.length / 64 / 2;
+     Alpha (63 oder 255), und im Blau steht nur 0, 191 oder 255. Im bunten
+     Bild ist fast alles durchsichtig, und wo es regnet, ist das Blau
+     beliebig — auch in einer Kachel, die ganz im Regen liegt. */
+  let leer = 0, fremdBlau = 0, n = 0;
+  for (let i = 0; i < d.length; i += 64, n++) {
+    if (d[i + 3] === 0) leer++;
+    else if (d[i + 2] !== 0 && d[i + 2] !== 191 && d[i + 2] !== 255) fremdBlau++;
+  }
+  const farbig = leer > n / 2 || fremdBlau > n / 100;
   let gesehen = 0, nass = 0;
   if (!farbig) {
     for (let i = 0, j = 0; j < code.length; i += 4, j++) {
@@ -16707,18 +16753,24 @@ function regenAnlegen() {
 }
 
 let regenPuffer = null;
-/* Eine Kachel an ihren Platz im Fenster, oder leer, wenn sie fehlt */
+/* Eine Kachel an ihren Platz im Fenster, oder leer, wenn sie fehlt. Laeuft
+   gerade der Film, gehoert das Fenster ihm; die neueste Kachel kommt dann
+   erst nach seinem Ende an ihren Platz. */
 function regenPlatzHochladen(z, x, y) {
-  const R_ = REGEN, gl = ERDKARTE.gl;
-  if (!R_.angelegt || !gl || z !== R_.z) return;
+  const R_ = REGEN;
+  if (!R_.angelegt || !ERDKARTE.gl || z !== R_.z) return;
+  if (R_.film && R_.film.i >= 0) return;
   const n = Math.pow(2, z);
   const i = (((x - R_.x0) % n) + n) % n, j = y - R_.y0;
   if (i >= REGEN_K || j < 0 || j >= REGEN_K) return;
+  const k = R_.kacheln.get(z + "/" + x + "/" + y);
+  regenPlatzSetzen(i, j, k ? k.code : null);
+}
+function regenPlatzSetzen(i, j, c) {
+  const R_ = REGEN, gl = ERDKARTE.gl;
   const N = REGEN_PX;
   if (!regenPuffer) regenPuffer = new Uint8Array(N * N * 4);
-  const k = R_.kacheln.get(z + "/" + x + "/" + y);
-  if (k) {
-    const c = k.code;
+  if (c) {
     for (let q = 0, o = 0; q < c.length; q++, o += 4) {
       const v = c[q];
       regenPuffer[o] = v > 1 ? v & 127 : 0;
@@ -16936,6 +16988,160 @@ function regenKerne(k, tx, ty) {
                s: Math.round(breite * 2) + "/" + Math.round(laenge * 2) });
   }
   return aus;
+}
+
+/* --- Der Regenfilm: die letzten zwei Stunden im Zeitraffer -------------------
+   RainViewer hat die Bilder der letzten zwei Stunden, alle zehn Minuten
+   eins, dreizehn zusammen. Auf Wunsch holt ORBIT sie fuer das Fenster, das
+   gerade im Grafikspeicher liegt, und spielt sie im Kreis ab: knapp drei
+   Bilder je Sekunde, das neueste etwas laenger. So sieht man, wohin der
+   Regen zieht. Die Kacheln liegen gepackt im Speicher, je Lauf gleicher
+   Werte ein Byte Laenge und ein Byte Wert; die meisten Punkte sind trocken
+   oder ohne Radar, so bleiben es fuer alle dreizehn Bilder ein paar
+   Megabyte. Wandert das Fenster, geht die Erde zu oder das Radar aus, endet
+   der Film, und das neueste Bild kommt zurueck. */
+const REGEN_FILM_TAKT = 380, REGEN_FILM_HALT = 1600;
+
+function rlePacken(c) {
+  const aus = new Uint8Array(c.length * 2);
+  let o = 0;
+  for (let i = 0; i < c.length;) {
+    const v = c[i];
+    let n = 1;
+    while (n < 255 && i + n < c.length && c[i + n] === v) n++;
+    aus[o++] = n; aus[o++] = v;
+    i += n;
+  }
+  return aus.slice(0, o);
+}
+function rleEntpacken(r, ziel) {
+  for (let i = 0, o = 0; i < r.length; i += 2) { ziel.fill(r[i + 1], o, o + r[i]); o += r[i]; }
+  return ziel;
+}
+
+function regenFilmUmschalten() {
+  const R_ = REGEN;
+  if (R_.film || R_.filmWunsch) regenFilmEnde();
+  else R_.filmWunsch = true;
+  regenFilmKnopf(true);
+}
+
+/* Alle Kacheln des Fensters fuer alle Bilder anstossen; die des neuesten
+   liegen meist schon im Speicher */
+function regenFilmBeginnen() {
+  const R_ = REGEN;
+  if (!R_.bild || R_.z < 0 || !R_.angelegt || R_.liste.length < 2) return;
+  R_.filmWunsch = false;
+  const F = { z: R_.z, x0: R_.x0, y0: R_.y0, host: R_.bild.host, i: -1, naechste: 0, warte: [], laden: 0,
+              fehler: 0, bereit: false, gesamt: 0,
+              bilder: R_.liste.map(b => ({ path: b.path, t: b.t, kacheln: new Map() })) };
+  const n = Math.pow(2, F.z);
+  F.bilder.forEach((b, k) => {
+    for (let j = 0; j < REGEN_K; j++) for (let i = 0; i < REGEN_K; i++) {
+      const x = (F.x0 + i) % n, y = F.y0 + j, s = F.z + "/" + x + "/" + y;
+      const da = R_.kacheln.get(s);
+      if (da && da.pfad === b.path) b.kacheln.set(s, rlePacken(da.code));
+      else F.warte.push([k, s, Math.abs(i + 0.5 - REGEN_K / 2) + Math.abs(j + 0.5 - REGEN_K / 2)]);
+    }
+  });
+  /* Die Mitte zuerst, Bild fuer Bild */
+  F.warte.sort((a, b) => a[0] - b[0] || a[2] - b[2]);
+  F.gesamt = F.warte.length;
+  R_.film = F;
+}
+
+function regenFilmHolen(F, k, s) {
+  const b = F.bilder[k];
+  F.laden++; REGEN.kachelAnfragen++;
+  const ab = typeof AbortController === "function" ? new AbortController() : null;
+  const wecker = setTimeout(() => ab && ab.abort(), 30000);
+  fetch(F.host + b.path + "/" + REGEN_PX + "/" + s + "/255/1_1.png", { signal: ab ? ab.signal : undefined })
+    .then(r => r.ok ? r.blob() : Promise.reject(new Error("HTTP " + r.status)))
+    .then(bildAusBlob)
+    .then((bild) => {
+      const t = regenLesen(bild);
+      if (typeof bild.close === "function") bild.close();
+      b.kacheln.set(s, rlePacken(t.code));
+    })
+    .catch(() => { F.fehler++; })
+    .finally(() => { clearTimeout(wecker); F.laden--; });
+}
+
+let regenCode = null;
+/* Ein Bild des Films ins Fenster. Fehlt eine Kachel, bleibt die des Bilds
+   davor, damit nichts flackert. */
+function regenFilmZeigen(k) {
+  const F = REGEN.film, n = Math.pow(2, F.z);
+  if (!regenCode) regenCode = new Uint8Array(REGEN_PX * REGEN_PX);
+  for (let j = 0; j < REGEN_K; j++) for (let i = 0; i < REGEN_K; i++) {
+    const s = F.z + "/" + ((F.x0 + i) % n) + "/" + (F.y0 + j);
+    let r = null;
+    for (let q = k; q >= 0 && !r; q--) r = F.bilder[q].kacheln.get(s) || null;
+    regenPlatzSetzen(i, j, r ? rleEntpacken(r, regenCode) : null);
+  }
+}
+
+function regenFilmTakt(jetzt) {
+  const R_ = REGEN;
+  if (R_.filmWunsch && !R_.film) {
+    if (!Z.regen || !ERDANSICHT.an) R_.filmWunsch = false;
+    else regenFilmBeginnen();
+  }
+  const F = R_.film;
+  if (F && (!Z.regen || !ERDANSICHT.an || F.z !== R_.z || F.x0 !== R_.x0 || F.y0 !== R_.y0)) regenFilmEnde();
+  else if (F) {
+    while (F.laden < REGEN_GLEICHZEITIG && F.warte.length) { const [k, s] = F.warte.shift(); regenFilmHolen(F, k, s); }
+    if (!F.bereit && !F.warte.length && !F.laden) F.bereit = true;
+    if (F.bereit && jetzt >= F.naechste) {
+      F.i = (F.i + 1) % F.bilder.length;
+      regenFilmZeigen(F.i);
+      F.naechste = jetzt + (F.i === F.bilder.length - 1 ? REGEN_FILM_HALT : REGEN_FILM_TAKT);
+    }
+  }
+  regenFilmKnopf(false);
+}
+
+function regenFilmEnde() {
+  const R_ = REGEN, lief = R_.film && R_.film.i >= 0;
+  R_.film = null; R_.filmWunsch = false;
+  /* Das neueste Bild zurueck an seinen Platz */
+  if (lief && R_.angelegt && R_.z >= 0) regenFenster(R_.z, R_.x0, R_.y0);
+}
+
+/* Der Knopf mit der Zeitleiste auf der Erde. Neu gebaut wird nur, wenn sich
+   etwas geaendert hat. */
+let regenFilmStand = "";
+function regenFilmKnopf(sofort) {
+  const R_ = REGEN, F = R_.film, el = document.getElementById("regen-film");
+  if (!el) return;
+  const da = !!(Z.regen && ERDANSICHT.an && R_.bild && ERDKARTE.regenTx && R_.liste.length > 1);
+  const laeuft = !!(F || R_.filmWunsch);
+  let text, aktiv = -1;
+  if (!da) text = "";
+  else if (F && F.bereit && F.i >= 0) { text = uhr(F.bilder[F.i].t); aktiv = F.i; }
+  else if (laeuft) text = "lädt " + (F && F.gesamt ? Math.round((1 - (F.warte.length + F.laden) / F.gesamt) * 100) : 0) + " %";
+  else text = "Regen " + uhr(R_.bild.t);
+  const anzahl = da ? R_.liste.length : 0;
+  const stand = [da, laeuft, text, aktiv, anzahl].join("|");
+  if (stand === regenFilmStand && !sofort) return;
+  regenFilmStand = stand;
+  el.classList.toggle("da", da);
+  el.classList.toggle("laeuft", laeuft);
+  const k = document.getElementById("regen-film-knopf");
+  k.setAttribute("aria-pressed", laeuft ? "true" : "false");
+  k.title = laeuft ? "Film anhalten, zurück zu jetzt" : "Die letzten zwei Stunden im Zeitraffer";
+  k.setAttribute("aria-label", k.title);
+  document.getElementById("regen-film-zeit").textContent = text;
+  const leiste = document.getElementById("regen-film-leiste");
+  if (leiste.children.length !== anzahl) {
+    leiste.textContent = "";
+    for (let i = 0; i < anzahl; i++) leiste.appendChild(document.createElement("i"));
+  }
+  [...leiste.children].forEach((t, i) => {
+    t.classList.toggle("an", aktiv === i);
+    t.classList.toggle("vorbei", aktiv >= 0 && i < aktiv);
+    t.classList.toggle("jetzt", i === anzahl - 1);
+  });
 }
 
 function regenKnopf() {
@@ -20222,6 +20428,7 @@ function rahmen(jetzt) {
   weltraumwetterTakt();
   wolkenHeuteTakt();
   regenTakt();
+  regenFilmTakt(performance.now());
   erdOrtNachziehen();
   erdeGesternTakt();
 
@@ -23646,11 +23853,13 @@ $("#tm-wolken").onclick = () => {
   wolkenHeuteKnopf();
   tmUhr = 0;
 };
+$("#regen-film-knopf").onclick = () => regenFilmUmschalten();
 $("#tm-regen").onclick = () => {
   Z.regen = !Z.regen;
   const R_ = REGEN;
   R_.um = 0;
   if (!Z.regen) {
+    regenFilmEnde();
     /* Aus: nichts mehr anfragen, den Speicher freigeben. Das Fenster im
        Grafikspeicher bleibt, der Schattierer zeigt es mit Gewicht 0 nicht. */
     Object.assign(R_, { bild: null, fehler: null, z: -1, zellen: null, zellenStand: "" });
@@ -24081,6 +24290,7 @@ function zeichneTelemetrie(t) {
       if (!ERDKARTE.regenMoeglich && ERDKARTE.bereit) return [["REGEN", "braucht zehn Texturen, der Grafikchip hat weniger"]];
       if (!r.bild) return [["REGEN", r.fehler || (ERDANSICHT.an ? "wird gefragt …" : "zu sehen auf der ganzen Erde (E)")]];
       const a = regenAnteil();
+      if (r.film && r.film.i >= 0) return [["REGEN", "Film · " + uhr(r.film.bilder[r.film.i].t) + " · " + (r.film.i + 1) + " von " + r.film.bilder.length]];
       return [["REGEN", "Radar von " + uhr(r.bild.t)
         + (a ? " · nass auf " + Math.round(a.anteil * 100) + " % " + (a.ganz ? "der Radarfläche" : "im Ausschnitt") : "")
         + (r.fehler ? " · neu fragen gescheitert" : ""),
@@ -24614,6 +24824,8 @@ const HILFE = [
       + "von RainViewer. Blau ist leichter Regen, grün mäßiger, gelb bis rot starker, violett kann Hagel sein, "
       + "weiß bis lila ist Schnee. Die Zellen sind nach der echten Sonne schattiert und werfen Schatten, und "
       + "nachts blitzt es in den echten Gewittern. Hineingezoomt wird das Radar feiner, bis gut einen Kilometer. "
+      + "Der Knopf ▶ unten auf der Erde spielt die letzten zwei Stunden im Zeitraffer ab, dreizehn Bilder im "
+      + "Kreis: So siehst du, wohin der Regen zieht. "
       + "Tippst du auf einen Ort, steht dort, wie stark es regnet. Wo kein Radar steht, über den Meeren und "
       + "in weiten Teilen Afrikas und Asiens, gibt es keine Werte. "
       + "Ohne WebGL oder ohne die Kartenbilder zeichnet ORBIT eine gerechnete Erde.",
@@ -25093,6 +25305,9 @@ function paletteQuellen() {
     () => { if (ERDANSICHT.an) erdansicht(false); RUNDGANG.laeuft ? rundgangEnde() : rundgangStart(); });
   if (ERDKARTE.bereit) aktion(ERDANSICHT.an ? "Zurück zur Station" : "Ganze Erde", "Hinauszoomen bis zur Kugel", "globus kugel welt erde",
     "E", () => erdansicht(!ERDANSICHT.an));
+  if (Z.regen && ERDKARTE.regenTx)
+    aktion(REGEN.film || REGEN.filmWunsch ? "Regenfilm anhalten" : "Regenfilm", "Die letzten zwei Stunden Regen im Zeitraffer",
+      "regen radar zeitraffer film animation", "", () => { if (!ERDANSICHT.an) erdansicht(true); regenFilmUmschalten(); });
   aktion("Kamera zurück", "Die ganze Station im Bild", "zuruecksetzen ansicht", "Leertaste", () => { if (ERDANSICHT.an) erdansicht(false); kameraZurueck(); });
   aktion(VORF.an ? "Vorführung beenden" : "Vorführung", "Beispieldaten statt echter Arbeit", "demo beispiel", "",
     () => { VORF.an ? vorfuehrungBeenden() : vorfuehrungStarten(); });
