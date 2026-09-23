@@ -11079,6 +11079,7 @@ uniform vec2 uMitte;
 uniform float uRadius;
 uniform mat3 uBlick;
 uniform vec3 uSonne;
+uniform vec4 uMond;
 uniform float uSchicht;
 uniform sampler2D uTag, uWolken, uLichter, uKorn;
 const float PI = 3.14159265;
@@ -11200,6 +11201,11 @@ void main() {
      Foto aus dem Orbit so aus. */
   float daemmer = exp(-pow((sonne + 0.012) / 0.034, 2.0)) * (0.3 + 0.7 * wolke);
   vec3 f = farbe * (0.05 + 0.95 * licht) + vec3(1.0, 0.3, 0.08) * daemmer * 0.1 + stadt * nacht * 1.1;
+  /* Mondlicht: auf der Nachtseite liegen die Wolken grau-blau im Licht
+     des echten Mondes, dort, wo er ueber dem Horizont steht — bei
+     Vollmond deutlich, bei Halbmond kaum, bei Neumond gar nicht. */
+  float mondHoch = max(dot(p, uMond.xyz), 0.0);
+  f += vec3(0.55, 0.62, 0.8) * (wolke * 0.9 + 0.1) * mondHoch * uMond.w * nacht * 0.17;
   /* Sonnenglanz. Wo das Meer die Sonne zum Betrachter spiegelt, liegt
      auf jedem Bild der ganzen Erde ein heller, silbriger Fleck. Die
      Wellen verschmieren ihn: die Neigung der kleinen Wasserflaechen ist
@@ -11329,7 +11335,7 @@ function erdkarteAufbauen() {
       for (let i = 0; i < korn.length; i++) korn[i] = Math.floor(streu(i & 127, i >> 7, 5077) * 256);
       textur(3, { daten: korn, b: 128, h: 128 }, gl.LUMINANCE, 2, true);
       const u = {};
-      for (const n of ["uGroesse", "uMitte", "uRadius", "uBlick", "uSonne", "uSchicht",
+      for (const n of ["uGroesse", "uMitte", "uRadius", "uBlick", "uSonne", "uMond", "uSchicht",
                        "uTag", "uWolken", "uLichter", "uKorn"])
         u[n] = gl.getUniformLocation(prog, n);
       gl.uniform1i(u.uTag, 0); gl.uniform1i(u.uWolken, 1);
@@ -11392,6 +11398,39 @@ function sonneErdfest(ms) {
   return [Math.cos(dek) * Math.cos(lon), Math.cos(dek) * Math.sin(lon), Math.sin(dek)];
 }
 
+/* Der Mond, wo er wirklich steht: die Hauptglieder der Mondbahn nach
+   Meeus (Mittelpunktsgleichung, Evektion, Variation, jaehrliche
+   Gleichung), auf ein Viertelgrad genau. Zurueck kommen die Richtung im
+   erdfesten System und die Elongation — der Winkel von der Sonne ostwaerts,
+   0 bei Neumond, 180 bei Vollmond. Die Entfernung spielt hier keine
+   Rolle. */
+function mondErdfest(ms) {
+  const RAD = Math.PI / 180;
+  const d = ms / 86400000 - 10957.5;               // Tage seit 2000-01-01 12:00 UTC
+  const T = d / 36525;
+  const Mm = (134.963 + 477198.868 * T) * RAD;     // mittlere Anomalie des Mondes
+  const F = (93.272 + 483202.018 * T) * RAD;       // Argument der Breite
+  const D = (297.850 + 445267.111 * T) * RAD;      // mittlere Elongation
+  const M = (357.529 + 35999.050 * T) * RAD;       // mittlere Anomalie der Sonne
+  const L = 218.316 + 481267.881 * T
+    + 6.289 * Math.sin(Mm) + 1.274 * Math.sin(2 * D - Mm) + 0.658 * Math.sin(2 * D)
+    + 0.214 * Math.sin(2 * Mm) - 0.186 * Math.sin(M) - 0.114 * Math.sin(2 * F);
+  const B = 5.128 * Math.sin(F);
+  /* Die Laenge der Sonne wie in sonneErdfest */
+  const g = (357.529 + 0.98560028 * d) * RAD;
+  const Ls = 280.459 + 0.98564736 * d + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g);
+  const elong = ((L - Ls) % 360 + 360) % 360;
+  /* Ekliptisch nach aequatorial, dann mit der Sternzeit ins erdfeste System */
+  const e = (23.439 - 0.00000036 * d) * RAD, lam = L * RAD, bet = B * RAD;
+  const x = Math.cos(bet) * Math.cos(lam);
+  const y = Math.cos(e) * Math.cos(bet) * Math.sin(lam) - Math.sin(e) * Math.sin(bet);
+  const z = Math.sin(e) * Math.cos(bet) * Math.sin(lam) + Math.cos(e) * Math.sin(bet);
+  const ra = Math.atan2(y, x), dek = Math.asin(Math.max(-1, Math.min(1, z)));
+  const gmst = (((18.697374558 + 24.06570982441908 * d) % 24) + 24) % 24 * 15 * RAD;
+  const lon = ra - gmst;
+  return { v: [Math.cos(dek) * Math.cos(lon), Math.cos(dek) * Math.sin(lon), Math.sin(dek)], elong };
+}
+
 /* Die Blickrichtung fuer einen Stand im Umlauf. phi ist der Winkel der
    Station von der Sonne aus gesehen, null am Mittag — derselbe, mit dem
    die Szene ihr Licht rechnet. Zurueck kommt die Matrix, die einen
@@ -11438,6 +11477,8 @@ function erdkarteMalen(ziel, bw, bh, mx, my, rr, blick, schicht) {
   gl.uniform1f(u.uRadius, rr);
   gl.uniformMatrix3fv(u.uBlick, false, new Float32Array(blick.m));
   gl.uniform3f(u.uSonne, blick.S[0], blick.S[1], blick.S[2]);
+  const mo = blick.mond;
+  gl.uniform4f(u.uMond, mo ? mo.v[0] : 0, mo ? mo.v[1] : 0, mo ? mo.v[2] : 0, mo ? mo.licht : 0);
   gl.uniform1f(u.uSchicht, schicht);
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
@@ -11766,7 +11807,13 @@ function erdansichtBlick(phi, ms) {
   const ey = [s * O[0] - c * D[0], s * O[1] - c * D[1], s * O[2] - c * D[2]];
   /* Rechts: oben mal zum Betrachter, also O x D */
   const ex = [ca * V[0] - sa * Z[0], ca * V[1] - sa * Z[1], ca * V[2] - sa * Z[2]];
-  return { m: [ex[0], ex[1], ex[2], ey[0], ey[1], ey[2], ez[0], ez[1], ez[2]], S: b.S };
+  /* Der echte Mond: seine Richtung und wie viel Licht er gibt — der
+     beleuchtete Anteil hoch 3,3, denn der Halbmond ist nur rund ein
+     Zehntel so hell wie der volle */
+  const mo = mondErdfest(ms);
+  const anteil = (1 - Math.cos(mo.elong * Math.PI / 180)) / 2;
+  return { m: [ex[0], ex[1], ex[2], ey[0], ey[1], ey[2], ez[0], ez[1], ez[2]], S: b.S,
+           mond: { v: mo.v, elong: mo.elong, anteil, licht: Math.pow(anteil, 3.3) } };
 }
 
 function erdansichtMasse() {
@@ -12050,6 +12097,46 @@ function erdansichtHimmel(g, blick, ms) {
     cx.beginPath(); cx.arc(x, y, R, 0, Math.PI * 2); cx.fill();
     cx.fillStyle = "#fffdf6";
     cx.beginPath(); cx.arc(x, y, 3.2 * DPR, 0, Math.PI * 2); cx.fill();
+  }
+  /* Der Mond, in seiner echten Phase: die helle Seite zeigt zur Sonne.
+     Ein halbes Grad gross waere er hier vier Bildpunkte breit; er ist
+     etwas groesser gezeichnet, sonst saehe man die Phase nicht. */
+  const mo = blick.mond;
+  if (mo) {
+    const Mv = mo.v;
+    const mt = -(Mv[0] * m[6] + Mv[1] * m[7] + Mv[2] * m[8]);
+    if (mt > 0.05) {
+      const x = (g.cx + f * (Mv[0] * m[0] + Mv[1] * m[1] + Mv[2] * m[2]) / mt) * DPR;
+      const y = (g.cy - f * (Mv[0] * m[3] + Mv[1] * m[4] + Mv[2] * m[5]) / mt) * DPR;
+      if (x > -20 && y > -20 && x < W * DPR + 20 && y < H * DPR + 20) {
+        /* Richtung zur Sonne auf dem Schirm, vom Mond aus gesehen */
+        const sm = S[0] * Mv[0] + S[1] * Mv[1] + S[2] * Mv[2];
+        const sp = [S[0] - sm * Mv[0], S[1] - sm * Mv[1], S[2] - sm * Mv[2]];
+        const sx = sp[0] * m[0] + sp[1] * m[1] + sp[2] * m[2], sy = sp[0] * m[3] + sp[1] * m[4] + sp[2] * m[5];
+        const R = 7 * DPR;
+        cx.save();
+        cx.translate(x, y);
+        cx.rotate(Math.atan2(-sy, sx));
+        /* Schein */
+        const sch = cx.createRadialGradient(0, 0, R * 0.8, 0, 0, R * 4);
+        sch.addColorStop(0, `rgba(220,226,240,${(0.22 * mo.anteil).toFixed(3)})`);
+        sch.addColorStop(1, "rgba(220,226,240,0)");
+        cx.fillStyle = sch; cx.beginPath(); cx.arc(0, 0, R * 4, 0, Math.PI * 2); cx.fill();
+        /* Die dunkle Scheibe im Erdschein, dann der beleuchtete Teil */
+        cx.fillStyle = "rgba(70,76,88,0.9)";
+        cx.beginPath(); cx.arc(0, 0, R, 0, Math.PI * 2); cx.fill();
+        const a = R * Math.abs(Math.cos(mo.elong * Math.PI / 180));
+        cx.fillStyle = "#eef0f4";
+        cx.beginPath();
+        cx.moveTo(0, -R);
+        cx.arc(0, 0, R, -Math.PI / 2, Math.PI / 2, false);
+        const sichel = mo.elong < 90 || mo.elong > 270;
+        if (sichel) cx.ellipse(0, 0, a, R, 0, Math.PI / 2, -Math.PI / 2, true);
+        else cx.ellipse(0, 0, a, R, 0, Math.PI / 2, 3 * Math.PI / 2, false);
+        cx.fill();
+        cx.restore();
+      }
+    }
   }
 }
 
@@ -13884,7 +13971,9 @@ function zeichneSonne(t, phase) {
    derselbe Zweihundertvierundsechzigstel des Erdhalbmessers. Dass
    diese beiden Zahlen bis auf zwei Prozent uebereinstimmen, ist ein
    Zufall, dem wir die totale Sonnenfinsternis verdanken. */
-const MOND = { elong0: 118 };
+/* Die Phase beginnt mit der echten von heute und laeuft dann mit der
+   geraften Zeit weiter (vorher stand hier fest 118 Grad) */
+const MOND = { elong0: mondErdfest(Date.now()).elong };
 
 /* Wo Sonne und Mond gerade stehen, in Bildschirmkoordinaten. Wird in
    jedem Bild neu gesetzt und beim Tippen gebraucht: beide sind nur
