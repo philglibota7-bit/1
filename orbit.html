@@ -118,7 +118,7 @@ header{
   padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
   margin:0; flex:0 0 auto;
 }
-.marke{display:flex; align-items:center; gap:10px; margin-right:auto; padding-left:4px;}
+.marke{display:flex; align-items:center; gap:10px; margin-right:auto; padding-left:4px; flex:0 0 auto;}
 .marke .sat{
   width:32px; height:32px; border-radius:50%; flex:0 0 auto; position:relative;
   background:radial-gradient(circle at 38% 34%, #cfe2ff 0%, var(--acc) 34%, #16243a 70%, transparent 74%);
@@ -138,6 +138,7 @@ header{
   border-radius:999px; font-size:11.5px; font-weight:600; color:#e8b066; white-space:nowrap;
   background:rgba(207,164,86,.12); border:1px solid rgba(207,164,86,.35); transition:background .15s;}
 .wartet-pille.da{display:inline-flex;}
+.wartet-pille b, .wartet-pille em{font-weight:inherit; font-style:normal;}
 /* Solange die Vorfuehrung laeuft, sagt es dieser Knopf — und beendet sie */
 .vorf-pille{display:none; align-items:center; gap:7px; margin-left:6px; padding:5px 11px;
   border-radius:999px; font-size:11.5px; font-weight:650; color:#cdb8f0; white-space:nowrap;
@@ -179,7 +180,12 @@ header{
   border:1px solid var(--edge);
   box-shadow:0 8px 24px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.09);
   color:var(--tx2); font-size:12.5px; font-weight:500; letter-spacing:.02em;
-  transition:all .22s var(--ease); white-space:nowrap;
+  white-space:nowrap; flex:0 0 auto;
+  /* Nur Farben und Druck gleiten, nie Groessen: ein Knopf, der nach
+     dem Drehen des Telefons eine Viertelsekunde lang in seiner alten
+     Breite nachwaechst, schiebt den letzten aus dem Bild. */
+  transition:color .22s var(--ease), background .22s var(--ease), border-color .22s var(--ease),
+    box-shadow .22s var(--ease), transform .22s var(--ease);
 }
 .kopf-knopf:hover{color:var(--tx); border-color:var(--edge2);}
 .kopf-knopf:active{transform:scale(.96);}
@@ -210,9 +216,27 @@ header{
   .marke .sat{width:24px; height:24px;}
 }
 @media (max-width:380px){
-  .marke{display:none;}
   .kopf-knopf{width:36px; height:36px;}
 }
+/* Die Stufen, die kopfEinpassen() setzt, wenn die Kopfzeile sonst
+   ueberliefe. Feste Grenzen allein reichten nicht: wie breit sie ist,
+   haengt daran, ob jemand wartet, ob die Vorfuehrung laeuft, und an der
+   Schrift. Gespart wird von hinten nach vorn: erst die Beschriftung der
+   Knoepfe (das Symbol bleibt, der Titel beim Draufzeigen sagt dasselbe),
+   dann die Unterzeile, der Name, das Logo — zuletzt das Wort neben der
+   Zahl der Wartenden. Die Zahl selbst und alle Knoepfe bleiben immer. */
+header .kopf-knopf span{white-space:nowrap;}
+@media (min-width:471px){
+  header.eng-1{gap:7px;}
+  header.eng-1 .kopf-knopf{padding:0 11px;}
+}
+header.eng-1 .kopf-knopf span{display:none;}
+header.eng-2 .marke small{display:none;}
+header.eng-3 .marke h1, header.eng-3 .marke > div:not(.sat){display:none;}
+header.eng-4 .marke .sat{display:none;}
+header.eng-4 .wartet-pille, header.eng-4 .vorf-pille{margin-left:0;}
+header.eng-5 .wartet-pille .wort{display:none;}
+header.eng-5 .wartet-pille{padding:5px 9px 5px 8px; gap:5px;}
 
 /* ---------- Fussleiste: Missionsfeld ---------- */
 footer{
@@ -1015,7 +1039,7 @@ body.sicht #blende-detail{
         <h1>ORBIT</h1>
         <small>AGENTEN-LEITSTAND</small>
       </div>
-      <button class="wartet-pille" id="btn-wartet" title="Zum Nächsten, der auf dich wartet (W)"><i></i><span></span></button>
+      <button class="wartet-pille" id="btn-wartet" title="Zum Nächsten, der auf dich wartet (W)"><i></i><span><b class="zahl"></b><em class="wort"></em></span></button>
       <button class="vorf-pille" id="btn-vorf" title="Vorführung mit Beispieldaten beenden">Vorführung<b>beenden</b></button>
     </div>
     <button class="kopf-knopf" id="btn-log" title="Missions-Log">
@@ -1619,7 +1643,9 @@ function titelSetzen() {
   const pille = document.getElementById("btn-wartet");
   if (pille) {
     pille.classList.toggle("da", warten.length > 0);
-    pille.querySelector("span").textContent = warten.length === 1 ? "1 wartet" : warten.length + " warten";
+    pille.querySelector(".zahl").textContent = warten.length;
+    pille.querySelector(".wort").textContent = warten.length === 1 ? " wartet" : " warten";
+    kopfEinpassen();
   }
   const was = warten.length === 1 ? warten[0].name + " wartet"
             : warten.length ? warten.length + " warten auf dich" : "";
@@ -3810,6 +3836,32 @@ function vorfuehrungKnopf() {
     if (k) k.classList.toggle("da", VORF.an);
   }
   document.body.classList.toggle("vorf", VORF.an);
+  kopfEinpassen();
+}
+
+/* Die Kopfzeile laeuft nie ueber: gemessen, und Stufe um Stufe gespart
+   (die Stufen stehen bei den Regeln fuer header). Vorher lief sie
+   zwischen 470 und 770 Punkten Breite, sobald jemand wartete, um bis
+   zu 200 Punkte ueber — der letzte Knopf war dann nicht mehr zu
+   erreichen. Gerechnet wird nur, wenn sich etwas geaendert hat, das
+   die Breite aendert: Fenster, Pillen, die Beschriftung des Logs. */
+function kopfEinpassen() {
+  const h = document.querySelector("header");
+  if (!h) return;
+  /* Innen, nicht als Konstante daneben: gerufen wird auch, bevor das
+     Skript an dieser Stelle angekommen ist */
+  const stufen = ["eng-1", "eng-2", "eng-3", "eng-4", "eng-5"];
+  const schluessel = [innerWidth, h.clientWidth,
+    ...["btn-wartet", "btn-vorf"].map(id => { const e = document.getElementById(id);
+      return e ? e.className + ":" + e.textContent : ""; }),
+    (document.getElementById("log-zahl") || {}).textContent].join("|");
+  if (schluessel === kopfEinpassen.zuletzt) return;
+  kopfEinpassen.zuletzt = schluessel;
+  h.classList.remove(...stufen);
+  for (const s of stufen) {
+    if (h.scrollWidth <= h.clientWidth) break;
+    h.classList.add(s);
+  }
 }
 
 /* Ein Schritt im Protokoll der Beispielsitzung: wann (Sekunde im
@@ -4297,6 +4349,7 @@ function groesseAnpassen() {
      Fenstergroesse. Neu anpeilen, sonst steht man bis zum naechsten
      Halt neben dem Bauteil. */
   if (typeof rundgangPeilen === "function") rundgangPeilen();
+  kopfEinpassen();
 }
 
 function sterneStreuen() {
@@ -15436,7 +15489,8 @@ function zeichneCrewLeiste() {
   }
 
   const laufend = Z.agenten.filter(a => lauf(a.id).abbruch).length;
-  $("#log-zahl").textContent = laufend ? laufend + " aktiv" : "Log";
+  const logText = laufend ? laufend + " aktiv" : "Log";
+  if ($("#log-zahl").textContent !== logText) { $("#log-zahl").textContent = logText; kopfEinpassen(); }
   $("#btn-log").classList.toggle("an", laufend > 0);
 
   /* Der Punkt im Logo pulsiert genau dann, wenn irgendwo gearbeitet wird */
@@ -18742,6 +18796,13 @@ $("#zoom-raus").onclick = () => zoomeAuf(W / 2, H / 2, 1 / 1.45);
 $("#zoom-weg").onclick = kameraZurueck;
 
 window.addEventListener("resize", groesseAnpassen);
+/* Die Schrift kommt manchmal spaeter an und ist anders breit als der
+   Ersatz; und falls sich doch etwas aendert, das keiner meldet, sieht
+   ein langsamer Takt nach. Er rechnet nur, wenn sich etwas geaendert hat. */
+if (document.fonts && document.fonts.ready)
+  document.fonts.ready.then(() => { kopfEinpassen.zuletzt = ""; kopfEinpassen(); });
+setInterval(kopfEinpassen, 700);
+kopfEinpassen();
 window.addEventListener("orientationchange", () => setTimeout(groesseAnpassen, 120));
 
 /* ================================================================
