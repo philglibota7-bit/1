@@ -12779,6 +12779,8 @@ function wolkenHeuteTakt() {
     .then((bild) => {
       if (!Z.wolkenHeute) return;
       const daten = wolkenAngleichen(bild);
+      /* Das entpackte Bild sind acht Megabyte; nicht auf den Muellsammler warten */
+      if (typeof bild.close === "function") bild.close();
       if (!daten) throw new Error("unlesbar");
       W_.daten = daten; W_.t = Date.now(); W_.fehler = null;
       wolkenAnwenden();
