@@ -17417,12 +17417,19 @@ const RUNDGANG = {
      hineinkommt. */
   weg: ["traeger", "fluegel", "radiator", "modul", "kuppel", "schleuse", "handlauf", "antenne", "hafen"],
   halt: 9500,
+  /* Die Halte dieses Rundgangs: die Station, und mit der echten Erde
+     zum Schluss der Blick nach unten */
+  stopps: [],
 };
+function rundgangStopps() {
+  return RUNDGANG.weg.concat(ERDKARTE.bereit ? ["erde"] : []);
+}
 
 function rundgangStart() {
   if (!STBILD) return;
   blendeZu();
   RUNDGANG.laeuft = true;
+  RUNDGANG.stopps = rundgangStopps();
   RUNDGANG.i = -1;
   RUNDGANG.bis = 0;
   KAM.folgt = null;
@@ -17443,7 +17450,17 @@ function rundgangEnde() {
    auf eine Stelle, die es in der neuen Groesse nicht mehr gibt. */
 function rundgangPeilen() {
   if (!RUNDGANG.laeuft || !STBILD) return;
-  const schluessel = RUNDGANG.weg[RUNDGANG.i];
+  const schluessel = RUNDGANG.stopps[RUNDGANG.i];
+  /* Der letzte Halt ist die Erde. Sie waechst beim Zoomen nicht mit,
+     also zurueck auf die ganze Station, und die Station ein Stueck nach
+     oben geschoben: dann liegt mehr von der Erde frei. */
+  if (schluessel === "erde") {
+    KAM.zielZoom = 1;
+    KAM.zielX = 0;
+    KAM.zielY = -H * 0.14;
+    grenzenHalten();
+    return;
+  }
   const ort = STBILD.teile.find(q => q.schluessel === schluessel);
   if (!ort) return;
   /* Die Fluegelspitzen liegen weit draussen; dort lohnt weniger
@@ -17462,17 +17479,21 @@ function rundgangTakt(t) {
   if (!RUNDGANG.laeuft || !STBILD) return;
   if (t > RUNDGANG.bis) {
     RUNDGANG.i++;
-    if (RUNDGANG.i >= RUNDGANG.weg.length) { rundgangEnde(); return; }
+    if (RUNDGANG.i >= RUNDGANG.stopps.length) { rundgangEnde(); return; }
     RUNDGANG.von = t;
     RUNDGANG.bis = t + RUNDGANG.halt;
-    const schluessel = RUNDGANG.weg[RUNDGANG.i];
+    const schluessel = RUNDGANG.stopps[RUNDGANG.i];
     const teil = TEILE[schluessel];
-    const ort = STBILD.teile.find(q => q.schluessel === schluessel);
     if (teil) {
       $("#rg-zahl").textContent = "RUNDGANG  " + (RUNDGANG.i + 1)
-        + " VON " + RUNDGANG.weg.length;
+        + " VON " + RUNDGANG.stopps.length;
       $("#rg-name").textContent = teil.name;
-      $("#rg-text").textContent = teil.kurz + "  " + teil.zahl;
+      /* Bei der Erde steht vorn, worueber wir gerade fliegen */
+      const u = schluessel === "erde" ? unterUns() : null;
+      $("#rg-text").textContent = u
+        ? (u.name ? "Unter uns: " + u.name + " · " : "Unter uns: ") + gradText(u.breite, u.laenge)
+          + ".  Die Sonne steht, wo sie gerade wirklich steht."
+        : teil.kurz + "  " + teil.zahl;
     }
     rundgangPeilen();
   }
@@ -18137,7 +18158,12 @@ function zeichneHilfe() {
   bez.append(document.createElement("br"));
   const kl = document.createElement("span");
   kl.className = "zahl";
-  kl.textContent = "Acht Halte, je neun Sekunden. Tippen bricht ab.";
+  /* Es waren neun Halte, hier stand lange "acht". Jetzt gezaehlt. */
+  const zahlwort = ["null", "ein", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht",
+                    "neun", "zehn", "elf", "zwölf"];
+  const n = rundgangStopps().length;
+  const wort = zahlwort[n] || String(n);
+  kl.textContent = wort[0].toUpperCase() + wort.slice(1) + " Halte, je neun Sekunden. Tippen bricht ab.";
   bez.append(kl);
   rg.append(ks, bez);
   rg.onclick = () => { blendeZu(); setTimeout(rundgangStart, 280); };
