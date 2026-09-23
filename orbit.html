@@ -11155,6 +11155,55 @@ uniform vec4 uPolar;
 uniform sampler2D uOval;
 const float PI = 3.14159265;
 
+/* Wie stark leuchtet das Polarlicht ueber einem Punkt der Kugel, ohne
+   Farbe und ohne Ruecksicht auf die Sonne? Fuer die Oberflaeche und fuer
+   den Rand, wo es von der Seite zu sehen ist. */
+float polarlicht(vec3 p) {
+  /* Polarlicht: das Oval um den magnetischen Pol (Dipol, 80,7 Grad
+     Nord, 72,7 Grad West, wie in der Szene). Es liegt auf der
+     Mitternachtsseite bei gut 67 Grad magnetischer Breite, auf der
+     Mittagsseite naeher am Pol, bei 75 — deshalb die Lage relativ zur
+     Sonne. Zu sehen ist es nur auf der Nachtseite, dort als gruenes
+     Band mit Vorhaengen, am hellsten um Mitternacht. Es leuchtet in
+     hundert Kilometern Hoehe, ueber den Wolken, und wird deshalb auf
+     alles gelegt. */
+  const vec3 MAGPOL = vec3(0.04806, -0.15430, 0.98686);
+  float mz = dot(p, MAGPOL);
+  vec3 mq = normalize(p - MAGPOL * mz + 1e-5);
+  vec3 sq = normalize(uSonne - MAGPOL * dot(uSonne, MAGPOL) + 1e-5);
+  float mittag = dot(mq, sq);                        // 1 mittags, -1 um Mitternacht
+  float mbreite = degrees(asin(abs(mz)));
+  /* Je Kp-Stufe ueber dem gewoehnlichen Tag rueckt das Oval auf der
+     Mitternachtsseite gut zwei Grad zum Aequator, mittags knapp eins,
+     und es wird breiter; bei ruhigem Wetter zieht es sich zum Pol. */
+  float oval = 71.0 + 4.0 * mittag - uPolar.x * (1.35 - 0.65 * mittag);
+  float band = exp(-pow((mbreite - oval) / ((2.2 + 1.2 * (1.0 - mittag)) * (1.0 + 0.06 * uPolar.x)), 2.0));
+  vec3 e1 = normalize(cross(MAGPOL, vec3(0.0, 0.0, 1.0)));
+  vec3 e2 = cross(MAGPOL, e1);
+  float mlaenge = atan(dot(p, e2), dot(p, e1));
+  /* Von oben gesehen liegt das Polarlicht in Boegen laengs des Ovals,
+     zwei, drei nebeneinander, mit Falten und hellen Knoten. Also quer
+     zum Oval schnell veraenderlich (ein Grad), laengs langsam (zehn
+     Grad), und darueber feinere Falten. */
+  float halbkugel = step(0.0, mz) * 0.5;
+  vec2 vq = vec2(mlaenge * 0.045 + halbkugel, mbreite * 0.0078);
+  float vorhang = texture2D(uKorn, vq).r * 0.65
+                + texture2D(uKorn, vec2(mlaenge * 0.3, mbreite * 0.012) + 0.21 + halbkugel).r * 0.35;
+  vorhang = 0.25 + 1.3 * smoothstep(0.36, 0.7, vorhang);
+  float gerechnet = band * (0.55 - 0.45 * mittag) * uPolar.y;
+  /* Mit der Vorhersage der NOAA: ihre Karte statt des gerechneten
+     Ovals. Sie sagt, wie wahrscheinlich dort Polarlicht zu sehen ist.
+     In einer ruhigen Nacht hat das Oval um zehn Prozent, das wird so
+     hell wie das gerechnete bei Kp 0; dreissig Prozent so hell wie bei
+     Kp 2, und darueber geht es langsam in die Saettigung. Ein Prozent
+     ist Grundrauschen und bleibt dunkel. Die Vorhaenge bleiben: die
+     Karte ist ein Grad fein, die Boegen sind feiner. */
+  float lg = mod(degrees(atan(p.y, p.x)) + 360.0, 360.0);
+  float ov = texture2D(uOval, vec2((lg + 0.5) / 361.0, (degrees(asin(clamp(p.z, -1.0, 1.0))) + 90.5) / 181.0)).r;
+  float vorhergesagt = 1.6 * (1.0 - exp(-max(ov * 100.0 - 1.0, 0.0) / 28.0));
+  return mix(gerechnet, vorhergesagt, uPolar.z) * vorhang;
+}
+
 void main() {
   vec2 px = vec2(gl_FragCoord.x, uGroesse.y - gl_FragCoord.y);
   vec2 q = (px - uMitte) / uRadius;
@@ -11176,7 +11225,20 @@ void main() {
        weiter oben gelblich. */
     float abend = exp(-pow(dot(n, uSonne) / 0.13, 2.0));
     f = mix(f, mix(vec3(1.0, 0.36, 0.14), vec3(1.0, 0.7, 0.38), smoothstep(0.0, 0.02, d)), abend * 0.75);
-    gl_FragColor = vec4(f * g, g);
+    /* Nachts steht ueber der Kante das Nachthimmelsleuchten, eine duenne
+       gruene Linie in 95 Kilometern Hoehe rund um die ganze Nachtseite,
+       wie in der Szene. Und wo das Oval hinter der Kante liegt, steht
+       dort das Polarlicht von der Seite: gruen um 110 Kilometer, darueber
+       rot bis gut 250. Streifend gesehen leuchtet eine duenne Schicht
+       viel heller als von oben, deshalb hebt sich der Bogen deutlich von
+       der dunklen Kugel ab. Beides ist Licht: es deckt die Sterne
+       dahinter nicht zu, es kommt dazu. */
+    float dunkel = smoothstep(-0.02, -0.22, dot(n, uSonne));
+    vec3 leuchten = vec3(0.5, 0.9, 0.55) * exp(-pow((d - 0.0149) / 0.0017, 2.0)) * 0.22 * dunkel;
+    float pl = polarlicht(n) * dunkel;
+    leuchten += (vec3(0.25, 1.0, 0.5) * exp(-pow((d - 0.0175) / 0.0035, 2.0))
+               + vec3(0.9, 0.25, 0.35) * exp(-pow((d - 0.033) / 0.009, 2.0)) * (0.2 + 0.6 * uPolar.w)) * pl * 0.45;
+    gl_FragColor = vec4(f * g + leuchten, min(1.0, g + max(leuchten.r, max(leuchten.g, leuchten.b))));
     return;
   }
   /* Ausserhalb der Scheibe die Farbe der Kante weiterfuehren: die Maske
@@ -11294,49 +11356,7 @@ void main() {
   float wasser = smoothstep(1.25, 1.7, karte.b / (karte.r + 0.03))
                * smoothstep(0.9, 1.1, karte.b / (karte.g + 0.03));
   f += vec3(0.9, 0.92, 0.95) * glanz * wasser * (1.0 - wolke) * 0.55;
-  /* Polarlicht: das Oval um den magnetischen Pol (Dipol, 80,7 Grad
-     Nord, 72,7 Grad West, wie in der Szene). Es liegt auf der
-     Mitternachtsseite bei gut 67 Grad magnetischer Breite, auf der
-     Mittagsseite naeher am Pol, bei 75 — deshalb die Lage relativ zur
-     Sonne. Zu sehen ist es nur auf der Nachtseite, dort als gruenes
-     Band mit Vorhaengen, am hellsten um Mitternacht. Es leuchtet in
-     hundert Kilometern Hoehe, ueber den Wolken, und wird deshalb auf
-     alles gelegt. */
-  const vec3 MAGPOL = vec3(0.04806, -0.15430, 0.98686);
-  float mz = dot(p, MAGPOL);
-  vec3 mq = normalize(p - MAGPOL * mz + 1e-5);
-  vec3 sq = normalize(uSonne - MAGPOL * dot(uSonne, MAGPOL) + 1e-5);
-  float mittag = dot(mq, sq);                        // 1 mittags, -1 um Mitternacht
-  float mbreite = degrees(asin(abs(mz)));
-  /* Je Kp-Stufe ueber dem gewoehnlichen Tag rueckt das Oval auf der
-     Mitternachtsseite gut zwei Grad zum Aequator, mittags knapp eins,
-     und es wird breiter; bei ruhigem Wetter zieht es sich zum Pol. */
-  float oval = 71.0 + 4.0 * mittag - uPolar.x * (1.35 - 0.65 * mittag);
-  float band = exp(-pow((mbreite - oval) / ((2.2 + 1.2 * (1.0 - mittag)) * (1.0 + 0.06 * uPolar.x)), 2.0));
-  vec3 e1 = normalize(cross(MAGPOL, vec3(0.0, 0.0, 1.0)));
-  vec3 e2 = cross(MAGPOL, e1);
-  float mlaenge = atan(dot(p, e2), dot(p, e1));
-  /* Von oben gesehen liegt das Polarlicht in Boegen laengs des Ovals,
-     zwei, drei nebeneinander, mit Falten und hellen Knoten. Also quer
-     zum Oval schnell veraenderlich (ein Grad), laengs langsam (zehn
-     Grad), und darueber feinere Falten. */
-  float halbkugel = step(0.0, mz) * 0.5;
-  vec2 vq = vec2(mlaenge * 0.045 + halbkugel, mbreite * 0.0078);
-  float vorhang = texture2D(uKorn, vq).r * 0.65
-                + texture2D(uKorn, vec2(mlaenge * 0.3, mbreite * 0.012) + 0.21 + halbkugel).r * 0.35;
-  vorhang = 0.25 + 1.3 * smoothstep(0.36, 0.7, vorhang);
-  float gerechnet = band * (0.55 - 0.45 * mittag) * uPolar.y;
-  /* Mit der Vorhersage der NOAA: ihre Karte statt des gerechneten
-     Ovals. Sie sagt, wie wahrscheinlich dort Polarlicht zu sehen ist.
-     In einer ruhigen Nacht hat das Oval um zehn Prozent, das wird so
-     hell wie das gerechnete bei Kp 0; dreissig Prozent so hell wie bei
-     Kp 2, und darueber geht es langsam in die Saettigung. Ein Prozent
-     ist Grundrauschen und bleibt dunkel. Die Vorhaenge bleiben: die
-     Karte ist ein Grad fein, die Boegen sind feiner. */
-  float lg = mod(degrees(laenge) + 360.0, 360.0);
-  float ov = texture2D(uOval, vec2((lg + 0.5) / 361.0, (degrees(breite) + 90.5) / 181.0)).r;
-  float vorhergesagt = 1.6 * (1.0 - exp(-max(ov * 100.0 - 1.0, 0.0) / 28.0));
-  float polar = mix(gerechnet, vorhergesagt, uPolar.z) * vorhang * smoothstep(0.02, -0.18, sonne);
+  float polar = polarlicht(p) * smoothstep(0.02, -0.18, sonne);
   f += mix(vec3(0.25, 1.0, 0.5), vec3(0.95, 0.3, 0.42), uPolar.w * 0.4) * polar * 0.32;
   float rand = pow(1.0 - sqrt(1.0 - r2), 3.0);
   f = mix(f, vec3(0.42, 0.62, 1.0) * (0.12 + 0.88 * licht), rand * 0.6);
