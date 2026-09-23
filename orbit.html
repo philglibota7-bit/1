@@ -11779,7 +11779,7 @@ function erdansichtMasse() {
   return { r, cx: W / 2, cy: oben + (unten - oben) * 0.52 };
 }
 
-const ERDANSICHT_BILD = { c: null, grund: null };
+const ERDANSICHT_BILD = { c: null, stand: null };
 function zeichneErdansicht(t, dt) {
   const ziel = ERDANSICHT.an && ERDKARTE.bereit ? 1 : 0;
   if (ziel === 0 && ERDANSICHT.blend === 0) { ERDANSICHT.geo = null; ERDANSICHT.uhr = 0; return; }
@@ -11804,41 +11804,42 @@ function zeichneErdansicht(t, dt) {
   ERDANSICHT.blick = blick;
   ERDANSICHT.geo = g;
 
-  /* Der Hintergrund: fast schwarz, einmal gebacken. Die Sterne kommen
+  /* Der Hintergrund: fast schwarz, einfarbig. Ein gebackener Verlauf
+     sah kaum anders aus und kostete ohne Grafikchip bei doppelter
+     Aufloesung knapp zwanzig Millisekunden je Bild. Die Sterne kommen
      danach, vom echten Himmel (erdansichtHimmel). */
   const q = ERDANSICHT_BILD;
-  if (!q.grund || q.grund.width !== Math.round(W * DPR) || q.grund.height !== Math.round(H * DPR)) {
-    q.grund = document.createElement("canvas");
-    q.grund.width = Math.round(W * DPR); q.grund.height = Math.round(H * DPR);
-    const gg = q.grund.getContext("2d");
-    const vg = gg.createRadialGradient(q.grund.width / 2, q.grund.height * 0.52, 0,
-      q.grund.width / 2, q.grund.height * 0.52, Math.max(q.grund.width, q.grund.height) * 0.7);
-    vg.addColorStop(0, "#070b14"); vg.addColorStop(1, "#020308");
-    gg.fillStyle = vg; gg.fillRect(0, 0, q.grund.width, q.grund.height);
-  }
   /* Die Kugel selbst, in einem Quadrat mit Platz fuer den Luftsaum */
   const fein = Math.min(DPR, 1.5);
   const kante = Math.ceil(g.r * 1.12);
   const bw = Math.max(8, Math.round(kante * 2 * fein));
   if (!q.c) q.c = document.createElement("canvas");
   if (q.c.width !== bw || q.c.height !== bw) { q.c.width = bw; q.c.height = bw; q.stand = null; }
-  /* Neu gerechnet wird nur, wenn sich die Kugel sichtbar gedreht hat —
-     um einen halben Bildpunkt am Rand — oder alle zwei Sekunden fuer
-     die Sonne. Die Erde dreht sich hier gemaechlich, und ohne
-     Grafikchip ist jedes gesparte Mal ein Bild mehr je Sekunde. */
+  /* Neu gerechnet wird nur, wenn sich die Kugel sichtbar gedreht hat,
+     oder alle zwei Sekunden fuer die Sonne. Wie weit "sichtbar" ist,
+     haengt daran, was das Rechnen kostet: mit Grafikchip ein paar
+     Millisekunden, dann reicht ein halber Bildpunkt am Rand; ohne einer
+     bis zu drei Bildpunkte — sonst frisst die Kugel die ganze Bildrate,
+     um sich in Schritten zu drehen, die niemand sieht. Gezogen wird
+     immer sofort. */
   const alt = q.stand;
-  if (!alt || Math.abs(phi - alt.phi) * g.r * fein > 0.5 || uhr - alt.um > 2000
+  const schwelle = klemm((ERDANSICHT.kosten || 4) / 8, 0.5, 3);
+  if (!alt || Math.abs(phi - alt.phi) * g.r * fein > schwelle || uhr - alt.um > 2000
       || alt.neig !== ERDANSICHT.neig || alt.az !== ERDANSICHT.az) {
+    const t0 = performance.now();
     const kg = q.c.getContext("2d");
     kg.clearRect(0, 0, bw, bw);
     erdkarteMalen((lw) => kg.drawImage(lw, 0, 0), bw, bw, bw / 2, bw / 2, g.r * fein, blick, 3);
+    const dauer = performance.now() - t0;
+    ERDANSICHT.kosten = ERDANSICHT.kosten ? ERDANSICHT.kosten * 0.8 + dauer * 0.2 : dauer;
     q.stand = { phi, um: uhr, neig: ERDANSICHT.neig, az: ERDANSICHT.az };
   }
 
   cx.save();
   cx.setTransform(1, 0, 0, 1, 0, 0);
   cx.globalAlpha = a;
-  cx.drawImage(q.grund, 0, 0);
+  cx.fillStyle = "#04070d";
+  cx.fillRect(0, 0, cv.width, cv.height);
   erdansichtHimmel(g, blick, Date.now());
   cx.drawImage(q.c, 0, 0, bw, bw,
     Math.round((g.cx - kante) * DPR), Math.round((g.cy - kante) * DPR),
