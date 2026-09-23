@@ -28,6 +28,22 @@ VS Code, laufende Befehle — braucht dieses Programm.
 
 ## Herunterladen und starten
 
+**Am einfachsten, ganz ohne Meldung von macOS:** das Terminal öffnen
+(Programme → Dienstprogramme → Terminal), diese eine Zeile hineinkopieren und
+Enter drücken:
+
+```bash
+rm -rf /Applications/ORBIT.app && curl -fL https://github.com/philglibota7-bit/1/raw/claude/festive-bardeen-wkf62y/download/ORBIT-mac.zip -o /tmp/ORBIT-mac.zip && ditto -xk /tmp/ORBIT-mac.zip /Applications && open /Applications/ORBIT.app
+```
+
+Sie lädt das Programm, legt es in den Ordner Programme (ein älteres ORBIT dort
+wird ersetzt) und startet es. Was `curl` lädt, bekommt von macOS keine
+Download-Markierung, anders als im Browser. Deshalb prüft Gatekeeper das
+Programm gar nicht erst, und der Dialog mit dem Papierkorb kommt nicht.
+Danach startet ORBIT ganz normal per Doppelklick.
+
+**Oder über den Browser:**
+
 1. **[download/ORBIT-mac.zip](../../download/ORBIT-mac.zip)** herunterladen und entpacken
 2. `ORBIT.app` in den Ordner **Programme** ziehen
 3. Beim **allerersten Start**:
