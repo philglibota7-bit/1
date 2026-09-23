@@ -12641,6 +12641,34 @@ function sonnenhoch(c, bw, bh, termX, tags, lauf) {
   c.restore();
 }
 
+/* --- Wo steht das Polarlichtoval? ------------------------------------------
+   Es liegt um den magnetischen Pol, nicht um den geografischen, bei gut
+   sechzig bis siebzig Grad magnetischer Breite. Der magnetische Nordpol
+   steht heute bei 80,7 Grad Nord und 72,7 Grad West, ueber Nordkanada;
+   der suedliche liegt ihm gegenueber, suedlich von Australien. Deshalb
+   filmt die Crew Polarlichter fast immer an denselben Stellen: ueber
+   Kanada und ueber dem Suedpolarmeer zwischen Australien und der
+   Antarktis. Dort kommt die Station bei 51,6 Grad Bahnneigung bis auf
+   gut sechzig Grad magnetische Breite heran, ueber Europa nur auf knapp
+   zweiundfuenfzig.
+
+   Mit der echten Erde wird genau das gerechnet: die magnetische Breite
+   des Punkts unter der Station, als Dipol genaehert. Ohne sie bleibt es
+   bei der alten Naeherung, zweimal je Umlauf nahe der hoechsten und
+   tiefsten Breite. */
+function magnetBreite(breite, laenge) {
+  const RAD = Math.PI / 180;
+  const pb = 80.7 * RAD, pl = -72.7 * RAD;
+  const s = Math.sin(breite * RAD) * Math.sin(pb)
+          + Math.cos(breite * RAD) * Math.cos(pb) * Math.cos(laenge * RAD - pl);
+  return Math.asin(Math.max(-1, Math.min(1, s))) / RAD;
+}
+function polarNaehe(ph) {
+  const u = unterUns();
+  if (u) return Math.pow(klemm((Math.abs(magnetBreite(u.breite, u.laenge)) - 46) / 16, 0, 1), 1.6);
+  return Math.pow(Math.abs(Math.sin(ph * Math.PI * 2)), 3.4);
+}
+
 function zeichneErde(t) {
   if (sparsam) return;
   erdkarteLaden();
@@ -12929,8 +12957,10 @@ function zeichneErde(t) {
      Der Exponent macht den Durchgang schmal. Einer von den beiden
      faellt in den Tag und ist damit unsichtbar — bei Tag
      ueberstrahlt die Sonne es vollstaendig. Uebrig bleibt einer je
-     Umlauf, und genau das macht ihn zu etwas, auf das man wartet. */
-  const breite = Math.pow(Math.abs(Math.sin(ph * Math.PI * 2)), 3.4);
+     Umlauf, und genau das macht ihn zu etwas, auf das man wartet.
+
+     Mit der echten Erde kommt es aus dem Ort, siehe polarNaehe(). */
+  const breite = polarNaehe(ph);
   if (TAGLICHT < 0.92 && breite > 0.04) {
     const staerke = (1 - TAGLICHT) * breite;
     /* In Bildschirmkoordinaten, nicht in denen der gebackenen Scheibe:
@@ -17644,12 +17674,12 @@ function zeichneTelemetrie(t) {
       return (el < 180 ? "zunehmend" : "abnehmend") + " · " + k + " %";
     })()],
     ["POLARLICHT", (() => {
-      const br = Math.pow(Math.abs(Math.sin(ph * Math.PI * 2)), 3.4);
+      const br = polarNaehe(ph);
       if (TAGLICHT > 0.92) return "überstrahlt";
       if (br < 0.04) return "außer Sicht";
       return br > 0.55 ? "über dem Horizont" : "schwach";
     })(),
-      TAGLICHT > 0.92 ? 0 : Math.pow(Math.abs(Math.sin(ph * Math.PI * 2)), 3.4)],
+      TAGLICHT > 0.92 ? 0 : polarNaehe(ph)],
     ["BESATZUNG", alle.length + (laufend ? " · " + laufend + " arbeitet" : " · bereit")],
     /* Wie lange ist der laengste Einsatz schon im Gang? Der Balken
        misst gegen die geplanten 6,5 Stunden plus die halbe Stunde

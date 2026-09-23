@@ -240,6 +240,9 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
   - Dabei ist ein alter Rechenfehler aufgefallen. Der Punkt unter der Station kreuzt den Rand nicht zwei, sondern gut fünf Minuten vor ihrem eigenen Sonnenuntergang.
   - Der Grund: Die Station tritt erst 69,8 Grad vor dem Gegenpunkt der Sonne in den Schatten (asin 6371/6790), also 20 Grad später als der Boden unter ihr.
   - Auch die gerechnete Erde nimmt jetzt die fünf Minuten.
+- **Polarlicht am magnetischen Pol.**
+  - Das Polarlicht kommt nicht mehr zweimal je Umlauf nach Formel, sondern aus dem Ort. Gerechnet wird die magnetische Breite des Punkts unter der Station, als Dipol mit dem Pol über Nordkanada.
+  - Deshalb leuchtet es dort, wo die Crew es wirklich filmt: über Kanada und über dem Südpolarmeer südlich von Australien. Dort kommt die Station auf gut 60 Grad magnetische Breite, über Europa nur auf knapp 52.
 - **Wolken.**
   - Ihre Schatten fallen auf die sonnenabgewandte Seite, und die sonnenzugewandte Flanke ist heller.
   - An den Rändern liegt feines Rauschen, denn die Karte hat dort acht Kilometer je Bildpunkt, der Schirm zwei.
@@ -396,6 +399,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Ohne Karten fällt die Seite auf die gerechnete Erde zurück, mit Gewittern.
   - An acht Ständen um Auf- und Untergang liegen je rund vierzig Stellen links und rechts vom Tagesrand. An jeder steht die Sonne auf der Karte über oder unter dem Horizont, genau wie die Szene es zeigt.
   - Mondlicht auf den Wolken ist mit beiden Erden geprüft.
+  - Magnetische Breite: Churchill in Kanada liegt bei 67,2 Grad, Berlin bei 52,1, und südlich von Australien kommt die Station auf −60.
 - **Überflug**:
   - Über Norditalien steht in den Stationswerten „Italien · 44° N · 12° O“.
   - Acht bekannte Orte werden richtig benannt: Berlin, Kairo, Mittelmeer, Atlantik, Lesotho, Nordsee, Tokio und Sydney.
