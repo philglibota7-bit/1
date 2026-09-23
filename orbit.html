@@ -1295,6 +1295,7 @@ body.sicht #blende-detail, body.sicht #blende-teil{
     <div class="tm-abschnitt">LIVE</div>
     <button id="tm-iss" class="tm-knopf" type="button"></button>
     <button id="tm-wetter" class="tm-knopf" type="button"></button>
+    <button id="tm-regen" class="tm-knopf" type="button"></button>
     <div class="tm-kopf" id="tm-buchkopf" style="margin:12px 0 7px">BORDBUCH</div>
     <div id="tm-buch"></div>
   </div>
@@ -1627,6 +1628,7 @@ let Z = {
   beschriftung: true, // Laender, Grenzen und Orte ueber den Satellitenbildern
   relief: true, // Berge und Taeler nach der echten Sonne schattiert
   satellit: false,    // Satellitenbilder von Esri fuer die ganze Erde — nur auf Wunsch
+  regen: false,       // Regenradar von RainViewer auf der ganzen Erde — nur auf Wunsch
   bruecke: {
     typen: { session: true, ordner: true, prozess: true, github: true },
     ordner: [],                 // beobachtete Projektordner
@@ -1657,6 +1659,7 @@ function laden() {
       if (typeof d.beschriftung === "boolean") Z.beschriftung = d.beschriftung;
       if (typeof d.relief === "boolean") Z.relief = d.relief;
       if (typeof d.satellit === "boolean") Z.satellit = d.satellit;
+      if (typeof d.regen === "boolean") Z.regen = d.regen;
       /* Die Zeitraffung ist eine Einstellung wie der Hintergrund — wer
          sie auf das Zwoelffache gestellt hat, will das beim naechsten
          Mal nicht wieder suchen muessen. Angehalten wird NICHT
@@ -1697,7 +1700,7 @@ function sichern() {
       key: Z.key, maxTok: Z.maxTok, gewaehlt: Z.gewaehlt,
       thema: Z.thema, umlauf: Z.umlauf, melden: Z.melden, bruecke: Z.bruecke, rate: ZEIT.rate,
       echteIss: Z.echteIss, weltraumwetter: Z.weltraumwetter, wolkenHeute: Z.wolkenHeute, erdeGestern: Z.erdeGestern, beschriftung: Z.beschriftung, relief: Z.relief,
-      satellit: Z.satellit,
+      satellit: Z.satellit, regen: Z.regen,
     }));
   } catch (e) {
     /* Speicher voll oder privater Modus — die App laeuft trotzdem weiter */
@@ -11997,9 +12000,10 @@ function erdkarteLaedt() {
    die Szene sie getrennt braucht: die Oberflaeche als Farbe, die
    Stadtlichter als Licht zum Aufaddieren und die Wolkendecke allein —
    die leuchten der Mond und die Blitze an. */
-function erdkarteQuelle(ableitung, relief) {
+function erdkarteQuelle(ableitung, relief, regen) {
   return (ableitung ? "#extension GL_OES_standard_derivatives : enable\n" : "")
-    + (relief ? "#define RELIEF\n" : "") + `
+    + (relief ? "#define RELIEF\n" : "") + (regen ? "#define REGEN\n" : "")
+    + (ableitung ? "#define ABLEITUNG\n" : "") + `
 precision highp float;
 uniform vec2 uGroesse;
 uniform vec2 uMitte;
@@ -12041,6 +12045,58 @@ uniform sampler2D uNacht;
 uniform vec4 uNachtBox;
 uniform float uNachtGewicht;
 const float PI = 3.14159265;
+#ifdef REGEN
+/* Das Regenradar: ein Fenster aus vier mal vier Kacheln in Web-Mercator.
+   uRegenFenster = (erste Kachel x0, y0, 2 hoch Stufe, Gewicht; 0 = aus).
+   Im Rot dBZ plus 32, im Gruen Schnee, im Blau Radar, im Alpha geladen. */
+uniform sampler2D uRegen;
+uniform vec4 uRegenFenster;
+/* Wo im Fenster (0 bis 1) liegt ein Punkt? z: 1 drin, 0 draussen, weich
+   zum Rand. s ist die Laenge wie in der Karte, ueber die Datumsgrenze
+   hinweg ohne Sprung. */
+vec3 regenOrt(vec3 p, float s) {
+  float b = asin(clamp(p.z, -1.0, 1.0));
+  if (abs(b) > 1.4844) return vec3(0.0);
+  float n = uRegenFenster.z;
+  float Y = (0.5 - log(tan(PI / 4.0 + b / 2.0)) / (2.0 * PI)) * n;
+  float dy = Y - uRegenFenster.y;
+  if (dy < 0.0 || dy >= 4.0) return vec3(0.0);
+  /* Die ganze Erde: s selbst, die Kachel wiederholt sich ringsum */
+  if (n < 4.5) return vec3(s, dy / 4.0, 1.0);
+  float dx = mod(s * n - uRegenFenster.x, n);
+  if (dx >= 4.0) return vec3(0.0);
+  float rand = smoothstep(0.0, 0.3, min(min(dx, 4.0 - dx), min(dy, 4.0 - dy)));
+  return vec3(dx / 4.0, dy / 4.0, rand);
+}
+/* dBZ an einer Stelle; wo nichts geladen ist oder kein Radar hinsieht,
+   -32. Weiter weg mischt der Grafikchip Punkte mit Regen und ohne, das
+   macht kleine Schauer aus der Ferne blasser, wie auf jeder Radarkarte. */
+float regenDbz(vec2 st) {
+  vec4 r = texture2D(uRegen, st);
+  return r.r * 255.0 / max(r.a, 0.001) - 32.0;
+}
+/* Wie dicht der Regen dort wirkt, 0 bis gut 0,9 */
+float regenDeck(float dbz) {
+  return smoothstep(10.0, 20.0, dbz) * 0.6 + smoothstep(20.0, 42.0, dbz) * 0.32;
+}
+/* Die Farben eines Wetterradars, in den ueblichen Stufen: hellblau fuer
+   Niesel, blau fuer leichten Regen, gruen fuer maessigen (ab gut 20 dBZ,
+   ein bis vier Millimeter in der Stunde), gelb ab 35 fuer starken, orange,
+   rot ab 48 fuer Starkregen, violett ab 55, wo Hagel sein kann. Schnee
+   weiss bis lila. */
+vec3 regenFarbe(float dbz, float schnee) {
+  vec3 c = vec3(0.62, 0.80, 1.0);
+  c = mix(c, vec3(0.26, 0.58, 1.0), clamp((dbz - 10.0) / 8.0, 0.0, 1.0));
+  c = mix(c, vec3(0.12, 0.76, 0.46), clamp((dbz - 19.0) / 7.0, 0.0, 1.0));
+  c = mix(c, vec3(0.08, 0.56, 0.30), clamp((dbz - 27.0) / 6.0, 0.0, 1.0));
+  c = mix(c, vec3(0.98, 0.88, 0.22), clamp((dbz - 33.0) / 5.0, 0.0, 1.0));
+  c = mix(c, vec3(1.0, 0.52, 0.10), clamp((dbz - 39.0) / 6.0, 0.0, 1.0));
+  c = mix(c, vec3(0.92, 0.12, 0.14), clamp((dbz - 45.0) / 5.0, 0.0, 1.0));
+  c = mix(c, vec3(0.84, 0.22, 0.86), clamp((dbz - 52.0) / 5.0, 0.0, 1.0));
+  vec3 w = mix(vec3(0.93, 0.96, 1.0), vec3(0.64, 0.66, 1.0), clamp((dbz - 5.0) / 25.0, 0.0, 1.0));
+  return mix(c, w, schnee);
+}
+#endif
 
 /* Das Satellitenbild an einem Punkt der Kugel, mit Deckkraft: 0, wo es
    (noch) keine Kachel gibt oder der Punkt ausserhalb des Fensters liegt.
@@ -12385,6 +12441,42 @@ void main() {
      und Luft. Nur wo sie den Punkt fast ganz deckt; an ihren weichen
      Kanten bleibt das beleuchtete Bild, sonst schiene dort nachts der
      Tag durch. */
+#ifdef REGEN
+  /* Das Regenradar, ueber allem ausser der Beschriftung. Plastisch: die
+     Staerke als Hoehe, beleuchtet aus der Richtung der echten Sonne, aber
+     immer halbhoch, damit es auch mittags und nachts zu sehen ist. Und
+     jede Zelle wirft einen Schatten auf den Boden, auf der Seite, die von
+     der Sonne weg liegt. Nachts leuchtet der Regen gedaempft aus sich
+     selbst, wie die Beschriftung. */
+  if (uRegenFenster.w > 0.0) {
+    vec3 ro = regenOrt(p, uv.x);
+    if (ro.z > 0.0) {
+      vec4 rr = texture2D(uRegen, ro.xy);
+      float dbz = rr.r * 255.0 / max(rr.a, 0.001) - 32.0;
+      float deck = regenDeck(dbz) * ro.z * uRegenFenster.w * step(0.01, rr.a);
+      float schnee = rr.g / max(rr.a, 0.001);
+      /* Ein Schritt: ein Radarpunkt, oder so gross wie ein Bildpunkt, wenn
+         der Punkt kleiner ist */
+      vec2 e = vec2(1.0 / 2048.0);
+#ifdef ABLEITUNG
+      e = max(e, fwidth(ro.xy) * 1.2);
+#endif
+      vec2 sw = vec2(dot(uSonne, ost), -dot(uSonne, nord));
+      float sl2 = length(sw);
+      vec2 sd = sl2 > 0.02 ? sw / sl2 : vec2(-0.7071, -0.7071);
+      float hx = regenDeck(regenDbz(ro.xy + vec2(e.x, 0.0))) - regenDeck(regenDbz(ro.xy - vec2(e.x, 0.0)));
+      float hy = regenDeck(regenDbz(ro.xy + vec2(0.0, e.y))) - regenDeck(regenDbz(ro.xy - vec2(0.0, e.y)));
+      vec3 rn = normalize(vec3(-hx * 1.6, -hy * 1.6, 1.0));
+      vec3 rl = normalize(vec3(sd * 0.8, 0.6));
+      float plastisch = clamp(1.0 + 1.3 * (dot(rn, rl) - rl.z), 0.55, 1.45);
+      float wurf = regenDeck(regenDbz(ro.xy + sd * e * 5.0)) * ro.z * uRegenFenster.w;
+      float tagHell = clamp(sonne * 3.0 + 0.5, 0.0, 1.0);
+      f *= 1.0 - wurf * (1.0 - deck) * 0.38 * (0.3 + 0.7 * tagHell);
+      vec3 rc = regenFarbe(dbz, schnee) * plastisch * mix(0.62, 1.0, tagHell);
+      f = mix(f, rc, deck * (1.0 - rand * 0.5));
+    }
+  }
+#endif
   f = mix(f, sat.rgb, smoothstep(0.35, 0.9, satSchrift));
   gl_FragColor = vec4(f + korn, 1.0);
 }`;
@@ -12446,7 +12538,9 @@ function erdkarteAufbauen() {
       /* Das Relief braucht eine neunte Textur; WebGL verspricht nur acht,
          fast jeder Grafikchip kann sechzehn */
       ERDKARTE.reliefMoeglich = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS) >= 9;
-      gl.attachShader(prog, schatt(gl.FRAGMENT_SHADER, erdkarteQuelle(ableitung, ERDKARTE.reliefMoeglich)));
+      /* Das Regenradar braucht eine zehnte */
+      ERDKARTE.regenMoeglich = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS) >= 10;
+      gl.attachShader(prog, schatt(gl.FRAGMENT_SHADER, erdkarteQuelle(ableitung, ERDKARTE.reliefMoeglich, ERDKARTE.regenMoeglich)));
       gl.linkProgram(prog);
       if (!gl.getProgramParameter(prog, gl.LINK_STATUS))
         throw new Error("Programm: " + gl.getProgramInfoLog(prog));
@@ -12479,17 +12573,23 @@ function erdkarteAufbauen() {
         ? textur(8, { daten: new Uint8Array([128, 128, 0, 0]), b: 1, h: 1 }, gl.RGBA, false, false) : null;
       /* Die scharfen Nachtlichter: erst ein einzelner dunkler Punkt */
       ERDKARTE.nachtTx = textur(7, { daten: new Uint8Array(4), b: 1, h: 1 }, gl.LUMINANCE, false, false);
+      /* Das Regenradar: erst ein einzelner leerer Punkt, das Fenster wird
+         angelegt, wenn es gewuenscht ist */
+      ERDKARTE.regenTx = ERDKARTE.regenMoeglich
+        ? textur(9, { daten: new Uint8Array(4), b: 1, h: 1 }, gl.RGBA, false, false) : null;
       const u = {};
       for (const n of ["uGroesse", "uMitte", "uRadius", "uBlick", "uSonne", "uMond", "uSchicht",
                        "uTag", "uWolken", "uLichter", "uKorn", "uPolar", "uOval",
                        "uSat", "uSatGueltig", "uSatFenster", "uSatRaster", "uWolkenWeg",
-                       "uNacht", "uNachtBox", "uNachtGewicht", "uGestern", "uSatRelief", "uReliefStaerke"])
+                       "uNacht", "uNachtBox", "uNachtGewicht", "uGestern", "uSatRelief", "uReliefStaerke",
+                       "uRegen", "uRegenFenster"])
         u[n] = gl.getUniformLocation(prog, n);
       gl.uniform1i(u.uTag, 0); gl.uniform1i(u.uWolken, 1);
       gl.uniform1i(u.uLichter, 2); gl.uniform1i(u.uKorn, 3);
       gl.uniform1i(u.uOval, 4); gl.uniform1i(u.uSat, 5); gl.uniform1i(u.uSatGueltig, 6);
       gl.uniform1i(u.uNacht, 7);
       if (ERDKARTE.reliefMoeglich) { gl.uniform1i(u.uSatRelief, 8); gl.uniform1f(u.uReliefStaerke, 0); }
+      if (ERDKARTE.regenMoeglich) { gl.uniform1i(u.uRegen, 9); gl.uniform4f(u.uRegenFenster, 0, 0, 4, 0); }
       gl.uniform4f(u.uNachtBox, 0, 0, 1, 1);
       gl.uniform1f(u.uNachtGewicht, 0);
       gl.uniform1f(u.uGestern, 0);
@@ -12676,6 +12776,11 @@ function erdkarteMalen(ziel, bw, bh, mx, my, rr, blick, schicht) {
   gl.uniform4f(u.uNachtBox, na ? na.box.l0 : 0, na ? na.box.b1 : 0, na ? na.box.l1 - na.box.l0 : 1, na ? na.box.b1 - na.box.b0 : 1);
   gl.uniform1f(u.uNachtGewicht, na ? na.gewicht : 0);
   gl.uniform1f(u.uGestern, ERDEGESTERN.aktiv ? 1 : 0);
+  /* Das Regenradar nur auf der ganzen Erde, und nur, wenn der Aufrufer es will */
+  if (ERDKARTE.regenMoeglich) {
+    const rg = schicht > 2.5 && blick.regen ? blick.regen : null;
+    gl.uniform4f(u.uRegenFenster, rg ? rg.x0 : 0, rg ? rg.y0 : 0, rg ? rg.n : 4, rg ? rg.gewicht : 0);
+  }
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -13244,6 +13349,8 @@ function zeichneErdansicht(t, dt) {
   if (sat) blick.sat = sat;
   const nacht = nachtVorbereiten(g, blick, uhr);
   if (nacht) blick.nacht = nacht;
+  const regen = regenVorbereiten(g, blick);
+  if (regen) blick.regen = regen;
   /* Die Kugel selbst, mit Platz fuer den Luftsaum — aber nur der Teil,
      der auf dem Schirm liegt. Hineingezoomt ist die Kugel viel groesser
      als der Schirm; gerechnet wird trotzdem nur, was man sieht, hoechstens
@@ -13271,7 +13378,8 @@ function zeichneErdansicht(t, dt) {
   if (!alt || (!frei && Math.abs(phi - alt.phi) * g.r * fein > schwelle) || uhr - alt.um > 2000
       || alt.neig !== ERDANSICHT.neig || alt.az !== ERDANSICHT.az || alt.r !== g.r
       || alt.ax !== ax || alt.ay !== ay || alt.frei !== ERDANSICHT.freiVersion
-      || (alt.sat !== SATBILD.version && uhr - alt.um > 100) || alt.nacht !== NACHTLICHT.version) {
+      || (alt.sat !== SATBILD.version && uhr - alt.um > 100) || alt.nacht !== NACHTLICHT.version
+      || (alt.regen !== REGEN.version && uhr - alt.um > 100)) {
     const t0 = performance.now();
     const kg = q.c.getContext("2d");
     kg.clearRect(0, 0, bw, bh);
@@ -13279,7 +13387,7 @@ function zeichneErdansicht(t, dt) {
     const dauer = performance.now() - t0;
     ERDANSICHT.kosten = ERDANSICHT.kosten ? ERDANSICHT.kosten * 0.8 + dauer * 0.2 : dauer;
     q.stand = { phi, um: uhr, neig: ERDANSICHT.neig, az: ERDANSICHT.az, r: g.r, ax, ay,
-                frei: ERDANSICHT.freiVersion, sat: SATBILD.version, nacht: NACHTLICHT.version };
+                frei: ERDANSICHT.freiVersion, sat: SATBILD.version, nacht: NACHTLICHT.version, regen: REGEN.version };
   }
 
   cx.save();
@@ -13298,7 +13406,10 @@ function zeichneErdansicht(t, dt) {
   ERDANSICHT.quelleNacht = NACHTLICHT.sichtbar ? NACHT_QUELLE : null;
   ERDANSICHT.quelleSchrift = sat && sat.gewicht > 0 && Z.beschriftung ? SCHRIFT_QUELLE : null;
   ERDANSICHT.quelleRelief = sat && sat.gewicht > 0 && Z.relief && ERDKARTE.reliefTx ? RELIEF_QUELLE : null;
-  if (ERDANSICHT.quelle || ERDANSICHT.quelleNacht || ERDANSICHT.quelleSchrift || ERDANSICHT.quelleRelief) {
+  /* RainViewer bittet um die Angabe, sobald sein Radar zu sehen ist */
+  ERDANSICHT.quelleRegen = regen && regen.gewicht > 0 ? REGEN_QUELLE : null;
+  if (ERDANSICHT.quelle || ERDANSICHT.quelleNacht || ERDANSICHT.quelleSchrift || ERDANSICHT.quelleRelief
+      || ERDANSICHT.quelleRegen) {
     const rb = bedienRand();
     cx.save();
     cx.font = `500 ${10 * DPR}px OrbitInter, -apple-system, system-ui, sans-serif`;
@@ -13319,6 +13430,7 @@ function zeichneErdansicht(t, dt) {
     if (ERDANSICHT.quelleSchrift) zeilen.push(...passend(SCHRIFT_QUELLE));
     if (ERDANSICHT.quelleRelief) zeilen.push(...passend(RELIEF_QUELLE));
     if (ERDANSICHT.quelleNacht) zeilen.push(...passend(NACHT_QUELLE));
+    if (ERDANSICHT.quelleRegen) zeilen.push(...passend(REGEN_QUELLE));
     ERDANSICHT.quellZeilen = zeilen;
     cx.fillStyle = "rgba(220,230,245,.78)";
     zeilen.forEach((z, i) => {
@@ -13327,7 +13439,7 @@ function zeichneErdansicht(t, dt) {
       cx.fillText(z, qx, y);
     });
     cx.restore();
-  }
+  } else ERDANSICHT.quellZeilen = [];
 
   /* Die Bahn: ein Kreis in echter Hoehe, als Ellipse gesehen. Was hinter
      der Kugel liegt, bleibt verdeckt; vorn ist sie hell, dort, wo die
@@ -13640,7 +13752,8 @@ function erdansichtHimmel(g, blick, ms) {
    rund vierzig Blitze je Sekunde. Hier sind es nur die hellen in den
    hoechsten Tuermen, im Mittel vier. */
 function erdansichtBlitze(g, blick, uhr) {
-  const Z = ERDKARTE.zellen;
+  /* Mit dem Regenradar blitzt es in den echten Gewittern von jetzt */
+  const Z = regenZellen(ERDKARTE.zellen);
   if (!Z || !Z.length) return;
   const E = ERDANSICHT;
   if (!E.blitze) E.blitze = [];
@@ -15885,8 +15998,8 @@ function flugTakt(uhr) {
     const z = f.ziel;
     ORTSMARKE = { name: z.name, v: b };
     const sz = sonnenzeit(z.breite, z.laenge);
-    teilZeigen("erde", z.name, (z.land ? z.land + " · " : "") + gradText(z.breite, z.laenge)
-      + " · " + sz.uhr + " Sonnenzeit · " + sz.licht);
+    erdOrtZeigen(z.name, (z.land ? z.land + " · " : "") + gradText(z.breite, z.laenge)
+      + " · " + sz.uhr + " Sonnenzeit · " + sz.licht, z.breite, z.laenge);
   }
 }
 
@@ -16003,6 +16116,7 @@ const TM_SYMBOLE = {
   gestern: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.6 2.4 2.6 13.6 0 16M12 4c-2.6 2.4-2.6 13.6 0 16"/></svg>',
   wolken: '<svg viewBox="0 0 24 24"><path d="M7 18h10.5a3.8 3.8 0 0 0 .4-7.6A6 6 0 0 0 6.3 11a3.5 3.5 0 0 0 .7 7z"/></svg>',
   iss: '<svg viewBox="0 0 24 24"><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M3 12h6.5M14.5 12H21M4.5 7.5v9M19.5 7.5v9"/></svg>',
+  regen: '<svg viewBox="0 0 24 24"><path d="M7 14.5h10.5a3.6 3.6 0 0 0 .4-7.2A5.8 5.8 0 0 0 6.6 8a3.3 3.3 0 0 0 .4 6.5z"/><path d="M8.5 17.5l-1 2.5M12.5 17.5l-1 2.5M16.5 17.5l-1 2.5"/></svg>',
   wetter: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.6"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M5.6 18.4l1.6-1.6M16.8 7.2l1.6-1.6"/></svg>',
 };
 function tmSchalter(id, an, titel, klein, symbol, ruht) {
@@ -16432,6 +16546,403 @@ function wolkenAnwenden() {
   ERDANSICHT_BILD.stand = null;
 }
 
+/* --- Das Regenradar, auf Wunsch ----------------------------------------------
+   Wo es gerade regnet oder schneit, aus den Wetterradaren vieler Laender,
+   zusammengesetzt von RainViewer. Alle zehn Minuten ein neues Bild, ohne
+   Schluessel, und jeder Browser darf die Antwort lesen. Die Kacheln liegen
+   in Web-Mercator wie die Satellitenbilder, 512 Punkte gross. Echt fein ist
+   der Dienst bis Stufe 6, gut einen Kilometer je Punkt in Mitteleuropa;
+   darueber rechnet er nur hoch, das kann der Grafikchip selbst.
+
+   Geholt werden nicht die bunten Bilder, sondern die Messwerte (Farbtafel
+   255): im Rot die Reflektivitaet des Radars in dBZ plus 32, im Blau, ob es
+   Schnee ist, im Alpha, ob dort ueberhaupt ein Radar hinsieht (255) oder
+   nicht (63). So malt ORBIT die Farben selbst, schattiert die Zellen nach
+   der Sonne und weiss, wo es trocken ist und wo nur kein Radar steht.
+   Nachgeprueft an der ganzen Erde: jeder dieser Werte hat im bunten Bild
+   des Dienstes genau eine Farbe. Kommt einmal nur noch das bunte Bild,
+   liest ORBIT die Werte ueber diese Tafel aus den Farben zurueck.
+
+   Im Grafikspeicher liegt ein Fenster aus vier mal vier Kacheln: aus der
+   Ferne Stufe 2, das ist die ganze Erde, hineingezoomt eine feinere Stufe
+   um die Blickmitte. Ausgeschaltet geht keine Anfrage hinaus, eingeschaltet
+   nur, solange die ganze Erde offen ist. */
+const REGEN = { bild: null, um: 0, laeuft: false, fehler: null, anfragen: 0, kachelAnfragen: 0,
+                kachelFehler: 0, z: -1, x0: 0, y0: 0, kacheln: new Map(), laden: new Set(),
+                version: 0, farbig: false, gewicht: 0, angelegt: false, stufenNeu: false,
+                zellen: null, zellenStand: "" };
+const REGEN_INDEX = "https://api.rainviewer.com/public/weather-maps.json";
+const REGEN_QUELLE = "Regenradar: RainViewer";
+const REGEN_K = 4, REGEN_PX = 512, REGEN_MINZ = 2, REGEN_MAXZ = 6;
+const REGEN_TAKT = 300000, REGEN_CACHE = 40, REGEN_GLEICHZEITIG = 6;
+/* Die bunte Tafel des Dienstes: je Eintrag Schnee (0/1), dBZ, Rot, Gruen,
+   Blau, Alpha. Gemessen an allen Kacheln der Stufe 2 in beiden Farbtafeln. */
+const REGEN_TAFEL = [0,-10,99,97,89,20,0,-9,102,99,90,25,0,-8,105,102,92,30,0,-7,108,104,93,36,0,-6,111,107,95,41,0,-5,114,110,97,46,0,-4,117,112,98,52,0,-3,120,115,100,57,0,-2,124,117,101,62,0,-1,127,120,103,68,0,0,130,123,105,73,0,1,133,125,106,78,0,2,136,128,108,84,0,3,139,130,109,89,0,4,142,133,111,94,0,5,146,136,113,100,0,6,158,147,117,110,0,7,170,158,121,120,0,8,182,169,126,130,0,9,194,180,130,140,0,10,206,192,135,150,0,11,210,196,139,160,0,12,214,200,143,170,0,13,218,204,147,180,0,14,222,208,151,190,0,15,136,221,238,255,0,16,108,209,235,255,0,17,81,197,232,255,0,18,54,186,229,255,0,19,27,174,226,255,0,20,0,163,224,255,0,21,0,154,213,255,0,22,0,145,202,255,0,23,0,136,191,255,0,24,0,127,180,255,0,25,0,119,170,255,0,26,0,112,163,255,0,27,0,105,156,255,0,28,0,98,149,255,0,29,0,91,142,255,0,30,0,85,136,255,0,31,0,81,128,255,0,32,0,78,120,255,0,33,0,74,112,255,0,34,0,71,104,255,0,35,255,238,0,255,0,36,255,224,0,255,0,37,255,210,0,255,0,38,255,197,0,255,0,39,255,183,0,255,0,40,255,170,0,255,0,41,255,159,0,255,0,42,255,149,0,255,0,43,255,139,0,255,0,44,255,129,0,255,0,45,255,68,0,255,0,46,242,54,0,255,0,47,230,40,0,255,0,48,217,27,0,255,0,49,205,13,0,255,0,50,193,0,0,255,0,51,168,0,0,255,0,52,143,0,0,255,0,53,118,0,0,255,0,54,93,0,0,255,0,55,255,170,255,255,0,56,255,159,255,255,0,57,255,149,255,255,0,58,255,139,255,255,0,59,255,129,255,255,0,60,255,119,255,255,0,61,255,108,255,255,0,62,255,98,255,255,0,67,255,255,255,255,1,-8,205,255,255,25,1,-5,203,255,255,63,1,-4,202,255,255,76,1,-3,201,255,255,89,1,-2,200,255,255,102,1,-1,199,255,255,114,1,0,199,255,255,127,1,2,197,255,255,153,1,3,196,255,255,165,1,4,195,255,255,178,1,5,195,255,255,191,1,7,193,255,255,216,1,8,192,255,255,229,1,9,191,255,255,242,1,10,191,255,255,255,1,12,178,242,255,255,1,13,171,235,255,255,1,14,165,229,255,255,1,15,159,223,255,255,1,16,152,216,255,255,1,17,146,210,255,255,1,18,139,203,255,255,1,19,133,197,255,255,1,20,127,191,255,255,1,21,120,184,255,255,1,22,114,178,255,255,1,23,107,171,255,255,1,24,101,165,255,255,1,25,95,159,255,255,1,26,91,155,255,255,1,27,88,152,255,255,1,30,79,143,255,255,1,31,75,139,255,255,1,35,63,127,255,255];
+let regenTafelKarte = null;
+
+function regenTakt() {
+  const R_ = REGEN;
+  if (!Z.regen || document.hidden || !ERDANSICHT.an || !ERDKARTE.bereit || !ERDKARTE.regenTx || R_.laeuft) return;
+  const jetzt = Date.now();
+  if (jetzt - R_.um < REGEN_TAKT) return;
+  R_.laeuft = true; R_.um = jetzt; R_.anfragen++;
+  const ab = typeof AbortController === "function" ? new AbortController() : null;
+  const wecker = setTimeout(() => ab && ab.abort(), 20000);
+  fetch(REGEN_INDEX, { cache: "no-cache", signal: ab ? ab.signal : undefined })
+    .then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))
+    .then((d) => {
+      if (!Z.regen) return;
+      const liste = d && d.radar && d.radar.past;
+      const b = Array.isArray(liste) ? liste[liste.length - 1] : null;
+      /* Nur Kacheln von RainViewer selbst: Adresse und Pfad kommen aus der
+         Antwort und werden deshalb streng geprueft */
+      if (!b || typeof b.path !== "string" || !/^\/v2\/radar\/[0-9a-z]{4,40}$/i.test(b.path)
+          || typeof d.host !== "string" || !/^https:\/\/([a-z0-9-]+\.)*rainviewer\.com$/i.test(d.host)
+          || !isFinite(b.time)) throw new Error("unlesbar");
+      if (!R_.bild || R_.bild.path !== b.path) {
+        R_.bild = { host: d.host, path: b.path, t: b.time * 1000 };
+        /* Die Kacheln des alten Bilds bleiben stehen, bis die neuen da sind */
+        R_.version++;
+      }
+      R_.fehler = null;
+    })
+    .catch(() => {
+      R_.fehler = "nicht erreichbar";
+      /* In zwei Minuten noch einmal */
+      R_.um = Date.now() - REGEN_TAKT + 120000;
+    })
+    .finally(() => { clearTimeout(wecker); R_.laeuft = false; });
+}
+
+/* Eine Kachel lesen: je Punkt ein Byte. 0 = kein Radar, 1 = trocken, sonst
+   dBZ plus 32 (2 bis 127), und 128 dazu fuer Schnee. Dazu, wie viel der
+   Flaeche ein Radar sieht und wie viel davon nass ist (ab 15 dBZ). */
+let regenLeinwand = null;
+function regenLesen(bild) {
+  const N = REGEN_PX;
+  if (!regenLeinwand) { regenLeinwand = document.createElement("canvas"); regenLeinwand.width = regenLeinwand.height = N; }
+  const g = regenLeinwand.getContext("2d", { willReadFrequently: true });
+  g.clearRect(0, 0, N, N);
+  g.drawImage(bild, 0, 0, N, N);
+  const d = g.getImageData(0, 0, N, N).data;
+  const code = new Uint8Array(N * N);
+  /* Messwerte oder buntes Bild? In den Messwerten hat jeder Punkt ein
+     Alpha (63 oder 255), im bunten Bild ist fast alles durchsichtig. */
+  let leer = 0;
+  for (let i = 3; i < d.length; i += 64) if (d[i] === 0) leer++;
+  const farbig = leer > d.length / 64 / 2;
+  let gesehen = 0, nass = 0;
+  if (!farbig) {
+    for (let i = 0, j = 0; j < code.length; i += 4, j++) {
+      if (d[i + 3] < 128) continue;
+      gesehen++;
+      const r = d[i];
+      if (r < 2) { code[j] = 1; continue; }
+      code[j] = Math.min(127, r) | (d[i + 2] >= 191 ? 128 : 0);
+      if (r >= 47) nass++;
+    }
+  } else {
+    if (!regenTafelKarte) regenTafelKarte = new Map();
+    const T = REGEN_TAFEL;
+    for (let i = 0, j = 0; j < code.length; i += 4, j++) {
+      if (d[i + 3] === 0) { code[j] = 1; continue; }
+      const f = (d[i] << 24 | d[i + 1] << 16 | d[i + 2] << 8 | d[i + 3]) >>> 0;
+      let c = regenTafelKarte.get(f);
+      if (c === undefined) {
+        /* Die naechste Farbe der Tafel */
+        let best = 1e9;
+        for (let k = 0; k < T.length; k += 6) {
+          const e = (T[k + 2] - d[i]) ** 2 + (T[k + 3] - d[i + 1]) ** 2 + (T[k + 4] - d[i + 2]) ** 2 + (T[k + 5] - d[i + 3]) ** 2;
+          if (e < best) { best = e; c = klemm(T[k + 1] + 32, 2, 127) | (T[k] ? 128 : 0); }
+        }
+        regenTafelKarte.set(f, c);
+      }
+      code[j] = c;
+      if ((c & 127) >= 47) nass++;
+    }
+  }
+  return { code, farbig, gesehen, nass };
+}
+
+function regenKachelHolen(z, x, y) {
+  const R_ = REGEN, s = z + "/" + x + "/" + y, bild = R_.bild;
+  if (!bild || R_.laden.has(s)) return;
+  R_.laden.add(s); R_.kachelAnfragen++;
+  const ab = typeof AbortController === "function" ? new AbortController() : null;
+  const wecker = setTimeout(() => ab && ab.abort(), 30000);
+  fetch(bild.host + bild.path + "/" + REGEN_PX + "/" + s + "/255/1_1.png", { signal: ab ? ab.signal : undefined })
+    .then(r => r.ok ? r.blob() : Promise.reject(new Error("HTTP " + r.status)))
+    .then(bildAusBlob)
+    .then((b) => {
+      const k = regenLesen(b);
+      if (typeof b.close === "function") b.close();
+      if (!Z.regen) return;
+      k.pfad = bild.path;
+      R_.farbig = k.farbig;
+      R_.kacheln.delete(s);
+      R_.kacheln.set(s, k);
+      /* Der Speicher: die zuletzt gebrauchten bleiben */
+      while (R_.kacheln.size > REGEN_CACHE) R_.kacheln.delete(R_.kacheln.keys().next().value);
+      regenPlatzHochladen(z, x, y);
+    })
+    .catch(() => { R_.kachelFehler++; })
+    .finally(() => { clearTimeout(wecker); R_.laden.delete(s); });
+}
+
+/* Das Fenster im Grafikspeicher einmal anlegen: 2048 mal 2048, RGBA. Rot
+   dBZ plus 32, Gruen Schnee, Blau Radar, Alpha geladen. Ringsum wiederholt,
+   damit die ganze Erde ueber die Datumsgrenze hinweg ohne Naht bleibt. */
+function regenAnlegen() {
+  const R_ = REGEN, gl = ERDKARTE.gl;
+  if (R_.angelegt || !gl) return;
+  const N = REGEN_K * REGEN_PX;
+  gl.activeTexture(gl.TEXTURE9);
+  gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.regenTx);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, N, N, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, ERDKARTE.ableitung ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
+  R_.z = -1;
+  R_.angelegt = true;
+}
+
+let regenPuffer = null;
+/* Eine Kachel an ihren Platz im Fenster, oder leer, wenn sie fehlt */
+function regenPlatzHochladen(z, x, y) {
+  const R_ = REGEN, gl = ERDKARTE.gl;
+  if (!R_.angelegt || !gl || z !== R_.z) return;
+  const n = Math.pow(2, z);
+  const i = (((x - R_.x0) % n) + n) % n, j = y - R_.y0;
+  if (i >= REGEN_K || j < 0 || j >= REGEN_K) return;
+  const N = REGEN_PX;
+  if (!regenPuffer) regenPuffer = new Uint8Array(N * N * 4);
+  const k = R_.kacheln.get(z + "/" + x + "/" + y);
+  if (k) {
+    const c = k.code;
+    for (let q = 0, o = 0; q < c.length; q++, o += 4) {
+      const v = c[q];
+      regenPuffer[o] = v > 1 ? v & 127 : 0;
+      regenPuffer[o + 1] = v & 128 ? 255 : 0;
+      regenPuffer[o + 2] = v ? 255 : 0;
+      regenPuffer[o + 3] = 255;
+    }
+  } else regenPuffer.fill(0);
+  gl.activeTexture(gl.TEXTURE9);
+  gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.regenTx);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, i * N, j * N, N, N, gl.RGBA, gl.UNSIGNED_BYTE, regenPuffer);
+  R_.stufenNeu = true;
+  R_.version++;
+}
+
+/* Ein neues Fenster: alle sechzehn Plaetze neu, aus dem Speicher oder leer */
+function regenFenster(z, x0, y0) {
+  const R_ = REGEN, n = Math.pow(2, z);
+  R_.z = z; R_.x0 = x0; R_.y0 = y0;
+  for (let j = 0; j < REGEN_K; j++)
+    for (let i = 0; i < REGEN_K; i++) regenPlatzHochladen(z, (((x0 + i) % n) + n) % n, y0 + j);
+}
+
+/* Fuer die ganze Erde: welche Stufe, welches Fenster, die fehlenden Kacheln
+   anstossen. Gibt zurueck, was der Schattierer braucht, oder null. */
+function regenVorbereiten(g, blick) {
+  const R_ = REGEN;
+  R_.gewicht = 0;
+  if (!Z.regen || !ERDKARTE.bereit || !ERDKARTE.regenTx || !R_.bild) return null;
+  regenAnlegen();
+  const [breite, laenge] = erdBlickMitte(g, blick.m);
+  /* Meter je Geraetepunkt in der Blickmitte, und die Stufe, deren
+     Radarpunkte dort etwa so gross sind */
+  const mpp = 6371000 / (g.r * DPR);
+  const cosb = Math.max(0.05, Math.cos(breite * Math.PI / 180));
+  const kachelPx = (zz) => 256 * 156543.034 * cosb / Math.pow(2, zz) / mpp;
+  let z = klemm(Math.round(Math.log2(156543.034 * cosb / 2 / mpp)), REGEN_MINZ, REGEN_MAXZ);
+  /* Deckt das Fenster den Schirm nicht, eine Stufe groeber */
+  while (z > REGEN_MINZ && (W * DPR / kachelPx(z) > REGEN_K - 1 || H * DPR / kachelPx(z) > REGEN_K - 1)) z--;
+  const n = Math.pow(2, z);
+  let x0 = 0, y0 = 0;
+  if (z > REGEN_MINZ) {
+    const k = satKachel(breite, laenge, z);
+    const dx = (((k.x - R_.x0) % n) + n) % n, dy = k.y - R_.y0;
+    /* Solange die Mitte nicht in die aeussere Reihe kommt, bleibt das Fenster */
+    const bleibt = z === R_.z && dx >= 1 && dx <= REGEN_K - 1
+      && (dy >= 1 || R_.y0 === 0) && (dy <= REGEN_K - 1 || R_.y0 === n - REGEN_K);
+    if (bleibt) { x0 = R_.x0; y0 = R_.y0; }
+    else { x0 = ((Math.floor(k.x - REGEN_K / 2) % n) + n) % n; y0 = klemm(Math.floor(k.y - REGEN_K / 2), 0, n - REGEN_K); }
+  }
+  if (z !== R_.z || x0 !== R_.x0 || y0 !== R_.y0) regenFenster(z, x0, y0);
+  /* Was fehlt oder vom alten Bild ist, anfragen; die Mitte zuerst */
+  const fehlt = [];
+  for (let j = 0; j < REGEN_K; j++) for (let i = 0; i < REGEN_K; i++) {
+    const x = (x0 + i) % n, y = y0 + j, s = z + "/" + x + "/" + y;
+    const k = R_.kacheln.get(s);
+    if (k && k.pfad === R_.bild.path) continue;
+    if (R_.laden.has(s)) continue;
+    fehlt.push([Math.abs(i + 0.5 - REGEN_K / 2) + Math.abs(j + 0.5 - REGEN_K / 2), x, y]);
+  }
+  fehlt.sort((a, b) => a[0] - b[0]);
+  for (const [, x, y] of fehlt) {
+    if (R_.laden.size >= REGEN_GLEICHZEITIG) break;
+    regenKachelHolen(z, x, y);
+  }
+  /* Die Verkleinerungsstufen hoechstens einmal je Bild */
+  if (R_.stufenNeu && ERDKARTE.ableitung) {
+    const gl = ERDKARTE.gl;
+    gl.activeTexture(gl.TEXTURE9);
+    gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.regenTx);
+    gl.generateMipmap(gl.TEXTURE_2D);
+  }
+  R_.stufenNeu = false;
+  R_.gewicht = 1;
+  return { x0, y0, n, gewicht: 1 };
+}
+
+/* Der Wert an einem Ort, aus der feinsten Kachel, die im Speicher liegt;
+   null, wenn keine */
+function regenWert(breite, laenge) {
+  const R_ = REGEN;
+  if (!Z.regen || !R_.bild || Math.abs(breite) > 85.05) return null;
+  for (let z = Math.max(R_.z, REGEN_MINZ); z >= REGEN_MINZ; z--) {
+    const k = satKachel(breite, laenge, z), n = Math.pow(2, z);
+    const x = ((Math.floor(k.x) % n) + n) % n, y = klemm(Math.floor(k.y), 0, n - 1);
+    const t = R_.kacheln.get(z + "/" + x + "/" + y);
+    if (!t) continue;
+    const px = klemm(Math.floor((k.x - Math.floor(k.x)) * REGEN_PX), 0, REGEN_PX - 1);
+    const py = klemm(Math.floor((k.y - Math.floor(k.y)) * REGEN_PX), 0, REGEN_PX - 1);
+    return { v: t.code[py * REGEN_PX + px], farbig: t.farbig, alt: t.pfad !== R_.bild.path };
+  }
+  return null;
+}
+
+/* In Worten, fuer die Karte zum Ort. Die Menge nach Marshall und Palmer:
+   Z = 200 R hoch 1,6, eine Faustformel fuer Regen, die bei Schnee und
+   Hagel nicht mehr stimmt; dort steht deshalb keine Zahl. */
+function regenText(breite, laenge) {
+  const w = regenWert(breite, laenge);
+  if (!w) return null;
+  const v = w.v;
+  if (v === 0) return "kein Radar hier";
+  const dbz = v > 1 ? (v & 127) - 32 : -32;
+  /* Ab 12 dBZ wird der Regen auf der Kugel sichtbar; darunter ist es
+     Dunst oder Stoerung */
+  if (dbz < 12) return w.farbig ? "kein Regen gemessen" : "trocken";
+  const schnee = !!(v & 128);
+  if (schnee) return (dbz < 20 ? "leichter" : dbz < 30 ? "mäßiger" : "starker") + " Schneefall";
+  const mm = Math.pow(Math.pow(10, dbz / 10) / 200, 1 / 1.6);
+  const art = dbz < 20 ? "leichter Regen" : dbz < 35 ? "mäßiger Regen" : dbz < 45 ? "starker Regen"
+    : dbz < 55 ? "Starkregen, wohl Gewitter" : "Unwetter, vielleicht Hagel";
+  if (dbz >= 55) return art;
+  const menge = mm < 1 ? kz(mm, 1) : String(Math.round(mm));
+  return art + ", etwa " + menge + " mm pro Stunde";
+}
+
+/* Die Karte zu einem Ort der Erde, mit dem Regen dort. Kommen feinere
+   Kacheln oder ein neues Bild, solange sie offen ist, zieht die Zeile nach. */
+let ORTREGEN = null;
+function erdOrtZeigen(name, basis, breite, laenge) {
+  const rt = regenText(breite, laenge);
+  teilZeigen("erde", name, basis + (rt ? " · " + rt : ""));
+  ORTREGEN = { basis, breite, laenge, version: REGEN.version, text: rt };
+}
+function erdOrtNachziehen() {
+  const o = ORTREGEN;
+  if (!o || teilOffen !== "erde" || o.version === REGEN.version) return;
+  o.version = REGEN.version;
+  const rt = regenText(o.breite, o.laenge);
+  if (rt === o.text) return;
+  o.text = rt;
+  const k = document.getElementById("teil-kurz");
+  if (k) k.textContent = o.basis + (rt ? " · " + rt : "");
+}
+
+/* Wie viel der Flaeche, die ein Radar sieht, gerade nass ist, im Fenster */
+function regenAnteil() {
+  const R_ = REGEN;
+  if (R_.z < 0 || !R_.bild) return null;
+  const n = Math.pow(2, R_.z);
+  let gesehen = 0, nass = 0, da = 0;
+  for (let j = 0; j < REGEN_K; j++) for (let i = 0; i < REGEN_K; i++) {
+    const k = R_.kacheln.get(R_.z + "/" + ((R_.x0 + i) % n) + "/" + (R_.y0 + j));
+    if (!k) continue;
+    da++; gesehen += k.gesehen; nass += k.nass;
+  }
+  return da && gesehen ? { anteil: nass / gesehen, ganz: R_.z === REGEN_MINZ && da === REGEN_K * REGEN_K } : null;
+}
+
+/* Die Gewitter der ganzen Erde, wo ein Radar hinsieht: die Kerne ab 45 dBZ
+   aus den Kacheln der Stufe 2, einer je Raster von einem halben Grad. Dort,
+   wo kein Radar steht, bleiben die Zellen aus den Wolken. */
+function regenZellen(wolkenZellen) {
+  const R_ = REGEN;
+  if (!Z.regen || !R_.bild) return wolkenZellen;
+  let stand = R_.bild.path;
+  const teile = [];
+  for (let t = 0; t < 16; t++) {
+    const k = R_.kacheln.get("2/" + (t % 4) + "/" + Math.floor(t / 4));
+    const gilt = k && k.pfad === R_.bild.path;
+    teile.push(gilt ? k : null);
+    stand += gilt ? "1" : "0";
+  }
+  if (stand === R_.zellenStand && R_.zellenQuelle === wolkenZellen) return R_.zellen;
+  R_.zellenStand = stand; R_.zellenQuelle = wolkenZellen;
+  if (!teile.some(Boolean)) { R_.zellen = wolkenZellen; return wolkenZellen; }
+  const RAD = Math.PI / 180, raster = new Map();
+  for (let t = 0; t < 16; t++) {
+    const k = teile[t];
+    if (!k) continue;
+    if (!k.kerne) k.kerne = regenKerne(k, t % 4, Math.floor(t / 4));
+    for (const c of k.kerne) {
+      const alt = raster.get(c.s);
+      if (!alt || alt.kraft < c.kraft) raster.set(c.s, c);
+    }
+  }
+  const neu = [];
+  for (const c of raster.values()) {
+    const cb = Math.cos(c.breite * RAD);
+    neu.push({ p: [cb * Math.cos(c.laenge * RAD), cb * Math.sin(c.laenge * RAD), Math.sin(c.breite * RAD)],
+               land: true, kraft: c.kraft, nachbarn: [], radar: true });
+  }
+  /* Nachbarn bis gut 150 Kilometer */
+  const nah = Math.cos(1.4 * RAD);
+  for (const a of neu) for (const b of neu)
+    if (a !== b && a.p[0] * b.p[0] + a.p[1] * b.p[1] + a.p[2] * b.p[2] > nah) a.nachbarn.push(b);
+  /* Die Zellen aus den Wolken nur dort, wo kein Radar hinsieht */
+  const ohneRadar = (wolkenZellen || []).filter((z) => {
+    const [b, l] = breiteLaenge(z.p);
+    const w = regenWert(b, l);
+    return !w || w.v === 0;
+  });
+  R_.zellen = neu.concat(ohneRadar);
+  return R_.zellen;
+}
+
+/* Die Gewitterkerne einer Kachel der Stufe 2: je Block von 8 mal 8 Punkten
+   (gut 80 Kilometer) der staerkste Regen, wenn er 45 dBZ erreicht, und je
+   halbes Grad nur einer */
+function regenKerne(k, tx, ty) {
+  const N = REGEN_PX, B = 8, RAD = Math.PI / 180, aus = [];
+  for (let by = 0; by < N; by += B) for (let bx = 0; bx < N; bx += B) {
+    let best = 0, bi = -1;
+    for (let yy = by; yy < by + B; yy++) for (let xx = bx; xx < bx + B; xx++) {
+      const v = k.code[yy * N + xx];
+      if (v > 1 && !(v & 128) && (v & 127) > best) { best = v & 127; bi = yy * N + xx; }
+    }
+    if (best - 32 < 45) continue;
+    const X = tx + (bi % N + 0.5) / N, Y = ty + (Math.floor(bi / N) + 0.5) / N;
+    const laenge = X / 4 * 360 - 180;
+    const breite = Math.atan(Math.sinh(Math.PI * (1 - Y / 2))) / RAD;
+    aus.push({ breite, laenge, kraft: klemm((best - 32 - 45) / 15, 0, 1),
+               s: Math.round(breite * 2) + "/" + Math.round(laenge * 2) });
+  }
+  return aus;
+}
+
+function regenKnopf() {
+  tmSchalter("tm-regen", Z.regen, "Regenradar",
+    Z.regen ? "auf der ganzen Erde, alle zehn Minuten neu" : "wo es gerade regnet, von RainViewer", "regen");
+}
+
 /* --- Die Erde von gestern, auf Wunsch -----------------------------------------
    Blue Marble ist ein Bild ohne Wolken aus vielen Monaten, die Wolken darauf
    eine andere Aufnahme. Auf Wunsch zeigt ORBIT stattdessen die Erde, wie sie
@@ -16580,6 +17091,20 @@ function satKachel(breite, laenge, z) {
   return { x: (laenge / 360 + 0.5) * n, y: (0.5 - Math.log(Math.tan(Math.PI / 4 + b / 2)) / (2 * Math.PI)) * n };
 }
 
+/* Die Blickmitte: der Punkt der Kugel unter der Mitte des Schirms, oder
+   der naechste auf ihr, wenn die ganze Kugel zu sehen ist. Breite und Laenge. */
+function erdBlickMitte(g, M) {
+  const rand = bedienRand();
+  const mxs = W / 2, mys = ((rand.oben || 70) + (rand.unten || H)) / 2;
+  let qx = (mxs - g.cx) / g.r, qy = (mys - g.cy) / g.r;
+  const r2 = qx * qx + qy * qy;
+  if (r2 > 0.98) { const k = Math.sqrt(0.98 / r2); qx *= k; qy *= k; }
+  const v = [qx, -qy, Math.sqrt(Math.max(0, 1 - qx * qx - qy * qy))];
+  const p = [M[0] * v[0] + M[3] * v[1] + M[6] * v[2], M[1] * v[0] + M[4] * v[1] + M[7] * v[2],
+             M[2] * v[0] + M[5] * v[1] + M[8] * v[2]];
+  return breiteLaenge(p);
+}
+
 /* Fuer die ganze Erde: welche Stufe, welches Fenster, und die Kacheln
    dazu anstossen. Gibt zurueck, was der Schattierer braucht, oder null. */
 function satVorbereiten(g, blick) {
@@ -16592,18 +17117,8 @@ function satVorbereiten(g, blick) {
   if (nx !== S_.nx || ny !== S_.ny) { satAus(); S_.nx = nx; S_.ny = ny; S_.angelegt = false; }
   const sk = satSchriftStufe();
   if (sk !== S_.schriftK) { S_.schriftK = sk; satSchriftNeu(true, false); }
-  /* Die Blickmitte: der Punkt der Kugel unter der Mitte des Schirms, oder
-     der naechste auf ihr, wenn die ganze Kugel zu sehen ist */
-  const rand = bedienRand();
-  const mxs = W / 2, mys = ((rand.oben || 70) + (rand.unten || H)) / 2;
-  let qx = (mxs - g.cx) / g.r, qy = (mys - g.cy) / g.r;
-  const r2 = qx * qx + qy * qy;
-  if (r2 > 0.98) { const k = Math.sqrt(0.98 / r2); qx *= k; qy *= k; }
-  const v = [qx, -qy, Math.sqrt(Math.max(0, 1 - qx * qx - qy * qy))];
   const M = blick.m;
-  const p = [M[0] * v[0] + M[3] * v[1] + M[6] * v[2], M[1] * v[0] + M[4] * v[1] + M[7] * v[2],
-             M[2] * v[0] + M[5] * v[1] + M[8] * v[2]];
-  const [breite, laenge] = breiteLaenge(p);
+  const [breite, laenge] = erdBlickMitte(g, M);
   S_.breite = breite;
   /* Meter je Bildpunkt dort (ohne die Verkuerzung zum Rand hin) und die
      Stufe, deren Kachelpunkte etwa so gross sind */
@@ -19706,6 +20221,8 @@ function rahmen(jetzt) {
   echteIssTakt();
   weltraumwetterTakt();
   wolkenHeuteTakt();
+  regenTakt();
+  erdOrtNachziehen();
   erdeGesternTakt();
 
   /* Liegt die ganze Erde voll ueber allem, wird die Station nicht
@@ -23129,6 +23646,21 @@ $("#tm-wolken").onclick = () => {
   wolkenHeuteKnopf();
   tmUhr = 0;
 };
+$("#tm-regen").onclick = () => {
+  Z.regen = !Z.regen;
+  const R_ = REGEN;
+  R_.um = 0;
+  if (!Z.regen) {
+    /* Aus: nichts mehr anfragen, den Speicher freigeben. Das Fenster im
+       Grafikspeicher bleibt, der Schattierer zeigt es mit Gewicht 0 nicht. */
+    Object.assign(R_, { bild: null, fehler: null, z: -1, zellen: null, zellenStand: "" });
+    R_.kacheln.clear();
+    R_.version++;
+  }
+  sichern();
+  regenKnopf();
+  tmUhr = 0;
+};
 $("#btn-vorf").onclick = () => vorfuehrungBeenden();
 $("#vorf-band").onclick = () => vorfuehrungBeenden();
 
@@ -23540,6 +24072,19 @@ function zeichneTelemetrie(t) {
       const w = WOLKENHEUTE;
       if (w.daten) return [["WOLKEN", "von heute · " + uhr(w.t) + (w.fehler ? " · neu laden gescheitert" : "")]];
       return [["WOLKEN", w.fehler || (ERDKARTE.bereit ? "werden geladen …" : "warten auf die Karte")]];
+    })(),
+    /* Das Regenradar, wenn gewuenscht: von wann, und wie viel der Flaeche,
+       die ein Radar sieht, gerade nass ist */
+    ...(() => {
+      if (!Z.regen) return [];
+      const r = REGEN;
+      if (!ERDKARTE.regenMoeglich && ERDKARTE.bereit) return [["REGEN", "braucht zehn Texturen, der Grafikchip hat weniger"]];
+      if (!r.bild) return [["REGEN", r.fehler || (ERDANSICHT.an ? "wird gefragt …" : "zu sehen auf der ganzen Erde (E)")]];
+      const a = regenAnteil();
+      return [["REGEN", "Radar von " + uhr(r.bild.t)
+        + (a ? " · nass auf " + Math.round(a.anteil * 100) + " % " + (a.ganz ? "der Radarfläche" : "im Ausschnitt") : "")
+        + (r.fehler ? " · neu fragen gescheitert" : ""),
+        a ? Math.min(1, a.anteil * 4) : undefined]];
     })(),
     /* Die Erde von gestern, wenn gewuenscht: welcher Tag */
     ...(() => {
@@ -24064,6 +24609,13 @@ const HILFE = [
       + "der Environment Agency (Großbritannien) und ArcticDEM (NSF, aus Aufnahmen von DigitalGlobe). "
       + "Die Nadel oben in der Zoomleiste zeigt, wo Norden liegt; tippst du sie an, dreht sich Norden nach oben. "
       + "Nachts kommen beim Hineinzoomen die Lichter der Städte scharf dazu, aus Black Marble der NASA. "
+      + "Unter Stationswerte → LIVE lässt sich das Regenradar einschalten: Auf der ganzen Erde steht dann, wo es "
+      + "gerade regnet oder schneit, alle zehn Minuten neu aus den Wetterradaren vieler Länder, zusammengesetzt "
+      + "von RainViewer. Blau ist leichter Regen, grün mäßiger, gelb bis rot starker, violett kann Hagel sein, "
+      + "weiß bis lila ist Schnee. Die Zellen sind nach der echten Sonne schattiert und werfen Schatten, und "
+      + "nachts blitzt es in den echten Gewittern. Hineingezoomt wird das Radar feiner, bis gut einen Kilometer. "
+      + "Tippst du auf einen Ort, steht dort, wie stark es regnet. Wo kein Radar steht, über den Meeren und "
+      + "in weiten Teilen Afrikas und Asiens, gibt es keine Werte. "
       + "Ohne WebGL oder ohne die Kartenbilder zeichnet ORBIT eine gerechnete Erde.",
   },
   {
@@ -24934,9 +25486,9 @@ function zeigerLoslassen(ev) {
            Polarlicht zu sehen ist. Bei Tag ist es nie zu sehen, und
            unter drei Prozent ist es Rauschen. */
         const ov = sz.licht === "Tag" ? null : ovalBei(e.breite, e.laenge);
-        teilZeigen("erde", e.name || (e.meer ? "Meer" : "Erde"),
+        erdOrtZeigen(e.name || (e.meer ? "Meer" : "Erde"),
           gradText(e.breite, e.laenge) + " · " + sz.uhr + " Sonnenzeit · " + sz.licht
-          + (ov !== null && ov >= 3 ? " · Polarlicht " + Math.round(ov) + " %" : ""));
+          + (ov !== null && ov >= 3 ? " · Polarlicht " + Math.round(ov) + " %" : ""), e.breite, e.laenge);
       } else erdansicht(false);
       return;
     }
@@ -24966,8 +25518,8 @@ function zeigerLoslassen(ev) {
     const unten = offen ? null : erdeBei(ev.clientX, ev.clientY);
     if (unten) {
       const sz = sonnenzeit(unten.breite, unten.laenge);
-      teilZeigen("erde", unten.name || (unten.meer ? "Meer" : "Erde"),
-        gradText(unten.breite, unten.laenge) + " · " + sz.uhr + " Sonnenzeit · " + sz.licht);
+      erdOrtZeigen(unten.name || (unten.meer ? "Meer" : "Erde"),
+        gradText(unten.breite, unten.laenge) + " · " + sz.uhr + " Sonnenzeit · " + sz.licht, unten.breite, unten.laenge);
       return;
     }
     if (offeneDetailId || teilOffen) {
@@ -25070,6 +25622,7 @@ zeitKnopfStand();
 echteIssKnopf();
 weltraumwetterKnopf();
 wolkenHeuteKnopf();
+regenKnopf();
 satellitKnopf();
 erdeGesternKnopf();
 schriftKnopf();
