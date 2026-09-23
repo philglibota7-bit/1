@@ -2089,6 +2089,21 @@ function zeichneSchleifen(punkte, t) {
   SCHLEIFE.gezeichnet = gezeichnet;
 }
 
+/* Was an einer Figur gerade nicht stimmt, in einer Zeile: im Kreis oder
+   im Konflikt, der Kreis zuerst, denn er kostet, solange er laeuft. Fuer
+   die Leiste unten und die Crew-Liste: die sind immer zu sehen, auch
+   wenn die Figur gerade nicht im Bild ist. */
+function warnungBei(a) {
+  const s_ = schleifeAktiv(a);
+  if (s_) return { text: "⟲ " + s_.n + "× derselbe Fehler", farbe: "#f5963c", titel: s_.befehl + ": " + s_.zeile };
+  const k = KONFLIKT.liste.find(x => x.a.id === a.id || x.b.id === a.id);
+  if (k) {
+    const mit = k.a.id === a.id ? k.b : k.a;
+    return { text: "⚠ " + k.name + " · auch " + mit.name, farbe: "#f07060", titel: k.pfad + " — auch " + mit.name };
+  }
+  return null;
+}
+
 /* Nach jedem Durchlauf der Bruecke: wer hat sich veraendert? Die erste
    Sichtung einer Figur meldet nichts — sonst klingelte beim Start fuer
    jede Sitzung, die schon wartete, eine Mitteilung. */
@@ -22675,6 +22690,9 @@ function zeichneCrewLeiste() {
       : a.taetigkeit ? anfang(a.taetigkeit, 26) : TYP_NAME[a.typ];
     if (a.zustand === "fehler") zs.style.color = "var(--bad)";
     if (a.zustand === "winkt") zs.style.color = "#e0a24e";
+    /* Im Kreis oder im Konflikt: das statt der letzten Taetigkeit */
+    const wa = a.zustand !== "winkt" ? warnungBei(a) : null;
+    if (wa) { zs.textContent = anfang(wa.text, 26); zs.style.color = wa.farbe; }
     t.append(nm, zs);
     b.appendChild(t);
     /* Der Plan als feiner Strich an der Unterkante: wie weit jede
@@ -22689,6 +22707,7 @@ function zeichneCrewLeiste() {
         + a.aufgaben.length + " Aufgaben erledigt";
       b.appendChild(pl);
     }
+    if (wa) b.title = wa.titel;
     b.onclick = () => detailOeffnen(a.id);
     box.appendChild(b);
   }
@@ -23047,6 +23066,8 @@ function zeichneCrewListe() {
           + (a.statusSeit && a.statusSeit < Date.now() ? " · seit " + luecke(Date.now() - a.statusSeit) : "")
       : (a.taetigkeit || BESCHRIFTUNG[a.zustand] || "");
     if (a.zustand === "winkt" && !a.heimwaerts) tut.style.color = "#e0a24e";
+    const wa = a.zustand !== "winkt" && !a.heimwaerts ? warnungBei(a) : null;
+    if (wa) { tut.textContent = wa.text; tut.style.color = wa.farbe; tut.title = wa.titel; }
     if (tut.textContent) k.appendChild(tut);
     /* Der Plan in einer Zeile: ein kleiner Balken, wie weit, und was
        gerade laeuft — das ist die Zeile, die sagt, wie weit eine

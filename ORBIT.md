@@ -105,12 +105,13 @@ Arbeiten zwei Sitzungen im selben Ordner, oder läuft ein Unteragent im Hintergr
 - **Unter Stationswerte** steht KONFLIKT mit der jüngsten Datei und den beiden Namen, rot.
 - **Im Detailfenster** hat die Datei einen roten Punkt, darunter „⚠ auch pruefung:rundung (vor 11 Sek.)“.
 - **Eine Mitteilung** und ein Eintrag im Bordbuch, je Paar und Datei einmal: „Konflikt: preis.ts“ mit beiden Namen und dem vollen Pfad. Antippen öffnet die Figur, die zuletzt geändert hat.
+- **In der Leiste unten und in der Crew-Liste** steht bei beiden statt der letzten Tätigkeit „⚠ preis.ts · auch webshop-kasse“, rot. Die sind immer zu sehen, auch wenn die Figuren gerade nicht im Bild sind.
 
 Als Konflikt gilt: Zwei Figuren haben dieselbe Datei geändert, beide in der letzten halben Stunde, und **jede Änderung fiel in eine Zeit, in der die andere Figur da war**. Das trennt zwei Fälle, die im Protokoll gleich aussehen:
 - Eine Übergabe ist keiner: Die Sitzung ändert `preis.ts`, danach schickt sie einen Unteragenten los, der die Datei weiter ändert. Bei der ersten Änderung war er noch nicht da.
 - Parallel ist einer: Der Unteragent läuft im Hintergrund, und die Sitzung ändert dieselbe Datei, bevor er berichtet hat.
 
-Ein Unteragent ist da von seinem Start bis zu seinem Bericht, eine Sitzung, solange sie in der Liste steht. Verglichen wird der volle Pfad. Zwei Arbeitskopien desselben Projekts (`git worktree`) sind also verschiedene Dateien, und das stimmt auch. Gezählt werden nur Edit und Write, die gelungen sind, wie bei den geänderten Dateien; was ein Befehl in der Shell ändert, sieht ORBIT nicht.
+Ein Unteragent ist da von seinem Start bis zu seinem Bericht, eine Sitzung, solange sie in der Liste steht. Verglichen werden die zwölf jüngsten geänderten Dateien jeder Figur, jeweils mit vollem Pfad. Zwei Arbeitskopien desselben Projekts (`git worktree`) sind also verschiedene Dateien, und das stimmt auch. Gezählt werden nur Edit und Write, die gelungen sind, wie bei den geänderten Dateien; was ein Befehl in der Shell ändert, sieht ORBIT nicht.
 
 Gemeldet wird nur, was zwischen zwei Durchläufen der Brücke entstanden ist: Beide Figuren waren schon beim letzten Durchlauf da. Was beim Start oder mit einer neu gelesenen Sitzung schon bestand, steht in Szene und Stationswerten, klingelt aber nicht. Nur „die erste Rechnung meldet nichts“ reichte dafür nicht, denn die erste läuft, bevor die Brücke überhaupt Sitzungen gelesen hat.
 
@@ -124,6 +125,7 @@ Ein Agent, der denselben Befehl immer wieder startet und jedes Mal an demselben 
 - **Unter Stationswerte** steht SCHLEIFE mit Namen, Befehl und Zahl.
 - **Im Detailfenster** steht „Im Kreis · 4-mal derselbe Fehler · seit 14:02“, darunter der Befehl und die Zeile, die den Fehler sagt.
 - **Eine Mitteilung** und ein Eintrag im Bordbuch, je Reihe einmal. Wird eine Reihe nur länger, klingelt es nicht noch einmal.
+- **In der Leiste unten und in der Crew-Liste** steht statt der letzten Tätigkeit „⟲ 4× derselbe Fehler“, orange. Hat eine Figur beides, steht der Kreis vorn, denn er kostet, solange er läuft. Wer auf dich wartet, behält seine Zeile.
 
 Als Schleife gilt: derselbe Befehl mindestens dreimal hintereinander gescheitert, jedes Mal mit **demselben** Fehler, und der letzte Lauf ist der gescheiterte. Andere Befehle und Änderungen an Dateien dazwischen unterbrechen die Reihe nicht, ein gelungener Lauf desselben Befehls schon. Verglichen wird die ganze Ausgabe, bis auf Farbcodes, Uhrzeiten und Dauern („Time: 2.31 s“). Dreimal ein roter Test ist also noch keine Schleife, wenn sich der Fehler ändert: Aus „5 failed“ über „3 failed“ zu „1 failed“ kommt der Agent voran.
 
@@ -629,6 +631,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Die Vorführung: bei Sekunde 70 und 94 nichts, bei 96 und 140 `preis.ts` von pruefung:rundung zu webshop-kasse.
   - Gegengeprüft mit zwölf kaputten Fassungen: ohne Zeitregel, ohne Frist, meldet beim Start, meldet immer wieder, vergleicht nur den Dateinamen, zählt Projektordner, kein Bild, keine Zeile, kein Hinweis im Detail, Vorführung ohne Konflikt, Richtung verkehrt, die alten zuerst. Alle zwölf schlagen an. Ohne die Zeitregel meldete die Vorführung schon bei Sekunde 94 einen Konflikt, obwohl die Sitzung `preis.ts` geändert hatte, bevor die Prüfung überhaupt losging.
   - Dazu grün: dateien, vorf, detailtausch, familie, funk, aufgaben, test-bruecke, palette, werkzeug, minitakt, github, lieferung, hilfe und menue.
+  - Leiste und Crew-Liste (in konflikt.mjs und schleife.mjs): „⚠ gutschein.ts · auch kasse“ in Rot, gekürzt auf 26 Zeichen wie jede Zeile der Leiste, der volle Pfad als Hinweis beim Zeigen; „⟲ 5× derselbe Fehler“ in Orange, mit Befehl und Fehlerzeile als Hinweis; eine Sitzung ohne Kreis behält ihre Tätigkeit. Gegengeprüft: ohne die Zeile in der Leiste und ohne die in der Crew-Liste schlagen beide Tests an. crewliste, familie, winken, minitakt, vorf, unteragent, stoerung und palette bleiben grün.
 - **Wer sich im Kreis dreht** (schleife.mjs, sechs nachgebaute Sitzungen im echten Protokollformat, gelesen über die Brücke):
   - kreis: `npm test -- kasse` viermal mit demselben Fehler, nur die Dauern verschieden („1.24 s“, „Time: 2.31 s“), dazwischen Änderungen und ein anderer Befehl, einmal mit doppelten Leerzeichen geschrieben. Erkannt: vier, die Fehlerzeile „FAIL tests/kasse.test.ts“.
   - fortschritt: viermal rot, aber 5, 3, 2, 1 failed: kein Kreis. geloest: dreimal derselbe Fehler, dann grün: keiner. abgelehnt: zweimal, eine Ablehnung, einmal, dazu dreimal ein anderer Befehl abgelehnt: keiner. zwei: `tsc` dreimal mit dem Inhalt als Liste und Exit code 2, danach `pytest` nur zweimal: der Kreis ist `tsc`. alt: dreimal vor 16 bis 20 Minuten: erkannt, gilt aber nicht mehr.
