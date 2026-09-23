@@ -5966,7 +5966,16 @@ const TEILE = {
     name: "Die ganze Erde",
     kurz: "Zum Schluss von weiter weg: die Kugel mit Tag und Nacht, darum die Bahn in echter Höhe, oben die Station.",
     lang: "Dieselbe Karte, dieselbe Sonne und dieselbe Bahn wie unter der Station, nur von weiter weg. Auf dem Meer liegt der Sonnenglanz, nachts leuchten die Städte, um den magnetischen Pol liegt das Polarlicht, und dahinter steht der echte Himmel.",
-    zahl: "Zieh an der Kugel, dann dreht sie sich. Hierher kommst du jederzeit, wenn du weiter herauszoomst, als der Zoom reicht.",
+    get zahl() {
+      /* Hineingezoomt mit Satellitenbildern: wie fein sie dort sind */
+      if (Z.satellit && SATBILD.z >= SAT_MINZ && SATBILD.gewicht > 0) {
+        const m = 156543.034 * Math.cos((SATBILD.breite || 0) * Math.PI / 180) / Math.pow(2, SATBILD.z);
+        return "Satellitenbilder von Esri, Stufe " + SATBILD.z + " von " + SAT_MAXZ + ": ein Bildpunkt der Kacheln ist hier "
+          + (m >= 1000 ? (m / 1000).toFixed(1).replace(".", ",") + " Kilometer" : Math.round(m) + " Meter") + " breit. Mit dem Kreuz geht es zurück zur ganzen Kugel.";
+      }
+      return "Zieh an der Kugel, dann dreht sie sich. Hierher kommst du jederzeit, wenn du weiter herauszoomst, als der Zoom reicht."
+        + (Z.satellit ? " Mit Satellitenbildern zoomst du bis auf Straßen heran." : "");
+    },
   },
   sternbild: {
     name: "Sternbild",
@@ -11169,7 +11178,7 @@ uniform sampler2D uOval;
    Kachel des Fensters x0, y0, dann 2 hoch Zoomstufe, dann das Gewicht
    (0 = aus). uSatRaster: NX, NY. uWolkenWeg: wie weit die Wolken beim
    Hineinzoomen ausgeblendet sind. */
-uniform sampler2D uSat;
+uniform sampler2D uSat, uSatGueltig;
 uniform vec4 uSatFenster;
 uniform vec2 uSatRaster;
 uniform float uWolkenWeg;
@@ -11190,6 +11199,8 @@ vec4 satellit(vec3 p) {
   float dy = Y - uSatFenster.y;
   if (dx >= uSatRaster.x || dy < 0.0 || dy >= uSatRaster.y) return vec4(0.0);
   vec2 platz = mod(floor(vec2(X, Y)), uSatRaster);
+  /* Ist die Kachel dieses Platzes schon da? Sonst bleibt die Karte */
+  if (texture2D(uSatGueltig, (platz + 0.5) / uSatRaster).r < 0.5) return vec4(0.0);
   vec4 c = texture2D(uSat, (platz + fract(vec2(X, Y))) / uSatRaster);
   float rand = min(min(dx, uSatRaster.x - dx), min(dy, uSatRaster.y - dy));
   c.a *= smoothstep(0.0, 0.7, rand) * uSatFenster.w;
@@ -11328,11 +11339,11 @@ void main() {
   /* Die Oberflaeche bei Tag: fuer die Scheibe (Schicht 0) und die
      ganze Erde (Schicht 3) */
   vec3 farbe = vec3(0.0);
+  /* Wo geladen, das Satellitenbild statt der Karte der NASA: gut 150
+     Meter je Kachelpunkt bei Zoomstufe 10, gut zwei bei 16 */
+  vec4 sat = satellit(p);
   if (uSchicht < 0.5 || uSchicht > 2.5) {
     vec3 boden = texture2D(uTag, uv).rgb;
-    /* Wo geladen, das Satellitenbild statt der Karte der NASA: gut 150
-       Meter je Kachelpunkt bei Zoomstufe 10, gut zwei bei 16 */
-    vec4 sat = satellit(p);
     boden = mix(boden, sat.rgb, sat.a);
     /* Blue Marble ist fuer Karten gemacht, hell und satt. Aus dem Orbit
        liegt ueber allem ein Hauch Luft: etwas weniger Saettigung, etwas
@@ -11340,9 +11351,9 @@ void main() {
     float grau = dot(boden, vec3(0.3, 0.55, 0.15));
     vec3 getoent = pow(mix(vec3(grau), boden, 0.86), vec3(1.12)) * 0.95;
     /* Nah herangezoomt schaut man durch weniger Luft: dann bleibt von
-       dieser Toenung nur gut ein Drittel, und das Satellitenbild behaelt
+       dieser Toenung nur ein Zehntel, und das Satellitenbild behaelt
        seine Farben. Ohne Zoom ist es genau die Toenung wie immer. */
-    boden = mix(boden, getoent, 1.0 - 0.6 * uWolkenWeg);
+    boden = mix(boden, getoent, 1.0 - 0.9 * uWolkenWeg);
     float schatten = smoothstep(0.2, 0.9, texture2D(uWolken, uv - schritt).r) * (1.0 - uWolkenWeg);
     boden *= 1.0 - schatten * 0.42 * (1.0 - wolke);
     vec3 weiss = vec3(0.82, 0.84, 0.87) + kamm * 0.16;
@@ -11379,6 +11390,12 @@ void main() {
      Nachtseite kaum. */
   float sonne = dot(p, uSonne);
   float licht = clamp(sonne * 1.15 + 0.1, 0.0, 1.0);
+  /* Die Satellitenbilder tragen schon das Licht ihres Aufnahmetags, meist
+     vormittags bei hoher Sonne. Beleuchtet man sie noch einmal, werden sie
+     doppelt dunkel. Also zaehlt fuer sie das Licht im Verhaeltnis zu dem
+     bei der Aufnahme: bei hoher Sonne so hell wie aufgenommen, bei tiefer
+     dunkler, hinter dem Tagesrand dunkel wie der Rest. */
+  licht = mix(licht, clamp(sonne / 0.6, 0.0, 1.0), sat.a * uWolkenWeg);
   float nacht = smoothstep(0.06, -0.14, sonne);
   /* Das Abendrot faellt vor allem auf Wolken: der Boden liegt dort
      schon im Schatten, die Oberkanten fangen das letzte Licht. Ein
@@ -11497,14 +11514,15 @@ function erdkarteAufbauen() {
       /* Die Satellitenbilder: erst ein einzelner durchsichtiger Punkt, das
          Mosaik wird angelegt, wenn sie gewuenscht sind */
       ERDKARTE.satTx = textur(5, { daten: new Uint8Array(4), b: 1, h: 1 }, gl.RGBA, false, false);
+      ERDKARTE.satGueltigTx = textur(6, { daten: new Uint8Array(4), b: 1, h: 1 }, gl.LUMINANCE, false, false);
       const u = {};
       for (const n of ["uGroesse", "uMitte", "uRadius", "uBlick", "uSonne", "uMond", "uSchicht",
                        "uTag", "uWolken", "uLichter", "uKorn", "uPolar", "uOval",
-                       "uSat", "uSatFenster", "uSatRaster", "uWolkenWeg"])
+                       "uSat", "uSatGueltig", "uSatFenster", "uSatRaster", "uWolkenWeg"])
         u[n] = gl.getUniformLocation(prog, n);
       gl.uniform1i(u.uTag, 0); gl.uniform1i(u.uWolken, 1);
       gl.uniform1i(u.uLichter, 2); gl.uniform1i(u.uKorn, 3);
-      gl.uniform1i(u.uOval, 4); gl.uniform1i(u.uSat, 5);
+      gl.uniform1i(u.uOval, 4); gl.uniform1i(u.uSat, 5); gl.uniform1i(u.uSatGueltig, 6);
       gl.uniform4f(u.uPolar, 0, 1, 0, 0);
       gl.uniform4f(u.uSatFenster, 0, 0, 1, 0);
       gl.uniform2f(u.uSatRaster, 1, 1);
@@ -12247,9 +12265,14 @@ function zeichneErdansicht(t, dt) {
     cx.textAlign = "left"; cx.textBaseline = "bottom";
     cx.lineWidth = 3 * DPR; cx.strokeStyle = "rgba(4,7,14,.75)";
     const qx = 12 * DPR, qy = ((rb.unten || H) - 6) * DPR;
-    cx.strokeText(SAT_QUELLE, qx, qy);
+    /* Auf dem Handy passt sie nicht in eine Zeile: dann in zwei, am Punkt */
+    const zeilen = cx.measureText(SAT_QUELLE).width > (W - 24) * DPR ? SAT_QUELLE.split(" · ") : [SAT_QUELLE];
     cx.fillStyle = "rgba(220,230,245,.78)";
-    cx.fillText(SAT_QUELLE, qx, qy);
+    zeilen.forEach((z, i) => {
+      const y = qy - (zeilen.length - 1 - i) * 13 * DPR;
+      cx.strokeText(z, qx, y);
+      cx.fillText(z, qx, y);
+    });
     cx.restore();
   }
 
@@ -13143,9 +13166,11 @@ function wolkenAnwenden() {
    welchen Ausschnitt man sich ansieht, so wie bei jeder Online-Karte. */
 const SATBILD = { nx: 16, ny: 10, z: -1, x0: 0, y0: 0, platz: [], angelegt: false,
                   cache: new Map(), laden: new Map(), warte: [], version: 0,
-                  anfragen: 0, fehler: 0, leer: null, gewicht: 0, wolkenWeg: 0 };
+                  anfragen: 0, fehler: 0, gewicht: 0, wolkenWeg: 0,
+                  gueltig: null, gueltigNeu: false, sicht: new Map(), sichtStand: "" };
 const SAT_ADRESSE = "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/";
-const SAT_QUELLE = "Bilder: Esri, Maxar, Earthstar Geographics, GIS User Community";
+/* So verlangt es Esri: "Powered by Esri" und die Quellen des Dienstes */
+const SAT_QUELLE = "Powered by Esri · Bilder: Esri, Maxar, Earthstar Geographics, GIS User Community";
 const SAT_MAXZ = 16, SAT_MINZ = 5, SAT_GLEICHZEITIG = 8, SAT_CACHE = 400;
 
 /* Web-Mercator: Breite und Laenge in Grad zu Kachelkoordinaten */
@@ -13159,6 +13184,11 @@ function satKachel(breite, laenge, z) {
 function satVorbereiten(g, blick) {
   const S_ = SATBILD;
   if (!Z.satellit || !ERDKARTE.bereit || !ERDKARTE.gl) { S_.gewicht = 0; S_.wolkenWeg = 0; return null; }
+  /* Das Fenster folgt dem Schirm: quer 16 mal 10 Kacheln, hochkant 8 mal
+     16. Die Spalten muessen eine Zweierpotenz sein, damit jede Kachel
+     auch ueber die Datumsgrenze hinweg ihren eigenen Platz hat. */
+  const [nx, ny] = W >= H ? [16, 10] : [8, 16];
+  if (nx !== S_.nx || ny !== S_.ny) { satAus(); S_.nx = nx; S_.ny = ny; S_.angelegt = false; }
   /* Die Blickmitte: der Punkt der Kugel unter der Mitte des Schirms, oder
      der naechste auf ihr, wenn die ganze Kugel zu sehen ist */
   const rand = bedienRand();
@@ -13171,14 +13201,16 @@ function satVorbereiten(g, blick) {
   const p = [M[0] * v[0] + M[3] * v[1] + M[6] * v[2], M[1] * v[0] + M[4] * v[1] + M[7] * v[2],
              M[2] * v[0] + M[5] * v[1] + M[8] * v[2]];
   const [breite, laenge] = breiteLaenge(p);
+  S_.breite = breite;
   /* Meter je Bildpunkt dort (ohne die Verkuerzung zum Rand hin) und die
      Stufe, deren Kachelpunkte etwa so gross sind */
   const mpp = 6371000 / (g.r * DPR);
   const cosb = Math.max(0.05, Math.cos(breite * Math.PI / 180));
   let z = Math.round(Math.log2(156543.034 * cosb / mpp));
-  /* Deckt das Fenster den Schirm nicht, eine Stufe groeber */
-  const schirm = Math.max(W, H) * DPR * mpp;
-  while (z > SAT_MINZ && schirm / (256 * 156543.034 * cosb / Math.pow(2, z)) > Math.min(S_.nx, S_.ny * 1.6) - 1) z--;
+  /* Deckt das Fenster den Schirm nicht, eine Stufe groeber — in der
+     Breite und in der Hoehe, eine Kachel Luft fuer den angeschnittenen Rand */
+  const kachelPx = (zz) => 256 * 156543.034 * cosb / Math.pow(2, zz) / mpp;
+  while (z > SAT_MINZ && (W * DPR / kachelPx(z) > nx - 1 || H * DPR / kachelPx(z) > ny - 1)) z--;
   z = Math.min(z, SAT_MAXZ);
   /* Ueberblenden: unter Stufe 5 ist die Karte der NASA so fein wie die
      Kacheln, darueber uebernehmen sie; die Wolken gehen ab Stufe 7 */
@@ -13191,12 +13223,15 @@ function satVorbereiten(g, blick) {
   const k = satKachel(breite, laenge, z);
   const x0 = Math.floor(k.x - S_.nx / 2);
   const y0 = n <= S_.ny ? 0 : klemm(Math.floor(k.y - S_.ny / 2), 0, n - S_.ny);
-  if (z !== S_.z || x0 !== S_.x0 || y0 !== S_.y0) satFenster(z, x0, y0, k);
+  if (z !== S_.z || x0 !== S_.x0 || y0 !== S_.y0) satFenster(z, x0, y0);
+  satNachfordern(g, M, z, k);
+  if (S_.gueltigNeu) satGueltigHochladen();
   return { x0: ((S_.x0 % n) + n) % n, y0: S_.y0, n, nx: S_.nx, ny: S_.ny, gewicht: S_.gewicht, wolkenWeg: S_.wolkenWeg };
 }
 
-/* Das Mosaik im Grafikspeicher einmal anlegen: WebGL fuellt es mit Nullen,
-   also durchsichtig */
+/* Das Mosaik im Grafikspeicher einmal anlegen, dazu eine winzige Karte,
+   welcher Platz schon seine Kachel hat. Leere Plaetze zeigt der
+   Schattierer nicht, dort bleibt die Karte der NASA. */
 function satAnlegen() {
   const S_ = SATBILD;
   if (S_.angelegt) return;
@@ -13205,18 +13240,31 @@ function satAnlegen() {
   gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.satTx);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, S_.nx * 256, S_.ny * 256, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
   S_.platz = new Array(S_.nx * S_.ny).fill(null);
-  S_.leer = new Uint8Array(256 * 256 * 4);
+  S_.gueltig = new Uint8Array(S_.nx * S_.ny);
+  S_.gueltigNeu = true;
+  S_.z = -1;
   S_.angelegt = true;
 }
 
-/* Ein neues Fenster: jeder Platz bekommt die Kachel, die jetzt zu ihm
-   gehoert. Liegt sie schon da, bleibt sie; sonst wird der Platz geleert
-   und die Kachel aus dem Speicher genommen oder angefragt, die naechsten
-   zur Blickmitte zuerst. */
-function satFenster(z, x0, y0, mitte) {
+function satGueltigHochladen() {
+  const S_ = SATBILD, gl = ERDKARTE.gl;
+  if (!gl || !S_.gueltig) return;
+  gl.activeTexture(gl.TEXTURE6);
+  gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.satGueltigTx);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, S_.nx, S_.ny, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, S_.gueltig);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+  S_.gueltigNeu = false;
+  S_.version++;
+}
+
+/* Ein neues Fenster: jeder Platz gehoert jetzt der Kachel, die dort
+   hingehoert. Liegt sie schon da, bleibt sie gueltig; sonst ist der
+   Platz leer, bis sie kommt. Geladen wird hier nichts — das entscheidet
+   satNachfordern nach dem, was auf dem Schirm liegt. */
+function satFenster(z, x0, y0) {
   const S_ = SATBILD, n = Math.pow(2, z);
   S_.z = z; S_.x0 = x0; S_.y0 = y0;
-  const gewuenscht = [];
   for (let j = 0; j < Math.min(S_.ny, n); j++) {
     for (let i = 0; i < S_.nx; i++) {
       const x = (((x0 + i) % n) + n) % n, y = y0 + j;
@@ -13227,29 +13275,107 @@ function satFenster(z, x0, y0, mitte) {
       const platz = (x % S_.nx) + (y % S_.ny) * S_.nx;
       if (S_.platz[platz] === schluessel) continue;
       S_.platz[platz] = schluessel;
-      const b = S_.cache.get(schluessel);
-      if (b) satHochladen(platz, b);
-      else {
-        satHochladen(platz, null);
-        gewuenscht.push({ schluessel, platz, d: Math.hypot(x0 + i + 0.5 - mitte.x, y + 0.5 - mitte.y) });
+      if (S_.gueltig[platz]) { S_.gueltig[platz] = 0; S_.gueltigNeu = true; }
+    }
+  }
+  S_.sichtStand = "";
+}
+
+/* Welche Kacheln liegen auf dem Schirm? Ein Raster von Punkten ueber den
+   ganzen Schirm, jeder mit seinen Nachbarn als Rand. Nur diese werden
+   angefragt: das Fenster ist viel groesser als der Schirm, und beim
+   schnellen Zoomen durch acht Stufen wuerden sonst je 160 Kacheln geholt,
+   von denen man zwanzig sieht. */
+function satSichtbar(g, M, z) {
+  const n = Math.pow(2, z), sicht = new Map();
+  /* Eine Kachel ist mindestens 180 Geraetepunkte breit: alle 120 ein Punkt
+     trifft jede */
+  const SX = Math.ceil(W * DPR / 120), SY = Math.ceil(H * DPR / 120);
+  for (let j = 0; j <= SY; j++) {
+    for (let i = 0; i <= SX; i++) {
+      const qx = (W * i / SX - g.cx) / g.r, qy = (H * j / SY - g.cy) / g.r, q2 = qx * qx + qy * qy;
+      if (q2 >= 1) continue;
+      const qz = Math.sqrt(1 - q2);
+      const p = [M[0] * qx - M[3] * qy + M[6] * qz, M[1] * qx - M[4] * qy + M[7] * qz, M[2] * qx - M[5] * qy + M[8] * qz];
+      const [b, l] = breiteLaenge(p);
+      if (Math.abs(b) > 85.05) continue;
+      const k = satKachel(b, l, z);
+      const kx = Math.floor(k.x), ky = Math.floor(k.y);
+      /* Die Nachbarn als Vorrat fuers Verschieben: angefragt erst, wenn
+         alles Sichtbare unterwegs ist */
+      for (let dy = -1; dy <= 1; dy++) {
+        const y = ky + dy;
+        if (y < 0 || y >= n) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const x = (((kx + dx) % n) + n) % n, schluessel = z + "/" + x + "/" + y;
+          const vorrat = dx !== 0 || dy !== 0;
+          const alt = sicht.get(schluessel);
+          if (!alt || (alt[2] && !vorrat)) sicht.set(schluessel, [x, y, vorrat]);
+        }
       }
     }
   }
-  gewuenscht.sort((a, b) => a.d - b.d);
-  /* Was nicht mehr im Fenster liegt, braucht niemand mehr */
-  const noch = new Set(S_.platz);
-  S_.warte = gewuenscht.concat(S_.warte.filter(w => noch.has(w.schluessel) && !gewuenscht.some(g2 => g2.schluessel === w.schluessel)));
+  return sicht;
+}
+
+/* Was auf dem Schirm liegt und noch fehlt: aus dem Speicher sofort (ein
+   paar je Bild, damit nichts ruckelt), sonst anfragen, das Naechste zur
+   Blickmitte zuerst. Was nicht mehr zu sehen ist, faellt aus der
+   Warteschlange. */
+function satNachfordern(g, M, z, mitte) {
+  const S_ = SATBILD, n = Math.pow(2, z);
+  /* Abstand zur Blickmitte in Kacheln, ueber die Datumsgrenze hinweg;
+     Vorrat kommt nach allem, was zu sehen ist */
+  const abstand = (x, y, vorrat) => {
+    let dx = x + 0.5 - mitte.x;
+    dx -= n * Math.round(dx / n);
+    return Math.hypot(dx, y + 0.5 - mitte.y) + (vorrat ? 1000 : 0);
+  };
+  const stand = z + "|" + S_.x0 + "|" + S_.y0 + "|" + M.join(",") + "|" + g.r + "|" + W + "|" + H;
+  if (stand !== S_.sichtStand) { S_.sicht = satSichtbar(g, M, z); S_.sichtStand = stand; S_.warteNeu = true; }
+  let aus = 0;
+  let neu = false;
+  /* Wie viele Kacheln auf dem Schirm noch fehlen (ohne den Vorrat) */
+  S_.fehlt = 0;
+  const wartend = new Set(S_.warte.map(w => w.schluessel));
+  for (const [schluessel, [x, y, vorrat]] of S_.sicht) {
+    const platz = (x % S_.nx) + (y % S_.ny) * S_.nx;
+    if (S_.platz[platz] !== schluessel || S_.gueltig[platz]) continue;
+    const b = S_.cache.get(schluessel);
+    if (!vorrat && !(b && aus < 12)) S_.fehlt++;
+    if (b) {
+      if (aus >= 12) continue;
+      aus++;
+      /* Zuletzt gebraucht: nach hinten, damit der Speicher das Aelteste
+         zuerst vergisst und nicht das Oftgebrauchte */
+      S_.cache.delete(schluessel); S_.cache.set(schluessel, b);
+      satHochladen(platz, b);
+      continue;
+    }
+    if (S_.laden.has(schluessel) || wartend.has(schluessel)) continue;
+    S_.warte.push({ schluessel, platz, d: abstand(x, y, vorrat) });
+    neu = true;
+  }
+  if (neu || S_.warteNeu) {
+    S_.warte = S_.warte.filter(w => S_.sicht.has(w.schluessel) && S_.platz[w.platz] === w.schluessel);
+    for (const w of S_.warte) {
+      const [x, y, vorrat] = S_.sicht.get(w.schluessel);
+      w.d = abstand(x, y, vorrat);
+    }
+    S_.warte.sort((a, b) => a.d - b.d);
+    S_.warteNeu = false;
+  }
   satWeiter();
 }
 
 function satHochladen(platz, bild) {
   const S_ = SATBILD, gl = ERDKARTE.gl;
-  if (!gl || !S_.angelegt) return;
+  if (!gl || !S_.angelegt || !bild) return;
   gl.activeTexture(gl.TEXTURE5);
   gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.satTx);
-  const px = (platz % S_.nx) * 256, py = Math.floor(platz / S_.nx) * 256;
-  if (bild) gl.texSubImage2D(gl.TEXTURE_2D, 0, px, py, gl.RGBA, gl.UNSIGNED_BYTE, bild);
-  else gl.texSubImage2D(gl.TEXTURE_2D, 0, px, py, 256, 256, gl.RGBA, gl.UNSIGNED_BYTE, S_.leer);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, (platz % S_.nx) * 256, Math.floor(platz / S_.nx) * 256, gl.RGBA, gl.UNSIGNED_BYTE, bild);
+  S_.gueltig[platz] = 255;
+  S_.gueltigNeu = true;
   S_.version++;
 }
 
@@ -13266,12 +13392,13 @@ function satWeiter() {
     S_.laden.set(w.schluessel, b);
     S_.anfragen++;
     const fertig = (ok) => {
+      if (S_.laden.get(w.schluessel) !== b) return;
       S_.laden.delete(w.schluessel);
       if (ok && Z.satellit) {
         S_.cache.set(w.schluessel, b);
         if (S_.cache.size > SAT_CACHE) S_.cache.delete(S_.cache.keys().next().value);
-        const platz = S_.platz.indexOf(w.schluessel);
-        if (platz >= 0) satHochladen(platz, b);
+        if (S_.angelegt && S_.platz[w.platz] === w.schluessel) satHochladen(w.platz, b);
+        if (S_.gueltigNeu && ERDKARTE.gl) satGueltigHochladen();
       } else if (!ok) S_.fehler++;
       satWeiter();
     };
@@ -13287,10 +13414,9 @@ function satAus() {
   for (const b of S_.laden.values()) b.src = "";
   S_.laden.clear(); S_.warte = [];
   S_.z = -1; S_.gewicht = 0; S_.wolkenWeg = 0;
-  if (S_.angelegt) S_.platz.fill(null);
-  if (S_.angelegt && ERDKARTE.gl) {
-    for (let i = 0; i < S_.platz.length; i++) satHochladen(i, null);
-  }
+  S_.sicht = new Map(); S_.sichtStand = "";
+  if (S_.angelegt) { S_.platz.fill(null); S_.gueltig.fill(0); S_.gueltigNeu = true; }
+  if (S_.angelegt && ERDKARTE.gl) satGueltigHochladen();
   S_.version++;
 }
 
@@ -20108,6 +20234,10 @@ const HILFE = [
       + "du weiter heraus, als es geht, oder drückst E, siehst du die ganze Erde: die Kugel mit Tag, "
       + "Dämmerung und den Lichtern der Nacht, darum die Bahn in echter Höhe und oben die Station. "
       + "Ziehen dreht die Kugel, Zoomen macht sie größer, ein Tipp auf die Station bringt dich zurück. "
+      + "Mit dem Knopf Satellitenbilder unten in der Zoomleiste (oder unter Stationswerte) wird die Kugel "
+      + "zur Karte wie bei Google Earth: Du zoomst bis auf Straßen heran, immer auf den Punkt unter dem "
+      + "Zeiger, und Ziehen verschiebt. Die Bilder kommen von Esri, erst beim Hineinzoomen und nur für den "
+      + "Ausschnitt, den du siehst; der Knopf mit dem Kreuz bringt dich zur ganzen Kugel zurück. "
       + "Ohne WebGL oder ohne die Kartenbilder zeichnet ORBIT eine gerechnete Erde.",
   },
   {
@@ -20526,8 +20656,9 @@ let kneifAbstand = 0;
 function zoomLeisteAktualisieren() {
   /* In der ganzen Erde, weit hineingezoomt: wie breit der Ausschnitt ist */
   let erde = "Erde";
-  if (ERDANSICHT.an && ERDANSICHT.zoom > 2.4 && ERDANSICHT.geo) {
-    const km = W * 6371 / ERDANSICHT.geo.r;
+  if (ERDANSICHT.an && ERDANSICHT.zoom > 2.4) {
+    /* Aus dem Zoom selbst, nicht aus dem zuletzt gezeichneten Bild */
+    const km = W * 6371 / erdansichtMasse().r;
     erde = km >= 10 ? Math.round(km) + " km" : km >= 1 ? km.toFixed(1).replace(".", ",") + " km" : Math.round(km * 1000) + " m";
   }
   $("#zoom-stufe").textContent = ERDANSICHT.an ? erde
