@@ -1123,6 +1123,8 @@ body.sicht #blende-detail, body.sicht #blende-teil{
 .tm-kopf{font-size:9.5px; letter-spacing:.14em; color:var(--tx3); margin-bottom:9px;}
 /* Die Schalter: nach Gruppen, je ein Symbol, der Name, darunter was er
    tut, rechts ein Schieber. An ist er blau und das Symbol leuchtet. */
+.tm-vorschau{margin:12px 1px 0; padding:8px 10px; border-radius:9px; font-size:11.5px; line-height:1.45;
+  color:#f6c878; background:rgba(246,200,120,.08); border:1px solid rgba(246,200,120,.3);}
 .tm-abschnitt{display:flex; align-items:center; gap:8px; margin:14px 1px 2px;
   font-size:9px; letter-spacing:.16em; color:var(--tx3);}
 .tm-abschnitt::after{content:""; flex:1; height:1px;
@@ -1323,6 +1325,10 @@ body.sicht #blende-detail, body.sicht #blende-teil{
     <canvas id="tm-puls" width="420" height="60"></canvas>
     <div id="tm-alarm"></div>
     <div id="tm-zeilen"></div>
+    <p id="tm-vorschau" class="tm-vorschau" hidden>In der Vorschau auf claude.ai kommt nichts von fremden Servern an.
+      Die Satellitenbilder sind deshalb hier Bilder der NASA, die mit der Seite kommen, gut zwei Kilometer fein.
+      Beschriftung, Relief, Erde von gestern, Wolken von heute, echte ISS, Weltraumwetter und Regenradar bleiben ohne Wirkung.
+      Im Mac-Programm und in orbit.html im Browser geht alles, bis auf Straßen.</p>
     <div class="tm-abschnitt">KARTE</div>
     <button id="tm-sat" class="tm-knopf" type="button"></button>
     <button id="tm-schrift" class="tm-knopf" type="button"></button>
@@ -7201,11 +7207,18 @@ const TEILE = {
       /* Hineingezoomt mit Satellitenbildern: wie fein sie dort sind */
       if (Z.satellit && SATBILD.z >= SAT_MINZ && SATBILD.gewicht > 0) {
         const m = 156543.034 * Math.cos((SATBILD.breite || 0) * Math.PI / 180) / Math.pow(2, SATBILD.z);
+        const breit = (m >= 1000 ? (m / 1000).toFixed(1).replace(".", ",") + " Kilometer" : Math.round(m) + " Meter") + " breit. ";
+        if (SATBILD.quelle === "nasa")
+          return "Bilder der NASA (Blue Marble), die mit der Seite kommen, Stufe " + SATBILD.z + " von " + NASA_STUFE
+            + ": ein Bildpunkt ist hier " + breit
+            + (inVorschau() ? "Die Bilder von Esri, bis auf Straßen, sperrt die Vorschau auf claude.ai. " : "Esri ist gerade nicht zu erreichen. ")
+            + "Der Pfeil im Kreis bringt dich zur ganzen Kugel zurück.";
         return "Satellitenbilder von Esri, Stufe " + SATBILD.z + " von " + SAT_MAXZ + ": ein Bildpunkt der Kacheln ist hier "
-          + (m >= 1000 ? (m / 1000).toFixed(1).replace(".", ",") + " Kilometer" : Math.round(m) + " Meter") + " breit. Der Pfeil im Kreis bringt dich zur ganzen Kugel zurück.";
+          + breit + "Der Pfeil im Kreis bringt dich zur ganzen Kugel zurück.";
       }
       return "Zieh an der Kugel, dann dreht sie sich. Hierher kommst du jederzeit, wenn du weiter herauszoomst, als der Zoom reicht."
-        + (Z.satellit ? " Mit Satellitenbildern zoomst du bis auf Straßen heran." : "");
+        + (!Z.satellit ? "" : satQuelle() === "nasa" ? " Mit den Bildern der NASA zoomst du heran, bis ein Punkt gut zwei Kilometer breit ist."
+          : " Mit Satellitenbildern zoomst du bis auf Straßen heran.");
     },
   },
   sternbild: {
@@ -12438,6 +12451,9 @@ uniform float uReliefStaerke;
 uniform vec4 uSatFenster;
 uniform vec2 uSatRaster;
 uniform float uWolkenWeg;
+/* 1 bei den Bildern der NASA: dann steht im Alphakanal der Kachel nicht die
+   Beschriftung, sondern das Licht der Nacht aus Black Marble */
+uniform float uSatLichter;
 /* Die Erde von gestern: 1, wenn die Tageskarte das Echtfarbenbild ist; wo es
    gilt, steht im Alphakanal der Karte */
 uniform float uGestern;
@@ -12524,6 +12540,7 @@ vec3 regenFarbe(float dbz, float schnee) {
    keine): die Namen und Grenzen sind schon ins Bild gemalt, wie viel davon
    den Punkt deckt, merkt sich satSchrift. */
 float satSchrift = 0.0;
+float satLicht = 0.0, satLichtDeck = 0.0;
 vec2 satHang = vec2(0.0);
 vec2 satXY = vec2(0.0);
 float satMeter = 1.0;
@@ -12549,7 +12566,9 @@ vec4 satellit(vec3 p) {
 #endif
   float rand = min(min(dx, uSatRaster.x - dx), min(dy, uSatRaster.y - dy));
   float deck = smoothstep(0.0, 0.7, rand) * uSatFenster.w;
-  satSchrift = (1.0 - c.a) * deck;
+  satSchrift = (1.0 - c.a) * deck * (1.0 - uSatLichter);
+  satLicht = c.a;
+  satLichtDeck = deck * uSatLichter;
   return vec4(c.rgb, deck);
 }
 
@@ -12779,6 +12798,9 @@ void main() {
       l = mix(l, texture2D(uNacht, nb).r, uNachtGewicht * saum);
     }
   }
+  /* Mit den Bildern der NASA liegen die Lichter in den Kacheln selbst, im
+     selben Netz und so fein wie der Tag */
+  l = mix(l, satLicht, satLichtDeck);
   vec3 stadt = mix(vec3(1.0, 0.6, 0.28), vec3(1.0, 0.9, 0.72), l) * l;
   stadt *= (1.0 - smoothstep(0.25, 0.85, w) * 0.88) * 1.25;
   if (uSchicht < 1.5) {
@@ -13066,7 +13088,7 @@ function erdkarteAufbauen() {
       const u = {};
       for (const n of ["uGroesse", "uMitte", "uRadius", "uBlick", "uSonne", "uMond", "uSchicht",
                        "uTag", "uWolken", "uLichter", "uKorn", "uPolar", "uOval",
-                       "uSat", "uSatGueltig", "uSatFenster", "uSatRaster", "uWolkenWeg",
+                       "uSat", "uSatGueltig", "uSatFenster", "uSatRaster", "uWolkenWeg", "uSatLichter",
                        "uNacht", "uNachtBox", "uNachtGewicht", "uGestern", "uSatRelief", "uReliefStaerke",
                        "uRegen", "uRegenFenster", "uRegenHoehe", "uRegenSchritte"])
         u[n] = gl.getUniformLocation(prog, n);
@@ -13083,6 +13105,7 @@ function erdkarteAufbauen() {
       gl.uniform4f(u.uSatFenster, 0, 0, 1, 0);
       gl.uniform2f(u.uSatRaster, 1, 1);
       gl.uniform1f(u.uWolkenWeg, 0);
+      gl.uniform1f(u.uSatLichter, 0);
       ERDKARTE.ovalTx = ovalTx;
       ERDKARTE.ovalGeladen = null;
       const fehler = gl.getError();
@@ -13255,6 +13278,7 @@ function erdkarteMalen(ziel, bw, bh, mx, my, rr, blick, schicht) {
   gl.uniform4f(u.uSatFenster, sat ? sat.x0 : 0, sat ? sat.y0 : 0, sat ? sat.n : 1, sat ? sat.gewicht : 0);
   gl.uniform2f(u.uSatRaster, sat ? sat.nx : 1, sat ? sat.ny : 1);
   gl.uniform1f(u.uWolkenWeg, sat ? sat.wolkenWeg : 0);
+  gl.uniform1f(u.uSatLichter, sat && sat.lichter ? 1 : 0);
   /* Etwas kraeftiger als die reine Rechnung, damit das Relief auch bei
      halbhoher Sonne zu sehen ist */
   if (ERDKARTE.reliefMoeglich) gl.uniform1f(u.uReliefStaerke, sat && Z.relief ? RELIEF_STAERKE : 0);
@@ -13565,7 +13589,7 @@ function erdeBei(px, py) {
    Ein Punkt Station wird die Station hier bewusst: in echtem Massstab
    waere sie von hier aus nicht einmal ein Bildpunkt. Die Bahn liegt
    dafuer in echter Hoehe ueber dem Boden, 420 von 6371 Kilometern. */
-const ERDANSICHT = { an: false, blend: 0, drang: 1, drangUm: 0, blick: null, geo: null,
+const ERDANSICHT = { an: false, blend: 0, drang: 1, drangUm: 0, blick: null, geo: null, grenzeUm: -1e9, amRand: false,
                      neig: 50 * Math.PI / 180, az: 0, zoom: 1, frei: null, freiVersion: 0 };
 /* Mit Satellitenbildern laesst sich bis auf Strassen heranzoomen: gut
    fuenftausendfach, dann ist ein Bildpunkt rund zwei Meter */
@@ -13898,14 +13922,30 @@ function zeichneErdansicht(t, dt) {
   heimZeichnen(g, blick);
   /* Esri verlangt die Quellenangabe, sobald seine Bilder zu sehen sind; die
      NASA bittet darum, sobald ihre Nachtlichter zu sehen sind */
-  ERDANSICHT.quelle = sat && sat.gewicht > 0 ? SAT_QUELLE : null;
+  /* Die Nachweise nur fuer Bilder, die wirklich kamen, und von der Quelle,
+     aus der sie kamen */
+  const nasa = SATBILD.quelle === "nasa";
+  const satDa = !!(sat && sat.gewicht > 0 && (nasa ? NASABILD.geladen : SATBILD.geladen) > 0);
+  ERDANSICHT.quelle = satDa ? (nasa ? NASA_QUELLE : SAT_QUELLE) : null;
   ERDANSICHT.quelleNacht = NACHTLICHT.sichtbar ? NACHT_QUELLE : null;
-  ERDANSICHT.quelleSchrift = sat && sat.gewicht > 0 && Z.beschriftung ? SCHRIFT_QUELLE : null;
-  ERDANSICHT.quelleRelief = sat && sat.gewicht > 0 && Z.relief && ERDKARTE.reliefTx ? RELIEF_QUELLE : null;
+  ERDANSICHT.quelleSchrift = satDa && !nasa && Z.beschriftung ? SCHRIFT_QUELLE : null;
+  ERDANSICHT.quelleRelief = satDa && !nasa && Z.relief && ERDKARTE.reliefTx ? RELIEF_QUELLE : null;
+  /* Der Hinweis: wenn gar nichts ankommt, solange das so ist. An der Grenze
+     der Bilder der NASA sechs Sekunden, sobald man dort ankommt oder weiter
+     hineinwill, als sie reichen; die letzte davon verblassend. Dauernd
+     stuende das Schild auf der Karte, die man sich gerade ansehen will. */
+  const amRand = !!(Z.satellit && nasa && satDa && ERDANSICHT.frei && ERDANSICHT.zoom >= erdZoomMax() * 0.97);
+  if (amRand && !ERDANSICHT.amRand) ERDANSICHT.grenzeUm = performance.now();
+  ERDANSICHT.amRand = amRand;
+  const grenzAlter = performance.now() - ERDANSICHT.grenzeUm;
+  const gesperrt = satGesperrt();
+  ERDANSICHT.hinweis = gesperrt ? (inVorschau() ? HINWEIS_VORSCHAU : HINWEIS_GESPERRT)
+    : amRand && grenzAlter < 6000 ? nasaGrenzHinweis() : null;
+  ERDANSICHT.hinweisDeck = gesperrt ? 1 : klemm((6000 - grenzAlter) / 1000, 0, 1);
   /* RainViewer bittet um die Angabe, sobald sein Radar zu sehen ist */
   ERDANSICHT.quelleRegen = regen && regen.gewicht > 0 ? REGEN_QUELLE : null;
   if (ERDANSICHT.quelle || ERDANSICHT.quelleNacht || ERDANSICHT.quelleSchrift || ERDANSICHT.quelleRelief
-      || ERDANSICHT.quelleRegen) {
+      || ERDANSICHT.quelleRegen || ERDANSICHT.hinweis) {
     const rb = bedienRand();
     cx.save();
     cx.font = `500 ${10 * DPR}px OrbitInter, -apple-system, system-ui, sans-serif`;
@@ -13922,11 +13962,8 @@ function zeichneErdansicht(t, dt) {
       while (i > 0 && cx.measureText(t.slice(0, i + 1)).width > breit) i = t.lastIndexOf(", ", i - 1);
       return i > 0 ? [t.slice(0, i + 1), ...passend(t.slice(i + 2))] : [t];
     };
-    if (ERDANSICHT.quelle) zeilen.push(...passend(SAT_QUELLE));
-    if (ERDANSICHT.quelleSchrift) zeilen.push(...passend(SCHRIFT_QUELLE));
-    if (ERDANSICHT.quelleRelief) zeilen.push(...passend(RELIEF_QUELLE));
-    if (ERDANSICHT.quelleNacht) zeilen.push(...passend(NACHT_QUELLE));
-    if (ERDANSICHT.quelleRegen) zeilen.push(...passend(REGEN_QUELLE));
+    for (const q of [ERDANSICHT.quelle, ERDANSICHT.quelleSchrift, ERDANSICHT.quelleRelief,
+                     ERDANSICHT.quelleNacht, ERDANSICHT.quelleRegen]) if (q) zeilen.push(...passend(q));
     ERDANSICHT.quellZeilen = zeilen;
     cx.fillStyle = "rgba(220,230,245,.78)";
     zeilen.forEach((z, i) => {
@@ -13934,8 +13971,39 @@ function zeichneErdansicht(t, dt) {
       cx.strokeText(z, qx, y);
       cx.fillText(z, qx, y);
     });
+    /* Der Hinweis auf gesperrte Bilder: ein eigenes Schild mitten ueber
+       der Bedienung unten, umbrochen, in Bernstein. Er erklaert, warum die
+       Karte leer bleibt, und gehoert deshalb nicht klein in die Ecke der
+       Nachweise, wo ihn eine offene Blende auch noch verdeckte. */
+    const hz = [];
+    if (ERDANSICHT.hinweis) {
+      cx.font = `600 ${12.5 * DPR}px OrbitInter, -apple-system, system-ui, sans-serif`;
+      const maxB = Math.min(W - 48, 520) * DPR;
+      for (const teil of ERDANSICHT.hinweis.split(" · ")) {
+        let zeile = "";
+        for (const wort of teil.split(" ")) {
+          const probe = zeile ? zeile + " " + wort : wort;
+          if (zeile && cx.measureText(probe).width > maxB) { hz.push(zeile); zeile = wort; } else zeile = probe;
+        }
+        if (zeile) hz.push(zeile);
+      }
+      const lh = 17 * DPR, pad = 12 * DPR;
+      cx.globalAlpha = ERDANSICHT.hinweisDeck;
+      const bw = Math.max(...hz.map(z => cx.measureText(z).width)) + pad * 2, bh = hz.length * lh + pad * 1.4;
+      const bx = W * DPR / 2 - bw / 2;
+      const by = qy - zeilen.length * 13 * DPR - (zeilen.length ? 10 * DPR : 4 * DPR) - bh - 24 * DPR;
+      cx.fillStyle = "rgba(24,16,6,.88)";
+      cx.strokeStyle = "rgba(246,200,120,.55)"; cx.lineWidth = 1 * DPR;
+      rundRect(cx, bx, by, bw, bh, 10 * DPR); cx.fill(); cx.stroke();
+      cx.fillStyle = "rgba(250,214,150,.98)";
+      cx.textAlign = "center"; cx.textBaseline = "top";
+      hz.forEach((z, i) => cx.fillText(z, W * DPR / 2, by + pad * 0.7 + i * lh));
+      cx.globalAlpha = 1;
+      ERDANSICHT.hinweisBox = { x: bx / DPR, y: by / DPR, b: bw / DPR, h: bh / DPR };
+    } else ERDANSICHT.hinweisBox = null;
+    ERDANSICHT.hinweisZeilen = hz;
     cx.restore();
-  } else ERDANSICHT.quellZeilen = [];
+  } else { ERDANSICHT.quellZeilen = []; ERDANSICHT.hinweisZeilen = []; }
 
   /* Die Bahn: ein Kreis in echter Hoehe, als Ellipse gesehen. Was hinter
      der Kugel liegt, bleibt verdeckt; vorn ist sie hell, dort, wo die
@@ -16441,7 +16509,7 @@ function erdVektor(breite, laenge) {
    Kilometer Bildhoehe; ein Land so, dass es drei Viertel der Hoehe fuellt.
    Sichtbar sind rund 2,5 / Zoom im Bogenmass. */
 function flugZoom(ziel) {
-  const max = Z.satellit ? SAT_ZOOM_MAX : 2.4;
+  const max = erdZoomMax(ziel.breite);
   const z = ziel.spanne ? 2.5 / (ziel.spanne * Math.PI / 180 / 0.75) : 220;
   return klemm(z, 1, max);
 }
@@ -18125,7 +18193,8 @@ const SATBILD = { nx: 16, ny: 10, z: -1, x0: 0, y0: 0, platz: [], angelegt: fals
                   cache: new Map(), laden: new Map(), warte: [], version: 0,
                   anfragen: 0, fehler: 0, gewicht: 0, wolkenWeg: 0,
                   gueltig: null, gueltigNeu: false, sicht: new Map(), sichtStand: "",
-                  schriftK: -1, schriftAnfragen: 0, reliefAnfragen: 0, reliefFehler: 0 };
+                  schriftK: -1, schriftAnfragen: 0, reliefAnfragen: 0, reliefFehler: 0, geladen: 0,
+                  quelle: "esri", fehlUm: new Map(), probeUm: -1e9 };
 const SAT_ADRESSE = "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/";
 /* So verlangt es Esri: "Powered by Esri" und die Quellen des Dienstes */
 const SAT_QUELLE = "Powered by Esri · Bilder: Esri, Maxar, Earthstar Geographics, GIS User Community";
@@ -18139,6 +18208,26 @@ const SCHRIFT_QUELLE = "Beschriftung: Esri, HERE, Garmin, © OpenStreetMap contr
    Quellen steht in der Hilfe. */
 const SAT_RELIEF = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/";
 const RELIEF_QUELLE = "Relief: Mapzen Terrain Tiles (AWS) · USGS, Copernicus EU-DEM, NOAA u. a.";
+
+/* --- Die mitgelieferten Bilder der NASA ----------------------------------
+   Kommt von Esri nichts an, gibt es ein zweites Netz derselben Art, das
+   neben der Seite liegt: Blue Marble mit Relief und Meeresboden, von NASA
+   GIBS, gemeinfrei, bei Stufe 6. Das sind gut 2,4 Kilometer je Punkt am
+   Aequator, 1,6 in Mitteleuropa: viermal so fein wie die Karte der NASA
+   unter allem, aber keine Strassen. Je 8 mal 8 Kacheln liegen in einem Bild
+   von 2048 Punkten im Quadrat, 64 Bilder fuer die Welt (gemacht mit
+   werkzeug/orbit-nasa-mosaike.py). Stufe 5 rechnet ORBIT daraus selbst.
+
+   Gebraucht wird das vor allem im Betrachter von claude.ai: der laesst
+   nichts von fremden Servern herein, aber was neben der Seite liegt. Dort
+   fragt ORBIT Esri gar nicht erst. Sonst erst, wenn von Esri vier Absagen
+   und kein einziges Bild kamen. */
+const NASABILD = { bilder: new Map(), geladen: 0, fehler: 0, anfragen: 0 };
+const NASA_ORDNER = "orbit-nasa/", NASA_STUFE = 6;
+const NASA_QUELLE = "Bilder: NASA Blue Marble, Black Marble (GIBS)";
+/* So weit laesst sich hineinzoomen: bis ein Kachelpunkt zweieinhalb
+   Bildpunkte breit ist. Weiter wird es nur weicher, nicht feiner. */
+const NASA_LUPE = 2.5;
 
 /* Web-Mercator: Breite und Laenge in Grad zu Kachelkoordinaten */
 function satKachel(breite, laenge, z) {
@@ -18172,9 +18261,22 @@ function satVorbereiten(g, blick) {
   if (nx !== S_.nx || ny !== S_.ny) { satAus(); S_.nx = nx; S_.ny = ny; S_.angelegt = false; }
   const sk = satSchriftStufe();
   if (sk !== S_.schriftK) { S_.schriftK = sk; satSchriftNeu(true, false); }
+  const quelle = satQuelle();
+  if (quelle !== S_.quelle) satQuelleWechseln(quelle);
+  const nasa = quelle === "nasa";
   const M = blick.m;
   const [breite, laenge] = erdBlickMitte(g, M);
   S_.breite = breite;
+  /* Tiefer hineingezoomt, als die Bilder der NASA reichen (weil Esri eben
+     erst ausfiel): sanft zurueck, auf die Mitte, nicht waehrend eines
+     Flugs und nicht unter dem Finger */
+  if (nasa && !FLUG && !zieh && ERDANSICHT.frei) {
+    const grenze = erdZoomMax(breite);
+    if (ERDANSICHT.zoom > grenze * 1.002) {
+      const rand = bedienRand(), my = ((rand.oben || 70) + (rand.unten || H)) / 2;
+      zoomeAuf(W / 2, my, Math.max(grenze / ERDANSICHT.zoom, 0.93));
+    }
+  }
   /* Meter je Bildpunkt dort (ohne die Verkuerzung zum Rand hin) und die
      Stufe, deren Kachelpunkte etwa so gross sind */
   const mpp = 6371000 / (g.r * DPR);
@@ -18184,12 +18286,14 @@ function satVorbereiten(g, blick) {
      Breite und in der Hoehe, eine Kachel Luft fuer den angeschnittenen Rand */
   const kachelPx = (zz) => 256 * 156543.034 * cosb / Math.pow(2, zz) / mpp;
   while (z > SAT_MINZ && (W * DPR / kachelPx(z) > nx - 1 || H * DPR / kachelPx(z) > ny - 1)) z--;
-  z = Math.min(z, SAT_MAXZ);
+  z = Math.min(z, nasa ? NASA_STUFE : SAT_MAXZ);
   /* Ueberblenden: unter Stufe 5 ist die Karte der NASA so fein wie die
-     Kacheln, darueber uebernehmen sie; die Wolken gehen ab Stufe 7 */
+     Kacheln, darueber uebernehmen sie; die Wolken gehen ab Stufe 7. Mit
+     den Bildern der NASA frueher: deren Grenze liegt bei gut Stufe 7, und
+     die Wolkenkarte hat dort zwanzig Kilometer je Punkt, ein weisser Nebel. */
   const zRoh = Math.log2(156543.034 * cosb / mpp);
   S_.gewicht = klemm(zRoh - 4.3, 0, 1);
-  S_.wolkenWeg = klemm((zRoh - 7) / 3, 0, 1);
+  S_.wolkenWeg = nasa ? klemm((zRoh - 6) / 1.5, 0, 1) : klemm((zRoh - 7) / 3, 0, 1);
   if (z < SAT_MINZ || S_.gewicht <= 0) return { x0: 0, y0: 0, n: 1, nx: 1, ny: 1, gewicht: 0, wolkenWeg: S_.wolkenWeg };
   satAnlegen();
   const n = Math.pow(2, z);
@@ -18199,7 +18303,8 @@ function satVorbereiten(g, blick) {
   if (z !== S_.z || x0 !== S_.x0 || y0 !== S_.y0) satFenster(z, x0, y0);
   satNachfordern(g, M, z, k);
   if (S_.gueltigNeu) satGueltigHochladen();
-  return { x0: ((S_.x0 % n) + n) % n, y0: S_.y0, n, nx: S_.nx, ny: S_.ny, gewicht: S_.gewicht, wolkenWeg: S_.wolkenWeg };
+  return { x0: ((S_.x0 % n) + n) % n, y0: S_.y0, n, nx: S_.nx, ny: S_.ny, gewicht: S_.gewicht, wolkenWeg: S_.wolkenWeg,
+           lichter: nasa };
 }
 
 /* Das Mosaik im Grafikspeicher einmal anlegen, dazu eine winzige Karte,
@@ -18335,6 +18440,11 @@ function satNachfordern(g, M, z, mitte) {
       continue;
     }
     if (S_.laden.has(schluessel) || wartend.has(schluessel)) continue;
+    /* Schlug sie eben fehl, erst nach einer halben Minute wieder. Vorher
+       stand sie im naechsten Bild wieder an: ohne Netz waren das Tausende
+       Anfragen in wenigen Sekunden. */
+    const fehlUm = S_.fehlUm.get(schluessel);
+    if (fehlUm !== undefined && performance.now() - fehlUm < 30000) continue;
     S_.warte.push({ schluessel, platz, d: abstand(x, y, vorrat) });
     neu = true;
   }
@@ -18540,34 +18650,188 @@ function satSchriftNeu(schrift, relief) {
    fertig, wenn alle drei da sind oder fehlgeschlagen. */
 function satWeiter() {
   const S_ = SATBILD;
-  while (S_.laden.size < SAT_GLEICHZEITIG && S_.warte.length) {
+  /* Aus den Bildern der NASA gibt es keine Beschriftung und kein Relief:
+     die Schrift kommt von Esri, die Hoehen von AWS, und das Relief steckt
+     in diesen Bildern schon drin */
+  const nasa = S_.quelle === "nasa";
+  /* Eine Kachel aus der NASA ist ein Ausschnitt eines Bildes, das schon
+     da ist: bis zu 64 aus einem, also nicht nur acht auf einmal */
+  const zugleich = nasa ? 64 : SAT_GLEICHZEITIG;
+  while (S_.laden.size < zugleich && S_.warte.length) {
+    /* Von Esri kamen nur Absagen, und die Bilder der NASA gibt es auch
+       nicht: nicht weiter anfragen, sondern alle zwanzig Sekunden eine
+       einzige Kachel zur Probe, ob es wieder geht */
+    if (!nasa && esriGesperrt()) {
+      if (S_.laden.size > 0 || performance.now() - S_.probeUm < 20000) break;
+      S_.probeUm = performance.now();
+    }
     const w = S_.warte.shift();
     if (S_.laden.has(w.schluessel) || S_.cache.has(w.schluessel)) continue;
     const [z, x, y] = w.schluessel.split("/");
-    const b = new Image();
-    b.crossOrigin = "anonymous";
-    const mitRelief = Z.relief && !!ERDKARTE.reliefTx;
-    const sk = S_.schriftK, e = { b, offen: 1 + (Z.beschriftung ? 1 : 0) + (mitRelief ? 1 : 0), ok: false, schrift: null, relief: null };
+    /* Bei der NASA steht an der Stelle des Bildes nur ein Platzhalter, damit
+       das Abbrechen (src leeren) fuer beide Quellen gleich geht */
+    const b = nasa ? {} : new Image();
+    if (!nasa) b.crossOrigin = "anonymous";
+    const mitRelief = !nasa && Z.relief && !!ERDKARTE.reliefTx;
+    const mitSchrift = !nasa && Z.beschriftung;
+    const sk = S_.schriftK, e = { b, bild: nasa ? null : b, offen: 1 + (mitSchrift ? 1 : 0) + (mitRelief ? 1 : 0),
+                                  ok: false, schrift: null, relief: null };
     S_.laden.set(w.schluessel, e);
     S_.anfragen++;
     const fertig = () => {
       if (S_.laden.get(w.schluessel) !== e || --e.offen > 0) return;
       S_.laden.delete(w.schluessel);
       if (e.ok && Z.satellit) {
-        const kachel = { bild: b, schrift: e.schrift, relief: e.relief, stufe: sk, x: +x, y: +y };
+        const kachel = { bild: e.bild, schrift: e.schrift, relief: e.relief, stufe: sk, x: +x, y: +y };
         S_.cache.set(w.schluessel, kachel);
-        if (S_.cache.size > SAT_CACHE) S_.cache.delete(S_.cache.keys().next().value);
+        /* Kacheln der NASA sind ausgepackte Punkte (ImageData), die der
+           Browser nicht selbst vergessen kann: davon weniger im Speicher */
+        while (S_.cache.size > (nasa ? 160 : SAT_CACHE)) S_.cache.delete(S_.cache.keys().next().value);
         if (S_.angelegt && S_.platz[w.platz] === w.schluessel) satHochladen(w.platz, kachel);
         if (S_.gueltigNeu && ERDKARTE.gl) satGueltigHochladen();
-      } else if (!e.ok) S_.fehler++;
+      } else if (!e.ok) {
+        if (!nasa) S_.fehler++;
+        S_.fehlUm.set(w.schluessel, performance.now());
+        if (S_.fehlUm.size > 4000) S_.fehlUm.clear();
+      }
       satWeiter();
     };
-    b.onload = () => { e.ok = true; fertig(); };
-    b.onerror = fertig;
-    if (Z.beschriftung) schriftHolen(z - sk, x >> sk, y >> sk, (bild) => { e.schrift = bild; fertig(); });
+    if (nasa) {
+      nasaKachel(+z, +x, +y, (punkte) => {
+        if (punkte) { e.ok = true; e.bild = punkte; }
+        fertig();
+        if (!punkte && satGesperrt()) satellitKnopf();
+      });
+      continue;
+    }
+    b.onload = () => { e.ok = true; S_.geladen++; fertig(); };
+    b.onerror = () => { fertig(); if (esriGesperrt()) satellitKnopf(); };
+    if (mitSchrift) schriftHolen(z - sk, x >> sk, y >> sk, (bild) => { e.schrift = bild; fertig(); });
     if (mitRelief) reliefHolen(z - 1, x >> 1, y >> 1, (relief) => { e.relief = relief; fertig(); });
     b.src = SAT_ADRESSE + z + "/" + y + "/" + x;
   }
+}
+
+/* Ein Bild der NASA mit 8 mal 8 Kacheln, dazu seine Lichter der Nacht. Die
+   letzten vier Paare bleiben entpackt im Speicher, je gut 20 MB; wer darauf
+   wartet, kommt dran, sobald beide da sind. Fehlt eines, bekommt jeder
+   Wartende null. */
+function nasaMosaik(mx, my, fertig) {
+  const N_ = NASABILD, schluessel = mx + "-" + my;
+  let e = N_.bilder.get(schluessel);
+  if (e) {
+    N_.bilder.delete(schluessel); N_.bilder.set(schluessel, e);
+    /* Auch wenn es schon da ist, erst nach dem laufenden Schritt: sonst
+       riefe jede fertige Kachel den Lader wieder auf, bevor er fertig ist */
+    if (e.warten) e.warten.push(fertig); else queueMicrotask(() => fertig(e.ok ? e : null));
+    return;
+  }
+  const tag = new Image(), nacht = new Image();
+  e = { tag, nacht, ok: false, warten: [fertig] };
+  N_.bilder.set(schluessel, e);
+  N_.anfragen++;
+  let offen = 2, gut = true;
+  const ende = (ok) => {
+    gut = gut && ok;
+    if (--offen > 0 || !e.warten) return;
+    e.ok = gut;
+    if (gut) N_.geladen++; else N_.fehler++;
+    const w = e.warten;
+    e.warten = null;
+    for (const f of w) f(gut ? e : null);
+  };
+  /* Erst fertig entpacken, abseits vom Zeichnen, wie bei der Karte */
+  for (const b of [tag, nacht]) {
+    b.onload = () => { (b.decode ? b.decode() : Promise.resolve()).then(() => ende(true), () => ende(true)); };
+    b.onerror = () => ende(false);
+  }
+  const name = NASA_ORDNER + NASA_STUFE + "-" + mx + "-" + my;
+  tag.src = name + ".jpg";
+  nacht.src = name + "-n.jpg";
+  /* Das am laengsten nicht Gebrauchte vergessen, aber nichts, worauf noch
+     jemand wartet */
+  for (const [k, alt] of N_.bilder) {
+    if (N_.bilder.size <= 4) break;
+    if (!alt.warten) N_.bilder.delete(k);
+  }
+}
+
+/* Eine Kachel der Stufe 6 ist ein Achtel eines Bildes in jeder Richtung;
+   eine der Stufe 5 sind vier davon, auf die Haelfte verkleinert. Jede
+   liegt ganz in einem Bild, denn ein Bild faengt immer an einer durch acht
+   teilbaren Kachel an. Die Lichter kommen in den Alphakanal, dort, wo bei
+   Esri steht, wie viel Beschriftung einen Punkt deckt. Deshalb als
+   ImageData: eine Leinwand speichert vormultipliziert, und wo es nachts
+   dunkel ist (Alpha 0), ginge sonst das Bild des Tages verloren. */
+let nasaLeinwand = null;
+function nasaKachel(z, x, y, fertig) {
+  const k = NASA_STUFE - z;
+  if (k < 0 || k > 3) { fertig(null); return; }
+  const gx = x << k, gy = y << k, seite = 256 << k;
+  nasaMosaik(gx >> 3, gy >> 3, (paar) => {
+    if (!paar) { fertig(null); return; }
+    if (!nasaLeinwand) { nasaLeinwand = document.createElement("canvas"); nasaLeinwand.width = nasaLeinwand.height = 256; }
+    const g = nasaLeinwand.getContext("2d", { willReadFrequently: true });
+    g.imageSmoothingQuality = "high";
+    const sx = (gx & 7) * 256, sy = (gy & 7) * 256;
+    let tag, nacht;
+    try {
+      g.drawImage(paar.nacht, sx, sy, seite, seite, 0, 0, 256, 256);
+      nacht = g.getImageData(0, 0, 256, 256).data;
+      g.drawImage(paar.tag, sx, sy, seite, seite, 0, 0, 256, 256);
+      tag = g.getImageData(0, 0, 256, 256);
+    } catch { fertig(null); return; }
+    const d = tag.data;
+    for (let i = 3; i < d.length; i += 4) d[i] = nacht[i - 3];
+    fertig(tag);
+  });
+}
+
+/* Kommt von der NASA etwas an? Solange kein Bild kam, aber eines fehlte,
+   liegen die Bilder nicht neben der Seite. */
+function nasaFehlt() {
+  return NASABILD.geladen === 0 && NASABILD.fehler > 0;
+}
+
+/* Von Esri ist nichts zu erwarten: in der Vorschau auf claude.ai nie, sonst
+   nach vier Absagen ohne ein einziges Bild */
+function esriGesperrt() {
+  const S_ = SATBILD;
+  return inVorschau() || (S_.geladen === 0 && S_.fehler >= 4);
+}
+function satQuelle() {
+  if (inVorschau()) return "nasa";
+  return esriGesperrt() && !nasaFehlt() ? "nasa" : "esri";
+}
+
+/* Die Quelle wechselt: alles aus der alten vergessen. Dann die Knoepfe neu,
+   denn Beschriftung und Relief ruhen mit den Bildern der NASA. Ist der
+   Zoom tiefer, als ihre Bilder reichen, geht er sanft zurueck. */
+function satQuelleWechseln(quelle) {
+  const S_ = SATBILD;
+  for (const e of S_.laden.values()) e.b.src = "";
+  S_.laden.clear(); S_.warte = []; S_.cache.clear(); S_.fehlUm.clear();
+  if (S_.angelegt) { S_.platz.fill(null); S_.gueltig.fill(0); S_.gueltigNeu = true; }
+  S_.z = -1; S_.sicht = new Map(); S_.sichtStand = "";
+  S_.quelle = quelle;
+  S_.version++;
+  satellitKnopf();
+  if (typeof zoomLeisteAktualisieren === "function") zoomLeisteAktualisieren();
+}
+
+/* Wie weit sich die Erde hineinzoomen laesst: ohne Satellitenbilder
+   2,4-fach, mit denen von Esri bis auf Strassen, mit denen der NASA, bis
+   ein Kachelpunkt NASA_LUPE Bildpunkte breit ist. Das haengt an der Breite
+   (Web-Mercator dehnt zu den Polen hin) und an der Groesse der Kugel auf
+   dem Schirm; ohne Angabe gilt die Breite der Blickmitte. */
+function erdZoomMax(breite) {
+  if (!Z.satellit) return 2.4;
+  if (satQuelle() !== "nasa") return SAT_ZOOM_MAX;
+  const b = breite === undefined ? (SATBILD.breite || 0) : breite;
+  const cosb = Math.max(0.5, Math.cos(b * Math.PI / 180));
+  const basis = erdansichtMasse().r / (ERDANSICHT.zoom || 1);
+  const kachelMeter = 156543.034 * cosb / Math.pow(2, NASA_STUFE);
+  return Math.max(2.4, 6371000 * NASA_LUPE / (basis * kachelMeter));
 }
 
 /* Ausgeschaltet: nichts mehr anfragen, das Mosaik vergessen */
@@ -18601,7 +18865,8 @@ const NACHT_QUELLE = "Nachtlichter: NASA Black Marble (GIBS)";
 function nachtVorbereiten(g, blick, uhr) {
   const N_ = NACHTLICHT;
   N_.sichtbar = false;
-  if (!Z.satellit || !ERDANSICHT.frei || !ERDKARTE.gl || !ERDKARTE.nachtTx) { N_.gewicht = 0; return null; }
+  /* In der Vorschau auf claude.ai kaeme die Antwort der NASA nie an */
+  if (!Z.satellit || !ERDANSICHT.frei || !ERDKARTE.gl || !ERDKARTE.nachtTx || inVorschau()) { N_.gewicht = 0; return null; }
   /* Ab einem Ausschnitt von 3000 Kilometern blendet die feine Karte ein, ab
      1500 gilt sie ganz; darueber ist die grobe fein genug */
   const breiteKm = W * 6371 / g.r;
@@ -18720,14 +18985,54 @@ function nachtAus() {
   N_.laedt = null; N_.gewicht = 0; N_.sichtbar = false;
 }
 
+/* Gesperrte Quellen. Im Betrachter von claude.ai laufen Seiten in einem
+   Rahmen, der nichts von fremden Servern laden laesst, ohne sichtbaren
+   Fehler: keine Bilder, keine Abrufe. Satellitenbilder, Beschriftung und
+   Relief, Nachtlichter, die Erde von gestern, Wolken, Regenradar, echte
+   ISS und Weltraumwetter kommen dort nie an. Zu erkennen ist der Rahmen an
+   window.claude, das nur er bereitstellt. Unabhaengig davon gilt: kam von
+   Esri noch kein einziges Bild, aber schon vier Absagen (offline, eine
+   Firewall), ist die Quelle gesperrt. Die Karte bleibt dann nicht einfach
+   ein verwaschener Fleck, und es stehen keine Bildnachweise fuer Bilder da,
+   die nie kamen. */
+function inVorschau() {
+  try { return !!(window.claude && typeof window.claude.use === "function"); } catch { return false; }
+}
+/* Gar nichts kommt an: Esri nicht und die Bilder der NASA auch nicht (sie
+   liegen nicht neben der Seite) */
+function satGesperrt() {
+  return !!Z.satellit && esriGesperrt() && nasaFehlt();
+}
+const HINWEIS_VORSCHAU = "Satellitenbilder kommen hier nicht an: Die Vorschau auf claude.ai lässt keine Bilder "
+  + "fremder Server zu. · Im Mac-Programm und in orbit.html im Browser gehen sie.";
+const HINWEIS_GESPERRT = "Satellitenbilder kommen nicht an: Esri ist nicht zu erreichen (offline oder gesperrt).";
+/* An der Grenze der Bilder der NASA: warum es nicht weiter geht. Die Meter
+   je Punkt an der Blickmitte. */
+function nasaGrenzHinweis() {
+  const cosb = Math.max(0.05, Math.cos((SATBILD.breite || 0) * Math.PI / 180));
+  const km = (156543.034 * cosb / Math.pow(2, NASA_STUFE) / 1000).toFixed(1).replace(".", ",");
+  return inVorschau()
+    ? "Schärfer geht es in der Vorschau nicht: claude.ai sperrt die Satellitenbilder von Esri. Diese hier sind "
+      + "von der NASA und kommen mit der Seite, " + km + " km je Punkt. · Im Mac-Programm und in orbit.html im Browser "
+      + "geht es bis auf Straßen."
+    : "Schärfer geht es gerade nicht: Esri ist nicht zu erreichen. Diese Bilder sind von der NASA und kommen mit "
+      + "der Seite, " + km + " km je Punkt.";
+}
+
 function satellitKnopf() {
+  const nasa = !!Z.satellit && satQuelle() === "nasa";
   tmSchalter("tm-sat", Z.satellit, "Satellitenbilder",
-    Z.satellit ? "zoomen bis auf Straßen, Bilder von Esri" : "die ganze Erde wie Google Earth heranzoomen", "sat");
+    satGesperrt() ? (inVorschau() ? "kommen hier nicht an: die Vorschau sperrt fremde Bilder" : "kommen nicht an: Esri nicht zu erreichen")
+      : nasa ? (inVorschau() ? "hier von der NASA, gut 2 km fein" : "Esri fehlt, Bilder der NASA, gut 2 km fein")
+      : Z.satellit ? "zoomen bis auf Straßen, Bilder von Esri" : "die ganze Erde wie Google Earth heranzoomen", "sat");
   /* Beschriftung und Relief wirken nur mit ihnen */
   schriftKnopf();
   reliefKnopf();
   const z = document.getElementById("zoom-sat");
-  if (z) { z.classList.toggle("an", !!Z.satellit); z.title = Z.satellit ? "Satellitenbilder aus" : "Satellitenbilder von Esri"; }
+  if (z) {
+    z.classList.toggle("an", !!Z.satellit);
+    z.title = Z.satellit ? "Satellitenbilder aus" : inVorschau() ? "Satellitenbilder (hier von der NASA)" : "Satellitenbilder von Esri";
+  }
 }
 
 function wolkenHeuteKnopf() {
@@ -20807,8 +21112,8 @@ function zoomeAuf(px, py, faktor) {
          hinaus weiter hineinzoomt, kommt zur Station zurueck. */
       const alt = ERDANSICHT.zoom;
       /* Mit Satellitenbildern weiter, bis auf Strassen, und immer auf den
-         Punkt unter dem Zeiger */
-      const maxZ = Z.satellit ? SAT_ZOOM_MAX : 2.4;
+         Punkt unter dem Zeiger; mit denen der NASA so weit, wie sie reichen */
+      const maxZ = erdZoomMax();
       const rAlt = ERDANSICHT.geo ? ERDANSICHT.geo.r : null;
       if (Z.satellit && (ERDANSICHT.frei || alt * faktor > 1.0001)) freiAn();
       ERDANSICHT.zoom = klemm(alt * faktor, 0.55, maxZ);
@@ -20821,9 +21126,14 @@ function zoomeAuf(px, py, faktor) {
       }
       zoomLeisteAktualisieren();
       if (faktor > 1.01 && alt >= maxZ * 0.999) {
-        ERDANSICHT.drangUm = jetzt;
-        ERDANSICHT.drang *= faktor;
-        if (ERDANSICHT.drang > 1.22) erdansicht(false);
+        /* An der Grenze der Bilder der NASA geht es nicht zur Station: dort
+           will man naeher heran, und das Schild sagt, warum es nicht geht */
+        if (Z.satellit && satQuelle() === "nasa") ERDANSICHT.grenzeUm = jetzt;
+        else {
+          ERDANSICHT.drangUm = jetzt;
+          ERDANSICHT.drang *= faktor;
+          if (ERDANSICHT.drang > 1.22) erdansicht(false);
+        }
       }
       return;
     }
@@ -25277,6 +25587,10 @@ function zeichneTelemetrie(t) {
      und eine Stelle, an der ungeprueft Text in HTML landet, ist eine
      Stelle zu viel. */
   feld.textContent = "";
+  /* In der Vorschau auf claude.ai: warum die Schalter fuer fremde Daten dort
+     nichts bewirken */
+  const vs = document.getElementById("tm-vorschau");
+  if (vs) vs.hidden = !inVorschau();
   for (const [name, wert, balken, lage] of zeilen) {
     if (name === "~") {
       const g = document.createElement("div");
@@ -25748,6 +26062,10 @@ const HILFE = [
       + "der Environment Agency (Großbritannien) und ArcticDEM (NSF, aus Aufnahmen von DigitalGlobe). "
       + "Die Nadel oben in der Zoomleiste zeigt, wo Norden liegt; tippst du sie an, dreht sich Norden nach oben. "
       + "Nachts kommen beim Hineinzoomen die Lichter der Städte scharf dazu, aus Black Marble der NASA. "
+      + "In der Vorschau auf claude.ai kommt nichts von fremden Servern an, also auch nichts von Esri: Dort "
+      + "sind die Satellitenbilder Blue Marble und Black Marble der NASA, die mit der Seite kommen, gut zwei "
+      + "Kilometer fein statt bis auf Straßen. Wir danken für die Bilder von GIBS (Global Imagery Browse "
+      + "Services) der NASA, Teil des ESDIS. "
       + "Unter Stationswerte → LIVE lässt sich das Regenradar einschalten: Auf der ganzen Erde steht dann, wo es "
       + "gerade regnet oder schneit, alle zehn Minuten neu aus den Wetterradaren vieler Länder, zusammengesetzt "
       + "von RainViewer. Blau ist leichter Regen, grün mäßiger, gelb bis rot starker, violett kann Hagel sein, "
@@ -26743,20 +27061,35 @@ function reliefUmschalten() {
   reliefKnopf();
   tmUhr = 0;
 }
+/* Beschriftung und Relief wirken nur mit den Bildern von Esri: die Schrift
+   kommt von dort, die Hoehen von AWS. Mit denen der NASA ruhen sie. */
+function kartenZusatzRuht(an) {
+  if (!an) return null;
+  if (!Z.satellit) return "wirkt mit Satellitenbildern";
+  if (satQuelle() === "nasa" || satGesperrt()) return inVorschau() ? "sperrt die Vorschau" : "wirkt nur mit Esri";
+  return null;
+}
 function reliefKnopf() {
-  const ruht = Z.relief && !Z.satellit;
+  const ruht = kartenZusatzRuht(Z.relief);
   tmSchalter("tm-relief", Z.relief, "Relief",
-    ruht ? "wirkt mit Satellitenbildern" : "Berge und Täler nach der echten Sonne", "relief", ruht);
+    ruht || "Berge und Täler nach der echten Sonne", "relief", !!ruht);
 }
 function schriftKnopf() {
-  const ruht = Z.beschriftung && !Z.satellit;
+  const ruht = kartenZusatzRuht(Z.beschriftung);
   tmSchalter("tm-schrift", Z.beschriftung, "Beschriftung",
-    ruht ? "wirkt mit Satellitenbildern" : "Länder, Orte und Grenzen darüber", "schrift", ruht);
+    ruht || "Länder, Orte und Grenzen darüber", "schrift", !!ruht);
 }
 function satellitUmschalten() {
   Z.satellit = !Z.satellit;
   if (!Z.satellit) {
     satAus();
+    /* Neu eingeschaltet, wird neu gezaehlt, ob Bilder ankommen. Nicht in
+       satAus: das laeuft auch, wenn nur das Fenster seine Groesse aendert,
+       und dann kommen die Kacheln aus dem Speicher, ohne neues Laden. Bilder
+       der NASA, die fehlten, werden dann noch einmal versucht. */
+    SATBILD.geladen = 0; SATBILD.fehler = 0; SATBILD.fehlUm.clear(); SATBILD.probeUm = -1e9;
+    NASABILD.fehler = 0;
+    for (const [k, e] of [...NASABILD.bilder]) if (!e.warten && !e.ok) NASABILD.bilder.delete(k);
     if (ERDANSICHT.zoom > 2.4) ERDANSICHT.zoom = 2.4;
   }
   sichern();
