@@ -403,7 +403,28 @@ footer{
 .fortsetzen .knopf{flex:0 0 auto; width:auto; height:34px; padding:0 12px; font-size:12px; white-space:nowrap;}
 .heute .wahl .fortsetzen input{height:30px; font-size:11px;}
 .heute .wahl .fortsetzen .knopf{height:30px;}
-.heute-knoepfe{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+.heute-knoepfe, .woche-knoepfe{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+.woche-knoepfe .knopf{width:auto; height:32px; padding:0 14px; font-size:12px;}
+/* Die Woche unter dem Tag */
+.woche{margin:0 0 16px;}
+.woche .saeulen{display:flex; align-items:flex-end; gap:6px; height:104px; margin:8px 0 2px;}
+.woche .tag{flex:1 1 0; min-width:0; height:100%; display:flex; flex-direction:column; justify-content:flex-end;
+  background:none; border:0; padding:0; margin:0; color:inherit; font:inherit; cursor:pointer; border-radius:6px;}
+.woche .tag .zahl{font-size:9.5px; color:var(--tx3); text-align:center; margin-bottom:3px; white-space:nowrap;}
+.woche .tag .stapel{display:flex; flex-direction:column-reverse; border-radius:4px; overflow:hidden;
+  background:rgba(255,255,255,.05);}
+.woche .tag .stapel i{display:block; opacity:.8;}
+.woche .tag .name{font-size:10px; color:var(--tx3); text-align:center; margin-top:5px;}
+.woche .tag.heute .name{color:var(--tx); font-weight:600;}
+.woche .tag.gewaehlt .stapel{box-shadow:0 0 0 2px #fff;}
+.woche .tag.gewaehlt .stapel i{opacity:1;}
+.woche .tag:focus-visible{outline:2px solid var(--acc); outline-offset:2px;}
+.woche .wahl{margin:8px 0 2px; padding:8px 10px; border-radius:10px; font-size:11.5px; line-height:1.5;
+  background:rgba(255,255,255,.04); border:1px solid var(--edge); color:var(--tx2);}
+.woche .wahl b{color:var(--tx); font-weight:600;}
+.woche .wahl .pz{display:flex; align-items:center; gap:7px;}
+.woche .wahl .pz i{flex:0 0 auto; width:8px; height:8px; border-radius:50%;}
+.woche .lesen{font-size:10.5px; color:var(--tx3); margin-top:4px;}
 .heute-knoepfe .knopf{width:auto; height:32px; padding:0 14px; font-size:12px;}
 @media (max-width:460px){ .heute .wahl{margin-left:0;} }
 .d-kind{display:flex; align-items:center; gap:9px; width:100%; text-align:left;
@@ -1242,6 +1263,7 @@ body.sicht #blende-detail{
   <div class="blende-inhalt">
     <div id="b-lage"></div>
     <div id="b-heute"></div>
+    <div id="b-woche"></div>
 
     <label class="feld"><span>Welche Astronauten?</span>
       <div id="b-typen" class="schalterliste"></div></label>
@@ -2477,6 +2499,12 @@ function ersterStempel(stueck, abAnfang) {
   }
 }
 async function ersteZeileAb(pfad, groesse, ab) {
+  return (await grenzeSuchen(pfad, groesse, ab)).nachher;
+}
+/* Beide Seiten einer Grenze: die letzte Zeile davor und die erste ab ihr.
+   Die Woche braucht beides — wann ein Tag endete und wann der naechste
+   anfing. */
+async function grenzeSuchen(pfad, groesse, ab) {
   const lies = (pos, size) => Neutralino.filesystem.readFile(pfad, { pos, size });
   let lo = 0, hi = groesse, runden = 0;
   /* Suchen, bis das Stueck klein ist. Eine Zeile kann ueber ein Megabyte
@@ -2495,6 +2523,7 @@ async function ersteZeileAb(pfad, groesse, ab) {
   /* Den Rest Zeile fuer Zeile — bis ein Stueck hinter die letzte Grenze,
      denn die gesuchte Zeile beginnt dort erst. Meist genuegen 64 kB;
      nur wenn dort eine Riesenzeile steht, wird weiter gelesen. */
+  let vorher = null;
   for (const zugabe of [65536, 4194304]) {
     const laenge = Math.min(groesse - lo, (hi - lo) + zugabe);
     const rest = await lies(lo, laenge);
@@ -2505,13 +2534,13 @@ async function ersteZeileAb(pfad, groesse, ab) {
       let e = rest.indexOf("\n", i);
       if (e < 0) { if (!bisEnde) break; e = rest.length; }  // die letzte Zeile ohne Umbruch
       const t = zeitstempelZeile(rest.slice(i, e));
-      if (t !== null && t >= ab) return t;
-      if (t !== null && lo + i >= hi) fertig = true;        // hinter der Grenze und noch vor Mitternacht? dann nirgends
+      if (t !== null && t >= ab) return { vorher, nachher: t };
+      if (t !== null) { vorher = t; if (lo + i >= hi) fertig = true; }  // hinter der Grenze und noch davor? dann nirgends
       i = e + 1;
     }
     if (fertig) break;
   }
-  return null;
+  return { vorher, nachher: null };
 }
 
 async function heuteSammeln() {
@@ -2596,6 +2625,7 @@ function zeichneHeute() {
   const fokusZeile = box.contains(document.activeElement)
     ? [...box.querySelectorAll(".zeile")].indexOf(document.activeElement) : -1;
   const fokusBefehl = fortsetzenFokus();
+  zeichneWoche();
   box.innerHTML = "";
   if (!HEUTE.length) return;
   const jetzt = Date.now();
@@ -2811,6 +2841,276 @@ function heuteKnoepfe() {
   if (hergabe) hergabe.then(d => { if (!d) sich.style.display = "none"; });
   r.append(kop, sich);
   return HEUTE_KNOEPFE = r;
+}
+
+/* --- Die Woche ----------------------------------------------------------
+   Der Bogen zeigt heute; was diese Woche offen war, stand nirgends — und
+   genau das fragt man am Freitag: wie viel ging wohin? Sieben Saeulen,
+   die offene Zeit je Tag, nach Projekt gestapelt, dieselben Farben wie im
+   Bogen. Antippen zeigt den Tag, "Woche kopieren" gibt sie als Text her.
+
+   Eine Sitzungsdatei kennt nur ihren Beginn und ihre letzte Aenderung.
+   Laeuft eine Sitzung ueber Tage — fortgesetzt oder einfach offen —, wird
+   an jeder Mitternacht dazwischen gesucht: die letzte Zeile davor und die
+   erste danach. Ein Tag ohne Zeile ist ein Tag ohne Sitzung, statt dass
+   die ganze Spanne als offen zaehlt. Die Suche ist dieselbe wie beim
+   Tagesbeginn; ihr Ergebnis haelt, solange die Datei nur waechst.
+
+   Heute kommt aus dem Bogen, damit beide dieselbe Zahl zeigen. */
+let WOCHE = null;          // { tage: [{ ab, bis, stuecke: [{ name, von, bis, sid }] }], farben, lesen }
+let WOCHE_WAHL = null;     // der angetippte Tag, 0 bis 6
+const WOCHE_GRENZEN = new Map();   // pfad -> Map(grenze -> { vorher, nachher, mt })
+
+/* Acht Mitternachten: vor sechs Tagen bis morgen. Ueber das Datum
+   gerechnet, nicht in Stunden — an der Zeitumstellung hat ein Tag 23
+   oder 25. */
+function mitternachte(jetzt) {
+  const h = new Date(jetzt || Date.now()); h.setHours(0, 0, 0, 0);
+  const g = [];
+  for (let k = 6; k >= -1; k--) { const d = new Date(h); d.setDate(d.getDate() - k); g.push(d.getTime()); }
+  return g;
+}
+
+function wocheFarben(tage) {
+  const farben = new Map(), frei = FARBEN.slice();
+  for (const p of HEUTE) { farben.set(p.name, p.farbe); const k = frei.indexOf(p.farbe); if (k >= 0) frei.splice(k, 1); }
+  let n = 0;
+  for (const t of tage) for (const x of [...t.stuecke].sort((a, b) => a.von - b.von))
+    if (!farben.has(x.name)) farben.set(x.name, frei.length ? frei.shift() : FARBEN[n++ % FARBEN.length]);
+  return farben;
+}
+
+async function wocheSammeln() {
+  const g = mitternachte(), ab = g[0];
+  const tage = g.slice(0, 7).map((x, i) => ({ ab: x, bis: g[i + 1], stuecke: [] }));
+  const tagVon = (t) => { for (let i = 6; i >= 0; i--) if (t >= g[i]) return i; return -1; };
+  let koepfe = 0, suchen = 0, lesen = false;
+  for (const stand of PROJEKT_STAND.values()) for (const f of stand.dateien) {
+    if (!f.mt || f.mt < ab || f.mt >= g[6] && (f.ct || f.mt) >= g[6]) continue;   // nur heute: steht im Bogen
+    let ort = KOPF_ORT.get(f.pfad);
+    if (ort === undefined) {
+      if (koepfe >= 12) { lesen = true; continue; }
+      koepfe++;
+      ort = "";
+      try {
+        const kopf = await Neutralino.filesystem.readFile(f.pfad,
+          { pos: 0, size: Math.max(1, Math.min(f.groesse || 16384, 16384)) });
+        const m = /"cwd":"((?:[^"\\]|\\.)*)"/.exec(kopf);
+        if (m) ort = JSON.parse('"' + m[1] + '"');
+        KOPF_AUFTRAG.set(f.pfad, sitzungsBeginn(kopf));
+      } catch {}
+      KOPF_ORT.set(f.pfad, ort);
+    }
+    if (!ort) continue;
+    const name = ort.split("/").pop() || ort, sid = f.name.replace(/\.jsonl$/, "");
+    const anfang = Math.min(f.ct || f.mt, f.mt);
+    const iA = Math.max(0, tagVon(anfang)), iE = Math.min(5, tagVon(f.mt));
+    const grenze = async (b) => {
+      let m = WOCHE_GRENZEN.get(f.pfad);
+      if (!m) WOCHE_GRENZEN.set(f.pfad, m = new Map());
+      const c = m.get(b);
+      if (c && (c.nachher !== null || c.mt === f.mt)) return c;
+      if (suchen >= 3) { lesen = true; return null; }
+      suchen++;
+      try { const r = { ...(await grenzeSuchen(f.pfad, f.groesse || 0, b)), mt: f.mt }; m.set(b, r); return r; }
+      catch { lesen = true; return null; }
+    };
+    for (let i = iA; i <= iE; i++) {
+      let von = anfang >= g[i] ? anfang : null, bis = f.mt < g[i + 1] ? f.mt : null;
+      if (von === null) { const r = await grenze(g[i]); if (!r) continue; von = r.nachher; }
+      if (bis === null) { const r = await grenze(g[i + 1]); if (!r) continue; bis = r.vorher; }
+      if (von === null || bis === null) continue;
+      von = Math.max(von, g[i]); bis = Math.min(bis, g[i + 1]);
+      if (von >= g[i + 1] || bis < g[i] || bis < von) continue;        // an diesem Tag keine Zeile
+      tage[i].stuecke.push({ name, von, bis, sid });
+    }
+  }
+  if (WOCHE_GRENZEN.size > 800) WOCHE_GRENZEN.clear();
+  for (const p of HEUTE) for (const x of p.segmente) tage[6].stuecke.push({ name: p.name, von: x.von, bis: x.bis, sid: x.sid });
+  WOCHE = { tage, farben: wocheFarben(tage), lesen };
+}
+
+/* Die Beispielwoche der Vorfuehrung: dieselben drei Projekte wie der
+   Beispieltag, ein ruhiges Wochenende, heute aus dem Bogen. */
+function vorfuehrungWoche(jetzt) {
+  const g = mitternachte(jetzt);
+  const tage = g.slice(0, 7).map((x, i) => ({ ab: x, bis: g[i + 1], stuecke: [] }));
+  const plan = [
+    [0, "webshop", 8.9, 11.6], [0, "blog", 13.2, 14.4], [0, "webshop", 15.0, 17.8],
+    [1, "orbit", 9.4, 12.1], [1, "webshop", 13.0, 16.5],
+    [2, "webshop", 10.1, 11.9], [2, "orbit", 14.2, 18.3],
+    [3, "blog", 11.0, 12.2],
+    [4, "orbit", 16.4, 18.0],
+    [5, "webshop", 8.6, 12.4], [5, "orbit", 12.9, 15.2], [5, "blog", 16.0, 17.1],
+  ];
+  /* Welcher Wochentag heute ist, entscheidet, wo das Wochenende liegt:
+     der Plan gilt vom Montag aus und wird auf die letzten sechs Tage
+     gelegt, ruhige Tage dorthin, wo Samstag und Sonntag sind. */
+  const wtag = (i) => new Date(g[i]).getDay();          // 0 Sonntag, 6 Samstag
+  const werk = [0, 1, 2, 3, 4, 5].filter(i => wtag(i) !== 0 && wtag(i) !== 6);
+  const ruhe = [0, 1, 2, 3, 4, 5].filter(i => wtag(i) === 0 || wtag(i) === 6);
+  const ziel = new Map();
+  [0, 1, 2, 5].forEach((k, j) => { if (werk[j] !== undefined) ziel.set(k, werk[j]); });
+  [3, 4].forEach((k, j) => ziel.set(k, ruhe[j] !== undefined ? ruhe[j] : werk[4 + j]));
+  for (const [k, name, a, b] of plan) {
+    const i = ziel.get(k);
+    if (i === undefined) continue;
+    tage[i].stuecke.push({ name, von: g[i] + a * 3600000, bis: g[i] + b * 3600000, sid: "vorf-w-" + k + "-" + a });
+  }
+  for (const p of HEUTE) for (const x of p.segmente) tage[6].stuecke.push({ name: p.name, von: x.von, bis: x.bis, sid: x.sid });
+  return { tage, farben: wocheFarben(tage), lesen: false };
+}
+
+/* Je Projekt die offene Zeit eines Tages, und die Anteile so gestreckt,
+   dass sie zusammen die Zeit des Tages ergeben: zwei Projekte zur selben
+   Zeit zaehlen im Tag einmal, im Stapel aber beide. */
+function wocheTag(t) {
+  const gesamt = offenGesamt(t.stuecke);
+  const je = new Map();
+  for (const x of t.stuecke) { if (!je.has(x.name)) je.set(x.name, []); je.get(x.name).push(x); }
+  const projekte = [...je.entries()].map(([name, st]) => ({ name, zeit: offenGesamt(st),
+    sitzungen: new Set(st.map(x => x.sid)).size })).sort((a, b) => b.zeit - a.zeit);
+  return { gesamt, projekte, sitzungen: new Set(t.stuecke.map(x => x.sid)).size };
+}
+
+const WTAG = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+function zeichneWoche() {
+  const box = document.getElementById("b-woche");
+  if (!box) return;
+  const fokus = box.contains(document.activeElement)
+    ? [...box.querySelectorAll(".tag")].indexOf(document.activeElement) : -1;
+  const knopfFokus = fortsetzenFokus();
+  box.innerHTML = "";
+  if (!WOCHE) return;
+  const tage = WOCHE.tage.map(wocheTag);
+  const gesamt = tage.reduce((s, t) => s + t.gesamt, 0);
+  if (!gesamt) return;
+  const hoechst = Math.max(...tage.map(t => t.gesamt));
+  const w = document.createElement("div");
+  w.className = "woche";
+  const kopf = document.createElement("div");
+  kopf.className = "d-abschnitt";
+  kopf.textContent = "Woche  ·  " + dauer(gesamt) + " offen";
+  w.appendChild(kopf);
+  const reihe = document.createElement("div");
+  reihe.className = "saeulen";
+  tage.forEach((t, i) => {
+    const d = new Date(WOCHE.tage[i].ab);
+    const k = document.createElement("button");
+    k.className = "tag" + (i === 6 ? " heute" : "") + (WOCHE_WAHL === i ? " gewaehlt" : "");
+    k.title = d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })
+      + (t.gesamt ? " · " + dauer(t.gesamt) + " offen" : " · keine Sitzung");
+    k.setAttribute("aria-pressed", WOCHE_WAHL === i ? "true" : "false");
+    const zahl = document.createElement("span");
+    zahl.className = "zahl";
+    zahl.textContent = t.gesamt ? (t.gesamt / 3600000).toLocaleString("de-DE", { maximumFractionDigits: 1 }) + " h" : "";
+    const stapel = document.createElement("span");
+    stapel.className = "stapel";
+    const hoehe = t.gesamt ? Math.max(3, Math.round(t.gesamt / hoechst * 72)) : 2;
+    stapel.style.height = hoehe + "px";
+    const summe = t.projekte.reduce((s, p) => s + p.zeit, 0) || 1;
+    for (const p of t.projekte) {
+      const i2 = document.createElement("i");
+      i2.style.height = (p.zeit / summe * 100) + "%";
+      i2.style.background = WOCHE.farben.get(p.name) || "#8aa";
+      stapel.appendChild(i2);
+    }
+    const nm = document.createElement("span");
+    nm.className = "name";
+    nm.textContent = i === 6 ? "heute" : WTAG[d.getDay()];
+    k.append(zahl, stapel, nm);
+    k.onclick = (ev) => { ev.stopPropagation(); WOCHE_WAHL = WOCHE_WAHL === i ? null : i; zeichneWoche(); };
+    reihe.appendChild(k);
+  });
+  w.appendChild(reihe);
+  if (WOCHE_WAHL !== null && tage[WOCHE_WAHL]) {
+    const t = tage[WOCHE_WAHL];
+    const d = new Date(WOCHE.tage[WOCHE_WAHL].ab);
+    const wahl = document.createElement("div");
+    wahl.className = "wahl";
+    const b = document.createElement("b");
+    b.textContent = d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
+    const kz = document.createElement("div");
+    kz.append(b, document.createTextNode(t.gesamt
+      ? "  ·  " + t.sitzungen + (t.sitzungen === 1 ? " Sitzung" : " Sitzungen") + "  ·  " + dauer(t.gesamt) + " offen"
+      : "  ·  keine Sitzung"));
+    wahl.appendChild(kz);
+    for (const p of t.projekte) {
+      const z = document.createElement("div");
+      z.className = "pz";
+      const i2 = document.createElement("i");
+      i2.style.background = WOCHE.farben.get(p.name) || "#8aa";
+      z.append(i2, document.createTextNode(p.name + "  ·  " + p.sitzungen
+        + (p.sitzungen === 1 ? " Sitzung" : " Sitzungen") + "  ·  " + dauer(p.zeit)));
+      wahl.appendChild(z);
+    }
+    w.appendChild(wahl);
+  }
+  if (WOCHE.lesen) {
+    const l = document.createElement("div");
+    l.className = "lesen";
+    l.textContent = "Ältere Sitzungen werden noch gelesen — die Woche füllt sich gleich.";
+    w.appendChild(l);
+  }
+  w.appendChild(wocheKnoepfe());
+  box.appendChild(w);
+  if (fokus >= 0) { const k = box.querySelectorAll(".tag")[fokus]; if (k) k.focus(); }
+  knopfFokus();
+}
+
+/* Die Woche als Text, der Zeit nach, leere Tage weggelassen, und am Ende
+   je Projekt die Summe — fuer die Stundenliste oder den Wochenrueckblick. */
+function wocheText() {
+  if (!WOCHE) return "";
+  const tage = WOCHE.tage.map(wocheTag);
+  const gesamt = tage.reduce((s, t) => s + t.gesamt, 0);
+  const d0 = new Date(WOCHE.tage[0].ab), d6 = new Date(WOCHE.tage[6].ab);
+  const lang = (d) => d.toLocaleDateString("de-DE", { day: "numeric", month: "long", year: "numeric" });
+  const zahl = (n) => n + (n === 1 ? " Sitzung" : " Sitzungen");
+  const z = ["# Woche · " + lang(d0) + " bis " + lang(d6), ""];
+  if (VORF.an) z.push("_Beispieldaten der Vorführung — nichts davon ist echt._", "");
+  const alle = new Set(WOCHE.tage.flatMap(t => t.stuecke.map(x => x.sid)));
+  z.push(dauer(gesamt) + " offen · " + zahl(alle.size), "");
+  const proWoche = new Map();
+  tage.forEach((t, i) => {
+    if (!t.gesamt) return;
+    const d = new Date(WOCHE.tage[i].ab);
+    z.push("## " + d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "numeric" })
+      + " · " + dauer(t.gesamt) + " offen");
+    for (const p of t.projekte) {
+      z.push("- " + p.name + " · " + zahl(p.sitzungen) + " · " + dauer(p.zeit));
+      const w = proWoche.get(p.name) || { zeit: 0, sids: new Set() };
+      w.zeit += p.zeit;
+      for (const x of WOCHE.tage[i].stuecke) if (x.name === p.name) w.sids.add(x.sid);
+      proWoche.set(p.name, w);
+    }
+    z.push("");
+  });
+  z.push("## Je Projekt");
+  for (const [name, w] of [...proWoche.entries()].sort((a, b) => b[1].zeit - a[1].zeit))
+    z.push("- " + name + " · " + zahl(w.sids.size) + " · " + dauer(w.zeit));
+  z.push("", "_Offen heißt: von der ersten bis zur letzten Zeile einer Sitzung am Tag, nicht unbedingt gearbeitet._");
+  return z.join("\n");
+}
+
+let WOCHE_KNOEPFE = null;
+function wocheKnoepfe() {
+  if (WOCHE_KNOEPFE) return WOCHE_KNOEPFE;
+  const r = document.createElement("div");
+  r.className = "woche-knoepfe";
+  const k = document.createElement("button");
+  k.className = "knopf leer woche-kopieren";
+  k.textContent = "Woche kopieren";
+  k.title = "Die Woche als Text: je Tag die Projekte mit offener Zeit, am Ende die Summen";
+  k.onclick = async (ev) => {
+    ev.stopPropagation();
+    const ok = await inZwischenablage(wocheText());
+    k.textContent = ok ? "Kopiert ✓" : "Kopieren nicht erlaubt";
+    clearTimeout(k._uhr);
+    k._uhr = setTimeout(() => { k.textContent = "Woche kopieren"; }, 1800);
+  };
+  r.appendChild(k);
+  return WOCHE_KNOEPFE = r;
 }
 
 async function sammleSessions() {
@@ -3318,6 +3618,7 @@ function vorfuehrungBeenden() {
   clearInterval(VORF.uhr);
   bruecke_sessions = []; bruecke_ordner = []; bruecke_prozesse = []; bruecke_github = [];
   HEUTE = [];
+  WOCHE = null; WOCHE_WAHL = null;
   bordbuch("Vorführung beendet");
   liveNeuBauen();
   vorfuehrungKnopf();
@@ -3564,6 +3865,7 @@ function vorfuehrungTakt() {
     projekte.get(x.name).push({ von: x.von, bis: x.bis, sid: x.sid, auftrag: x.auftrag });
   }
   HEUTE = [...projekte.entries()].map(([name, segmente], i) => ({ name, farbe: FARBEN[i % FARBEN.length], segmente }));
+  WOCHE = vorfuehrungWoche(jetzt);
   liveNeuBauen();
 }
 
@@ -3582,6 +3884,7 @@ async function brueckeDurchlauf() {
     if (BR.aktiv && Z.bruecke.typen.session && jetzt - BR.uhren.sessions > TAKT.sessions) {
       BR.uhren.sessions = jetzt; bruecke_sessions = await sammleSessions();
       await heuteSammeln();
+      await wocheSammeln();
     }
     if (BR.aktiv && Z.bruecke.typen.ordner && Z.bruecke.ordner.length && jetzt - BR.uhren.ordner > TAKT.ordner) {
       BR.uhren.ordner = jetzt; bruecke_ordner = await sammleOrdner();
@@ -15471,7 +15774,7 @@ function nochOffen(r, kurz) {
    Fokus. */
 function fortsetzenFokus() {
   const e = document.activeElement;
-  if (!e || !e.closest || !e.closest(".fortsetzen, .heute-knoepfe")) return () => {};
+  if (!e || !e.closest || !e.closest(".fortsetzen, .heute-knoepfe, .woche-knoepfe")) return () => {};
   const von = e.selectionStart, bis = e.selectionEnd;
   return () => {
     if (!e.isConnected || document.activeElement === e) return;
@@ -16693,7 +16996,10 @@ const HILFE = [
       + "womit eine Sitzung begann, im Mac-Programm samt dem Befehl zum Fortsetzen, bei einer "
       + "laufenden ihren Auftrag und den Weg zur Figur. „Tag kopieren“ darunter gibt den ganzen "
       + "Tag als Text her, je Projekt die Sitzungen mit Zeitspanne und worum es ging — für die "
-      + "Notiz am Abend oder das Standup am Morgen; „Als Datei sichern“ legt ihn als Markdown ab.",
+      + "Notiz am Abend oder das Standup am Morgen; „Als Datei sichern“ legt ihn als Markdown ab. "
+      + "Darunter die Woche: je Tag eine Säule, nach Projekt gefärbt, antippen zeigt den Tag. Läuft "
+      + "eine Sitzung über Tage, zählt nur, an welchen Tagen sie wirklich Zeilen schrieb. "
+      + "„Woche kopieren“ gibt sie mit den Summen je Projekt her.",
   },
   {
     titel: "Was die Hand tut",
