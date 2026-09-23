@@ -252,7 +252,7 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
   - Der Mond beleuchtet nur, wo wirklich Wolken sind. Über klarem Himmel bleibt die Nacht schwarz, mit den Städten darin.
 - **Worüber die Station fliegt.**
   - Unter Stationswerte steht zum Beispiel „Unter uns: Italien · 44° N · 12° O“.
-  - Wer auf die Erde tippt, erfährt, welches Land oder Meer an der Stelle liegt. Ist gerade etwas offen, schließt der Tipp es wie bisher.
+  - Wer auf die Erde tippt, erfährt, welches Land oder Meer an der Stelle liegt, dazu die Sonnenzeit und ob dort Tag, Dämmerung oder Nacht ist: „Mittelmeer · 35° N · 18° O · 15:50 Sonnenzeit · Tag“. Die Sonnenzeit zeigt, was eine Sonnenuhr dort zeigen würde, nicht die Uhrzeit der Zeitzone. Ist gerade etwas offen, schließt der Tipp es wie bisher.
   - Die Grenzen kommen von Natural Earth und sind gemeinfrei: Länder im Maßstab 1:50 Millionen, dazu Ozeane, Meere, Golfe und Meeresstraßen, zusammen 355 deutsche Namen.
   - Gebacken sind sie zu einer Karte von 1440 × 720 Punkten (47 KB), mit der Nummer des Namens in jedem Punkt. Enklaven wie Lesotho bleiben erhalten, Zwergstaaten wie der Vatikan fallen durchs Raster.
 - **Die Bodenspur.** Unter der Umlaufuhr zeigt eine kleine Weltkarte die Spur der Bahn: den letzten halben Umlauf blass, den nächsten hell. Dazu zeigt sie die Nacht aus dem echten Sonnenstand und einen Punkt, wo die Station gerade steht. So fangen die ISS-Verfolger im Netz an. Die Spur schlängelt sich zwischen 51,6 Grad Nord und Süd.
@@ -403,7 +403,8 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 - **Überflug**:
   - Über Norditalien steht in den Stationswerten „Italien · 44° N · 12° O“.
   - Acht bekannte Orte werden richtig benannt: Berlin, Kairo, Mittelmeer, Atlantik, Lesotho, Nordsee, Tokio und Sydney.
-  - Ein Tipp südlich davon nennt das Mittelmeer, ein zweiter Tipp schließt, und über der Kante gibt es keine Erde.
+  - Ein Tipp südlich davon nennt das Mittelmeer mit „15:50 Sonnenzeit · Tag“, ein zweiter Tipp schließt, und über der Kante gibt es keine Erde.
+  - Um 14:30 UTC zeigt die Sonnenuhr in Greenwich 14:37, das ist die Zeitgleichung. Auf der Gegenseite bei 140 Grad Ost ist es 23:57 und Nacht.
 - **Bodenspur**:
   - Die Karte ist 2 : 1, und der Punkt der Station liegt genau über dem Ort unter ihr.
   - Die Spur reicht bis ±51,6 Grad.

@@ -11508,6 +11508,28 @@ function gradText(breite, laenge) {
     + Math.round(Math.abs(laenge)) + "° " + (laenge >= 0 ? "O" : "W");
 }
 
+/* Wie spaet ist es dort, und steht die Sonne? Die Sonnenzeit kommt aus
+   dem Stundenwinkel: fuenfzehn Grad Laenge sind eine Stunde, und wo die
+   Sonne senkrecht steht, ist es zwoelf. Das ist nicht die Uhrzeit der
+   Zeitzone, sondern die, die eine Sonnenuhr dort zeigt. */
+function sonnenzeit(breite, laenge) {
+  const S = ERDKARTE.blick ? ERDKARTE.blick.S : sonneErdfest(Date.now());
+  const RAD = Math.PI / 180;
+  const unterSonne = Math.atan2(S[1], S[0]) / RAD;
+  let h = ((laenge - unterSonne) / 15 + 12) % 24;
+  if (h < 0) h += 24;
+  const minuten = Math.floor(h * 60) % 1440;
+  const cb = Math.cos(breite * RAD);
+  const hoehe = Math.asin(Math.max(-1, Math.min(1,
+    cb * Math.cos(laenge * RAD) * S[0] + cb * Math.sin(laenge * RAD) * S[1] + Math.sin(breite * RAD) * S[2]))) / RAD;
+  return {
+    uhr: String(Math.floor(minuten / 60)).padStart(2, "0") + ":" + String(minuten % 60).padStart(2, "0"),
+    hoehe,
+    /* Buergerliche Daemmerung: bis sechs Grad unter dem Horizont */
+    licht: hoehe > 0 ? "Tag" : hoehe > -6 ? "Dämmerung" : "Nacht",
+  };
+}
+
 /* Ein Punkt der Kugel im erdfesten System, zu Breite und Laenge */
 function breiteLaenge(p) {
   return [Math.asin(Math.max(-1, Math.min(1, p[2]))) * 180 / Math.PI,
@@ -18686,8 +18708,9 @@ function zeigerLoslassen(ev) {
     const offen = !!document.querySelector(".blende.offen");
     const unten = offen ? null : erdeBei(ev.clientX, ev.clientY);
     if (unten) {
+      const sz = sonnenzeit(unten.breite, unten.laenge);
       teilZeigen("erde", unten.name || (unten.meer ? "Meer" : "Erde"),
-        gradText(unten.breite, unten.laenge));
+        gradText(unten.breite, unten.laenge) + " · " + sz.uhr + " Sonnenzeit · " + sz.licht);
       return;
     }
     if (offeneDetailId || teilOffen) {
