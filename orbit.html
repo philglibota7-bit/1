@@ -3138,7 +3138,23 @@ function wocheKnoepfe() {
     clearTimeout(k._uhr);
     k._uhr = setTimeout(() => { k.textContent = "Woche kopieren"; }, 1800);
   };
-  r.appendChild(k);
+  const sich = document.createElement("button");
+  sich.className = "knopf leer woche-sichern";
+  sich.textContent = "Als Datei sichern";
+  sich.onclick = async (ev) => {
+    ev.stopPropagation();
+    const d = new Date(), tag = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")
+      + "-" + String(d.getDate()).padStart(2, "0");
+    const erg = await dateiHergeben("orbit-woche-" + tag + ".md",
+      new Blob([wocheText()], { type: "text/markdown;charset=utf-8" }));
+    if (erg === "gesichert" || erg === "abgelehnt") {
+      sich.textContent = erg === "gesichert" ? "Gesichert" : "Nicht gesichert";
+      clearTimeout(sich._uhr);
+      sich._uhr = setTimeout(() => { sich.textContent = "Als Datei sichern"; }, 1800);
+    }
+  };
+  if (hergabe) hergabe.then(d => { if (!d) sich.style.display = "none"; });
+  r.append(k, sich);
   return WOCHE_KNOEPFE = r;
 }
 
