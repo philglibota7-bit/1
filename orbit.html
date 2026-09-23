@@ -1094,6 +1094,7 @@ body.sicht #blende-detail, body.sicht #blende-teil{
     <button id="tm-iss" class="tm-knopf" type="button"></button>
     <button id="tm-wetter" class="tm-knopf" type="button"></button>
     <button id="tm-wolken" class="tm-knopf" type="button"></button>
+    <button id="tm-gestern" class="tm-knopf" type="button"></button>
     <button id="tm-sat" class="tm-knopf" type="button"></button>
     <div class="tm-kopf" id="tm-buchkopf" style="margin:12px 0 7px">BORDBUCH</div>
     <div id="tm-buch"></div>
@@ -1423,6 +1424,7 @@ let Z = {
   echteIss: false,    // wo die echte ISS ist, von wheretheiss.at — nur auf Wunsch
   weltraumwetter: false, // Kp und Polarlicht-Vorhersage der NOAA — nur auf Wunsch
   wolkenHeute: false, // die Wolken von heute statt der Aufnahme — nur auf Wunsch
+  erdeGestern: false, // die Erde von gestern in Echtfarben (VIIRS) — nur auf Wunsch
   satellit: false,    // Satellitenbilder von Esri fuer die ganze Erde — nur auf Wunsch
   bruecke: {
     typen: { session: true, ordner: true, prozess: true, github: true },
@@ -1450,6 +1452,7 @@ function laden() {
       if (typeof d.echteIss === "boolean") Z.echteIss = d.echteIss;
       if (typeof d.weltraumwetter === "boolean") Z.weltraumwetter = d.weltraumwetter;
       if (typeof d.wolkenHeute === "boolean") Z.wolkenHeute = d.wolkenHeute;
+      if (typeof d.erdeGestern === "boolean") Z.erdeGestern = d.erdeGestern;
       if (typeof d.satellit === "boolean") Z.satellit = d.satellit;
       /* Die Zeitraffung ist eine Einstellung wie der Hintergrund — wer
          sie auf das Zwoelffache gestellt hat, will das beim naechsten
@@ -1490,7 +1493,7 @@ function sichern() {
       log: Z.log.slice(0, 60),
       key: Z.key, maxTok: Z.maxTok, gewaehlt: Z.gewaehlt,
       thema: Z.thema, umlauf: Z.umlauf, melden: Z.melden, bruecke: Z.bruecke, rate: ZEIT.rate,
-      echteIss: Z.echteIss, weltraumwetter: Z.weltraumwetter, wolkenHeute: Z.wolkenHeute,
+      echteIss: Z.echteIss, weltraumwetter: Z.weltraumwetter, wolkenHeute: Z.wolkenHeute, erdeGestern: Z.erdeGestern,
       satellit: Z.satellit,
     }));
   } catch (e) {
@@ -5963,6 +5966,8 @@ const TEILE = {
     kurz: "",
     lang: "Das ist die echte Erde, aus den Aufnahmen der NASA: Blue Marble für Land und Meeresboden, dieselbe Reihe für die Wolken, Black Marble für die Lichter der Städte. Die Station fliegt vierhundert Kilometer darüber, und von hier sieht man gut zweitausend Kilometer weit bis zur Kante. Was unten liegt, ist der Streifen neben der Bahn; zur Kante hin blickt man immer flacher darauf, bis die Luft alles in blauen Dunst taucht. Die Sonne steht, wo sie gerade wirklich steht — Tag und Nacht auf der Karte sind die von jetzt.",
     get zahl() {
+      if (ERDEGESTERN.aktiv) return "Die Tageskarte ist die Erde vom " + ERDEGESTERN.tag.slice(8, 10) + "." + ERDEGESTERN.tag.slice(5, 7) + ".: das Echtfarbenbild von Suomi NPP (VIIRS) über die NASA, 4096 mal 2048 Punkte, mit den Wolken, wie sie waren. Wo der Satellit nichts sah, bleibt Blue Marble. "
+        + (WOLKENHEUTE.aktiv ? "Nachts gelten die Wolken von heute." : "Nachts gilt die Aufnahme der Wolken.");
       return "Die Tageskarte hat 4096 mal 2048 Punkte, knapp zehn Kilometer je Punkt; die Wolken die Hälfte. Die Namen kommen von Natural Earth, auf ein Viertelgrad genau. "
         + (WOLKENHEUTE.aktiv
           ? "Die Wolken sind von heute, geladen um " + uhr(WOLKENHEUTE.t) + ", aus Satellitendaten von EUMETSAT über Live Cloud Maps."
@@ -11189,6 +11194,9 @@ uniform sampler2D uSat, uSatGueltig;
 uniform vec4 uSatFenster;
 uniform vec2 uSatRaster;
 uniform float uWolkenWeg;
+/* Die Erde von gestern: 1, wenn die Tageskarte das Echtfarbenbild ist; wo es
+   gilt, steht im Alphakanal der Karte */
+uniform float uGestern;
 /* Scharfe Nachtlichter fuer den Ausschnitt: ein Bild in Laenge und Breite,
    uNachtBox = (westliche Laenge, noerdliche Breite, Breite in Grad, Hoehe
    in Grad), uNachtGewicht 0 = aus */
@@ -11356,7 +11364,11 @@ void main() {
      Meter je Kachelpunkt bei Zoomstufe 10, gut zwei bei 16 */
   vec4 sat = satellit(p);
   if (uSchicht < 0.5 || uSchicht > 2.5) {
-    vec3 boden = texture2D(uTag, uv).rgb;
+    vec4 tagKarte = texture2D(uTag, uv);
+    vec3 boden = tagKarte.rgb;
+    /* Im Echtfarbenbild von gestern sind die Wolken schon drin: dort keine
+       zweiten darueber und keine Schatten von ihnen */
+    float wolkeTag = wolke * (1.0 - uGestern * tagKarte.a);
     boden = mix(boden, sat.rgb, sat.a);
     /* Blue Marble ist fuer Karten gemacht, hell und satt. Aus dem Orbit
        liegt ueber allem ein Hauch Luft: etwas weniger Saettigung, etwas
@@ -11366,11 +11378,14 @@ void main() {
     /* Nah herangezoomt schaut man durch weniger Luft: dann bleibt von
        dieser Toenung nur ein Zehntel, und das Satellitenbild behaelt
        seine Farben. Ohne Zoom ist es genau die Toenung wie immer. */
-    boden = mix(boden, getoent, 1.0 - 0.9 * uWolkenWeg);
-    float schatten = smoothstep(0.2, 0.9, texture2D(uWolken, uv - schritt).r) * (1.0 - uWolkenWeg);
-    boden *= 1.0 - schatten * 0.42 * (1.0 - wolke);
+    /* Das Echtfarbenbild von gestern ist nicht fuer Karten aufgehuebscht,
+       sondern so, wie der Satellit es sah: dort nur ein Drittel davon */
+    boden = mix(boden, getoent, (1.0 - 0.9 * uWolkenWeg) * (1.0 - 0.65 * uGestern * tagKarte.a));
+    float schatten = smoothstep(0.2, 0.9, texture2D(uWolken, uv - schritt).r) * (1.0 - uWolkenWeg)
+                   * (1.0 - uGestern * tagKarte.a);
+    boden *= 1.0 - schatten * 0.42 * (1.0 - wolkeTag);
     vec3 weiss = vec3(0.82, 0.84, 0.87) + kamm * 0.16;
-    farbe = mix(boden, weiss, min(1.0, wolke * 1.15));
+    farbe = mix(boden, weiss, min(1.0, wolkeTag * 1.15));
   }
   /* Ein Hauch Korn gegen Streifen in den weichen Verlaeufen */
   float korn = (texture2D(uKorn, gl_FragCoord.xy / 128.0).r - 0.5) * 0.012;
@@ -11523,7 +11538,7 @@ function erdkarteAufbauen() {
       gl.enableVertexAttribArray(ae);
       gl.vertexAttribPointer(ae, 2, gl.FLOAT, false, 0, 0);
     },
-    () => textur(0, B.tag, gl.RGB, true, true),
+    () => { ERDKARTE.tagTx = textur(0, B.tag, gl.RGB, true, true); },
     () => { ERDKARTE.wolkenTx = textur(1, B.wolken, gl.LUMINANCE, true, true); },
     () => textur(2, B.lichter, gl.LUMINANCE, true, true),
     () => {
@@ -11545,7 +11560,7 @@ function erdkarteAufbauen() {
       for (const n of ["uGroesse", "uMitte", "uRadius", "uBlick", "uSonne", "uMond", "uSchicht",
                        "uTag", "uWolken", "uLichter", "uKorn", "uPolar", "uOval",
                        "uSat", "uSatGueltig", "uSatFenster", "uSatRaster", "uWolkenWeg",
-                       "uNacht", "uNachtBox", "uNachtGewicht"])
+                       "uNacht", "uNachtBox", "uNachtGewicht", "uGestern"])
         u[n] = gl.getUniformLocation(prog, n);
       gl.uniform1i(u.uTag, 0); gl.uniform1i(u.uWolken, 1);
       gl.uniform1i(u.uLichter, 2); gl.uniform1i(u.uKorn, 3);
@@ -11553,6 +11568,7 @@ function erdkarteAufbauen() {
       gl.uniform1i(u.uNacht, 7);
       gl.uniform4f(u.uNachtBox, 0, 0, 1, 1);
       gl.uniform1f(u.uNachtGewicht, 0);
+      gl.uniform1f(u.uGestern, 0);
       gl.uniform4f(u.uPolar, 0, 1, 0, 0);
       gl.uniform4f(u.uSatFenster, 0, 0, 1, 0);
       gl.uniform2f(u.uSatRaster, 1, 1);
@@ -11583,6 +11599,7 @@ function erdkarteAufbauen() {
       /* Lagen die Wolken von heute schon vor, bevor die Karte fertig
          war, kommen sie jetzt dazu */
       if (Z.wolkenHeute && WOLKENHEUTE.daten) wolkenAnwenden();
+      if (Z.erdeGestern && ERDEGESTERN.daten) erdeGesternAnwenden();
       GEWITTER.zellen = ERDKARTE.zellen;
       orteLaden();
       /* Die gerechnete Scheibe ist schon zusammengesetzt; neu, damit die
@@ -11731,6 +11748,7 @@ function erdkarteMalen(ziel, bw, bh, mx, my, rr, blick, schicht) {
   const na = schicht > 2.5 && blick.nacht ? blick.nacht : null;
   gl.uniform4f(u.uNachtBox, na ? na.box.l0 : 0, na ? na.box.b1 : 0, na ? na.box.l1 - na.box.l0 : 1, na ? na.box.b1 - na.box.b0 : 1);
   gl.uniform1f(u.uNachtGewicht, na ? na.gewicht : 0);
+  gl.uniform1f(u.uGestern, ERDEGESTERN.aktiv ? 1 : 0);
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -13236,6 +13254,116 @@ function wolkenAnwenden() {
   GEWITTER.zellen = ERDKARTE.zellen;
   ERDE.schubGebacken = null;
   ERDANSICHT_BILD.stand = null;
+}
+
+/* --- Die Erde von gestern, auf Wunsch -----------------------------------------
+   Blue Marble ist ein Bild ohne Wolken aus vielen Monaten, die Wolken darauf
+   eine andere Aufnahme. Auf Wunsch zeigt ORBIT stattdessen die Erde, wie sie
+   gestern wirklich aussah: das Echtfarbenbild des Satelliten Suomi NPP
+   (VIIRS), ein Mosaik aus vierzehn Ueberfluegen, jeder um halb zwei
+   Ortszeit, vom Kartendienst der NASA (GIBS, als WMS), 4096 mal 2048 Punkte,
+   gut zwei Megabyte. Gestern, weil das Bild von heute erst im Lauf des Tages
+   voll wird: genommen wird der Tag, der vor dreissig Stunden war.
+
+   Wolken und Land sind darin, wie sie waren. Die Wolkenkarte gilt dann nur
+   noch nachts, fuer Mondlicht und Gewitter. Wo der Satellit nichts sah —
+   in der Polarnacht und in Luecken zwischen den Bahnen —, ist das Bild
+   schwarz; dort bleibt Blue Marble mit den Wolken. Echtes Meer ist nie so
+   dunkel: im hellsten Kanal mindestens 26, gemessen am Bild vom 22.
+   September. Die Grenze liegt weich zwischen 14 und 26. */
+const ERDEGESTERN = { tag: null, daten: null, laeuft: false, um: 0, fehler: null, anfragen: 0, aktiv: false, anteil: 0 };
+const GESTERN_ADRESSE = "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi";
+const GESTERN_B = 4096, GESTERN_H = 2048;
+
+function gesternTag(ms) { return new Date(ms - 30 * 3600000).toISOString().slice(0, 10); }
+
+function erdeGesternTakt() {
+  const E_ = ERDEGESTERN;
+  if (!Z.erdeGestern || document.hidden || !ERDKARTE.bereit || E_.laeuft) return;
+  const tag = gesternTag(Date.now());
+  if (tag === E_.tag) return;
+  /* Nach einem Fehler oder einem leeren Bild in zehn Minuten noch einmal;
+   bis dahin bleibt das letzte gute */
+  if (E_.fehler && Date.now() - E_.um < 600000) return;
+  E_.laeuft = true; E_.um = Date.now(); E_.anfragen++;
+  const url = GESTERN_ADRESSE + "?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0"
+    + "&LAYERS=VIIRS_SNPP_CorrectedReflectance_TrueColor&STYLES=&CRS=EPSG:4326&BBOX=-90,-180,90,180"
+    + "&WIDTH=" + GESTERN_B + "&HEIGHT=" + GESTERN_H + "&FORMAT=image/jpeg&TIME=" + tag;
+  const ab = typeof AbortController === "function" ? new AbortController() : null;
+  const wecker = setTimeout(() => ab && ab.abort(), 90000);
+  fetch(url, { signal: ab ? ab.signal : undefined })
+    .then(r => r.ok ? r.blob() : Promise.reject(new Error("HTTP " + r.status)))
+    .then(bildAusBlob)
+    .then((bild) => {
+      if (!Z.erdeGestern) return;
+      const neu = erdeGesternBauen(bild);
+      /* Das entpackte Bild sind 32 Megabyte; nicht auf den Muellsammler warten */
+      if (typeof bild.close === "function") bild.close();
+      if (!neu) throw new Error("unlesbar");
+      /* Ein leeres Bild ist keine Erde von gestern */
+      if (neu.anteil < 0.3) { E_.fehler = "Bild leer"; return; }
+      Object.assign(E_, { daten: neu.daten, anteil: neu.anteil, tag, fehler: null });
+      erdeGesternAnwenden();
+    })
+    .catch(() => { E_.fehler = "nicht erreichbar"; })
+    .finally(() => { clearTimeout(wecker); E_.laeuft = false; });
+}
+
+/* Das Bild von gestern, wo es etwas zeigt, sonst Blue Marble; im
+   Alphakanal, wie sehr es gilt */
+function erdeGesternBauen(bild) {
+  const B = ERDKARTE.bilder;
+  const c = document.createElement("canvas");
+  c.width = GESTERN_B; c.height = GESTERN_H;
+  const g = c.getContext("2d", { willReadFrequently: true });
+  let blau, echt;
+  try {
+    g.drawImage(B.tag, 0, 0, GESTERN_B, GESTERN_H);
+    blau = g.getImageData(0, 0, GESTERN_B, GESTERN_H);
+    g.drawImage(bild, 0, 0, GESTERN_B, GESTERN_H);
+    echt = g.getImageData(0, 0, GESTERN_B, GESTERN_H);
+  } catch { return null; }
+  const a = blau.data, e = echt.data;
+  let gilt = 0;
+  for (let i = 0; i < e.length; i += 4) {
+    const hell = Math.max(e[i], e[i + 1], e[i + 2]);
+    const w = hell <= 14 ? 0 : hell >= 26 ? 1 : (hell - 14) / 12;
+    if (w < 1) {
+      e[i] = Math.round(e[i] * w + a[i] * (1 - w));
+      e[i + 1] = Math.round(e[i + 1] * w + a[i + 1] * (1 - w));
+      e[i + 2] = Math.round(e[i + 2] * w + a[i + 2] * (1 - w));
+    }
+    e[i + 3] = Math.round(w * 255);
+    gilt += w;
+  }
+  return { daten: echt, anteil: gilt / (e.length / 4) };
+}
+
+/* Auf den Grafikchip: eingeschaltet und geladen das Bild von gestern, sonst
+   wieder Blue Marble allein */
+function erdeGesternAnwenden() {
+  const E_ = ERDEGESTERN;
+  if (!ERDKARTE.bereit || !ERDKARTE.gl || !ERDKARTE.tagTx) return;
+  const gl = ERDKARTE.gl;
+  E_.aktiv = !!(Z.erdeGestern && E_.daten);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.tagTx);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+  if (E_.aktiv) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, E_.daten);
+  else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, ERDKARTE.bilder.tag);
+  if (ERDKARTE.ableitung) gl.generateMipmap(gl.TEXTURE_2D);
+  if (typeof ERDE !== "undefined") ERDE.schubGebacken = null;
+  ERDANSICHT_BILD.stand = null;
+}
+
+function erdeGesternKnopf() {
+  const k = document.getElementById("tm-gestern");
+  if (!k) return;
+  k.textContent = Z.erdeGestern ? "Erde von gestern aus" : "Erde von gestern";
+  const klein = document.createElement("small");
+  klein.textContent = Z.erdeGestern ? "das Echtfarbenbild von Suomi NPP, einmal am Tag von der NASA"
+                                    : "echte Farben und Wolken, wie sie gestern waren, statt Blue Marble";
+  k.append(klein);
 }
 
 /* --- Satellitenbilder, auf Wunsch ------------------------------------------
@@ -16212,6 +16340,7 @@ function rahmen(jetzt) {
   echteIssTakt();
   weltraumwetterTakt();
   wolkenHeuteTakt();
+  erdeGesternTakt();
 
   /* Liegt die ganze Erde voll ueber allem, wird die Station nicht
      gezeichnet — zu sehen waere von ihr nichts. Was an Bord laeuft,
@@ -19553,6 +19682,16 @@ $("#tm-wetter").onclick = () => {
   weltraumwetterKnopf();
   tmUhr = 0;
 };
+$("#tm-gestern").onclick = () => {
+  Z.erdeGestern = !Z.erdeGestern;
+  if (!Z.erdeGestern) {
+    Object.assign(ERDEGESTERN, { daten: null, tag: null, fehler: null });
+    if (ERDEGESTERN.aktiv) erdeGesternAnwenden();
+  }
+  sichern();
+  erdeGesternKnopf();
+  tmUhr = 0;
+};
 $("#tm-wolken").onclick = () => {
   Z.wolkenHeute = !Z.wolkenHeute;
   WOLKENHEUTE.um = 0;
@@ -19562,6 +19701,7 @@ $("#tm-wolken").onclick = () => {
   }
   sichern();
   wolkenHeuteKnopf();
+erdeGesternKnopf();
   tmUhr = 0;
 };
 $("#btn-vorf").onclick = () => vorfuehrungBeenden();
@@ -19972,6 +20112,14 @@ function zeichneTelemetrie(t) {
       const w = WOLKENHEUTE;
       if (w.daten) return [["WOLKEN", "von heute · " + uhr(w.t) + (w.fehler ? " · neu laden gescheitert" : "")]];
       return [["WOLKEN", w.fehler || (ERDKARTE.bereit ? "werden geladen …" : "warten auf die Karte")]];
+    })(),
+    /* Die Erde von gestern, wenn gewuenscht: welcher Tag */
+    ...(() => {
+      if (!Z.erdeGestern) return [];
+      const e = ERDEGESTERN;
+      if (e.aktiv) return [["ERDE", "von gestern · " + e.tag.slice(8, 10) + "." + e.tag.slice(5, 7) + ". · Suomi NPP"
+        + (e.fehler ? " · neu laden gescheitert" : "")]];
+      return [["ERDE", e.fehler || (ERDKARTE.bereit ? "wird geladen …" : "warten auf die Karte")]];
     })(),
     /* Die echte ISS, wenn gewuenscht */
     ...(() => {
@@ -20459,8 +20607,10 @@ const HILFE = [
       + "wo die echte ISS gerade ist, und die Wolken sind eine Aufnahme, kein Wetter von heute. Unter "
       + "Stationswerte steht, worüber die Station gerade fliegt, und eine kleine Weltkarte zeigt ihre "
       + "Spur, die Nacht und wo sie gerade ist. Dort lassen sich auch echte Daten einschalten: die echte "
-      + "ISS von wheretheiss.at und die Wolken von heute, alle drei Stunden neu aus Satellitendaten von "
-      + "EUMETSAT. Tippst du auf die Erde, steht da, welches Land oder Meer an der Stelle liegt. Zoomst "
+      + "ISS von wheretheiss.at, die Wolken von heute, alle drei Stunden neu aus Satellitendaten von "
+      + "EUMETSAT, und die Erde von gestern: das Echtfarbenbild des Satelliten Suomi NPP von der NASA, "
+      + "mit Land und Wolken, wie sie gestern wirklich waren. Tippst du auf die Erde, steht da, welches "
+      + "Land oder Meer an der Stelle liegt. Zoomst "
       + "du weiter heraus, als es geht, oder drückst E, siehst du die ganze Erde: die Kugel mit Tag, "
       + "Dämmerung und den Lichtern der Nacht, darum die Bahn in echter Höhe und oben die Station. "
       + "Ziehen dreht die Kugel, Zoomen macht sie größer, ein Tipp auf die Station bringt dich zurück. "
