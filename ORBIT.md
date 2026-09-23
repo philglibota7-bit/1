@@ -291,6 +291,12 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
   - Ausgeschaltet geht keine einzige Anfrage hinaus. Gefragt wird nur, solange die Stationswerte oder die ganze Erde offen sind.
   - In den Stationswerten steht, worüber sie fliegt, mit Breite, Länge und ob dort Tag ist. In der ganzen Erde erscheint sie als zweiter, türkiser Punkt in ihrer echten Höhe, dazu ihre Bahn gestrichelt: der Großkreis durch die letzten beiden Antworten. Daneben sieht man, wie weit unsere Bahn von der echten abliegt.
   - Zwischen zwei Antworten läuft sie auf dem Großkreis durch die letzten beiden Punkte weiter. Als Zeit gilt die eigene Uhr beim Empfang, nicht der Zeitstempel des Dienstes: Geht die Uhr des Rechners ein paar Minuten falsch, wäre die Antwort sonst sofort zu alt. Nach zwei Minuten ohne Antwort steht „nicht erreichbar“ da.
+- **Die Wolken von heute, auf Wunsch.** Die Wolken der Karte sind eine Aufnahme der NASA, schön, aber nicht das Wetter von heute. Unter Stationswerte lässt sich einschalten, dass ORBIT alle drei Stunden eine Wolkenkarte der ganzen Erde lädt. Sie kommt von Live Cloud Maps (clouds.matteason.co.uk), gerechnet aus Satellitendaten von EUMETSAT, 2048 × 1024 Punkte, gut 400 Kilobyte. Der Dienst erlaubt Browsern die Antwort.
+  - Sie ist ein Infrarotbild: Hell ist, was kalt ist. Das sind die hohen Wolken, aber auch klare Luft über kühlem Meer, und in hohen Breiten ist fast alles hell. Heute früh war zwischen 50 und 60 Grad die Hälfte der Punkte heller als 0,84, in der Aufnahme der NASA als 0,33. So eingesetzt läge über Europa und dem Südpolarmeer eine geschlossene weiße Decke.
+  - Deshalb gleicht ORBIT die Helligkeit je Breitenband an die Verteilung der Aufnahme an: in 64 Bändern je dieselbe Rangfolge, weich dazwischen. Bewölkt ist dann, was dort heute am kältesten ist, und zwar so viel, wie dort üblich ist. Jenseits von 62 Grad geht es bis 72 Grad in die Aufnahme über, denn dort sehen die Satelliten schräg und lückenhaft, und die Karte hat Randfehler.
+  - Aus demselben Bild kommen die Gewitterzellen, im Infrarot die kältesten Türme. Die Scheibe unter der Station und die ganze Erde werden sofort neu gerechnet.
+  - Ausgeschaltet geht keine Anfrage hinaus, im Hintergrund auch nicht. Nach einem Fehler kommt der nächste Versuch nach zehn Minuten, und bis dahin bleiben die zuletzt geladenen Wolken. Wieder aus kehrt die Aufnahme bildpunktgenau zurück.
+  - In den Stationswerten steht, seit wann sie gelten, etwa „von heute · 06:24“, und die Karte der Erde sagt, woher sie kommen.
 - **Rückfall.** Fehlt eines der Bilder, kann der Browser kein WebGL oder geht der Grafikkontext verloren, zeichnet ORBIT die gerechnete Erde wie bisher. Solange die Karten laden, wartet die Seite bis zu zwei Sekunden mit der Erde. So zeigt sie nicht erst die gerechnete und springt dann um.
 - **Kosten.**
   - Neu gemalt wird nur, wenn sich die Scheibe weit genug gedreht hat. Das regelt dieselbe Schwelle wie vorher beim Durchziehen.
@@ -390,7 +396,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-80 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+81 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
 - **Echte Arbeitsumgebung**:
@@ -475,6 +481,13 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Sternschnuppen: je 200, keine im Sternhimmel.
   - Echte ISS: Die Antworten des Dienstes sind nachgebaut, mit den Feldern der echten API. Ausgeschaltet geht keine Anfrage hinaus. Eingeschaltet kommt die erste sofort, die nächste nach zwanzig Sekunden, nicht früher. Über Bayern steht „Deutschland · 48° N · 12° O · Tag“. Auf der Kugel liegt der Punkt auf 0,003 Bildpunkte genau an ihrer Stelle, zwischen den Antworten weitergerechnet. Fällt der Dienst aus, steht „nicht erreichbar“ da. Wieder ausgeschaltet kommt keine Anfrage mehr.
   - Meteorströme: Am 12. August um 20 Uhr UTC laufen die Perseiden mit elffacher Rate und stehen im Bordbuch, am 14. Dezember die Geminiden mit sechzehnfacher. Am 23. September läuft keiner.
+  - Wolken von heute:
+    - Das Bild des Dienstes ist nachgebaut: ein Infrarotbild wie das echte, mit Dunst, der zu den Polen hin heller wird, einem Wirbelsturm bei 20 Grad Nord und 60 West und einer Front bei 40 Grad Süd. Das echte Bild von heute früh ist nur für die Bilder benutzt.
+    - Aus geht keine Anfrage hinaus. Ein kommt eine, die nächste nach drei Stunden, nicht früher, nach einem Fehler nach zehn Minuten, im Hintergrund nie. Ein einfarbiges Bild wird verworfen, die Wolken davor bleiben.
+    - Angeglichen: Im Wirbelsturm stehen die Wolken bei 215 von 255, im Dunst daneben bei 33, die Aufnahme hat dort 58. Zwischen 52 und 58 Grad Nord liegt das Mittel bei 79, in der Aufnahme bei 76. Bei 75 und 80 Grad Nord und Süd ist jede Zeile genau die Aufnahme.
+    - Die Wolkendecke deckt über dem Wirbelsturm zu drei Vierteln, das ist die volle Deckung dieser Schicht. Im Wirbelsturm liegen 49 Gewitterzellen, mit der Aufnahme 3.
+    - Wieder aus ist die Kugel innen bildpunktgleich mit vorher, die Gewitterzellen und die Karte der Erde auch.
+    - Gegengeprüft mit fünf absichtlich kaputten Fassungen: ohne Angleichen, ohne Übergang an den Polen, ohne Hochladen auf den Grafikchip, mit Gewitterzellen aus der Aufnahme und ohne Zurückschalten beim Ausschalten. Alle fünf schlagen an.
   - Weltraumwetter:
     - Die Antworten der NOAA sind nachgebaut, mit den Feldern der echten Dienste. Das Format ist an ihren echten Antworten von heute früh geprüft: Kp 0, Karte bis 12 %.
     - Aus geht keine Anfrage hinaus, auch nicht mit offener Kugel. Ein kommt sofort der Kp, die Karte nur mit offener Kugel. Danach alle fünf und zehn Minuten, nicht früher, nach einem Fehler nach einer Minute, im Hintergrund nie. Wieder aus kommt keine Anfrage mehr.
@@ -541,6 +554,6 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Dasselbe gilt für die Dienste der NOAA. Ich habe sie hier nur mit curl erreicht, nicht aus dem Browser, denn dem Testbrowser fehlt hier der Weg nach draußen. Geprüft ist das Format an ihren echten Antworten.
   - OVATION sagt, wie wahrscheinlich Polarlicht vom Boden aus zu sehen ist, nicht wie hell es von oben aussieht. Die Umrechnung in Helligkeit habe ich gewählt, sie ist nicht gemessen.
   - Der Umlauf ist zwölffach gerafft, die Sonne läuft in Echtzeit. Deshalb verschiebt sich die Bahn von Runde zu Runde nur um knapp zwei Grad statt um 23.
-  - Die Wolken sind eine Aufnahme, kein Wetter von heute.
+  - Die Wolken sind eine Aufnahme, kein Wetter von heute; die von heute gibt es auf Wunsch. Sie hängen an einem privat betriebenen Dienst (Live Cloud Maps), nicht an EUMETSAT selbst. Fällt er weg, bleiben die zuletzt geladenen Wolken bis zum Neuladen der Seite, danach die Aufnahme. Angeglichen ist die Menge je Breite, nicht die wirkliche Dicke: Eine dünne, kalte Schleierwolke kann heller herauskommen als eine dicke, warme.
   - Auf einem Mac mit Grafikchip ist die Erde nicht gemessen, nur in Software-Rasterung.
 - **Fortsetzen ist nicht auf einem Mac ausprobiert.** Die Zwischenablage über Neutralino ist gegen die mitgelieferte Client-Bibliothek geprüft, nicht im laufenden Programm. Das Quoten ist in bash, dash und sh ausgeführt. zsh, die Standard-Shell des Mac, war hier nicht installiert: Sie behandelt einfache Anführungszeichen gleich, ausprobiert ist es aber nicht. Wie `claude --resume` mit einer Sitzung umgeht, die noch in einem anderen Terminal offen ist, habe ich nicht geprüft. ORBIT bietet den Befehl in diesem Fall deshalb gar nicht an.

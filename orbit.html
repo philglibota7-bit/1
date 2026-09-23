@@ -1085,6 +1085,7 @@ body.sicht #blende-detail, body.sicht #blende-teil{
     <div id="tm-zeilen"></div>
     <button id="tm-iss" class="tm-knopf" type="button"></button>
     <button id="tm-wetter" class="tm-knopf" type="button"></button>
+    <button id="tm-wolken" class="tm-knopf" type="button"></button>
     <div class="tm-kopf" id="tm-buchkopf" style="margin:12px 0 7px">BORDBUCH</div>
     <div id="tm-buch"></div>
   </div>
@@ -1406,6 +1407,7 @@ let Z = {
   melden: null,       // Mitteilungen; null = Voreinstellung: im Programm an, im Browser aus
   echteIss: false,    // wo die echte ISS ist, von wheretheiss.at — nur auf Wunsch
   weltraumwetter: false, // Kp und Polarlicht-Vorhersage der NOAA — nur auf Wunsch
+  wolkenHeute: false, // die Wolken von heute statt der Aufnahme — nur auf Wunsch
   bruecke: {
     typen: { session: true, ordner: true, prozess: true, github: true },
     ordner: [],                 // beobachtete Projektordner
@@ -1431,6 +1433,7 @@ function laden() {
       if (typeof d.melden === "boolean") Z.melden = d.melden;
       if (typeof d.echteIss === "boolean") Z.echteIss = d.echteIss;
       if (typeof d.weltraumwetter === "boolean") Z.weltraumwetter = d.weltraumwetter;
+      if (typeof d.wolkenHeute === "boolean") Z.wolkenHeute = d.wolkenHeute;
       /* Die Zeitraffung ist eine Einstellung wie der Hintergrund — wer
          sie auf das Zwoelffache gestellt hat, will das beim naechsten
          Mal nicht wieder suchen muessen. Angehalten wird NICHT
@@ -1470,7 +1473,7 @@ function sichern() {
       log: Z.log.slice(0, 60),
       key: Z.key, maxTok: Z.maxTok, gewaehlt: Z.gewaehlt,
       thema: Z.thema, umlauf: Z.umlauf, melden: Z.melden, bruecke: Z.bruecke, rate: ZEIT.rate,
-      echteIss: Z.echteIss, weltraumwetter: Z.weltraumwetter,
+      echteIss: Z.echteIss, weltraumwetter: Z.weltraumwetter, wolkenHeute: Z.wolkenHeute,
     }));
   } catch (e) {
     /* Speicher voll oder privater Modus — die App laeuft trotzdem weiter */
@@ -5941,7 +5944,12 @@ const TEILE = {
     name: "Erde",
     kurz: "",
     lang: "Das ist die echte Erde, aus den Aufnahmen der NASA: Blue Marble für Land und Meeresboden, dieselbe Reihe für die Wolken, Black Marble für die Lichter der Städte. Die Station fliegt vierhundert Kilometer darüber, und von hier sieht man gut zweitausend Kilometer weit bis zur Kante. Was unten liegt, ist der Streifen neben der Bahn; zur Kante hin blickt man immer flacher darauf, bis die Luft alles in blauen Dunst taucht. Die Sonne steht, wo sie gerade wirklich steht — Tag und Nacht auf der Karte sind die von jetzt.",
-    zahl: "Die Tageskarte hat 4096 mal 2048 Punkte, knapp zehn Kilometer je Punkt; die Wolken die Hälfte. Die Namen kommen von Natural Earth, auf ein Viertelgrad genau. Wolken sind eine Aufnahme, kein Wetter von heute.",
+    get zahl() {
+      return "Die Tageskarte hat 4096 mal 2048 Punkte, knapp zehn Kilometer je Punkt; die Wolken die Hälfte. Die Namen kommen von Natural Earth, auf ein Viertelgrad genau. "
+        + (WOLKENHEUTE.aktiv
+          ? "Die Wolken sind von heute, geladen um " + uhr(WOLKENHEUTE.t) + ", aus Satellitendaten von EUMETSAT über Live Cloud Maps."
+          : "Wolken sind eine Aufnahme, kein Wetter von heute.");
+    },
   },
   ganzeErde: {
     name: "Die ganze Erde",
@@ -11403,7 +11411,7 @@ function erdkarteAufbauen() {
       gl.vertexAttribPointer(ae, 2, gl.FLOAT, false, 0, 0);
     },
     () => textur(0, B.tag, gl.RGB, true, true),
-    () => textur(1, B.wolken, gl.LUMINANCE, true, true),
+    () => { ERDKARTE.wolkenTx = textur(1, B.wolken, gl.LUMINANCE, true, true); },
     () => textur(2, B.lichter, gl.LUMINANCE, true, true),
     () => {
       /* Feines Rauschen, nahtlos gekachelt: 128 mal 128 Zufallswerte, vom
@@ -11440,11 +11448,14 @@ function erdkarteAufbauen() {
            mit "Erde" in der Zoomleiste vor der Szene zu stehen */
         if (ERDANSICHT.an) erdansicht(false);
       });
-      Object.assign(ERDKARTE, { lw, gl, prog, u, eck });
+      Object.assign(ERDKARTE, { lw, gl, prog, u, eck, ableitung });
     },
     () => {
       erdkarteZellen();
       ERDKARTE.bereit = true;
+      /* Lagen die Wolken von heute schon vor, bevor die Karte fertig
+         war, kommen sie jetzt dazu */
+      if (Z.wolkenHeute && WOLKENHEUTE.daten) wolkenAnwenden();
       GEWITTER.zellen = ERDKARTE.zellen;
       orteLaden();
       /* Die gerechnete Scheibe ist schon zusammengesetzt; neu, damit die
@@ -11595,7 +11606,7 @@ function erdkarteMalen(ziel, bw, bh, mx, my, rr, blick, schicht) {
    einem Umlauf auch wieder. Ein Grad Abstand (gut hundert Kilometer),
    nur zwischen fuenfzig Grad Nord und Sued — polwaerts ist es fuer
    Gewittertuerme zu kalt. */
-function erdkarteZellen() {
+function erdkarteZellen(wolkenQuelle) {
   const B = ERDKARTE.bilder;
   const bw = 360, bh = 180;
   const lies = (bild) => {
@@ -11606,7 +11617,7 @@ function erdkarteZellen() {
     return g.getImageData(0, 0, bw, bh).data;
   };
   let wd, td;
-  try { wd = lies(B.wolken); td = lies(B.tag); }
+  try { wd = lies(wolkenQuelle || B.wolken); td = lies(B.tag); }
   catch { ERDKARTE.zellen = []; return; }
   const RAD = Math.PI / 180;
   const zellen = [], raster = new Map();
@@ -12722,6 +12733,166 @@ function weltraumwetterKnopf() {
   const klein = document.createElement("small");
   klein.textContent = Z.weltraumwetter ? "fragt bei der NOAA nach Kp und Polarlicht"
                                        : "Polarlicht nach Kp und Vorhersage der NOAA";
+  k.append(klein);
+}
+
+/* --- Die Wolken von heute, auf Wunsch --------------------------------------
+   Die Wolken der Karte sind eine Aufnahme der NASA, schoen, aber nicht das
+   Wetter von heute. Auf Wunsch laedt ORBIT alle drei Stunden eine Karte der
+   ganzen Erde von Live Cloud Maps (clouds.matteason.co.uk), gerechnet aus
+   Satellitendaten von EUMETSAT, 2048 mal 1024 Punkte, gut 400 Kilobyte.
+   Der Dienst erlaubt jedem Browser die Antwort.
+
+   Sie ist ein Infrarotbild: hell ist, was kalt ist. Das sind die hohen
+   Wolken, aber auch klare Luft ueber kuehlem Meer, und in hohen Breiten
+   ist fast alles hell. So eingesetzt laege ueber Europa und dem
+   Suedpolarmeer eine geschlossene weisse Decke; gemessen ist dort die
+   Haelfte der Punkte heller als 0,84, in der Aufnahme der NASA als 0,33.
+
+   Deshalb wird die Helligkeit je Breitenband an die Verteilung der
+   Aufnahme angeglichen: in 64 Baendern je die gleiche Rangfolge, weich
+   dazwischen. Bewoelkt ist dann, was dort heute am kaeltesten ist, und
+   zwar so viel, wie dort ueblich ist. Jenseits von 62 Grad geht es bis
+   72 Grad in die Aufnahme ueber: dort sehen die Satelliten schraeg und
+   lueckenhaft, und die Karte hat Randfehler.
+
+   Aus demselben Bild kommen auch die Gewitterzellen, im Infrarot die
+   hellsten, also kaeltesten Tuerme. Ausgeschaltet geht keine Anfrage
+   hinaus, und die Aufnahme kehrt bildpunktgenau zurueck. */
+const WOLKENHEUTE = { daten: null, t: 0, fehler: null, laeuft: false, um: 0, anfragen: 0,
+                      aktiv: false, nasa: null };
+const WOLKEN_ADRESSE = "https://clouds.matteason.co.uk/images/2048x1024/clouds.jpg";
+const WOLKEN_TAKT = 3 * 3600000;
+const WOLKEN_B = 2048, WOLKEN_H = 1024;
+
+function wolkenHeuteTakt() {
+  const W_ = WOLKENHEUTE;
+  if (!Z.wolkenHeute || document.hidden || !ERDKARTE.bereit || W_.laeuft) return;
+  const jetzt = Date.now();
+  if (jetzt - W_.um < WOLKEN_TAKT) return;
+  W_.laeuft = true; W_.um = jetzt; W_.anfragen++;
+  const ab = typeof AbortController === "function" ? new AbortController() : null;
+  const wecker = setTimeout(() => ab && ab.abort(), 30000);
+  fetch(WOLKEN_ADRESSE, { cache: "no-cache", signal: ab ? ab.signal : undefined })
+    .then(r => r.ok ? r.blob() : Promise.reject(new Error("HTTP " + r.status)))
+    .then(bildAusBlob)
+    .then((bild) => {
+      if (!Z.wolkenHeute) return;
+      const daten = wolkenAngleichen(bild);
+      if (!daten) throw new Error("unlesbar");
+      W_.daten = daten; W_.t = Date.now(); W_.fehler = null;
+      wolkenAnwenden();
+    })
+    .catch(() => {
+      W_.fehler = "nicht erreichbar";
+      /* Nicht drei Stunden warten: in zehn Minuten noch einmal */
+      W_.um = Date.now() - WOLKEN_TAKT + 600000;
+    })
+    .finally(() => { clearTimeout(wecker); W_.laeuft = false; });
+}
+
+function bildAusBlob(blob) {
+  if (typeof createImageBitmap === "function") return createImageBitmap(blob);
+  return new Promise((ja, nein) => {
+    const b = new Image(), url = URL.createObjectURL(blob);
+    b.onload = () => { URL.revokeObjectURL(url); ja(b); };
+    b.onerror = () => { URL.revokeObjectURL(url); nein(new Error("Bild")); };
+    b.src = url;
+  });
+}
+
+/* Grauwerte eines Bilds in 2048 mal 1024, eine Zahl je Punkt */
+function wolkenGrau(bild) {
+  const c = document.createElement("canvas");
+  c.width = WOLKEN_B; c.height = WOLKEN_H;
+  const g = c.getContext("2d", { willReadFrequently: true });
+  g.drawImage(bild, 0, 0, WOLKEN_B, WOLKEN_H);
+  const d = g.getImageData(0, 0, WOLKEN_B, WOLKEN_H).data;
+  const grau = new Uint8Array(WOLKEN_B * WOLKEN_H);
+  for (let i = 0, j = 0; j < grau.length; i += 4, j++) grau[j] = (d[i] * 3 + d[i + 1] * 4 + d[i + 2]) >> 3;
+  return grau;
+}
+
+function wolkenAngleichen(bild) {
+  const B = WOLKEN_B, H = WOLKEN_H, BAENDER = 64, ZEILEN = H / BAENDER;
+  const live = wolkenGrau(bild);
+  if (!WOLKENHEUTE.nasa) WOLKENHEUTE.nasa = wolkenGrau(ERDKARTE.bilder.wolken);
+  const nasa = WOLKENHEUTE.nasa;
+  /* Ein leeres oder einfarbiges Bild ist keine Wolkenkarte */
+  let summe = 0, quadrat = 0;
+  for (let i = 0; i < live.length; i += 97) { summe += live[i]; quadrat += live[i] * live[i]; }
+  const n = Math.ceil(live.length / 97), mittel = summe / n;
+  if (Math.sqrt(Math.max(0, quadrat / n - mittel * mittel)) < 8) return null;
+  /* Je Band: fuer jeden Grauwert des Infrarotbilds der Wert der Aufnahme
+     mit derselben Rangfolge */
+  const lut = new Float32Array(BAENDER * 256);
+  const ha = new Float64Array(256), hb = new Float64Array(256);
+  for (let k = 0; k < BAENDER; k++) {
+    ha.fill(0); hb.fill(0);
+    for (let i = k * ZEILEN * B, e = (k + 1) * ZEILEN * B; i < e; i++) { ha[live[i]]++; hb[nasa[i]]++; }
+    let sa = 0, sb = 0;
+    const m = ZEILEN * B;
+    for (let v = 0; v < 256; v++) { sa += ha[v]; ha[v] = sa / m; sb += hb[v]; hb[v] = sb / m; }
+    for (let v = 0, j = 0; v < 256; v++) {
+      while (j < 255 && hb[j] < ha[v] - 1e-12) j++;
+      lut[k * 256 + v] = j;
+    }
+  }
+  const aus = new Uint8Array(B * H);
+  for (let y = 0; y < H; y++) {
+    const f = (y + 0.5) / ZEILEN - 0.5, k0 = Math.floor(f), t = f - k0;
+    const a0 = klemm(k0, 0, BAENDER - 1) * 256, a1 = klemm(k0 + 1, 0, BAENDER - 1) * 256;
+    const breite = 90 - (y + 0.5) / H * 180;
+    let ueber = klemm((Math.abs(breite) - 62) / 10, 0, 1);
+    ueber = ueber * ueber * (3 - 2 * ueber);
+    for (let x = 0, i = y * B; x < B; x++, i++) {
+      const v = live[i];
+      const w = lut[a0 + v] * (1 - t) + lut[a1 + v] * t;
+      aus[i] = Math.round(w * (1 - ueber) + nasa[i] * ueber);
+    }
+  }
+  return aus;
+}
+
+/* Auf den Grafikchip, und alles, was an den Wolken haengt, neu: die
+   Gewitterzellen, die Scheibe unter der Station und die ganze Erde */
+function wolkenAnwenden() {
+  if (!ERDKARTE.bereit || !ERDKARTE.gl || !ERDKARTE.wolkenTx) return;
+  const heute = Z.wolkenHeute && WOLKENHEUTE.daten;
+  const gl = ERDKARTE.gl;
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.wolkenTx);
+  if (heute) {
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, WOLKEN_B, WOLKEN_H, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, WOLKENHEUTE.daten);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+  } else {
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, ERDKARTE.bilder.wolken);
+  }
+  if (ERDKARTE.ableitung) gl.generateMipmap(gl.TEXTURE_2D);
+  WOLKENHEUTE.aktiv = !!heute;
+  let quelle;
+  if (heute) {
+    quelle = document.createElement("canvas");
+    quelle.width = WOLKEN_B; quelle.height = WOLKEN_H;
+    const g = quelle.getContext("2d");
+    const bild = g.createImageData(WOLKEN_B, WOLKEN_H), d = bild.data, w = WOLKENHEUTE.daten;
+    for (let i = 0, j = 0; j < w.length; i += 4, j++) { d[i] = d[i + 1] = d[i + 2] = w[j]; d[i + 3] = 255; }
+    g.putImageData(bild, 0, 0);
+  }
+  erdkarteZellen(quelle);
+  GEWITTER.zellen = ERDKARTE.zellen;
+  ERDE.schubGebacken = null;
+  ERDANSICHT_BILD.stand = null;
+}
+
+function wolkenHeuteKnopf() {
+  const k = document.getElementById("tm-wolken");
+  if (!k) return;
+  k.textContent = Z.wolkenHeute ? "Wolken von heute aus" : "Wolken von heute";
+  const klein = document.createElement("small");
+  klein.textContent = Z.wolkenHeute ? "lädt alle drei Stunden die Karte, aus Daten von EUMETSAT"
+                                    : "statt der Aufnahme der NASA, aus Satellitendaten von EUMETSAT";
   k.append(klein);
 }
 
@@ -15251,6 +15422,7 @@ function rahmen(jetzt) {
   durchgangTakt(t, dt);
   echteIssTakt();
   weltraumwetterTakt();
+  wolkenHeuteTakt();
 
   /* Liegt die ganze Erde voll ueber allem, wird die Station nicht
      gezeichnet — zu sehen waere von ihr nichts. Was an Bord laeuft,
@@ -18592,6 +18764,17 @@ $("#tm-wetter").onclick = () => {
   weltraumwetterKnopf();
   tmUhr = 0;
 };
+$("#tm-wolken").onclick = () => {
+  Z.wolkenHeute = !Z.wolkenHeute;
+  WOLKENHEUTE.um = 0;
+  if (!Z.wolkenHeute) {
+    Object.assign(WOLKENHEUTE, { daten: null, fehler: null });
+    if (WOLKENHEUTE.aktiv) wolkenAnwenden();
+  }
+  sichern();
+  wolkenHeuteKnopf();
+  tmUhr = 0;
+};
 $("#btn-vorf").onclick = () => vorfuehrungBeenden();
 $("#vorf-band").onclick = () => vorfuehrungBeenden();
 
@@ -18993,6 +19176,13 @@ function zeichneTelemetrie(t) {
       if (!w) return [];
       const a = windAktiv();
       return [["SONNENWIND", windText(w), a / 1.5, a >= 1 ? "warm" : "gut"]];
+    })(),
+    /* Die Wolken von heute, wenn gewuenscht: seit wann */
+    ...(() => {
+      if (!Z.wolkenHeute) return [];
+      const w = WOLKENHEUTE;
+      if (w.daten) return [["WOLKEN", "von heute · " + uhr(w.t) + (w.fehler ? " · neu laden gescheitert" : "")]];
+      return [["WOLKEN", w.fehler || (ERDKARTE.bereit ? "werden geladen …" : "warten auf die Karte")]];
     })(),
     /* Die echte ISS, wenn gewuenscht */
     ...(() => {
@@ -19477,14 +19667,15 @@ const HILFE = [
       + "Aufnahmen der NASA, nachts die Lichter der Städte aus Black Marble. Die Bahn ist 51,6 Grad "
       + "gegen den Äquator geneigt wie die der ISS, und die Sonne steht, wo sie gerade wirklich steht: "
       + "ist es in Europa Nacht, zieht Europa auf der Nachtseite vorbei. Die Station fliegt aber nicht dort, "
-      + "wo die echte ISS gerade ist, und die Wolken sind eine Aufnahme, kein Wetter von heute. Unter Stationswerte "
-      + "steht, worüber die Station gerade fliegt, und eine kleine Weltkarte zeigt ihre Spur, die Nacht "
-      + "und wo sie gerade ist. Tippst du auf die Erde, steht da, welches Land oder Meer an der Stelle "
-      + "liegt. Zoomst du weiter heraus, als es geht, oder drückst E, siehst du die ganze Erde: die Kugel "
-      + "mit Tag, Dämmerung und den Lichtern der Nacht, darum die Bahn in echter Höhe und oben die "
-      + "Station. Ziehen dreht die Kugel, Zoomen macht sie größer, ein Tipp auf die Station bringt dich zurück. Unter Stationswerte "
-      + "kannst du dazu die echte ISS einschalten; dann fragt ORBIT bei wheretheiss.at nach, wo sie gerade ist. Ohne WebGL oder ohne die Kartenbilder "
-      + "zeichnet ORBIT eine gerechnete Erde.",
+      + "wo die echte ISS gerade ist, und die Wolken sind eine Aufnahme, kein Wetter von heute. Unter "
+      + "Stationswerte steht, worüber die Station gerade fliegt, und eine kleine Weltkarte zeigt ihre "
+      + "Spur, die Nacht und wo sie gerade ist. Dort lassen sich auch echte Daten einschalten: die echte "
+      + "ISS von wheretheiss.at und die Wolken von heute, alle drei Stunden neu aus Satellitendaten von "
+      + "EUMETSAT. Tippst du auf die Erde, steht da, welches Land oder Meer an der Stelle liegt. Zoomst "
+      + "du weiter heraus, als es geht, oder drückst E, siehst du die ganze Erde: die Kugel mit Tag, "
+      + "Dämmerung und den Lichtern der Nacht, darum die Bahn in echter Höhe und oben die Station. "
+      + "Ziehen dreht die Kugel, Zoomen macht sie größer, ein Tipp auf die Station bringt dich zurück. "
+      + "Ohne WebGL oder ohne die Kartenbilder zeichnet ORBIT eine gerechnete Erde.",
   },
   {
     titel: "Der Himmel",
@@ -20123,6 +20314,7 @@ laden();
 zeitKnopfStand();
 echteIssKnopf();
 weltraumwetterKnopf();
+wolkenHeuteKnopf();
 if (umlaufSchalter) umlaufSchalter.classList.toggle("an", Z.umlauf !== false);
 themaAnwenden();
 groesseAnpassen();
