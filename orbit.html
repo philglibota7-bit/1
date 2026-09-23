@@ -1097,6 +1097,7 @@ body.sicht #blende-detail, body.sicht #blende-teil{
     <button id="tm-gestern" class="tm-knopf" type="button"></button>
     <button id="tm-sat" class="tm-knopf" type="button"></button>
     <button id="tm-schrift" class="tm-knopf" type="button"></button>
+    <button id="tm-relief" class="tm-knopf" type="button"></button>
     <div class="tm-kopf" id="tm-buchkopf" style="margin:12px 0 7px">BORDBUCH</div>
     <div id="tm-buch"></div>
   </div>
@@ -1427,6 +1428,7 @@ let Z = {
   wolkenHeute: false, // die Wolken von heute statt der Aufnahme — nur auf Wunsch
   erdeGestern: false, // die Erde von gestern in Echtfarben (VIIRS) — nur auf Wunsch
   beschriftung: true, // Laender, Grenzen und Orte ueber den Satellitenbildern
+  relief: true, // Berge und Taeler nach der echten Sonne schattiert
   satellit: false,    // Satellitenbilder von Esri fuer die ganze Erde — nur auf Wunsch
   bruecke: {
     typen: { session: true, ordner: true, prozess: true, github: true },
@@ -1456,6 +1458,7 @@ function laden() {
       if (typeof d.wolkenHeute === "boolean") Z.wolkenHeute = d.wolkenHeute;
       if (typeof d.erdeGestern === "boolean") Z.erdeGestern = d.erdeGestern;
       if (typeof d.beschriftung === "boolean") Z.beschriftung = d.beschriftung;
+      if (typeof d.relief === "boolean") Z.relief = d.relief;
       if (typeof d.satellit === "boolean") Z.satellit = d.satellit;
       /* Die Zeitraffung ist eine Einstellung wie der Hintergrund — wer
          sie auf das Zwoelffache gestellt hat, will das beim naechsten
@@ -1496,7 +1499,7 @@ function sichern() {
       log: Z.log.slice(0, 60),
       key: Z.key, maxTok: Z.maxTok, gewaehlt: Z.gewaehlt,
       thema: Z.thema, umlauf: Z.umlauf, melden: Z.melden, bruecke: Z.bruecke, rate: ZEIT.rate,
-      echteIss: Z.echteIss, weltraumwetter: Z.weltraumwetter, wolkenHeute: Z.wolkenHeute, erdeGestern: Z.erdeGestern, beschriftung: Z.beschriftung,
+      echteIss: Z.echteIss, weltraumwetter: Z.weltraumwetter, wolkenHeute: Z.wolkenHeute, erdeGestern: Z.erdeGestern, beschriftung: Z.beschriftung, relief: Z.relief,
       satellit: Z.satellit,
     }));
   } catch (e) {
@@ -11172,8 +11175,9 @@ function erdkarteLaedt() {
    die Szene sie getrennt braucht: die Oberflaeche als Farbe, die
    Stadtlichter als Licht zum Aufaddieren und die Wolkendecke allein —
    die leuchten der Mond und die Blitze an. */
-function erdkarteQuelle(ableitung) {
-  return (ableitung ? "#extension GL_OES_standard_derivatives : enable\n" : "") + `
+function erdkarteQuelle(ableitung, relief) {
+  return (ableitung ? "#extension GL_OES_standard_derivatives : enable\n" : "")
+    + (relief ? "#define RELIEF\n" : "") + `
 precision highp float;
 uniform vec2 uGroesse;
 uniform vec2 uMitte;
@@ -11194,6 +11198,13 @@ uniform sampler2D uOval;
    (0 = aus). uSatRaster: NX, NY. uWolkenWeg: wie weit die Wolken beim
    Hineinzoomen ausgeblendet sind. */
 uniform sampler2D uSat, uSatGueltig;
+/* Das Relief zu den Kacheln, in einem Mosaik mit denselben Plaetzen, halb so
+   fein: je Punkt die Steigung des Bodens nach Osten und nach Norden,
+   gestaucht (siehe reliefRechnen). uReliefStaerke 0 = aus. */
+#ifdef RELIEF
+uniform sampler2D uSatRelief;
+uniform float uReliefStaerke;
+#endif
 uniform vec4 uSatFenster;
 uniform vec2 uSatRaster;
 uniform float uWolkenWeg;
@@ -11216,6 +11227,7 @@ const float PI = 3.14159265;
    keine): die Namen und Grenzen sind schon ins Bild gemalt, wie viel davon
    den Punkt deckt, merkt sich satSchrift. */
 float satSchrift = 0.0;
+vec2 satHang = vec2(0.0);
 vec4 satellit(vec3 p) {
   if (uSatFenster.w <= 0.0) return vec4(0.0);
   float b = asin(clamp(p.z, -1.0, 1.0));
@@ -11229,7 +11241,11 @@ vec4 satellit(vec3 p) {
   vec2 platz = mod(floor(vec2(X, Y)), uSatRaster);
   /* Ist die Kachel dieses Platzes schon da? Sonst bleibt die Karte */
   if (texture2D(uSatGueltig, (platz + 0.5) / uSatRaster).r < 0.5) return vec4(0.0);
-  vec4 c = texture2D(uSat, (platz + fract(vec2(X, Y))) / uSatRaster);
+  vec2 st = (platz + fract(vec2(X, Y))) / uSatRaster;
+  vec4 c = texture2D(uSat, st);
+#ifdef RELIEF
+  satHang = (texture2D(uSatRelief, st).ra * 255.0 - 128.0) / 127.0;
+#endif
   float rand = min(min(dx, uSatRaster.x - dx), min(dy, uSatRaster.y - dy));
   float deck = smoothstep(0.0, 0.7, rand) * uSatFenster.w;
   satSchrift = (1.0 - c.a) * deck;
@@ -11442,7 +11458,26 @@ void main() {
      doppelt dunkel. Also zaehlt fuer sie das Licht im Verhaeltnis zu dem
      bei der Aufnahme: bei hoher Sonne so hell wie aufgenommen, bei tiefer
      dunkler, hinter dem Tagesrand dunkel wie der Rest. */
-  licht = mix(licht, clamp(sonne / 0.6, 0.0, 1.0), sat.a * uWolkenWeg);
+  float satLicht = clamp(sonne / 0.6, 0.0, 1.0);
+#ifdef RELIEF
+  /* Das Relief nach der echten Sonne. Im Bild steckt schon das Licht der
+     Aufnahme: Die Satelliten dafuer ueberfliegen jeden Ort gegen halb elf
+     Ortszeit, meist im Sommer, die Sonne steht dann gut 50 Grad hoch, auf
+     der Nordhalbkugel im Suedosten, auf der Suedhalbkugel im Nordosten.
+     Also zaehlt, wie viel Licht ein Hang jetzt bekommt, im Verhaeltnis zu
+     damals, beides gemessen an flachem Boden: ein Drittel Himmelslicht von
+     ueberall, der Rest direkt von der Sonne. Am Mittag aendert das wenig;
+     morgens und abends liegen die abgewandten Haenge im Schatten, und die
+     zugewandten leuchten. Flacher Boden bleibt genau wie ohne Relief. */
+  vec2 hv = clamp(satHang, -0.995, 0.995);
+  vec3 hn = normalize(vec3(-hv / (8.0 * (1.0 - abs(hv))), 1.0));
+  vec3 sl = vec3(dot(uSonne, ost), dot(uSonne, nord), sonne);
+  vec3 damals = vec3(0.413, -0.493 * clamp(p.z * 4.0, -1.0, 1.0), 0.766);
+  float jetzt = 0.35 + 0.65 * max(dot(hn, sl), 0.0) / max(sonne, 0.001);
+  float dann = 0.35 + 0.65 * max(dot(hn, damals), 0.0) / 0.766;
+  satLicht *= clamp(pow(jetzt / dann, uReliefStaerke), 0.0, 4.0);
+#endif
+  licht = mix(licht, satLicht, sat.a * uWolkenWeg);
   float nacht = smoothstep(0.06, -0.14, sonne);
   /* Das Abendrot faellt vor allem auf Wolken: der Boden liegt dort
      schon im Schatten, die Oberkanten fangen das letzte Licht. Ein
@@ -11539,7 +11574,10 @@ function erdkarteAufbauen() {
       prog = gl.createProgram();
       gl.attachShader(prog, schatt(gl.VERTEX_SHADER,
         "attribute vec2 aEcke; void main(){ gl_Position = vec4(aEcke, 0.0, 1.0); }"));
-      gl.attachShader(prog, schatt(gl.FRAGMENT_SHADER, erdkarteQuelle(ableitung)));
+      /* Das Relief braucht eine neunte Textur; WebGL verspricht nur acht,
+         fast jeder Grafikchip kann sechzehn */
+      ERDKARTE.reliefMoeglich = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS) >= 9;
+      gl.attachShader(prog, schatt(gl.FRAGMENT_SHADER, erdkarteQuelle(ableitung, ERDKARTE.reliefMoeglich)));
       gl.linkProgram(prog);
       if (!gl.getProgramParameter(prog, gl.LINK_STATUS))
         throw new Error("Programm: " + gl.getProgramInfoLog(prog));
@@ -11568,18 +11606,21 @@ function erdkarteAufbauen() {
          Mosaik wird angelegt, wenn sie gewuenscht sind */
       ERDKARTE.satTx = textur(5, { daten: new Uint8Array(4), b: 1, h: 1 }, gl.RGBA, false, false);
       ERDKARTE.satGueltigTx = textur(6, { daten: new Uint8Array(4), b: 1, h: 1 }, gl.LUMINANCE, false, false);
+      ERDKARTE.reliefTx = ERDKARTE.reliefMoeglich
+        ? textur(8, { daten: new Uint8Array([128, 128, 128, 128]), b: 1, h: 1 }, gl.LUMINANCE_ALPHA, false, false) : null;
       /* Die scharfen Nachtlichter: erst ein einzelner dunkler Punkt */
       ERDKARTE.nachtTx = textur(7, { daten: new Uint8Array(4), b: 1, h: 1 }, gl.LUMINANCE, false, false);
       const u = {};
       for (const n of ["uGroesse", "uMitte", "uRadius", "uBlick", "uSonne", "uMond", "uSchicht",
                        "uTag", "uWolken", "uLichter", "uKorn", "uPolar", "uOval",
                        "uSat", "uSatGueltig", "uSatFenster", "uSatRaster", "uWolkenWeg",
-                       "uNacht", "uNachtBox", "uNachtGewicht", "uGestern"])
+                       "uNacht", "uNachtBox", "uNachtGewicht", "uGestern", "uSatRelief", "uReliefStaerke"])
         u[n] = gl.getUniformLocation(prog, n);
       gl.uniform1i(u.uTag, 0); gl.uniform1i(u.uWolken, 1);
       gl.uniform1i(u.uLichter, 2); gl.uniform1i(u.uKorn, 3);
       gl.uniform1i(u.uOval, 4); gl.uniform1i(u.uSat, 5); gl.uniform1i(u.uSatGueltig, 6);
       gl.uniform1i(u.uNacht, 7);
+      if (ERDKARTE.reliefMoeglich) { gl.uniform1i(u.uSatRelief, 8); gl.uniform1f(u.uReliefStaerke, 0); }
       gl.uniform4f(u.uNachtBox, 0, 0, 1, 1);
       gl.uniform1f(u.uNachtGewicht, 0);
       gl.uniform1f(u.uGestern, 0);
@@ -11759,6 +11800,9 @@ function erdkarteMalen(ziel, bw, bh, mx, my, rr, blick, schicht) {
   gl.uniform4f(u.uSatFenster, sat ? sat.x0 : 0, sat ? sat.y0 : 0, sat ? sat.n : 1, sat ? sat.gewicht : 0);
   gl.uniform2f(u.uSatRaster, sat ? sat.nx : 1, sat ? sat.ny : 1);
   gl.uniform1f(u.uWolkenWeg, sat ? sat.wolkenWeg : 0);
+  /* Etwas kraeftiger als die reine Rechnung, damit das Relief auch bei
+     halbhoher Sonne zu sehen ist */
+  if (ERDKARTE.reliefMoeglich) gl.uniform1f(u.uReliefStaerke, sat && Z.relief ? RELIEF_STAERKE : 0);
   const na = schicht > 2.5 && blick.nacht ? blick.nacht : null;
   gl.uniform4f(u.uNachtBox, na ? na.box.l0 : 0, na ? na.box.b1 : 0, na ? na.box.l1 - na.box.l0 : 1, na ? na.box.b1 - na.box.b0 : 1);
   gl.uniform1f(u.uNachtGewicht, na ? na.gewicht : 0);
@@ -12381,7 +12425,8 @@ function zeichneErdansicht(t, dt) {
   ERDANSICHT.quelle = sat && sat.gewicht > 0 ? SAT_QUELLE : null;
   ERDANSICHT.quelleNacht = NACHTLICHT.sichtbar ? NACHT_QUELLE : null;
   ERDANSICHT.quelleSchrift = sat && sat.gewicht > 0 && Z.beschriftung ? SCHRIFT_QUELLE : null;
-  if (ERDANSICHT.quelle || ERDANSICHT.quelleNacht || ERDANSICHT.quelleSchrift) {
+  ERDANSICHT.quelleRelief = sat && sat.gewicht > 0 && Z.relief && ERDKARTE.reliefTx ? RELIEF_QUELLE : null;
+  if (ERDANSICHT.quelle || ERDANSICHT.quelleNacht || ERDANSICHT.quelleSchrift || ERDANSICHT.quelleRelief) {
     const rb = bedienRand();
     cx.save();
     cx.font = `500 ${10 * DPR}px -apple-system, system-ui, sans-serif`;
@@ -12400,6 +12445,7 @@ function zeichneErdansicht(t, dt) {
     };
     if (ERDANSICHT.quelle) zeilen.push(...passend(SAT_QUELLE));
     if (ERDANSICHT.quelleSchrift) zeilen.push(...passend(SCHRIFT_QUELLE));
+    if (ERDANSICHT.quelleRelief) zeilen.push(...passend(RELIEF_QUELLE));
     if (ERDANSICHT.quelleNacht) zeilen.push(...passend(NACHT_QUELLE));
     ERDANSICHT.quellZeilen = zeilen;
     cx.fillStyle = "rgba(220,230,245,.78)";
@@ -13413,7 +13459,7 @@ const SATBILD = { nx: 16, ny: 10, z: -1, x0: 0, y0: 0, platz: [], angelegt: fals
                   cache: new Map(), laden: new Map(), warte: [], version: 0,
                   anfragen: 0, fehler: 0, gewicht: 0, wolkenWeg: 0,
                   gueltig: null, gueltigNeu: false, sicht: new Map(), sichtStand: "",
-                  schriftK: -1, schriftAnfragen: 0 };
+                  schriftK: -1, schriftAnfragen: 0, reliefAnfragen: 0, reliefFehler: 0 };
 const SAT_ADRESSE = "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/";
 /* So verlangt es Esri: "Powered by Esri" und die Quellen des Dienstes */
 const SAT_QUELLE = "Powered by Esri · Bilder: Esri, Maxar, Earthstar Geographics, GIS User Community";
@@ -13422,6 +13468,11 @@ const SAT_MAXZ = 16, SAT_MINZ = 5, SAT_GLEICHZEITIG = 8, SAT_CACHE = 400;
    selben Netz, von Esri aus Daten von HERE, Garmin und OpenStreetMap */
 const SAT_SCHRIFT = "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/";
 const SCHRIFT_QUELLE = "Beschriftung: Esri, HERE, Garmin, © OpenStreetMap contributors, GIS User Community";
+/* Die Hoehen: Terrain Tiles von Mapzen bei AWS (Open Data), im selben Netz,
+   die Hoehe in Rot, Gruen und Blau verschluesselt. Die volle Liste der
+   Quellen steht in der Hilfe. */
+const SAT_RELIEF = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/";
+const RELIEF_QUELLE = "Relief: Mapzen Terrain Tiles (AWS) · USGS, Copernicus EU-DEM, NOAA u. a.";
 
 /* Web-Mercator: Breite und Laenge in Grad zu Kachelkoordinaten */
 function satKachel(breite, laenge, z) {
@@ -13440,7 +13491,7 @@ function satVorbereiten(g, blick) {
   const [nx, ny] = W >= H ? [16, 10] : [8, 16];
   if (nx !== S_.nx || ny !== S_.ny) { satAus(); S_.nx = nx; S_.ny = ny; S_.angelegt = false; }
   const sk = satSchriftStufe();
-  if (sk !== S_.schriftK) { S_.schriftK = sk; satSchriftNeu(); }
+  if (sk !== S_.schriftK) { S_.schriftK = sk; satSchriftNeu(true, false); }
   /* Die Blickmitte: der Punkt der Kugel unter der Mitte des Schirms, oder
      der naechste auf ihr, wenn die ganze Kugel zu sehen ist */
   const rand = bedienRand();
@@ -13491,6 +13542,14 @@ function satAnlegen() {
   gl.activeTexture(gl.TEXTURE5);
   gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.satTx);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, S_.nx * 256, S_.ny * 256, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  /* Das Relief daneben, halb so fein, anfangs ueberall flach (128 = keine
+     Neigung), damit auch der Rand eines leeren Nachbarplatzes flach ist */
+  if (ERDKARTE.reliefTx) {
+    gl.activeTexture(gl.TEXTURE8);
+    gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.reliefTx);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE_ALPHA, S_.nx * 128, S_.ny * 128, 0, gl.LUMINANCE_ALPHA, gl.UNSIGNED_BYTE,
+      new Uint8Array(S_.nx * 128 * S_.ny * 128 * 2).fill(128));
+  }
   S_.platz = new Array(S_.nx * S_.ny).fill(null);
   S_.gueltig = new Uint8Array(S_.nx * S_.ny);
   S_.gueltigNeu = true;
@@ -13647,13 +13706,19 @@ function satHochladen(platz, kachel) {
   gl.activeTexture(gl.TEXTURE5);
   gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.satTx);
   gl.texSubImage2D(gl.TEXTURE_2D, 0, (platz % S_.nx) * 256, Math.floor(platz / S_.nx) * 256, gl.RGBA, gl.UNSIGNED_BYTE, quelle);
+  /* Das Relief: das Viertel der Hoehenkachel, das zu dieser Kachel gehoert,
+     sonst flach */
+  if (ERDKARTE.reliefTx) {
+    gl.activeTexture(gl.TEXTURE8);
+    gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.reliefTx);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, (platz % S_.nx) * 128, Math.floor(platz / S_.nx) * 128, 128, 128,
+      gl.LUMINANCE_ALPHA, gl.UNSIGNED_BYTE, kachel.relief && Z.relief ? reliefViertel(kachel.relief, kachel.x & 1, kachel.y & 1) : RELIEF_FLACH);
+  }
   S_.gueltig[platz] = 255;
   S_.gueltigNeu = true;
   S_.version++;
 }
 
-/* Hoechstens acht Anfragen zugleich; was ankommt und noch gebraucht wird,
-   geht sofort auf den Grafikchip */
 /* Die Schrift in den Kacheln von Esri ist fuer Schirme gemacht, auf denen
    ein Kachelpunkt ein Bildpunkt ist. Auf scharfen Schirmen (Retina) waeren
    die Namen halb so gross und kaum zu lesen: dort kommt die Schrift eine
@@ -13693,14 +13758,99 @@ function schriftHolen(z, x, y, fertig) {
     if (!v.warten) SCHRIFTKACHELN.delete(kk);
   }
 }
-/* Alle Plaetze neu fuellen. Mit Beschriftung die Kacheln im Speicher
-   vergessen, deren Schrift fehlt oder nicht zur Stufe passt (die Bilder
-   kommen dann meist aus dem Speicher des Browsers). */
-function satSchriftNeu() {
+/* Das Relief: Hoehenkacheln eine Stufe groeber als die Bilder, jede deckt
+   vier Bildkacheln und hat gut dieselbe Aufloesung wie ein halb so feines
+   Bild. Die Hoehe steckt in den Farben: Rot mal 256 plus Gruen plus Blau
+   durch 256, minus 32768 Meter. Daraus wird je Punkt die Steigung nach
+   Osten und nach Norden (Meter je Meter), in zwei Bytes, gestaucht: v =
+   8g / (1 + |8g|), 128 = flach. So bleiben flache Huegel fein genug
+   aufgeloest, und doch passt eine Wand hinein. Unter dem Meer zaehlt der
+   Meeresspiegel, sonst bekaeme das Wasser die Form des Meeresbodens und
+   jede Kueste eine Klippe. */
+const RELIEF_FLACH = new Uint8Array(128 * 128 * 2).fill(128);
+const RELIEF_STAERKE = 1.3;
+const RELIEFKACHELN = new Map();
+let reliefLeinwand = null;
+function reliefRechnen(daten, z, y) {
+  const n = Math.pow(2, z);
+  const breite = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 0.5) / n)));
+  const meter = 2 * Math.PI * 6378137 * Math.cos(breite) / (256 * n);
+  const k = 1 / (2 * meter);
+  const h = new Float32Array(256 * 256);
+  for (let i = 0, j = 0; i < h.length; i++, j += 4)
+    h[i] = Math.max(0, daten[j] * 256 + daten[j + 1] + daten[j + 2] / 256 - 32768);
+  const aus = new Uint8Array(256 * 256 * 2);
+  for (let yy = 0; yy < 256; yy++) {
+    const o = yy > 0 ? yy - 1 : 0, u = yy < 255 ? yy + 1 : 255, fy = (u - o) / 2;
+    for (let xx = 0; xx < 256; xx++) {
+      const l = xx > 0 ? xx - 1 : 0, r = xx < 255 ? xx + 1 : 255, fx = (r - l) / 2;
+      const i = yy * 256 + xx;
+      /* Steigung nach Osten und nach Norden (y zaehlt nach Sueden) */
+      const gx = 8 * (h[yy * 256 + r] - h[yy * 256 + l]) * k / fx;
+      const gy = 8 * (h[o * 256 + xx] - h[u * 256 + xx]) * k / fy;
+      aus[i * 2] = Math.round(128 + 127 * gx / (1 + Math.abs(gx)));
+      aus[i * 2 + 1] = Math.round(128 + 127 * gy / (1 + Math.abs(gy)));
+    }
+  }
+  return aus;
+}
+function reliefViertel(relief, qx, qy) {
+  const aus = new Uint8Array(128 * 128 * 2);
+  for (let yy = 0; yy < 128; yy++)
+    aus.set(relief.subarray(((qy * 128 + yy) * 256 + qx * 128) * 2, ((qy * 128 + yy) * 256 + qx * 128 + 128) * 2), yy * 256);
+  return aus;
+}
+function reliefHolen(z, x, y, fertig) {
+  const k = z + "/" + x + "/" + y;
+  let e = RELIEFKACHELN.get(k);
+  if (e) {
+    RELIEFKACHELN.delete(k); RELIEFKACHELN.set(k, e);
+    if (e.warten) e.warten.push(fertig); else fertig(e.relief);
+    return;
+  }
+  e = { relief: null, warten: [fertig] };
+  RELIEFKACHELN.set(k, e);
+  const ende = (relief) => {
+    e.relief = relief;
+    const w = e.warten;
+    e.warten = null;
+    for (const f of w) f(relief);
+  };
+  SATBILD.reliefAnfragen++;
+  /* Ohne Farbanpassung entpackt: jede Umrechnung zerstoerte die Hoehen */
+  fetch(SAT_RELIEF + z + "/" + x + "/" + y + ".png")
+    .then(r => r.ok ? r.blob() : Promise.reject(new Error("HTTP " + r.status)))
+    .then(blob => typeof createImageBitmap === "function"
+      ? createImageBitmap(blob, { colorSpaceConversion: "none", premultiplyAlpha: "none" }).catch(() => bildAusBlob(blob))
+      : bildAusBlob(blob))
+    .then((bild) => {
+      if (!reliefLeinwand) { reliefLeinwand = document.createElement("canvas"); reliefLeinwand.width = reliefLeinwand.height = 256; }
+      const g = reliefLeinwand.getContext("2d", { willReadFrequently: true });
+      g.clearRect(0, 0, 256, 256);
+      g.drawImage(bild, 0, 0, 256, 256);
+      if (typeof bild.close === "function") bild.close();
+      ende(reliefRechnen(g.getImageData(0, 0, 256, 256).data, z, y));
+    })
+    .catch(() => { SATBILD.reliefFehler++; ende(null); });
+  for (const [kk, v] of RELIEFKACHELN) {
+    if (RELIEFKACHELN.size <= 64) break;
+    if (!v.warten) RELIEFKACHELN.delete(kk);
+  }
+}
+/* Alle Plaetze neu fuellen. Was gerade eingeschaltet wurde (schrift,
+   relief), bekommt eine neue Chance: die Kacheln im Speicher, denen es
+   fehlt oder deren Schrift nicht zur Stufe passt, werden vergessen, und
+   fehlgeschlagene Schriften und Hoehen neu versucht. Die Bilder kommen
+   dann meist aus dem Speicher des Browsers. */
+function satSchriftNeu(schrift, relief) {
   const S_ = SATBILD;
-  if (Z.beschriftung) {
+  if (schrift && Z.beschriftung) {
     for (const [k, v] of [...S_.cache]) if (!v.schrift || v.stufe !== S_.schriftK) S_.cache.delete(k);
     for (const [k, v] of [...SCHRIFTKACHELN]) if (!v.warten && !v.bild) SCHRIFTKACHELN.delete(k);
+  }
+  if (relief && Z.relief && ERDKARTE.reliefTx) {
+    for (const [k, v] of [...S_.cache]) if (!v.relief) S_.cache.delete(k);
+    for (const [k, v] of [...RELIEFKACHELN]) if (!v.warten && !v.relief) RELIEFKACHELN.delete(k);
   }
   for (const e of S_.laden.values()) e.b.src = "";
   S_.laden.clear(); S_.warte = [];
@@ -13708,6 +13858,9 @@ function satSchriftNeu() {
   S_.sichtStand = "";
   S_.version++;
 }
+/* Hoechstens acht Anfragen zugleich; was ankommt und noch gebraucht wird,
+   geht sofort auf den Grafikchip. Mit Schrift und Relief ist eine Kachel
+   fertig, wenn alle drei da sind oder fehlgeschlagen. */
 function satWeiter() {
   const S_ = SATBILD;
   while (S_.laden.size < SAT_GLEICHZEITIG && S_.warte.length) {
@@ -13716,14 +13869,15 @@ function satWeiter() {
     const [z, x, y] = w.schluessel.split("/");
     const b = new Image();
     b.crossOrigin = "anonymous";
-    const sk = S_.schriftK, e = { b, offen: Z.beschriftung ? 2 : 1, ok: false, schrift: null };
+    const mitRelief = Z.relief && !!ERDKARTE.reliefTx;
+    const sk = S_.schriftK, e = { b, offen: 1 + (Z.beschriftung ? 1 : 0) + (mitRelief ? 1 : 0), ok: false, schrift: null, relief: null };
     S_.laden.set(w.schluessel, e);
     S_.anfragen++;
     const fertig = () => {
       if (S_.laden.get(w.schluessel) !== e || --e.offen > 0) return;
       S_.laden.delete(w.schluessel);
       if (e.ok && Z.satellit) {
-        const kachel = { bild: b, schrift: e.schrift, stufe: sk, x: +x, y: +y };
+        const kachel = { bild: b, schrift: e.schrift, relief: e.relief, stufe: sk, x: +x, y: +y };
         S_.cache.set(w.schluessel, kachel);
         if (S_.cache.size > SAT_CACHE) S_.cache.delete(S_.cache.keys().next().value);
         if (S_.angelegt && S_.platz[w.platz] === w.schluessel) satHochladen(w.platz, kachel);
@@ -13734,6 +13888,7 @@ function satWeiter() {
     b.onload = () => { e.ok = true; fertig(); };
     b.onerror = fertig;
     if (Z.beschriftung) schriftHolen(z - sk, x >> sk, y >> sk, (bild) => { e.schrift = bild; fertig(); });
+    if (mitRelief) reliefHolen(z - 1, x >> 1, y >> 1, (relief) => { e.relief = relief; fertig(); });
     b.src = SAT_ADRESSE + z + "/" + y + "/" + x;
   }
 }
@@ -19811,8 +19966,6 @@ $("#tm-wolken").onclick = () => {
   }
   sichern();
   wolkenHeuteKnopf();
-erdeGesternKnopf();
-schriftKnopf();
   tmUhr = 0;
 };
 $("#btn-vorf").onclick = () => vorfuehrungBeenden();
@@ -20731,6 +20884,12 @@ const HILFE = [
       + "Ausschnitt, den du siehst; der Knopf mit dem Pfeil im Kreis bringt dich zur ganzen Kugel zurück. "
       + "Darüber stehen wie bei Google Earth die Namen der Länder, Städte und Orte und die Grenzen, ebenfalls "
       + "von Esri; unter Stationswerte lassen sie sich ausblenden. "
+      + "Dazu schattiert ORBIT Berge und Täler nach der echten Sonne: Morgens leuchten die Osthänge, "
+      + "abends die Westhänge, mittags bleibt das Bild fast, wie es aufgenommen wurde. Die Höhen sind die "
+      + "Terrain Tiles von Mapzen bei AWS, aus 3DEP, SRTM und GMTED2010 (USGS), EU-DEM (Copernicus, "
+      + "gefördert von der Europäischen Union), ETOPO1 (NOAA), Geoscience Australia, den offenen Daten "
+      + "Österreichs, der Open Government Licence Kanada, INEGI Mexiko, LINZ Neuseeland, Kartverket, "
+      + "der Environment Agency (Großbritannien) und ArcticDEM (NSF, aus Aufnahmen von DigitalGlobe). "
       + "Die Nadel oben in der Zoomleiste zeigt, wo Norden liegt; tippst du sie an, dreht sich Norden nach oben. "
       + "Nachts kommen beim Hineinzoomen die Lichter der Städte scharf dazu, aus Black Marble der NASA. "
       + "Ohne WebGL oder ohne die Kartenbilder zeichnet ORBIT eine gerechnete Erde.",
@@ -21384,12 +21543,29 @@ $("#zoom-sat").onclick = () => satellitUmschalten();
 $("#zoom-nord").onclick = () => { if (ERDANSICHT.frei && KOMPASS.winkel !== null) KOMPASS.dreht = true; };
 $("#tm-sat").onclick = () => satellitUmschalten();
 $("#tm-schrift").onclick = () => schriftUmschalten();
+$("#tm-relief").onclick = () => reliefUmschalten();
 function schriftUmschalten() {
   Z.beschriftung = !Z.beschriftung;
-  satSchriftNeu();
+  satSchriftNeu(true, false);
   sichern();
   schriftKnopf();
   tmUhr = 0;
+}
+function reliefUmschalten() {
+  Z.relief = !Z.relief;
+  satSchriftNeu(false, true);
+  sichern();
+  reliefKnopf();
+  tmUhr = 0;
+}
+function reliefKnopf() {
+  const k = document.getElementById("tm-relief");
+  if (!k) return;
+  k.textContent = Z.relief ? "Relief aus" : "Relief";
+  const klein = document.createElement("small");
+  klein.textContent = Z.relief ? "Berge und Täler nach der echten Sonne schattiert"
+                               : "Berge und Täler nach der echten Sonne schattieren";
+  k.append(klein);
 }
 function schriftKnopf() {
   const k = document.getElementById("tm-schrift");
@@ -21433,6 +21609,9 @@ echteIssKnopf();
 weltraumwetterKnopf();
 wolkenHeuteKnopf();
 satellitKnopf();
+erdeGesternKnopf();
+schriftKnopf();
+reliefKnopf();
 if (umlaufSchalter) umlaufSchalter.classList.toggle("an", Z.umlauf !== false);
 themaAnwenden();
 groesseAnpassen();
