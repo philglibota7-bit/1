@@ -10925,7 +10925,11 @@ function erdkarteLaden() {
   let offen = Object.keys(ERDKARTE_DATEIEN).length;
   for (const [k, datei] of Object.entries(ERDKARTE_DATEIEN)) {
     const b = new Image();
-    b.onload = () => { if (--offen === 0 && !ERDKARTE.kaputt) erdkarteAufbauen(); };
+    /* Erst fertig entpacken lassen, abseits vom Zeichnen. Sonst
+       entpackt der Browser das Bild erst beim Hochladen auf den
+       Grafikchip, und das Bild steht so lange. */
+    const fertig = () => { if (--offen === 0 && !ERDKARTE.kaputt) erdkarteAufbauen(); };
+    b.onload = () => { (b.decode ? b.decode() : Promise.resolve()).then(fertig, fertig); };
     b.onerror = () => { ERDKARTE.kaputt = true; ERDKARTE.grund = datei + " fehlt"; };
     b.src = datei;
     ERDKARTE.bilder[k] = b;
@@ -11039,108 +11043,122 @@ void main() {
 }
 
 function erdkarteAufbauen() {
-  try {
-    const lw = document.createElement("canvas");
-    lw.width = 4; lw.height = 4;
-    const opt = { alpha: true, premultipliedAlpha: true, antialias: false,
-                  depth: false, stencil: false, preserveDrawingBuffer: false };
-    const gl = lw.getContext("webgl", opt) || lw.getContext("experimental-webgl", opt);
-    if (!gl) throw new Error("kein WebGL");
-    const ableitung = !!gl.getExtension("OES_standard_derivatives");
-    const aniso = gl.getExtension("EXT_texture_filter_anisotropic")
-               || gl.getExtension("WEBKIT_EXT_texture_filter_anisotropic");
-
-    const schatt = (art, text) => {
-      const s = gl.createShader(art);
-      gl.shaderSource(s, text);
-      gl.compileShader(s);
-      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
-        throw new Error("Schattierer: " + gl.getShaderInfoLog(s));
-      return s;
-    };
-    const prog = gl.createProgram();
-    gl.attachShader(prog, schatt(gl.VERTEX_SHADER,
-      "attribute vec2 aEcke; void main(){ gl_Position = vec4(aEcke, 0.0, 1.0); }"));
-    gl.attachShader(prog, schatt(gl.FRAGMENT_SHADER, erdkarteQuelle(ableitung)));
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS))
-      throw new Error("Programm: " + gl.getProgramInfoLog(prog));
-    gl.useProgram(prog);
-
-    /* Ein Dreieck, das die ganze Leinwand ueberdeckt */
-    const eck = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, eck);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-    const ae = gl.getAttribLocation(prog, "aEcke");
-    gl.enableVertexAttribArray(ae);
-    gl.vertexAttribPointer(ae, 2, gl.FLOAT, false, 0, 0);
-
-    const textur = (einheit, quelle, format, wiederholen, stufen) => {
-      const tx = gl.createTexture();
-      gl.activeTexture(gl.TEXTURE0 + einheit);
-      gl.bindTexture(gl.TEXTURE_2D, tx);
-      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-      if (quelle.daten) gl.texImage2D(gl.TEXTURE_2D, 0, format, quelle.b, quelle.h, 0, format, gl.UNSIGNED_BYTE, quelle.daten);
-      else gl.texImage2D(gl.TEXTURE_2D, 0, format, format, gl.UNSIGNED_BYTE, quelle);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wiederholen ? gl.REPEAT : gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wiederholen === 2 ? gl.REPEAT : gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      /* Stufen gegen das Flimmern an der Kante: dort liegen viele
-         Kartenpunkte auf einem Bildpunkt. Ohne Ableitungen gibt es
-         dafuer an der Datumsgrenze eine Naht — dann lieber ohne. */
-      if (stufen && ableitung) {
-        gl.generateMipmap(gl.TEXTURE_2D);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-        if (aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT,
-          Math.min(8, gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
-      } else {
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      }
-      return tx;
-    };
-    const B = ERDKARTE.bilder;
-    textur(0, B.tag, gl.RGB, true, true);
-    textur(1, B.wolken, gl.LUMINANCE, true, true);
-    textur(2, B.lichter, gl.LUMINANCE, true, true);
-    /* Feines Rauschen, nahtlos gekachelt: 128 mal 128 Zufallswerte, vom
-       Grafikchip weich dazwischen gerechnet. */
-    const korn = new Uint8Array(128 * 128);
-    for (let i = 0; i < korn.length; i++) korn[i] = Math.floor(streu(i & 127, i >> 7, 5077) * 256);
-    textur(3, { daten: korn, b: 128, h: 128 }, gl.LUMINANCE, 2, true);
-
-    const u = {};
-    for (const n of ["uGroesse", "uMitte", "uRadius", "uBlick", "uSonne", "uSchicht",
-                     "uTag", "uWolken", "uLichter", "uKorn"])
-      u[n] = gl.getUniformLocation(prog, n);
-    gl.uniform1i(u.uTag, 0); gl.uniform1i(u.uWolken, 1);
-    gl.uniform1i(u.uLichter, 2); gl.uniform1i(u.uKorn, 3);
-    const fehler = gl.getError();
-    if (fehler) throw new Error("GL-Fehler " + fehler);
-
-    /* Verliert der Browser den Grafikkontext — der Grafikchip wurde
-       zurueckgesetzt, oder es sind zu viele Kontexte offen —, dann gilt
-       ab da wieder die gerechnete Erde. Neu gebacken wird sie beim
-       naechsten Bild, weil die Scheibe verworfen wird. */
-    lw.addEventListener("webglcontextlost", (e) => {
-      e.preventDefault();
-      ERDKARTE.bereit = false; ERDKARTE.kaputt = true;
-      ERDKARTE.grund = "Grafikkontext verloren";
-      ERDE.bild = null;
-      GEWITTER.zellen = [];
-    });
-    Object.assign(ERDKARTE, { lw, gl, prog, u, eck });
-    erdkarteZellen();
-    ERDKARTE.bereit = true;
-    GEWITTER.zellen = ERDKARTE.zellen;
-    orteLaden();
-    /* Die gerechnete Scheibe ist schon zusammengesetzt; neu, damit die
-       echte sofort erscheint. */
-    if (typeof ERDE !== "undefined") ERDE.schubGebacken = null;
-  } catch (e) {
-    ERDKARTE.kaputt = true;
-    ERDKARTE.grund = String(e && e.message || e);
-  }
+  /* In Schritten, einer je Bild. Eine Karte mit acht Millionen Punkten
+     samt ihren Verkleinerungsstufen hochzuladen dauert ohne Grafikchip
+     eine Viertelsekunde und mehr; drei davon am Stueck waeren ein
+     sichtbarer Haenger mitten im Start. */
+  const B = ERDKARTE.bilder;
+  let gl, lw, prog, eck, ableitung, aniso;
+  const textur = (einheit, quelle, format, wiederholen, stufen) => {
+    const tx = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0 + einheit);
+    gl.bindTexture(gl.TEXTURE_2D, tx);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    if (quelle.daten) gl.texImage2D(gl.TEXTURE_2D, 0, format, quelle.b, quelle.h, 0, format, gl.UNSIGNED_BYTE, quelle.daten);
+    else gl.texImage2D(gl.TEXTURE_2D, 0, format, format, gl.UNSIGNED_BYTE, quelle);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wiederholen ? gl.REPEAT : gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wiederholen === 2 ? gl.REPEAT : gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    /* Stufen gegen das Flimmern an der Kante: dort liegen viele
+       Kartenpunkte auf einem Bildpunkt. Ohne Ableitungen gibt es
+       dafuer an der Datumsgrenze eine Naht — dann lieber ohne. */
+    if (stufen && ableitung) {
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      if (aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT,
+        Math.min(8, gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
+    } else {
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    }
+    return tx;
+  };
+  const schritte = [
+    () => {
+      lw = document.createElement("canvas");
+      lw.width = 4; lw.height = 4;
+      const opt = { alpha: true, premultipliedAlpha: true, antialias: false,
+                    depth: false, stencil: false, preserveDrawingBuffer: false };
+      gl = lw.getContext("webgl", opt) || lw.getContext("experimental-webgl", opt);
+      if (!gl) throw new Error("kein WebGL");
+      ableitung = !!gl.getExtension("OES_standard_derivatives");
+      aniso = gl.getExtension("EXT_texture_filter_anisotropic")
+           || gl.getExtension("WEBKIT_EXT_texture_filter_anisotropic");
+      const schatt = (art, text) => {
+        const s = gl.createShader(art);
+        gl.shaderSource(s, text);
+        gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+          throw new Error("Schattierer: " + gl.getShaderInfoLog(s));
+        return s;
+      };
+      prog = gl.createProgram();
+      gl.attachShader(prog, schatt(gl.VERTEX_SHADER,
+        "attribute vec2 aEcke; void main(){ gl_Position = vec4(aEcke, 0.0, 1.0); }"));
+      gl.attachShader(prog, schatt(gl.FRAGMENT_SHADER, erdkarteQuelle(ableitung)));
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS))
+        throw new Error("Programm: " + gl.getProgramInfoLog(prog));
+      gl.useProgram(prog);
+      /* Ein Dreieck, das die ganze Leinwand ueberdeckt */
+      eck = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, eck);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+      const ae = gl.getAttribLocation(prog, "aEcke");
+      gl.enableVertexAttribArray(ae);
+      gl.vertexAttribPointer(ae, 2, gl.FLOAT, false, 0, 0);
+    },
+    () => textur(0, B.tag, gl.RGB, true, true),
+    () => textur(1, B.wolken, gl.LUMINANCE, true, true),
+    () => textur(2, B.lichter, gl.LUMINANCE, true, true),
+    () => {
+      /* Feines Rauschen, nahtlos gekachelt: 128 mal 128 Zufallswerte, vom
+         Grafikchip weich dazwischen gerechnet. */
+      const korn = new Uint8Array(128 * 128);
+      for (let i = 0; i < korn.length; i++) korn[i] = Math.floor(streu(i & 127, i >> 7, 5077) * 256);
+      textur(3, { daten: korn, b: 128, h: 128 }, gl.LUMINANCE, 2, true);
+      const u = {};
+      for (const n of ["uGroesse", "uMitte", "uRadius", "uBlick", "uSonne", "uSchicht",
+                       "uTag", "uWolken", "uLichter", "uKorn"])
+        u[n] = gl.getUniformLocation(prog, n);
+      gl.uniform1i(u.uTag, 0); gl.uniform1i(u.uWolken, 1);
+      gl.uniform1i(u.uLichter, 2); gl.uniform1i(u.uKorn, 3);
+      const fehler = gl.getError();
+      if (fehler) throw new Error("GL-Fehler " + fehler);
+      /* Verliert der Browser den Grafikkontext — der Grafikchip wurde
+         zurueckgesetzt, oder es sind zu viele Kontexte offen —, dann gilt
+         ab da wieder die gerechnete Erde. Neu gebacken wird sie beim
+         naechsten Bild, weil die Scheibe verworfen wird. */
+      lw.addEventListener("webglcontextlost", (e) => {
+        e.preventDefault();
+        ERDKARTE.bereit = false; ERDKARTE.kaputt = true;
+        ERDKARTE.grund = "Grafikkontext verloren";
+        ERDE.bild = null;
+        GEWITTER.zellen = [];
+      });
+      Object.assign(ERDKARTE, { lw, gl, prog, u, eck });
+    },
+    () => {
+      erdkarteZellen();
+      ERDKARTE.bereit = true;
+      GEWITTER.zellen = ERDKARTE.zellen;
+      orteLaden();
+      /* Die gerechnete Scheibe ist schon zusammengesetzt; neu, damit die
+         echte sofort erscheint. */
+      if (typeof ERDE !== "undefined") ERDE.schubGebacken = null;
+    },
+  ];
+  const weiter = () => {
+    if (ERDKARTE.kaputt) return;
+    try { schritte.shift()(); }
+    catch (e) {
+      ERDKARTE.kaputt = true;
+      ERDKARTE.grund = String(e && e.message || e);
+      return;
+    }
+    if (schritte.length) requestAnimationFrame(weiter);
+  };
+  weiter();
 }
 
 /* --- Sonne und Bahn ----------------------------------------------------
