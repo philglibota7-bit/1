@@ -400,6 +400,15 @@ Das **Bordbuch** — Frachter, Erdschatten, Einschläge, Ausweichschübe, Aus- u
 
 Ziehen und Zoomen mit Maus, Rad und Fingern; weiter heraus, als der Zoom reicht, kommt die ganze Erde. Auf der Tastatur: L Log, C Crew, H Hintergrund, B Brücke, T Stationswerte, K Kinomodus, R Rundgang, E ganze Erde. **Pfeiltasten schieben** (ein Achtel der Bildbreite, mit Umschalt ein Viertel), Plus und Minus zoomen, **N und P springen von Astronaut zu Astronaut**, **W zum Nächsten, der auf dich wartet**, Leertaste stellt die Kamera zurück, Escape schließt. Tab springt ebenfalls durch die Crew, aber nur solange nichts anderes den Fokus hat — Tab ist die Taste, mit der man überhaupt erst zu den Knöpfen kommt.
 
+**Die Befehlspalette.** ⌘K (Strg+K) öffnet sie, auch aus einem Textfeld heraus; außerhalb von Textfeldern auch der Schrägstrich. Sie ist eine Suche über alles, was sonst hinter Knöpfen liegt:
+- die Crew; Enter fährt zur Figur und öffnet sie,
+- Aktionen: zum Nächsten, der wartet, Rundgang, ganze Erde, Kamera zurück, Vorführung,
+- die Blenden oben, mit ihrer Taste daneben,
+- die Schalter unter Stationswerte, mit ihrem Zustand,
+- die 42 Hintergründe, aber erst, wenn man nach ihnen sucht.
+
+Gesucht wird ohne Groß- und Kleinschreibung und ohne Akzente: „bru“ findet die Brücke und hebt „Brü“ hervor. Jedes Wort muss vorkommen; Treffer im Titel stehen vor denen im Untertitel. Pfeile wählen und laufen oben und unten herum, Enter führt aus, Escape schließt nur die Palette, und der Fokus kehrt dorthin zurück, wo er war. Ein Tipp neben die Karte schließt ebenfalls. Buchstaben in der Suche lösen keine Tastenkürzel aus.
+
 Behoben:
 - **R in einem Textfeld.** Der Rundgang wurde vor der Prüfung auf Textfelder abgefragt. Jedes r beim Tippen eines Ordnerpfads fing ihn deshalb an oder beendete ihn und schloss dabei die Brücke, in die man gerade schrieb. Auch Strg/⌘+R war ein Rundgang.
 - **Leertaste auf einem Knopf.** Die Leertaste drückt jetzt einen Knopf, zu dem man mit Tab gegangen ist, statt die Kamera zurückzustellen. Nach einem Mausklick, wenn der Knopf den Fokus nur unsichtbar hat, bleibt sie bei der Kamera.
@@ -467,9 +476,10 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-94 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+95 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
+- **Befehlspalette** (palette.mjs): Strg+K und / öffnen; ohne Suchwort die Gruppen Crew, Aktionen, Öffnen und Schalter, samt „Zum Nächsten, der wartet“. Die Pfeile laufen oben und unten herum. „bru“ findet „Brücke“ mit „Brü“ hervorgehoben, und dabei startet kein Rundgang. Enter schaltet das Relief um, fährt zu webshop-kasse und öffnet sie, und wählt den Hintergrund Trifid. Esc lässt die Hilfe darunter offen. Aus dem Auftragsfeld öffnet Strg+K, ein / dort bleibt ein Zeichen, und nach Esc ist der Fokus wieder im Feld. Am Handy passt die Karte mit 16 Punkten Rand. Gegengeprüft mit sechs kaputten Fassungen: mit Akzenten, Esc ungefangen, ohne Fokus zurück, ohne Umlauf, nicht im Textfeld, Hintergründe immer. Alle sechs schlagen an.
 - **Energie, nachgebaut** (energie.mjs):
   - Zwei Fenster mit über fünf Stunden Pause dazwischen, jede Antwort in zwei Zeilen, eine synthetische Antwort und ein Werkzeugergebnis mit `"usage"` als Text.
   - Dazu ein Unteragent, ein Ablauf-Agent und dieselbe Antwort auch im Protokoll der Mutter.

@@ -114,7 +114,7 @@ body.kino #vignette{background:radial-gradient(ellipse 74% 64% at 50% 46%, trans
 }
 /* Der Rand schimmert: ein Verlauf von Weiss ueber Blau nach Violett,
    nur einen Bildpunkt breit, ueber die Kante gelegt */
-.blende::after{
+.blende::after, .palette-karte::after{
   content:""; position:absolute; inset:0; border-radius:inherit; padding:1px; pointer-events:none;
   background:linear-gradient(145deg, rgba(255,255,255,.38), rgba(255,255,255,.06) 30%,
     color-mix(in srgb, var(--acc) 10%, transparent) 60%, color-mix(in srgb, var(--acc) 34%, transparent) 85%, rgba(200,150,230,.26));
@@ -323,6 +323,47 @@ footer{
 #senden:active:not(:disabled){transform:scale(.93);}
 #senden:disabled{opacity:.3; cursor:default; box-shadow:none;}
 #senden svg{width:19px; height:19px;}
+
+/* ---------- Befehlspalette (⌘K) ----------
+   Eine Suche ueber alles, was sonst hinter Knoepfen liegt. Echtes Glas
+   wie die Blenden, oben in der Mitte, und nur solange sie offen ist. */
+#palette{position:fixed; inset:0; z-index:40; display:flex; justify-content:center; align-items:flex-start;
+  padding:calc(11dvh + env(safe-area-inset-top)) 16px 16px; background:rgba(3,5,12,.34);
+  opacity:0; pointer-events:none; transition:opacity .18s ease;}
+#palette.offen{opacity:1; pointer-events:auto;}
+.palette-karte{position:relative; width:min(580px, 100%); max-height:min(72dvh, 560px); display:flex; flex-direction:column;
+  overflow:hidden; transform:translateY(-10px) scale(.985); transition:transform .3s var(--ease);}
+#palette.offen .palette-karte{transform:none;
+  backdrop-filter:blur(26px) saturate(1.6) brightness(.9); -webkit-backdrop-filter:blur(26px) saturate(1.6) brightness(.9);}
+.palette-kopf{display:flex; align-items:center; gap:11px; padding:15px 16px 14px; border-bottom:1px solid var(--edge);}
+.palette-kopf svg{width:18px; height:18px; color:var(--tx3); flex:0 0 auto;}
+#palette-feld{flex:1 1 auto; min-width:0; background:none; border:0; outline:none; color:var(--tx);
+  font:inherit; font-size:16px; letter-spacing:.005em;}
+#palette-feld::placeholder{color:var(--tx3);}
+.palette-taste{font-size:11px; color:var(--tx3); border:1px solid var(--edge2); border-radius:6px; padding:2px 6px;
+  flex:0 0 auto; font-variant-numeric:tabular-nums;}
+#palette-liste{overflow-y:auto; overscroll-behavior:contain; padding:6px; margin:0; list-style:none; flex:1 1 auto;}
+.palette-gruppe{font-size:10px; letter-spacing:.09em; color:var(--tx3); padding:11px 10px 5px; text-transform:uppercase;}
+.palette-eintrag{display:flex; align-items:center; gap:11px; padding:8px 10px; border-radius:11px; cursor:pointer;
+  color:var(--tx); scroll-margin:8px;}
+.palette-eintrag.gewaehlt{background:color-mix(in srgb, var(--acc) 17%, transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--acc) 32%, transparent);}
+.palette-zeichen{width:28px; height:28px; border-radius:9px; display:grid; place-items:center; flex:0 0 auto;
+  background:rgba(255,255,255,.06); box-shadow:inset 0 1px 0 rgba(255,255,255,.08); font-size:13px; color:var(--tx2);}
+.palette-zeichen svg{width:15px; height:15px;}
+.palette-zeichen i{width:10px; height:10px; border-radius:50%; display:block;}
+.palette-text{flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:1px;}
+.palette-titel{font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.palette-titel mark{background:none; color:var(--acc); font-weight:620;}
+.palette-unter{font-size:11.5px; color:var(--tx3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.palette-zustand{font-size:11px; color:var(--tx3); flex:0 0 auto;}
+.palette-zustand.an{color:var(--good);}
+.palette-leer{padding:26px 16px; text-align:center; color:var(--tx3); font-size:13px;}
+.palette-fuss{display:flex; flex-wrap:wrap; gap:6px 16px; padding:9px 16px 10px; border-top:1px solid var(--edge);
+  font-size:11px; color:var(--tx3);}
+.palette-fuss b{font-weight:500; color:var(--tx2);}
+@media (max-width:520px){ #palette{padding-top:calc(64px + env(safe-area-inset-top));} .palette-fuss{display:none;} }
+@media (prefers-reduced-motion:reduce){ #palette, .palette-karte{transition:none;} }
 
 /* ---------- Blenden (Crew, Log, Einstellungen) ---------- */
 .blende{
@@ -21697,7 +21738,8 @@ const HILFE = [
       + "Pfeiltasten schieben das Bild (mit Umschalt weiter), Plus und Minus zoomen, "
       + "N und P springen von Astronaut zu Astronaut (Tab auch, solange kein Knopf "
       + "den Fokus hat), W zum Nächsten, der auf dich wartet, Leertaste stellt die Kamera zurück, "
-      + "Escape schließt.",
+      + "Escape schließt. ⌘K (Strg+K) oder / öffnet die Befehlspalette: eine Suche über die Crew, "
+      + "die Aktionen, die Blenden, die Schalter und die Hintergründe — tippen, mit den Pfeilen wählen, Enter.",
   },
   {
     titel: "Die Energie",
@@ -21989,6 +22031,13 @@ document.addEventListener("keydown", (e) => {
      Tagesbogens waehlt mit der Leertaste aus —, gehoert nicht noch
      einmal der Station: sonst sprang dabei die Kamera zurueck. */
   if (e.defaultPrevented) return;
+  /* Befehlstaste+K (Strg+K) oeffnet und schliesst die Befehlspalette,
+     auch aus einem Textfeld heraus — so wie in den meisten Programmen */
+  if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && (e.key === "k" || e.key === "K")) {
+    e.preventDefault();
+    if (PALETTE.offen) paletteZu(); else paletteAuf();
+    return;
+  }
   if (e.key === "Escape") {
     /* Ueber der ganzen Erde schliesst Esc erst die Karte zum angetippten
        Ort, dann erst die Ansicht */
@@ -22007,6 +22056,8 @@ document.addEventListener("keydown", (e) => {
      manchen Browsern unsichtbar den Fokus — dann bleibt sie bei der
      Kamera, wie man es von hier kennt. */
   if (e.key === " " && z && z !== document.body && fokusSichtbar(z)) return;
+  /* Der Schraegstrich auch, fuer Tastaturen ohne Befehlstaste */
+  if (e.key === "/") { e.preventDefault(); paletteAuf(); return; }
 
   /* Der Rundgang erst hier, hinter den Textfeldern: stand er vorn, fing
      jedes r beim Tippen eines Ordnerpfads den Rundgang an oder beendete
@@ -22090,6 +22141,223 @@ document.addEventListener("keydown", (e) => {
     return;
   }
 });
+
+/* --- Befehlspalette ---------------------------------------------------
+   Was ORBIT kann, liegt hinter vielen Knoepfen: sieben oben, sieben
+   Schalter unter Stationswerte, 42 Hintergruende, dazu jede Figur. ⌘K
+   (Strg+K) oder / oeffnet eine Suche darueber: tippen, mit den Pfeilen
+   waehlen, Enter. Gesucht wird in Titel, Untertitel und Stichworten,
+   ohne Gross- und Kleinschreibung und ohne Akzente; jedes Wort muss
+   vorkommen. Treffer im Titel stehen vorn, Gruppen nach ihrem besten
+   Treffer. Ohne Suchwort stehen Crew, Aktionen, Blenden und Schalter
+   da; die Hintergruende erst, wenn man nach ihnen sucht. */
+const PALETTE = { offen: false, eintraege: [], wahl: 0, vorher: null };
+const PALETTE_GRUPPEN = ["Crew", "Aktionen", "Öffnen", "Schalter", "Hintergrund"];
+
+function paletteNorm(t) {
+  return String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ß/g, "ss");
+}
+
+function paletteQuellen() {
+  const e = [];
+  for (const a of alleAstronauten()) {
+    e.push({ gruppe: "Crew", zeichen: TYP_ZEICHEN[a.typ] || "", farbe: a.farbe, titel: a.name,
+      unter: a.taetigkeit || a.ort || "", stich: [a.typ === "unteragent" ? "unteragent agent" : a.typ, a.ort, a.branch, a.eltern].join(" "),
+      zustand: a.zustand === "winkt" ? "wartet" : "", tun: () => { detailOeffnen(a.id); fahreZu(a.id, Math.max(2.4, KAM.zielZoom)); } });
+  }
+  const aktion = (titel, unter, stich, taste, tun) => e.push({ gruppe: "Aktionen", zeichen: "›", titel, unter, stich, taste, tun });
+  if (BR.live.some(a => a.zustand === "winkt" && SICHT.has(a.id)))
+    aktion("Zum Nächsten, der wartet", "Freigabe oder Rückfrage", "warten winkt freigabe", "W", () => naechsterWartender());
+  aktion(RUNDGANG.laeuft ? "Rundgang beenden" : "Rundgang", "Einmal um die Station", "tour fuehrung", "R",
+    () => { if (ERDANSICHT.an) erdansicht(false); RUNDGANG.laeuft ? rundgangEnde() : rundgangStart(); });
+  if (ERDKARTE.bereit) aktion(ERDANSICHT.an ? "Zurück zur Station" : "Ganze Erde", "Hinauszoomen bis zur Kugel", "globus kugel welt erde",
+    "E", () => erdansicht(!ERDANSICHT.an));
+  aktion("Kamera zurück", "Die ganze Station im Bild", "zuruecksetzen ansicht", "Leertaste", () => { if (ERDANSICHT.an) erdansicht(false); kameraZurueck(); });
+  aktion(VORF.an ? "Vorführung beenden" : "Vorführung", "Beispieldaten statt echter Arbeit", "demo beispiel", "",
+    () => { VORF.an ? vorfuehrungBeenden() : vorfuehrungStarten(); });
+  const BLENDEN = [
+    ["#btn-crew", "Crew", "Alle Figuren untereinander", "liste agenten", "C"],
+    ["#btn-log", "Missions-Log", "Was die Agenten getan haben", "log protokoll", "L"],
+    ["#btn-bruecke", "Brücke", "Echte Arbeitsabläufe, Tag und Woche", "sitzungen heute woche github quellen", "B"],
+    ["#btn-telemetrie", "Stationswerte", "Energie, Lebenserhalt, Schalter", "telemetrie energie verbrauch", "T"],
+    ["#btn-himmel", "Hintergrund", "Nebel und Galaxien", "himmel thema", "H"],
+    ["#btn-hilfe", "Hilfe", "Kurzanleitung", "anleitung erklaerung", "?"],
+    ["#btn-kino", "Kinomodus", "Alles ausblenden", "kino vollbild", "K"],
+    ["#btn-schluessel", "API-Schlüssel", "Für die eigenen Agenten", "key schluessel anthropic", ""],
+  ];
+  for (const [sel, titel, unter, stich, taste] of BLENDEN) {
+    const k = $(sel);
+    if (!k) continue;
+    const svg = k.querySelector("svg");
+    e.push({ gruppe: "Öffnen", svg: svg ? svg.outerHTML : "", titel, unter, stich, taste, tun: () => k.click() });
+  }
+  for (const k of $$("#telemetrie .tm-knopf")) {
+    const t = k.querySelector(".tm-titel"), sym = k.querySelector(".tm-sym svg");
+    if (!t) continue;
+    const an = k.getAttribute("aria-pressed") === "true";
+    e.push({ gruppe: "Schalter", svg: sym ? sym.outerHTML : "", titel: t.textContent,
+      unter: (k.querySelector("small") || {}).textContent || "", stich: "schalter ein aus", zustand: an ? "an" : "aus", an,
+      tun: () => k.click() });
+  }
+  for (const t of THEMEN) e.push({ gruppe: "Hintergrund", farbe: t.akzent, titel: t.name, unter: t.objekt,
+    stich: "hintergrund thema " + t.stimmung, zustand: Z.thema === t.id ? "gewählt" : "", nurSuche: true, tun: () => themaWaehlen(t.id) });
+  return e;
+}
+
+function paletteFiltern(roh) {
+  const woerter = paletteNorm(roh).split(/\s+/).filter(Boolean);
+  const alle = paletteQuellen();
+  if (!woerter.length) return alle.filter(x => !x.nurSuche).map(x => ({ ...x, punkte: 0 }));
+  const treffer = [];
+  for (const x of alle) {
+    const titel = paletteNorm(x.titel), rest = paletteNorm([x.unter, x.stich, x.gruppe].join(" "));
+    let punkte = 0, ok = true;
+    for (const w of woerter) {
+      if (titel.startsWith(w)) punkte += 4;
+      else if ((" " + titel).includes(" " + w)) punkte += 3;
+      else if (titel.includes(w)) punkte += 2;
+      else if (rest.includes(w)) punkte += 1;
+      else { ok = false; break; }
+    }
+    if (ok) treffer.push({ ...x, punkte });
+  }
+  /* Gruppen nach ihrem besten Treffer, darin die Treffer nach Punkten */
+  const best = new Map();
+  for (const x of treffer) best.set(x.gruppe, Math.max(best.get(x.gruppe) || 0, x.punkte));
+  const rang = (g) => PALETTE_GRUPPEN.indexOf(g);
+  return treffer.sort((a, b) => (best.get(b.gruppe) - best.get(a.gruppe)) || (rang(a.gruppe) - rang(b.gruppe)) || (b.punkte - a.punkte));
+}
+
+/* Den ersten Treffer im Titel hervorheben. Die Suche vergleicht ohne
+   Akzente; die Stelle wird deshalb Zeichen fuer Zeichen zurueck auf den
+   Titel abgebildet, damit "mu" in "München" das "Mü" trifft. */
+function paletteTitel(el, titel, roh) {
+  const woerter = paletteNorm(roh).split(/\s+/).filter(Boolean);
+  let norm = "", karte = [];
+  for (let i = 0; i < titel.length; i++) { const n = paletteNorm(titel[i]); for (let j = 0; j < n.length; j++) karte.push(i); norm += n; }
+  karte.push(titel.length);
+  for (const w of woerter) {
+    const k = norm.indexOf(w);
+    if (k < 0) continue;
+    const a = karte[k], b = karte[k + w.length - 1] + 1;
+    const m = document.createElement("mark"); m.textContent = titel.slice(a, b);
+    el.append(titel.slice(0, a), m, titel.slice(b));
+    return;
+  }
+  el.textContent = titel;
+}
+
+function paletteZeichnen() {
+  const liste = $("#palette-liste"), feld = $("#palette-feld");
+  const roh = feld.value;
+  PALETTE.eintraege = paletteFiltern(roh).slice(0, 80);
+  if (PALETTE.wahl >= PALETTE.eintraege.length) PALETTE.wahl = 0;
+  liste.textContent = "";
+  if (!PALETTE.eintraege.length) {
+    const l = document.createElement("li"); l.className = "palette-leer"; l.setAttribute("role", "presentation");
+    l.textContent = "Nichts gefunden für „" + roh.trim() + "“";
+    liste.append(l);
+    feld.removeAttribute("aria-activedescendant");
+    return;
+  }
+  let gruppe = null;
+  PALETTE.eintraege.forEach((x, i) => {
+    if (x.gruppe !== gruppe) {
+      gruppe = x.gruppe;
+      const g = document.createElement("li"); g.className = "palette-gruppe"; g.setAttribute("role", "presentation");
+      g.textContent = gruppe; liste.append(g);
+    }
+    const l = document.createElement("li");
+    l.className = "palette-eintrag" + (i === PALETTE.wahl ? " gewaehlt" : "");
+    l.id = "palette-o-" + i; l.setAttribute("role", "option"); l.setAttribute("aria-selected", String(i === PALETTE.wahl));
+    const z = document.createElement("span"); z.className = "palette-zeichen";
+    /* Die Zeichen der Knoepfe kommen aus dem eigenen Dokument */
+    if (x.svg) z.innerHTML = x.svg;
+    else if (x.zeichen) { z.textContent = x.zeichen; if (x.farbe) z.style.color = x.farbe; }
+    else if (x.farbe) { const p = document.createElement("i"); p.style.background = x.farbe; z.append(p); }
+    const t = document.createElement("span"); t.className = "palette-text";
+    const ti = document.createElement("span"); ti.className = "palette-titel"; paletteTitel(ti, x.titel, roh);
+    t.append(ti);
+    if (x.unter) { const u = document.createElement("span"); u.className = "palette-unter"; u.textContent = x.unter; t.append(u); }
+    l.append(z, t);
+    if (x.zustand || x.taste) {
+      const r = document.createElement("span");
+      r.className = x.zustand ? "palette-zustand" + (x.an || x.zustand === "gewählt" ? " an" : "") : "palette-taste";
+      r.textContent = x.zustand || x.taste; l.append(r);
+    }
+    l.onmousemove = () => { if (PALETTE.wahl !== i) paletteWahl(i, false); };
+    l.onclick = () => paletteAusfuehren(i);
+    liste.append(l);
+  });
+  feld.setAttribute("aria-activedescendant", "palette-o-" + PALETTE.wahl);
+}
+
+function paletteWahl(i, rollen = true) {
+  const n = PALETTE.eintraege.length;
+  if (!n) return;
+  PALETTE.wahl = (i + n) % n;
+  for (const l of $$("#palette-liste .palette-eintrag")) {
+    const an = l.id === "palette-o-" + PALETTE.wahl;
+    l.classList.toggle("gewaehlt", an); l.setAttribute("aria-selected", String(an));
+    if (an && rollen) l.scrollIntoView({ block: "nearest" });
+  }
+  $("#palette-feld").setAttribute("aria-activedescendant", "palette-o-" + PALETTE.wahl);
+}
+
+function paletteAusfuehren(i) {
+  const x = PALETTE.eintraege[i];
+  if (!x) return;
+  /* Erst schliessen, dann tun: sonst gaebe paletteZu den Fokus an ein
+     Feld zurueck, das die Aktion gerade verlassen hat */
+  paletteZu(false);
+  x.tun();
+}
+
+function paletteAufbauen() {
+  if ($("#palette")) return;
+  const d = document.createElement("div");
+  d.id = "palette";
+  d.innerHTML = '<div class="palette-karte glas" role="dialog" aria-modal="true" aria-label="Befehlspalette">'
+    + '<div class="palette-kopf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>'
+    + '<input id="palette-feld" type="text" autocomplete="off" spellcheck="false" placeholder="Crew, Schalter, Blenden, Hintergründe …"'
+    + ' role="combobox" aria-expanded="true" aria-controls="palette-liste" aria-autocomplete="list">'
+    + '<span class="palette-taste">esc</span></div>'
+    + '<ul id="palette-liste" role="listbox" aria-label="Treffer"></ul>'
+    + '<div class="palette-fuss"><span><b>↑ ↓</b> wählen</span><span><b>↵</b> ausführen</span><span><b>⌘K</b> oder <b>/</b> öffnen</span></div></div>';
+  document.body.append(d);
+  /* Ein Tipp neben die Karte schliesst */
+  d.addEventListener("mousedown", (e) => { if (e.target === d) paletteZu(); });
+  const feld = $("#palette-feld");
+  feld.addEventListener("input", () => { PALETTE.wahl = 0; paletteZeichnen(); $("#palette-liste").scrollTop = 0; });
+  feld.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); paletteWahl(PALETTE.wahl + (e.key === "ArrowDown" ? 1 : -1)); }
+    else if (e.key === "PageDown" || e.key === "PageUp") { e.preventDefault(); paletteWahl(Math.max(0, Math.min(PALETTE.eintraege.length - 1, PALETTE.wahl + (e.key === "PageDown" ? 8 : -8)))); }
+    else if (e.key === "Enter") { e.preventDefault(); paletteAusfuehren(PALETTE.wahl); }
+    else if (e.key === "Escape") { e.preventDefault(); paletteZu(); }
+    else if (e.key === "Tab") e.preventDefault();          // der Fokus bleibt in der Palette
+  });
+}
+
+function paletteAuf() {
+  paletteAufbauen();
+  PALETTE.vorher = document.activeElement;
+  PALETTE.offen = true; PALETTE.wahl = 0;
+  const feld = $("#palette-feld");
+  feld.value = "";
+  paletteZeichnen();
+  $("#palette").classList.add("offen");
+  feld.focus();
+}
+
+function paletteZu(fokusZurueck = true) {
+  if (!PALETTE.offen) return;
+  PALETTE.offen = false;
+  $("#palette").classList.remove("offen");
+  $("#palette-feld").blur();
+  const v = PALETTE.vorher;
+  PALETTE.vorher = null;
+  if (fokusZurueck && v && v.isConnected && v !== document.body && typeof v.focus === "function") v.focus();
+}
 
 /* --- Auftragsfeld --- */
 const feld = $("#auftrag");
