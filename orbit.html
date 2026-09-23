@@ -11208,6 +11208,36 @@ void main() {
   float wasser = smoothstep(1.25, 1.7, karte.b / (karte.r + 0.03))
                * smoothstep(0.9, 1.1, karte.b / (karte.g + 0.03));
   f += vec3(0.9, 0.92, 0.95) * glanz * wasser * (1.0 - wolke) * 0.55;
+  /* Polarlicht: das Oval um den magnetischen Pol (Dipol, 80,7 Grad
+     Nord, 72,7 Grad West, wie in der Szene). Es liegt auf der
+     Mitternachtsseite bei gut 67 Grad magnetischer Breite, auf der
+     Mittagsseite naeher am Pol, bei 75 — deshalb die Lage relativ zur
+     Sonne. Zu sehen ist es nur auf der Nachtseite, dort als gruenes
+     Band mit Vorhaengen, am hellsten um Mitternacht. Es leuchtet in
+     hundert Kilometern Hoehe, ueber den Wolken, und wird deshalb auf
+     alles gelegt. */
+  const vec3 MAGPOL = vec3(0.04806, -0.15430, 0.98686);
+  float mz = dot(p, MAGPOL);
+  vec3 mq = normalize(p - MAGPOL * mz + 1e-5);
+  vec3 sq = normalize(uSonne - MAGPOL * dot(uSonne, MAGPOL) + 1e-5);
+  float mittag = dot(mq, sq);                        // 1 mittags, -1 um Mitternacht
+  float mbreite = degrees(asin(abs(mz)));
+  float oval = 71.0 + 4.0 * mittag;
+  float band = exp(-pow((mbreite - oval) / (2.2 + 1.2 * (1.0 - mittag)), 2.0));
+  vec3 e1 = normalize(cross(MAGPOL, vec3(0.0, 0.0, 1.0)));
+  vec3 e2 = cross(MAGPOL, e1);
+  float mlaenge = atan(dot(p, e2), dot(p, e1));
+  /* Von oben gesehen liegt das Polarlicht in Boegen laengs des Ovals,
+     zwei, drei nebeneinander, mit Falten und hellen Knoten. Also quer
+     zum Oval schnell veraenderlich (ein Grad), laengs langsam (zehn
+     Grad), und darueber feinere Falten. */
+  float halbkugel = step(0.0, mz) * 0.5;
+  vec2 vq = vec2(mlaenge * 0.045 + halbkugel, mbreite * 0.0078);
+  float vorhang = texture2D(uKorn, vq).r * 0.65
+                + texture2D(uKorn, vec2(mlaenge * 0.3, mbreite * 0.012) + 0.21 + halbkugel).r * 0.35;
+  vorhang = 0.25 + 1.3 * smoothstep(0.36, 0.7, vorhang);
+  float polar = band * vorhang * (0.55 - 0.45 * mittag) * smoothstep(0.02, -0.18, sonne);
+  f += vec3(0.25, 1.0, 0.5) * polar * 0.32;
   float rand = pow(1.0 - sqrt(1.0 - r2), 3.0);
   f = mix(f, vec3(0.42, 0.62, 1.0) * (0.12 + 0.88 * licht), rand * 0.6);
   gl_FragColor = vec4(f + korn, 1.0);
@@ -11800,6 +11830,7 @@ function zeichneErdansicht(t, dt) {
   cx.drawImage(q.c, 0, 0, bw, bw,
     Math.round((g.cx - kante) * DPR), Math.round((g.cy - kante) * DPR),
     Math.round(kante * 2 * DPR), Math.round(kante * 2 * DPR));
+  erdansichtBlitze(g, blick, uhr);
 
   /* Die Bahn: ein Kreis in echter Hoehe, als Ellipse gesehen. Was hinter
      der Kugel liegt, bleibt verdeckt; vorn ist sie hell, dort, wo die
@@ -11858,6 +11889,76 @@ function zeichneErdansicht(t, dt) {
     cx.fillStyle = i ? "rgba(190,210,240,.9)" : "rgba(255,244,222,.95)";
     cx.fillText(z, st.x, y);
   });
+  cx.restore();
+}
+
+/* Blitze auf der Nachtseite der ganzen Erde. Es sind dieselben Zellen
+   wie in der Szene, in den dicksten Wolken der Karte. Aus dieser
+   Entfernung ist ein Blitz ein kurzes Aufleuchten der Wolke, gut
+   hundert Kilometer weit, oft zwei- oder dreimal hintereinander, und
+   manchmal springt er auf die Nachbarzelle ueber. Ueber Land blitzt es
+   oefter als ueber dem Meer, bei Tag und bei angehaltener Zeit nie —
+   wie in der Szene. Auf der ganzen Nachtseite der echten Erde sind es
+   rund vierzig Blitze je Sekunde. Hier sind es nur die hellen in den
+   hoechsten Tuermen, im Mittel vier. */
+function erdansichtBlitze(g, blick, uhr) {
+  const Z = ERDKARTE.zellen;
+  if (!Z || !Z.length) return;
+  const E = ERDANSICHT;
+  if (!E.blitze) E.blitze = [];
+  const m = blick.m, S = blick.S;
+  const schritt = Math.min(0.25, Math.max(0, (uhr - (E.blitzUhr || uhr)) / 1000));
+  E.blitzUhr = uhr;
+  const dunkel = (p) => p[0] * S[0] + p[1] * S[1] + p[2] * S[2] < -0.08;
+  const vorn = (p) => p[0] * m[6] + p[1] * m[7] + p[2] * m[8];
+  const zuenden = (z, wann) => {
+    E.blitze.push({ z, t0: wann, dauer: 140 + Math.random() * 190,
+                    schlaege: 1 + Math.floor(Math.random() * 3) });
+    /* Manchmal springt es auf eine Nachbarzelle ueber */
+    if (z.nachbarn.length && Math.random() < 0.35) {
+      const nb = z.nachbarn[Math.floor(Math.random() * z.nachbarn.length)];
+      if (dunkel(nb.p)) E.blitze.push({ z: nb, t0: wann + 120 + Math.random() * 300,
+                                        dauer: 120 + Math.random() * 150, schlaege: 1 });
+    }
+  };
+  if (ZEIT.rate > 0 && E.blitze.length < 14 && Math.random() < schritt * 4) {
+    for (let k = 0; k < 30; k++) {
+      const z = Z[Math.floor(Math.random() * Z.length)];
+      if (!dunkel(z.p) || vorn(z.p) < 0.15) continue;
+      if (!z.land && Math.random() > 0.35) continue;
+      zuenden(z, uhr);
+      break;
+    }
+  }
+  E.blitze = E.blitze.filter(b => uhr - b.t0 < b.dauer);
+  if (!E.blitze.length) return;
+  cx.save();
+  cx.globalCompositeOperation = "lighter";
+  for (const b of E.blitze) {
+    if (uhr < b.t0) continue;
+    const p = b.z.p, tief = vorn(p);
+    if (tief <= 0.05) continue;
+    const x = p[0] * m[0] + p[1] * m[1] + p[2] * m[2];
+    const y = p[0] * m[3] + p[1] * m[4] + p[2] * m[5];
+    const sx = (g.cx + x * g.r) * DPR, sy = (g.cy - y * g.r) * DPR;
+    /* Jeder Schlag eine kurze Spitze, die folgenden etwas schwaecher */
+    const u = (uhr - b.t0) / b.dauer;
+    const f = u * b.schlaege, schlag = Math.floor(f);
+    const hell = Math.exp(-(f - schlag) * 4.5) * (1 - schlag * 0.25) * (0.55 + 0.45 * b.z.kraft);
+    const rad = g.r * 0.034 * DPR * (0.7 + 0.6 * b.z.kraft);
+    /* Zum Rand hin von der Seite gesehen: eine flache Ellipse */
+    cx.save();
+    cx.translate(sx, sy);
+    cx.rotate(Math.atan2(-y, x));
+    cx.scale(Math.max(0.25, tief), 1);
+    const gr = cx.createRadialGradient(0, 0, 0, 0, 0, rad);
+    gr.addColorStop(0, `rgba(240,244,255,${Math.min(1, hell).toFixed(3)})`);
+    gr.addColorStop(0.3, `rgba(180,198,255,${(0.45 * hell).toFixed(3)})`);
+    gr.addColorStop(1, "rgba(150,170,255,0)");
+    cx.fillStyle = gr;
+    cx.beginPath(); cx.arc(0, 0, rad, 0, Math.PI * 2); cx.fill();
+    cx.restore();
+  }
   cx.restore();
 }
 
