@@ -11352,6 +11352,9 @@ function erdkarteAufbauen() {
         ERDKARTE.grund = "Grafikkontext verloren";
         ERDE.bild = null;
         GEWITTER.zellen = [];
+        /* Ohne Karte gibt es keine ganze Erde: zurueck zur Station, statt
+           mit "Erde" in der Zoomleiste vor der Szene zu stehen */
+        if (ERDANSICHT.an) erdansicht(false);
       });
       Object.assign(ERDKARTE, { lw, gl, prog, u, eck });
     },
