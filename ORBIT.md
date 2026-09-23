@@ -448,7 +448,12 @@ Ziehen und Zoomen mit Maus, Rad und Fingern; weiter heraus, als der Zoom reicht,
 **Ortssuche und Flug.** Enter auf einen Ort fliegt die ganze Erde dorthin, wie bei Google Earth:
 - über den Großkreis, weich an- und auslaufend, 1,2 bis 3 Sekunden je nach Weite;
 - bei weiten Flügen ein Stück hinaus, höchstens so weit, dass Start und Ziel zugleich zu sehen wären (München nach Tokio: von 220-fach auf 1,6-fach und wieder hinein);
-- unterwegs dreht sich Norden nach oben.
+- unterwegs dreht sich Norden nach oben: Das Oben vom Start wird auf dem Großkreis mitgeführt und dabei gleichmäßig um die Blickachse zum Norden am Ziel gedreht. Früher wurden die beiden linear gemischt. Zeigten sie fast gegeneinander, ging die Mischung durch null, und das Bild kippte mitten im Flug ruckartig, mit gut dem Dreifachen der Geschwindigkeit des Flugs. Die Mitte dreht jetzt um eine Achse statt als Kugel-Interpolation, die beim Flug zum genauen Gegenpunkt durch null geteilt hätte.
+
+**Die Station hinter der Erde.** In der frei gedrehten Kugel kann die Station hinter der Erde liegen, etwa nach einem Flug nach Europa, während sie über dem Indischen Ozean ist. Früher schien ihr Punkt dann durch die Erde hindurch. Er stand samt „Unter uns: Indischer Ozean“ mitten auf dem Mittelmeer. Jetzt:
+- Liegt sie hinter der Kugel, steht knapp außerhalb von deren Rand ein kleiner Zeiger, dort, wo sie wieder hervorkäme: „Station hinter der Erde · antippen: zurück“.
+- Liegt sie vorn, aber außerhalb des Schirms (tief hineingezoomt), steht der Zeiger am Rand des Schirms und heißt nur „Station“.
+- Antippen fliegt zurück, und zwar nicht zu einem festen Punkt: Ziel ist der Blick, der der Station folgt, in jedem Bild neu, denn sie fliegt weiter. Am Ende geht der Flug ohne Sprung in die folgende Kamera über.
 
 Am Ziel steht ein pulsierender Ring mit dem Namen, und die Karte zum Ort geht auf: Land, Koordinaten, Sonnenzeit. Wie nah es geht:
 - ohne Satellitenbilder bis 2,4-fach,
@@ -530,7 +535,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-102 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+103 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
 - **Regenradar** (regen.mjs, ein nachgebautes RainViewer mit bekannten Werten):
@@ -572,6 +577,13 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Zoom 2,4 ohne, 220 mit Satellitenbildern, Italien 11,8. Das Mausrad bei 30 % des Wegs hält den Flug an, ohne Sprung. Ohne Erde gibt es keine Orte.
   - Die ganze Reihe fand danach einen echten Fehler: „kasse“ fand zuerst die Stadt Kassel und nicht die Sitzung webshop-kasse, denn nach einem Bindestrich galt kein Wortanfang. Jetzt beginnen Wörter auch nach Bindestrich, Unterstrich, Schrägstrich und Punkt, und Orte stehen bei gleich gutem Treffer hinter der Crew. „kassel“ findet weiter Kassel.
   - Dabei gefunden: Das Ende des Flugs verglich einen Bruch mit 1, und (t0 + d − t0) / d liegt in 42 % der Fälle knapp darunter. Jetzt wird die Uhr verglichen, mit einem Test genau dafür.
+- **Station hinter der Erde** (stationhinten.mjs):
+  - Gefunden auf einem Foto mit echten Radardaten: Die Station stand über dem Indischen Ozean, der Blick auf Europa, und ihr Punkt schien durch die Kugel hindurch.
+  - Nach dem Flug zum Gegenpunkt: kein Stationspunkt, kein „Unter uns“, dort, wo er durchschiene, kein weißer Bildpunkt (vorher 255). Der Zeiger steht am Rand und sagt „Station hinter der Erde“.
+  - Antippen startet den Flug zurück. Jeder Schritt wird mit der Uhr aufgezeichnet, nach der der Flug rechnet, samt Blickrichtung und Oben. Am schnellsten dreht das Bild 0,12 Grad je Millisekunde; die Formel erwartet für diesen Weg knapp 0,1. Beim Übergang in die folgende Kamera sind es 0,0005, also kein Sprung. Danach: Station zu sehen, „Unter uns“ wieder da, Zoom 1.
+  - Vorher drehte das Oben mitten im Flug mit 0,37 Grad je Millisekunde, während die Blickrichtung 0,096 hatte. Deshalb rechnet jetzt jeder Flug das Oben als Drehung (siehe Ortssuche und Flug). orte.mjs, palette.mjs, kompass.mjs, erdansicht.mjs, erdunteruns.mjs, satellit.mjs und die drei Regen-Tests sind danach grün.
+  - Vorn, aber 40-fach hineingezoomt: Zeiger am Schirmrand, „Station“, frei von Kopfzeile und Bedienung.
+  - Gegengeprüft mit sechs kaputten Fassungen: Punkt scheint durch, Punkt außerhalb des Schirms, kein Zeiger, Ziel nicht nachgeführt (Sprung am Ende), Oben linear gemischt, Antippen ohne Wirkung. Alle sechs schlagen an.
   - Zehn kaputte Fassungen schlagen an.
 - **Lieferungen** (lieferung.mjs, Flugzeiten für den Test verkürzt):
   - Erste Sichtung: ein alter Merge und drei offene PRs, nichts wird geliefert.

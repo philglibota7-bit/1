@@ -13243,13 +13243,14 @@ function erdansicht(an, vomRundgang) {
    auf die die Szene blickt. Wer zieht, dreht diese Richtung um die
    Senkrechte der Station (seitlich) und kippt sie (hoch und runter).
    Die Station bleibt dabei oben in der Mitte. */
-function erdansichtBlick(phi, ms) {
+function erdansichtBlick(phi, ms, folgend) {
   const b = erdBlick(phi, ms);
   const m = b.m;
   /* Frei: die Kamera steht erdfest ueber einem Punkt, den man mit Ziehen
      und Zoomen waehlt, wie bei einer Kartenansicht. Die Station fliegt
-     dann durchs Bild, statt es mitzunehmen. */
-  const fr = ERDANSICHT.frei;
+     dann durchs Bild, statt es mitzunehmen. Mit folgend der Blick, den
+     die Kamera haette, wenn sie der Station folgte. */
+  const fr = folgend ? null : ERDANSICHT.frei;
   if (fr) {
     const mo = mondErdfest(ms);
     const anteil = (1 - Math.cos(mo.elong * Math.PI / 180)) / 2;
@@ -13607,9 +13608,15 @@ function zeichneErdansicht(t, dt) {
     cx.strokeStyle = vorn ? "rgba(214,232,255,.8)" : "rgba(150,190,240,.32)";
     cx.beginPath(); cx.moveTo(p0.x, p0.y); cx.lineTo(p1.x, p1.y); cx.stroke();
   }
-  /* Die Station: ein heller Punkt mit Schein, und darueber, wer an Bord ist */
+  /* Die Station: ein heller Punkt mit Schein, und darueber, wer an Bord ist.
+     In der frei gedrehten Kugel kann sie hinter der Erde liegen; frueher
+     schien der Punkt dann durch die Erde hindurch und stand samt „Unter
+     uns“ an einer Stelle, ueber der sie gar nicht war. Dann und wenn sie
+     ausserhalb des Schirms liegt, steht nur am Rand ein Zeiger zu ihr. */
   const st = aufSchirm([hoch * O[0], hoch * O[1], hoch * O[2]]);
-  ERDANSICHT.station = { x: st.x / DPR, y: st.y / DPR };
+  const drin = st.x >= 0 && st.x <= W * DPR && st.y >= 0 && st.y <= H * DPR;
+  ERDANSICHT.station = !st.verdeckt && drin ? { x: st.x / DPR, y: st.y / DPR } : null;
+  ERDANSICHT.stationRand = null;
   /* Die echte ISS, wenn gewuenscht: ein zweiter, kleiner Punkt in ihrer
      echten Hoehe, anders gefaerbt, damit man die beiden nicht verwechselt */
   ERDANSICHT.echteIss = null;
@@ -13661,6 +13668,11 @@ function zeichneErdansicht(t, dt) {
   const w10 = 10 * Math.PI / 180;
   const vor = aufSchirm([0, 1, 2].map(k => hoch * (Math.cos(w10) * O[k] + Math.sin(w10) * V[k])));
   ERDANSICHT.bahnVoraus = { x: vor.x / DPR, y: vor.y / DPR };
+  if (!ERDANSICHT.station) {
+    stationZeiger(g, st);
+    cx.restore();
+    return;
+  }
   const puls = 0.75 + 0.25 * Math.sin(t * 0.004);
   const glanz = cx.createRadialGradient(st.x, st.y, 0, st.x, st.y, 14 * DPR);
   glanz.addColorStop(0, `rgba(255,240,205,${0.85 * puls})`);
@@ -16098,24 +16110,123 @@ function fliegeZu(ziel) {
   return true;
 }
 
+/* Zurueck zur Station, im Flug statt mit einem Sprung: von dem Bild, das
+   gerade zu sehen ist, zu dem, das ihr folgt */
+function fliegeZurStation() {
+  if (!ERDANSICHT.an || !ERDANSICHT.frei) return false;
+  ERDANSICHT.neig = ERDANSICHT_NEIGUNG;
+  ERDANSICHT.az = 0;
+  const fr = ERDANSICHT.frei;
+  const von = { ex: fr.ex.slice(), ey: fr.ey.slice(), ez: fr.ez.slice() };
+  KOMPASS.dreht = false;
+  ORTSMARKE = null;
+  FLUG = { von, nach: von.ez.slice(), winkel: 0, z0: ERDANSICHT.zoom || 1, z1: 1, t0: performance.now(),
+           dauer: 1200, zurStation: true };
+  /* Dauer nach dem Weg, wie bei jedem Flug */
+  flugTakt(FLUG.t0);
+  if (FLUG) FLUG.dauer = 1200 + 1800 * FLUG.winkel / Math.PI;
+  return true;
+}
+
+/* Die Station liegt hinter der Erde oder ausserhalb des Schirms: am Rand
+   ein kleiner Zeiger in ihre Richtung. Liegt sie hinter der Kugel, sitzt
+   er knapp ausserhalb von deren Rand, dort, wo sie wieder hervorkaeme;
+   sonst am Rand des Schirms. Antippen fliegt zurueck zu ihr. */
+function stationZeiger(g, st) {
+  const mx = g.cx * DPR, my = g.cy * DPR;
+  let dx, dy, x, y;
+  if (st.verdeckt) {
+    dx = st.x - mx; dy = st.y - my;
+    const l = Math.hypot(dx, dy);
+    if (l < 1e-3) { dx = 0; dy = -1; } else { dx /= l; dy /= l; }
+    x = mx + dx * (g.r * DPR + 24 * DPR); y = my + dy * (g.r * DPR + 24 * DPR);
+  } else {
+    dx = st.x - W * DPR / 2; dy = st.y - H * DPR / 2;
+    const l = Math.hypot(dx, dy) || 1;
+    dx /= l; dy /= l;
+    x = st.x; y = st.y;
+  }
+  /* Auf dem Schirm halten, frei von Kopfzeile, Leiste rechts und Eingabe */
+  x = klemm(x, 34 * DPR, (W - 84) * DPR);
+  y = klemm(y, 78 * DPR, (H - 170) * DPR);
+  const hinten = st.verdeckt;
+  const zeilen = [hinten ? "Station hinter der Erde" : "Station", "antippen: zurück"];
+  ERDANSICHT.stationRand = { x: x / DPR, y: y / DPR, hinten };
+  ERDANSICHT.zeilen = zeilen;
+  const puls = 0.7 + 0.3 * Math.sin(performance.now() * 0.004);
+  cx.save();
+  cx.translate(x, y);
+  /* Ein Punkt wie die Station, nur kleiner, und ein Winkel in ihre Richtung */
+  cx.fillStyle = `rgba(255,240,205,${0.35 * puls})`;
+  cx.beginPath(); cx.arc(0, 0, 9 * DPR, 0, Math.PI * 2); cx.fill();
+  cx.fillStyle = "#fff";
+  cx.beginPath(); cx.arc(0, 0, 2.6 * DPR, 0, Math.PI * 2); cx.fill();
+  cx.rotate(Math.atan2(dy, dx));
+  cx.strokeStyle = "rgba(255,244,222,.9)"; cx.lineWidth = 1.6 * DPR; cx.lineCap = "round"; cx.lineJoin = "round";
+  cx.beginPath(); cx.moveTo(11 * DPR, -5 * DPR); cx.lineTo(16 * DPR, 0); cx.lineTo(11 * DPR, 5 * DPR); cx.stroke();
+  cx.restore();
+  /* Die Schrift zur Mitte hin, damit sie nicht aus dem Bild laeuft */
+  cx.font = `600 ${11 * DPR}px OrbitInter, -apple-system, system-ui, sans-serif`;
+  cx.textAlign = x < 180 * DPR ? "left" : x > (W - 180) * DPR ? "right" : "center";
+  const tx = cx.textAlign === "left" ? x - 6 * DPR : cx.textAlign === "right" ? x + 6 * DPR : x;
+  const unten = dy < 0;
+  cx.lineWidth = 3 * DPR; cx.strokeStyle = "rgba(4,7,14,.8)";
+  zeilen.forEach((z, i) => {
+    const ty = unten ? y + (24 + i * 14) * DPR : y - (16 + (zeilen.length - 1 - i) * 14) * DPR;
+    cx.strokeText(z, tx, ty);
+    cx.fillStyle = i ? "rgba(190,210,240,.75)" : "rgba(255,244,222,.95)";
+    cx.fillText(z, tx, ty);
+  });
+}
+
 /* Ein Schritt des Flugs, in jedem Bild der ganzen Erde */
 function flugTakt(uhr) {
   const f = FLUG;
   if (!f) return;
+  /* Zurueck zur Station: das Ziel ist der Blick, der ihr folgt, und der
+     wandert mit ihr weiter, also in jedem Bild neu. Am Ende ist das Bild
+     genau das, mit dem die folgende Kamera weitermacht: kein Sprung. */
+  if (f.zurStation) {
+    const zm = erdansichtBlick(umlaufWinkel(window.__PHASE_WERT || 0), Date.now(), true).m;
+    f.nach = zm.slice(6, 9);
+    f.obenZiel = zm.slice(3, 6);
+    f.winkel = Math.acos(klemm(f.von.ez[0] * f.nach[0] + f.von.ez[1] * f.nach[1] + f.von.ez[2] * f.nach[2], -1, 1));
+  }
   /* Das Ende nach der Uhr vergleichen, nicht nach dem Bruch: (t0 + d - t0) / d
      ist in Gleitkomma manchmal knapp unter 1, und der Flug endete nie */
   const u = uhr >= f.t0 + f.dauer ? 1 : klemm((uhr - f.t0) / f.dauer, 0, 1);
   const e = u * u * u * (u * (u * 6 - 15) + 10);           // weich an und aus
-  /* Ueber den Grosskreis: Kugel-Interpolation der Mitte */
+  /* Ueber den Grosskreis: die Mitte dreht um die Achse senkrecht zu Start
+     und Ziel. Als Drehung statt als Kugel-Interpolation, denn die teilt
+     durch sin(Winkel), und der ist beim Flug zum Gegenpunkt null. */
   const w = f.winkel, a = f.von.ez, b = f.nach;
-  let ez;
-  if (w < 1e-6) ez = b.slice();
-  else {
-    const sa = Math.sin((1 - e) * w) / Math.sin(w), sb = Math.sin(e * w) / Math.sin(w);
-    ez = [0, 1, 2].map(k => sa * a[k] + sb * b[k]);
-  }
-  /* Oben dreht sich unterwegs nach Norden */
-  const oben = [0, 1, 2].map(k => f.von.ey[k] * (1 - e) + [0, 0, 1][k] * e);
+  const kreuz = (p, q) => [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]];
+  const punkt = (p, q) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2];
+  const drehe = (v, k, t) => {
+    const c = Math.cos(t), s_ = Math.sin(t), kv = kreuz(k, v), d = punkt(k, v) * (1 - c);
+    return [0, 1, 2].map(i => v[i] * c + kv[i] * s_ + k[i] * d);
+  };
+  let achse = kreuz(a, b);
+  const la = Math.hypot(...achse);
+  /* Genau gegenueber ist jede Achse senkrecht zum Start recht: die
+     waagerechte des Bilds, dann geht es ueber oben */
+  achse = la > 1e-6 ? achse.map(x => x / la) : f.von.ex.slice();
+  const ez = w < 1e-6 ? b.slice() : drehe(a, achse, e * w);
+  /* Oben: das Oben vom Start, auf dem Grosskreis mitgefuehrt, und dabei
+     gleichmaessig um die Blickachse zum Oben am Ziel gedreht (Norden, oder
+     beim Flug zur Station deren Oben). Frueher wurde linear gemischt;
+     zeigten beide fast gegeneinander, ging die Mischung durch null, und das
+     Bild kippte mitten im Flug ruckartig. */
+  const mitEnde = w < 1e-6 ? f.von.ey.slice() : drehe(f.von.ey, achse, w);
+  const oz = f.obenZiel || [0, 0, 1];
+  let ziel = [0, 1, 2].map(i => oz[i] - b[i] * punkt(oz, b));
+  const lz0 = Math.hypot(...ziel);
+  /* Liegt das Ziel am Pol, gibt Norden keine Richtung: dann bleibt es beim
+     mitgefuehrten Oben */
+  ziel = lz0 > 1e-6 ? ziel.map(x => x / lz0) : mitEnde;
+  const roll = Math.atan2(punkt(kreuz(mitEnde, ziel), b), punkt(mitEnde, ziel));
+  const mit = w < 1e-6 ? f.von.ey.slice() : drehe(f.von.ey, achse, e * w);
+  const oben = drehe(mit, ez, e * roll);
   ERDANSICHT.frei = freiRahmen(ez, oben);
   /* Der Zoom: logarithmisch, und bei weiten Fluegen dazwischen hinaus,
      hoechstens so weit, dass Start und Ziel zugleich zu sehen waeren */
@@ -16125,8 +16236,16 @@ function flugTakt(uhr) {
                      : Math.log(tief) + (Math.log(f.z1) - Math.log(tief)) * weich(u * 2 - 1);
   ERDANSICHT.zoom = Math.exp(lz);
   ERDANSICHT.freiVersion++;
+  if (u >= 1 && f.zurStation) {
+    ERDANSICHT.frei = null;
+    ERDANSICHT.zoom = 1;
+    ERDANSICHT.freiVersion++;
+    FLUG = null;
+    zoomLeisteAktualisieren();
+    return;
+  }
   if (u >= 1) {
-    ERDANSICHT.frei = freiRahmen(b, [0, 0, 1]);
+    ERDANSICHT.frei = freiRahmen(b, oben);
     ERDANSICHT.zoom = f.z1;
     ERDANSICHT.freiVersion++;
     FLUG = null;
@@ -25194,6 +25313,8 @@ const HILFE = [
       + "du weiter heraus, als es geht, oder drückst E, siehst du die ganze Erde: die Kugel mit Tag, "
       + "Dämmerung und den Lichtern der Nacht, darum die Bahn in echter Höhe und oben die Station. "
       + "Ziehen dreht die Kugel, Zoomen macht sie größer, ein Tipp auf die Station bringt dich zurück. "
+      + "Liegt sie gerade hinter der Erde oder außerhalb des Bilds, zeigt ein kleiner Pfeil am Rand zu ihr; "
+      + "tippst du ihn an, fliegt die Kugel zu ihr zurück. "
       + "Mit dem Knopf Satellitenbilder unten in der Zoomleiste (oder unter Stationswerte) wird die Kugel "
       + "zur Karte wie bei Google Earth: Du zoomst bis auf Straßen heran, immer auf den Punkt unter dem "
       + "Zeiger, und Ziehen verschiebt. Die Bilder kommen von Esri, erst beim Hineinzoomen und nur für den "
@@ -26087,6 +26208,9 @@ function zeigerLoslassen(ev) {
        Ort, einer daneben fuehrt zurueck zur Station. */
     if (ERDANSICHT.an) {
       if (document.querySelector(".blende.offen")) { blendeZu(); return; }
+      /* Der Zeiger am Rand: hinfliegen */
+      const sr = ERDANSICHT.stationRand;
+      if (sr && Math.hypot(ev.clientX - sr.x, ev.clientY - sr.y) < 30) { fliegeZurStation(); return; }
       /* Die Station selbst angetippt: zurueck zu ihr */
       const st = ERDANSICHT.station;
       if (st && Math.hypot(ev.clientX - st.x, ev.clientY - st.y) < 26) { erdansicht(false); return; }
@@ -26400,7 +26524,7 @@ window.__AGENT_DAZU = (a) => { Z.agenten.push(a); zeichneCrewLeiste(); };
 window.__BUCH = () => BORDBUCH;
 window.__LOGPUSH = (e) => { Z.log.unshift(e); zeichneLog(); };
 window.__PHASE = (ph) => { PHASE_TEST = ph; };
-window.__ERDANSICHT = (an) => { if (an !== undefined) erdansicht(an); return { an: ERDANSICHT.an, blend: ERDANSICHT.blend, geo: ERDANSICHT.geo, station: ERDANSICHT.station || null, zeilen: ERDANSICHT.zeilen || [] }; };
+window.__ERDANSICHT = (an) => { if (an !== undefined) erdansicht(an); return { an: ERDANSICHT.an, blend: ERDANSICHT.blend, geo: ERDANSICHT.geo, station: ERDANSICHT.station || null, stationRand: ERDANSICHT.stationRand || null, zeilen: ERDANSICHT.zeilen || [] }; };
 window.__ERDKARTE = () => ({ bereit: ERDKARTE.bereit, kaputt: ERDKARTE.kaputt,
   grund: ERDKARTE.grund, zellen: ERDKARTE.zellen ? ERDKARTE.zellen.length : 0,
   phi: ERDKARTE.phi, orte: !!ORTE.ids, unter: unterUns() });
