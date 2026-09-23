@@ -11780,7 +11780,7 @@ function erdeBei(px, py) {
    waere sie von hier aus nicht einmal ein Bildpunkt. Die Bahn liegt
    dafuer in echter Hoehe ueber dem Boden, 420 von 6371 Kilometern. */
 const ERDANSICHT = { an: false, blend: 0, drang: 1, drangUm: 0, blick: null, geo: null,
-                     neig: 50 * Math.PI / 180, az: 0 };
+                     neig: 50 * Math.PI / 180, az: 0, zoom: 1 };
 const ERDANSICHT_NEIGUNG = 50 * Math.PI / 180;
 
 function erdansicht(an, vomRundgang) {
@@ -11789,7 +11789,7 @@ function erdansicht(an, vomRundgang) {
   ERDANSICHT.an = !!an;
   ERDANSICHT.drang = 1;
   /* Jedes Mal wieder aus der gewohnten Richtung */
-  if (ERDANSICHT.an && !vorher) { ERDANSICHT.neig = ERDANSICHT_NEIGUNG; ERDANSICHT.az = 0; }
+  if (ERDANSICHT.an && !vorher) { ERDANSICHT.neig = ERDANSICHT_NEIGUNG; ERDANSICHT.az = 0; ERDANSICHT.zoom = 1; }
   if (ERDANSICHT.an) {
     /* Was sonst ueber der Szene liegt, gehoert zur Station — ausser dem
        Rundgang, wenn er selbst die ganze Erde zeigt */
@@ -11837,7 +11837,7 @@ function erdansichtMasse() {
   /* Auf dem Handy bestimmt die Breite: die Bahn reicht links und
      rechts ein Fuenfzehntel ueber die Kugel hinaus (6791 zu 6371 km)
      und muss noch ins Bild passen. */
-  const r = Math.max(60, Math.min(W * 0.43, (unten - oben) * 0.4));
+  const r = Math.max(60, Math.min(W * 0.43, (unten - oben) * 0.4)) * (ERDANSICHT.zoom || 1);
   return { r, cx: W / 2, cy: oben + (unten - oben) * 0.52 };
 }
 
@@ -11871,9 +11871,11 @@ function zeichneErdansicht(t, dt) {
      Aufloesung knapp zwanzig Millisekunden je Bild. Die Sterne kommen
      danach, vom echten Himmel (erdansichtHimmel). */
   const q = ERDANSICHT_BILD;
-  /* Die Kugel selbst, in einem Quadrat mit Platz fuer den Luftsaum */
-  const fein = Math.min(DPR, 1.5);
+  /* Die Kugel selbst, in einem Quadrat mit Platz fuer den Luftsaum.
+     Hineingezoomt waechst das Quadrat; mehr als 2048 Bildpunkte je
+     Seite rechnet der Schattierer nicht, der Rest wird hochgezogen. */
   const kante = Math.ceil(g.r * 1.12);
+  const fein = Math.min(DPR, 1.5, 2048 / (kante * 2));
   const bw = Math.max(8, Math.round(kante * 2 * fein));
   if (!q.c) q.c = document.createElement("canvas");
   if (q.c.width !== bw || q.c.height !== bw) { q.c.width = bw; q.c.height = bw; q.stand = null; }
@@ -14260,7 +14262,12 @@ function zoomeAuf(px, py, faktor) {
     const jetzt = performance.now();
     if (jetzt - ERDANSICHT.drangUm > 1500) ERDANSICHT.drang = 1;
     if (ERDANSICHT.an) {
-      if (faktor > 1.01) {
+      /* Ueber der ganzen Erde zoomt man die Kugel selbst, bis sie
+         zweieinhalbmal so gross ist oder halb so klein. Wer darueber
+         hinaus weiter hineinzoomt, kommt zur Station zurueck. */
+      const alt = ERDANSICHT.zoom;
+      ERDANSICHT.zoom = klemm(alt * faktor, 0.55, 2.4);
+      if (faktor > 1.01 && alt >= 2.4 * 0.999) {
         ERDANSICHT.drangUm = jetzt;
         ERDANSICHT.drang *= faktor;
         if (ERDANSICHT.drang > 1.22) erdansicht(false);
@@ -18894,7 +18901,7 @@ const HILFE = [
       + "und wo sie gerade ist. Tippst du auf die Erde, steht da, welches Land oder Meer an der Stelle "
       + "liegt. Zoomst du weiter heraus, als es geht, oder drückst E, siehst du die ganze Erde: die Kugel "
       + "mit Tag, Dämmerung und den Lichtern der Nacht, darum die Bahn in echter Höhe und oben die "
-      + "Station. Ziehen dreht die Kugel, ein Tipp auf die Station bringt dich zurück. Ohne WebGL oder ohne die Kartenbilder "
+      + "Station. Ziehen dreht die Kugel, Zoomen macht sie größer, ein Tipp auf die Station bringt dich zurück. Ohne WebGL oder ohne die Kartenbilder "
       + "zeichnet ORBIT eine gerechnete Erde.",
   },
   {
