@@ -299,13 +299,16 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
   - In den Stationswerten steht, seit wann sie gelten, etwa „von heute · 06:24“, und die Karte der Erde sagt, woher sie kommen.
 - **Satellitenbilder, auf Wunsch: die Kugel als Karte.** Mit dem Knopf unten in der Zoomleiste der ganzen Erde, oder unter Stationswerte, wird die Kugel zur Karte wie bei Google Earth. Die Bilder kommen von Esri World Imagery, derselben Quelle, die God's Eye View ohne Schlüssel nimmt: Kacheln von 256 × 256 Punkten im Netz von Web-Mercator, bis Stufe 16. Dort ist ein Punkt am Äquator 2,4 Meter breit, in München 1,6.
   - Solange die ganze Kugel zu sehen ist, geht keine Anfrage hinaus. Welche Stufe gilt, folgt aus den Metern je Bildpunkt in der Blickmitte. Ab Stufe 5 blenden die Kacheln über die Karte der NASA, die dort ähnlich fein ist. Ab Stufe 7 gehen die Wolken, bei Stufe 10 sind sie weg, samt ihren Schatten.
-  - Die Kacheln liegen in einem Mosaik von 16 × 10 Plätzen im Grafikspeicher, 4096 × 2560 Punkte. Jede hat ihren festen Platz aus Spalte und Zeile. Beim Verschieben bleiben die liegen, die weiter gebraucht werden, auch über die Datumsgrenze. Der Schattierer rechnet jeden Punkt der Kugel nach Web-Mercator um und schlägt ihn im Mosaik nach; zum Rand des Fensters hin wird es weich.
-  - Höchstens acht Anfragen zugleich, die nächsten zur Blickmitte zuerst. 400 Kacheln bleiben im Speicher; wer zurückkehrt, lädt nichts neu. Was nicht mehr im Fenster liegt, wird gar nicht erst angefragt.
+  - Die Kacheln liegen in einem Mosaik im Grafikspeicher: quer 16 × 10 Plätze, 4096 × 2560 Punkte, hochkant wie auf dem Handy 8 × 16. Jede Kachel hat ihren festen Platz aus Spalte und Zeile. Beim Verschieben bleiben die liegen, die weiter gebraucht werden, auch über die Datumsgrenze. Dafür muss die Zahl der Spalten eine Zweierpotenz sein. Der Schattierer rechnet jeden Punkt der Kugel nach Web-Mercator um und schlägt ihn im Mosaik nach; zum Rand des Fensters hin wird es weich.
+  - Welche Plätze ihre Kachel schon haben, hält eine winzige zweite Textur fest. Ein leerer Platz zeigt die Karte der NASA, nicht die Kachel, die vorher dort lag.
+  - Angefragt wird nur, was auf dem Schirm liegt: Ein Raster von Punkten über den ganzen Schirm sagt, welche Kacheln das sind. Dazu kommt ein Rand als Vorrat fürs Verschieben, der erst nach allem Sichtbaren kommt. Das Fenster selbst ist viel größer als der Schirm; beim Hineinzoomen bis Stufe 12 wären es sonst rund 700 Kacheln statt gut 400. Wer schnell durch die Stufen zoomt, lässt die übersprungenen fallen, bevor sie angefragt werden.
+  - Höchstens acht Anfragen zugleich, die nächsten zur Blickmitte zuerst. 400 Kacheln bleiben im Speicher, das am längsten Ungebrauchte geht zuerst. Wer zurückkehrt, lädt nichts neu; aus dem Speicher kommen je Bild höchstens zwölf auf den Grafikchip, damit nichts ruckelt.
   - Zoomen geht bis 6000-fach, immer auf den Punkt unter dem Zeiger. Ziehen verschiebt: Was man greift, bleibt unter dem Finger. Beides ist geschlossen gerechnet statt genähert, in Breite und Länge um das Oben des Bildes als Pol. Der Ort unter dem Zeiger bleibt so auf Tausendstel Bildpunkte stehen, auch an der ganzen Kugel. Nahe am Rand, wo ein Ort nicht hinkommt, ohne dass sich das Bild verdreht, wird es weich, statt dass die Kugel um den Pol wirbelt.
-  - In der Zoomleiste steht, wie breit der Ausschnitt ist, etwa „39 km“. Das Kreuz bringt erst zur ganzen Kugel zurück, dann zur Station. Der Text zur ganzen Erde nennt Stufe und Auflösung.
+  - In der Zoomleiste steht, wie breit der Ausschnitt ist, etwa „39 km“. Der Knopf mit dem Pfeil im Kreis bringt erst zur ganzen Kugel zurück, dann zur Station. Der Text zur ganzen Erde nennt Stufe und Auflösung.
+  - **Der Kompass.** Die freie Kugel übernimmt die Drehung, mit der sie gerade gezeigt wurde, und Norden steht dann nicht unbedingt oben. Oben in der Zoomleiste zeigt eine Nadel, wo Norden liegt: die Richtung zum Pol in der Ebene, die die Kugel in der Blickmitte berührt. Antippen dreht das Bild um die Blickmitte, bis Norden oben ist, schnell am Anfang und sanft am Ende. Der Ort in der Mitte bleibt dabei, wo er war. Direkt über einem Pol gibt es kein Norden, dann tut der Knopf nichts und sagt das.
   - Esri verlangt eine Quellenangabe. „Powered by Esri · Bilder: Esri, Maxar, Earthstar Geographics, GIS User Community“ steht unten links, sobald Kacheln zu sehen sind, auf dem Handy in zwei Zeilen.
   - Ausgeschaltet geht keine Anfrage mehr hinaus. Der Zoom geht auf 2,4 zurück, man bleibt über demselben Ort, und Ziehen verschiebt weiter.
-  - Die Kacheln tragen das Licht ihres Aufnahmetags. Getönt werden sie deshalb nur schwach, und auf der Nachtseite sind sie dunkel wie der Rest der Karte.
+  - Die Kacheln tragen schon das Licht ihres Aufnahmetags, meist vormittags bei hoher Sonne. Noch einmal beleuchtet, wären sie doppelt dunkel. Deshalb zählt für sie das Licht im Verhältnis zu dem bei der Aufnahme: bei hoher Sonne so hell wie aufgenommen, bei tiefer dunkler, hinter dem Tagesrand dunkel wie der Rest der Karte. Von der Tönung für den Blick aus dem Orbit bleibt beim tiefen Zoom ein Zehntel. Vorher kam München um ein Sechstel dunkler und grauer heraus als die Kacheln selbst.
 - **Rückfall.** Fehlt eines der Bilder, kann der Browser kein WebGL oder geht der Grafikkontext verloren, zeichnet ORBIT die gerechnete Erde wie bisher. Solange die Karten laden, wartet die Seite bis zu zwei Sekunden mit der Erde. So zeigt sie nicht erst die gerechnete und springt dann um.
 - **Kosten.**
   - Neu gemalt wird nur, wenn sich die Scheibe weit genug gedreht hat. Das regelt dieselbe Schwelle wie vorher beim Durchziehen.
@@ -405,7 +408,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-82 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+83 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
 - **Echte Arbeitsumgebung**:
@@ -513,9 +516,20 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
     - Zwanzig Schritte mit dem Mausrad auf einen Punkt neben der Mitte, bis 837-fach: Der Ort unter dem Zeiger bleibt in jedem Schritt auf 0,001 Bildpunkte stehen. Angefragt werden die Stufen 5 bis 12, höchstens acht zugleich. Die Wolken sind weg, die Zoomleiste zeigt „39 km“, und die Quellenangabe steht wirklich im Bild, gezählt an ihren hellen Punkten.
     - An 120 Stellen liegt die richtige Kachel, auch über die Datumsgrenze hinweg, dort bei Tag. Angefragt werden nur gültige Kacheln.
     - Ziehen verschiebt genau, null Bildpunkte daneben. Zurückgezogen geht keine neue Anfrage hinaus, und an 120 Stellen liegt wieder die richtige Kachel.
-    - Das Kreuz bringt die ganze Kugel zurück. Aus in 427-facher Vergrößerung über Manhattan: Der Zoom geht auf 2,4, es geht keine Anfrage mehr hinaus, die Mitte bleibt über Manhattan, und Ziehen verschiebt weiter genau.
+    - Alle Plätze für ungültig erklärt, ist das Bild dasselbe wie ganz ohne Kacheln (Abweichung 0); mit ihnen weicht es im Mittel um 105 Stufen ab.
+    - Weit weg und zurück: Die sichtbaren Kacheln werden dabei aus dem Fenster verdrängt und kommen zurück aus dem Speicher, ohne eine einzige neue Anfrage, und liegen an 120 Stellen richtig.
+    - Über der dicksten Gewitterzelle auf der Tagseite, im Kongo, ist die Stelle ohne Kacheln fast weiß (234 von 255). Hineingezoomt liegen dort an 120 Stellen die richtigen Kacheln frei.
+    - Beim Hineinzoomen bis Stufe 12 gehen gut 410 Anfragen hinaus, nicht mehr als 520.
+    - Hochkant wie auf dem Handy (390 × 844) ist das Fenster 8 × 16 Kacheln. Auch in den obersten und untersten Bildzeilen liegen 174 von 174 Stichproben richtig, und die Zoomleiste zeigt „25 km“.
+    - Der Pfeil im Kreis bringt die ganze Kugel zurück. Aus in 427-facher Vergrößerung über Manhattan: Der Zoom geht auf 2,4, es geht keine Anfrage mehr hinaus, die Mitte bleibt über Manhattan, und Ziehen verschiebt weiter genau.
     - Die Rechnung für Ziehen und Zoomen ist zusätzlich außerhalb des Browsers geprüft, an 480.000 zufälligen Zügen: Wo es eine Lösung ohne Verdrehen gibt, liegt der gegriffene Ort auf 10⁻¹⁴ Radien genau. Nirgends springt das Bild; vorher tat es das an der Nahtstelle des Winkels.
-    - Gegengeprüft mit neun absichtlich kaputten Fassungen: Zeilen gespiegelt, Spalten an der Datumsgrenze nicht umgebrochen, ohne Zoomanker, ohne Grenze für gleichzeitige Anfragen, Ziehen nach dem Ausschalten wie vorher, genähertes Verschieben, Wolken ohne Ausblenden, Quellenangabe nicht gezeichnet, ohne Speicher. ERGEBNIS_GEGENPROBE
+    - Gegengeprüft mit elf absichtlich kaputten Fassungen: Zeilen gespiegelt, Spalten an der Datumsgrenze nicht umgebrochen, ohne Zoomanker, ohne Grenze für gleichzeitige Anfragen, Ziehen nach dem Ausschalten wie vorher, genähertes Verschieben, Wolken ohne Ausblenden, Quellenangabe nicht gezeichnet, ohne Speicher, leere Plätze zeigen die alte Kachel, und wieder das ganze Fenster statt des Sichtbaren (650 statt gut 410 Anfragen). Alle elf schlagen an, jede an der Stelle, die sie treffen soll; die gute Fassung bleibt grün.
+  - Kompass:
+    - In der Szene und bei der ganzen Kugel ohne freien Blick ist er nicht zu sehen, zurück zur ganzen Kugel auch nicht mehr.
+    - Steht Norden 60 Grad rechts von oben, zeigt die Nadel 60 Grad, und der Ort über der Mitte liegt nordwestlich.
+    - Antippen dreht in mehreren Bildern, nicht in einem. Danach steht Norden genau oben, der Ort über der Mitte liegt genau nördlich, und die Mitte hat sich nicht bewegt.
+    - Über dem Nordpol gibt es kein Norden: Der Knopf sagt das und dreht nicht.
+    - Gegengeprüft mit drei absichtlich kaputten Fassungen: Nadel verkehrt herum, Drehung verschiebt die Mitte, Knopf bleibt nach dem Zurück stehen. Alle drei schlagen an.
   - Nähte im Nachthimmelsleuchten: 36 → 0,7.
   - Mondlicht: Neumond 11, Halbmond 16, Vollmond 35; die Tagseite bleibt gleich.
 - **Nahansicht**:
@@ -576,6 +590,5 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Auf einem Mac mit Grafikchip ist die Erde nicht gemessen, nur in Software-Rasterung.
   - **Die Satellitenbilder hängen an Esri.** Der Dienst ist ohne Schlüssel erreichbar, aber Esri regelt den Zugang und kann ihn ändern. Getestet ist mit nachgebauten Kacheln. Die echten habe ich hier mit curl geholt und dem Testbrowser untergeschoben, denn dem fehlt der Weg nach draußen. Ob der Betrachter von claude.ai fremde Bilder lädt, ist nicht geprüft.
   - Die Bilder sind ein Mosaik vieler Aufnahmen aus verschiedenen Jahren. Helligkeitssprünge an ihren Nähten und unscharfe Flecken stammen von Esri, das habe ich an den rohen Kacheln nachgesehen. Auf der Nachtseite kommen die Stadtlichter weiter aus der Karte mit vier Kilometern je Punkt.
-  - Norden steht in der freien Kugel nicht unbedingt oben: Sie übernimmt die Drehung, mit der die Kugel gerade gezeigt wurde.
   - Die Scheibe unter der Station bleibt bei der Karte der NASA. Sie wird flach von der Seite gesehen und nur alle zwei Sekunden gerechnet, dort brächten die Kacheln wenig.
 - **Fortsetzen ist nicht auf einem Mac ausprobiert.** Die Zwischenablage über Neutralino ist gegen die mitgelieferte Client-Bibliothek geprüft, nicht im laufenden Programm. Das Quoten ist in bash, dash und sh ausgeführt. zsh, die Standard-Shell des Mac, war hier nicht installiert: Sie behandelt einfache Anführungszeichen gleich, ausprobiert ist es aber nicht. Wie `claude --resume` mit einer Sitzung umgeht, die noch in einem anderen Terminal offen ist, habe ich nicht geprüft. ORBIT bietet den Befehl in diesem Fall deshalb gar nicht an.
