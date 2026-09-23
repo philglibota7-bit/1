@@ -236,6 +236,10 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
   - Die Sonne steht, wo sie wirklich steht, aus Datum und Uhrzeit auf ein Hundertstel Grad gerechnet.
   - Die Bahnebene wird so gelegt, dass die Sonne in ihr liegt, wie es der Tag-und-Nacht-Takt der Szene annimmt.
   - Am Mittag der Station liegt unter ihr das Land, auf dem gerade Mittag ist. Ist es in Europa Nacht, zieht Europa mit seinen Lichtern auf der Nachtseite vorbei.
+- **Der Tagesrand.** Mit der echten Erde ist der Rand nicht mehr getaktet, sondern gerechnet. Die Sonne liegt in der Bahnebene, deshalb ist der Rand in dieser Ansicht eine Gerade durch den Mittelpunkt der Scheibe, senkrecht zur Sonne. So liegt er dort, wo auf der Karte wirklich Tag und Nacht aneinanderstoßen, und passt zur Bodenspur.
+  - Dabei ist ein alter Rechenfehler aufgefallen. Der Punkt unter der Station kreuzt den Rand nicht zwei, sondern gut fünf Minuten vor ihrem eigenen Sonnenuntergang.
+  - Der Grund: Die Station tritt erst 69,8 Grad vor dem Gegenpunkt der Sonne in den Schatten (asin 6371/6790), also 20 Grad später als der Boden unter ihr.
+  - Auch die gerechnete Erde nimmt jetzt die fünf Minuten.
 - **Wolken.**
   - Ihre Schatten fallen auf die sonnenabgewandte Seite, und die sonnenzugewandte Flanke ist heller.
   - An den Rändern liegt feines Rauschen, denn die Karte hat dort acht Kilometer je Bildpunkt, der Schirm zwei.
@@ -390,6 +394,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Die Bahn ist 51,64 Grad geneigt, mit der Sonne in ihrer Ebene. Am Mittag der Station liegt sie genau unter der Sonne, und der Boden zieht nach links.
   - An 120 klaren Stellen weicht die gemalte Farbe im Mittel um 2 Stufen von der Karte am selben Ort ab. Gegengeprüft: Um 3,6 Grad verschoben sind es 18.
   - Ohne Karten fällt die Seite auf die gerechnete Erde zurück, mit Gewittern.
+  - An acht Ständen um Auf- und Untergang liegen je rund vierzig Stellen links und rechts vom Tagesrand. An jeder steht die Sonne auf der Karte über oder unter dem Horizont, genau wie die Szene es zeigt.
   - Mondlicht auf den Wolken ist mit beiden Erden geprüft.
 - **Überflug**:
   - Über Norditalien steht in den Stationswerten „Italien · 44° N · 12° O“.
