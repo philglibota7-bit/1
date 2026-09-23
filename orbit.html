@@ -661,6 +661,10 @@ body.kino #zoomleiste{opacity:0 !important; pointer-events:none;}
 #zoomleiste #zoom-sat{display:none;}
 body.erdansicht #zoomleiste #zoom-sat{display:flex;}
 #zoomleiste #zoom-sat.an{color:#9ed8ff; border-color:rgba(120,190,255,.55);}
+/* Der Kompass gehoert zum freien Blick, in dem Norden nicht oben sein muss */
+#zoomleiste #zoom-nord{display:none;}
+body.erdansicht.erdfrei #zoomleiste #zoom-nord{display:flex;}
+#zoom-nadel{transform-origin:12px 12px; transition:transform .12s linear;}
 #zoomleiste .stufe{
   font-size:10.5px; color:var(--tx3); text-align:center; letter-spacing:.03em;
   font-variant-numeric:tabular-nums; padding:2px 0;
@@ -1117,6 +1121,9 @@ body.sicht #blende-detail, body.sicht #blende-teil{
 </div>
 
 <div id="zoomleiste">
+  <button id="zoom-nord" title="Norden nach oben" aria-label="Norden nach oben">
+    <svg viewBox="0 0 24 24" width="22" height="22"><g id="zoom-nadel"><path d="M12 3.2 15 12h-6z" fill="#ff6b5e"/><path d="M12 20.8 9 12h6z" fill="currentColor" opacity=".55"/><circle cx="12" cy="12" r="1.3" fill="#0a0c14"/></g></svg>
+  </button>
   <button id="zoom-rein" title="Heranzoomen">+</button>
   <div class="stufe" id="zoom-stufe">1,0×</div>
   <button id="zoom-raus" title="Herauszoomen">−</button>
@@ -5971,7 +5978,7 @@ const TEILE = {
       if (Z.satellit && SATBILD.z >= SAT_MINZ && SATBILD.gewicht > 0) {
         const m = 156543.034 * Math.cos((SATBILD.breite || 0) * Math.PI / 180) / Math.pow(2, SATBILD.z);
         return "Satellitenbilder von Esri, Stufe " + SATBILD.z + " von " + SAT_MAXZ + ": ein Bildpunkt der Kacheln ist hier "
-          + (m >= 1000 ? (m / 1000).toFixed(1).replace(".", ",") + " Kilometer" : Math.round(m) + " Meter") + " breit. Mit dem Kreuz geht es zurück zur ganzen Kugel.";
+          + (m >= 1000 ? (m / 1000).toFixed(1).replace(".", ",") + " Kilometer" : Math.round(m) + " Meter") + " breit. Der Pfeil im Kreis bringt dich zur ganzen Kugel zurück.";
       }
       return "Zieh an der Kugel, dann dreht sie sich. Hierher kommst du jederzeit, wenn du weiter herauszoomst, als der Zoom reicht."
         + (Z.satellit ? " Mit Satellitenbildern zoomst du bis auf Straßen heran." : "");
@@ -11993,6 +12000,9 @@ const ERDANSICHT = { an: false, blend: 0, drang: 1, drangUm: 0, blick: null, geo
 /* Mit Satellitenbildern laesst sich bis auf Strassen heranzoomen: gut
    fuenftausendfach, dann ist ein Bildpunkt rund zwei Meter */
 const SAT_ZOOM_MAX = 6000;
+/* Der Kompass: Winkel von Norden auf dem Schirm, im Uhrzeigersinn von oben,
+   und ob er gerade auf Norden oben zurueckdreht */
+const KOMPASS = { winkel: null, gezeigt: null, dreht: false, uhr: 0, titel: "" };
 const ERDANSICHT_NEIGUNG = 50 * Math.PI / 180;
 
 function erdansicht(an, vomRundgang) {
@@ -12161,6 +12171,55 @@ function freiZoomAuf(px, py, rAlt, rNeu) {
   ERDANSICHT.freiVersion++;
 }
 
+/* Wo liegt Norden? Die Richtung zum Pol in der Ebene, die die Kugel in
+   der Blickmitte beruehrt, auf den Schirm gebracht. Direkt ueber einem Pol
+   gibt es kein Norden; dann null. */
+function kompassWinkel(fr) {
+  const d = fr.ez[2];
+  const n = [-fr.ez[0] * d, -fr.ez[1] * d, 1 - fr.ez[2] * d];
+  if (Math.hypot(...n) < 1e-4) return null;
+  const x = n[0] * fr.ex[0] + n[1] * fr.ex[1] + n[2] * fr.ex[2];
+  const y = n[0] * fr.ey[0] + n[1] * fr.ey[1] + n[2] * fr.ey[2];
+  return Math.atan2(x, y);
+}
+/* Je Bild: die Nadel stellen und, wenn angetippt, den Rahmen um die
+   Blickrichtung drehen, bis Norden oben ist — schnell am Anfang, sanft am
+   Ende, wie eine Kompassnadel, die sich einpendelt, nur ohne Pendeln */
+function kompassTakt(uhr) {
+  const fr = ERDANSICHT.frei;
+  const frei = !!(fr && ERDANSICHT.an);
+  if (document.body.classList.contains("erdfrei") !== frei) document.body.classList.toggle("erdfrei", frei);
+  if (!fr) { KOMPASS.winkel = null; KOMPASS.dreht = false; return; }
+  let w = kompassWinkel(fr);
+  const dt = KOMPASS.uhr ? Math.min(0.1, (uhr - KOMPASS.uhr) / 1000) : 1 / 60;
+  KOMPASS.uhr = uhr;
+  if (KOMPASS.dreht && w !== null) {
+    const rest = Math.abs(w) < 0.002 ? w : w * Math.min(1, dt * 9);
+    /* Um die Blickrichtung drehen: rechts und oben um -rest */
+    const c = Math.cos(rest), si = Math.sin(rest);
+    const ex = [0, 1, 2].map(k => c * fr.ex[k] - si * fr.ey[k]);
+    const ey = [0, 1, 2].map(k => si * fr.ex[k] + c * fr.ey[k]);
+    ERDANSICHT.frei = { ex, ey, ez: fr.ez.slice() };
+    ERDANSICHT.freiVersion++;
+    if (rest === w) { ERDANSICHT.frei = freiRahmen(fr.ez, [0, 0, 1]); KOMPASS.dreht = false; }
+    w = kompassWinkel(ERDANSICHT.frei);
+  } else if (w === null) KOMPASS.dreht = false;
+  KOMPASS.winkel = w;
+  /* Die Nadel nur anfassen, wenn sie sich sichtbar dreht */
+  const grad = w === null ? 0 : w * 180 / Math.PI;
+  if (KOMPASS.gezeigt === null || Math.abs(grad - KOMPASS.gezeigt) > 0.4) {
+    const nadel = document.getElementById("zoom-nadel");
+    if (nadel) nadel.style.transform = "rotate(" + grad.toFixed(1) + "deg)";
+    KOMPASS.gezeigt = grad;
+  }
+  const titel = w === null ? "Über dem Pol gibt es kein Norden" : "Norden nach oben";
+  if (titel !== KOMPASS.titel) {
+    const k = document.getElementById("zoom-nord");
+    if (k) { k.title = titel; k.setAttribute("aria-label", titel); }
+    KOMPASS.titel = titel;
+  }
+}
+
 function erdansichtMasse() {
   const rand = bedienRand();
   const oben = rand.oben || 70, unten = rand.unten || H;
@@ -12206,6 +12265,7 @@ function zeichneErdansicht(t, dt) {
      Aufloesung knapp zwanzig Millisekunden je Bild. Die Sterne kommen
      danach, vom echten Himmel (erdansichtHimmel). */
   const q = ERDANSICHT_BILD;
+  kompassTakt(uhr);
   /* Satellitenbilder: Stufe und Fenster zum Blick, Kacheln anstossen */
   const sat = satVorbereiten(g, blick);
   if (sat) blick.sat = sat;
@@ -20237,7 +20297,8 @@ const HILFE = [
       + "Mit dem Knopf Satellitenbilder unten in der Zoomleiste (oder unter Stationswerte) wird die Kugel "
       + "zur Karte wie bei Google Earth: Du zoomst bis auf Straßen heran, immer auf den Punkt unter dem "
       + "Zeiger, und Ziehen verschiebt. Die Bilder kommen von Esri, erst beim Hineinzoomen und nur für den "
-      + "Ausschnitt, den du siehst; der Knopf mit dem Kreuz bringt dich zur ganzen Kugel zurück. "
+      + "Ausschnitt, den du siehst; der Knopf mit dem Pfeil im Kreis bringt dich zur ganzen Kugel zurück. "
+      + "Die Nadel oben in der Zoomleiste zeigt, wo Norden liegt; tippst du sie an, dreht sich Norden nach oben. "
       + "Ohne WebGL oder ohne die Kartenbilder zeichnet ORBIT eine gerechnete Erde.",
   },
   {
@@ -20886,6 +20947,7 @@ $("#zoom-weg").onclick = () => {
   kameraZurueck();
 };
 $("#zoom-sat").onclick = () => satellitUmschalten();
+$("#zoom-nord").onclick = () => { if (ERDANSICHT.frei && KOMPASS.winkel !== null) KOMPASS.dreht = true; };
 $("#tm-sat").onclick = () => satellitUmschalten();
 function satellitUmschalten() {
   Z.satellit = !Z.satellit;
