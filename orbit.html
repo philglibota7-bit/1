@@ -624,6 +624,10 @@ footer{
 .d-datei.frisch::before{background:#cfa456; box-shadow:0 0 0 3px rgba(207,164,86,.18);}
 .d-datei.konflikt::before{background:#f07060; box-shadow:0 0 0 3px rgba(240,112,96,.2);}
 .d-datei.konflikt{border-bottom:0;}
+.d-schleife{margin:2px 0 8px; padding:7px 10px; border-radius:9px; border:1px solid rgba(245,150,60,.35);
+  background:rgba(245,150,60,.08); font-size:11.5px; color:#f6c79a; line-height:1.45;}
+.d-schleife code{display:block; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; color:var(--tx);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:2px;}
 .d-konflikt{padding:0 2px 6px 13px; border-bottom:1px solid rgba(255,255,255,.05); font-size:11px;
   color:#f3a092; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .d-datei .nm{flex:0 1 auto; max-width:58%; color:var(--tx); font-weight:600;
@@ -2018,6 +2022,73 @@ function zeichneKonflikte(punkte, t) {
   KONFLIKT.gezeichnet = gezeichnet;
 }
 
+/* ---------- Im Kreis ----------
+   Die Schleife selbst erkennt der Protokoll-Leser (schleifeAus). Hier:
+   ob sie noch gilt, die Meldung und der Ring in der Szene. Sie gilt,
+   solange die Figur arbeitet und der letzte Fehlschlag keine
+   Viertelstunde her ist. Hat ein Unteragent berichtet oder ist die
+   Sitzung mit ihrem Zug fertig, ist die Schleife vorbei, wie auch immer
+   sie ausging. */
+const SCHLEIFE = { gesehen: new Map(), bekannt: new Set(), liste: [], gezeichnet: [] };
+function schleifeAktiv(a, jetzt = Date.now()) {
+  const s_ = a && a.schleife;
+  if (!s_ || !(jetzt - s_.zuletzt < 15 * 60000)) return null;
+  if (a.typ === "unteragent" && a.berichtet) return null;
+  if (a.typ === "session" && a.status === "idle") return null;
+  if (a.zustand === "ruht" || a.zustand === "fertig") return null;
+  return s_;
+}
+function schleifenAktualisieren() {
+  const jetzt = Date.now();
+  SCHLEIFE.liste = BR.live.filter(a => schleifeAktiv(a, jetzt)).map(a => ({ a, s: a.schleife }))
+    .sort((x, y) => y.s.zuletzt - x.s.zuletzt);
+  for (const { a, s: s_ } of SCHLEIFE.liste) {
+    /* Eine Reihe ist dieselbe, solange sie beim selben Lauf begann */
+    const k = a.id + "|" + s_.befehl + "|" + s_.seit;
+    if (!SCHLEIFE.gesehen.has(k) && SCHLEIFE.bekannt.has(a.id)) {
+      melden(a.name + " dreht sich im Kreis", anfang(s_.befehl, 60) + ": " + s_.n + "-mal derselbe Fehler. " + s_.zeile, a.id, "schleife");
+      bordbuch("⟲ " + a.name + " dreht sich im Kreis: " + anfang(s_.befehl, 40) + ", " + s_.n + "-mal derselbe Fehler");
+    }
+    SCHLEIFE.gesehen.set(k, jetzt);
+  }
+  for (const [k, um] of SCHLEIFE.gesehen) if (jetzt - um > 30 * 60000) SCHLEIFE.gesehen.delete(k);
+  SCHLEIFE.bekannt = new Set(BR.live.map(a => a.id));
+}
+
+/* In der Szene: ein gestrichelter Ring um die Figur, der sich dreht, und
+   daran die Zahl der Fehlschlaege. Orange, nicht bernstein: bernstein
+   ist der Ring dessen, der auf dich wartet. */
+function zeichneSchleifen(punkte, t) {
+  const gezeichnet = [];
+  if (SCHLEIFE.liste.length) {
+    cx.save();
+    cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    for (const { a, s: s_ } of SCHLEIFE.liste) {
+      const p = punkte.get(a.id);
+      if (!p) continue;
+      const r = p.r + 7;
+      cx.lineWidth = 3.6; cx.strokeStyle = "rgba(6,9,16,.5)"; cx.setLineDash([]);
+      cx.beginPath(); cx.arc(p.x, p.y, r, 0, Math.PI * 2); cx.stroke();
+      cx.lineWidth = 1.8; cx.strokeStyle = "rgba(245,150,60,.95)";
+      cx.setLineDash([7, 5]); cx.lineDashOffset = -t * 0.03;
+      cx.beginPath(); cx.arc(p.x, p.y, r, 0, Math.PI * 2); cx.stroke();
+      cx.setLineDash([]); cx.lineDashOffset = 0;
+      /* Oben rechts am Ring: wie oft */
+      const text = "⟲ " + s_.n + "×";
+      cx.font = "700 11px OrbitInter, -apple-system, system-ui, sans-serif";
+      const bw = cx.measureText(text).width + 12, bh = 17;
+      const bx = p.x + r * 0.72, by = p.y - r * 0.72;
+      cx.fillStyle = "rgba(40,20,6,.88)"; cx.strokeStyle = "rgba(245,150,60,.9)"; cx.lineWidth = 1;
+      rundRect(cx, bx - bw / 2, by - bh / 2, bw, bh, 8.5); cx.fill(); cx.stroke();
+      cx.fillStyle = "rgba(255,222,190,.97)"; cx.textAlign = "center"; cx.textBaseline = "middle";
+      cx.fillText(text, bx, by + 0.5);
+      gezeichnet.push({ id: a.id, x: p.x, y: p.y, r, text, bx, by, bw, bh });
+    }
+    cx.restore();
+  }
+  SCHLEIFE.gezeichnet = gezeichnet;
+}
+
 /* Nach jedem Durchlauf der Bruecke: wer hat sich veraendert? Die erste
    Sichtung einer Figur meldet nichts — sonst klingelte beim Start fuer
    jede Sitzung, die schon wartete, eine Mitteilung. */
@@ -2361,6 +2432,60 @@ function textAus(c) {
 const SCHREIBWERKZEUGE = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
 const SCHREIBZEILE = /"name":"(?:Edit|Write|MultiEdit|NotebookEdit)"/;
 
+/* --- Dreht sie sich im Kreis? ----------------------------------------
+   Ein Agent, der denselben Befehl immer wieder startet und jedes Mal an
+   demselben Fehler scheitert, kommt nicht weiter und verbraucht dabei
+   Kontext. Dreimal ein Test, der rot bleibt, ist noch keine Schleife,
+   wenn sich der Fehler aendert: dann kommt er voran. Gezaehlt wird
+   deshalb nur derselbe Fehler, Buchstabe fuer Buchstabe, bis auf Zeiten,
+   Dauern und Farbcodes.
+
+   Ein gescheiterter Befehl steht im Protokoll als tool_result mit
+   "is_error": true und einem Inhalt, der mit "Exit code 1" beginnt (an
+   einem echten nachgesehen). Eine Ablehnung durch den Benutzer ist auch
+   is_error, aber kein Fehlschlag des Befehls: sie unterbricht die Reihe. */
+const BEFEHLZEILE = /"name":"Bash"/;
+function befehlNorm(c) { return String(c || "").replace(/\s+/g, " ").trim().slice(0, 300); }
+function ergebnisText(inhalt) {
+  if (typeof inhalt === "string") return inhalt;
+  if (Array.isArray(inhalt)) return inhalt.map(x => x && typeof x.text === "string" ? x.text : "").join("\n");
+  return "";
+}
+function fehlerAbdruck(t) {
+  return String(t || "")
+    .replace(/\u001b\[[0-9;]*[A-Za-z]/g, "")
+    .replace(/\d{4}-\d\d-\d\d[T ][\d:.]+Z?/g, "#")
+    .replace(/\b\d\d:\d\d(:\d\d)?(\.\d+)?\b/g, "#")
+    .replace(/\b\d+(\.\d+)?\s?(ms|s|sec|secs|seconds|min|m)\b/g, "#t")
+    .replace(/\s+/g, " ").trim().slice(0, 4000);
+}
+/* Die eine Zeile, die den Fehler sagt: die erste, die danach aussieht,
+   sonst die letzte */
+function fehlerZeile(t) {
+  const zeilen = String(t || "").replace(/\u001b\[[0-9;]*[A-Za-z]/g, "").split("\n")
+    .map(z => z.trim()).filter(z => z && !/^Exit code \d+$/.test(z));
+  const f = zeilen.find(z => /error|fehler|fail|✗|✘|assert|expected|exception|not found|cannot|denied/i.test(z));
+  return anfang(f || zeilen[zeilen.length - 1] || "", 110);
+}
+/* Aus den Laeufen (zeitlich sortiert): der Befehl mit der laengsten
+   Reihe gleicher Fehlschlaege, die bis zu seinem letzten Lauf reicht */
+function schleifeAus(laeufe) {
+  const jeBefehl = new Map();
+  for (const l of laeufe) {
+    if (!jeBefehl.has(l.befehl)) jeBefehl.set(l.befehl, []);
+    jeBefehl.get(l.befehl).push(l);
+  }
+  let beste = null;
+  for (const [befehl, l] of jeBefehl) {
+    const letzter = l[l.length - 1];
+    if (!letzter.fehler) continue;
+    let n = 0, seit = letzter.zeit;
+    for (let i = l.length - 1; i >= 0 && l[i].fehler && l[i].abdruck === letzter.abdruck; i--) { n++; seit = l[i].zeit; }
+    if (n >= 3 && (!beste || letzter.zeit > beste.zuletzt)) beste = { befehl, n, seit, zuletzt: letzter.zeit, zeile: letzter.zeile };
+  }
+  return beste;
+}
+
 async function protokollLesen(pfad, groesse, mt) {
   const alt = PROTOKOLLE.get(pfad);
   if (alt && alt.groesse === groesse && alt.mt === mt) return alt.daten;
@@ -2521,6 +2646,8 @@ async function protokollLesen(pfad, groesse, mt) {
      Protokoll (an einem echten nachgesehen), und die Datei ist dann
      unveraendert. Ausgepackt werden nur die Zeilen, um die es geht. */
   const schreibt = new Map(), erledigt = new Set();
+  /* Und die Befehle in der Shell mit ihrem Ausgang, fuer die Schleife */
+  const befehle = new Map(), ausgang = new Map();
   let todos = null;
   /* Zwei Meldungen, die Claude Code selbst als "system" ins Protokoll
      schreibt — beide an einem echten nachgesehen:
@@ -2575,15 +2702,42 @@ async function protokollLesen(pfad, groesse, mt) {
           if (typeof f === "string" && f) schreibt.set(b.id, { pfad: f, zeit: zt });
         }
       }
-    } else if (schreibt.size && z.includes('"tool_result"')) {
-      if (z.includes('"is_error":true')) {
+      if (BEFEHLZEILE.test(z)) {
         let d = null;
         try { d = JSON.parse(z); } catch {}
-        const c = d && Array.isArray((d.message || {}).content) ? d.message.content : [];
-        for (const b of c)
-          if (b && b.type === "tool_result" && !b.is_error && b.tool_use_id) erledigt.add(b.tool_use_id);
-      } else {
-        for (const t of z.matchAll(/"tool_use_id":"([^"]+)"/g)) erledigt.add(t[1]);
+        const inhalt = d && !synthetisch(d) && Array.isArray((d.message || {}).content) ? d.message.content : [];
+        for (const b of inhalt)
+          if (b && b.type === "tool_use" && b.name === "Bash" && b.input && typeof b.input.command === "string")
+            befehle.set(b.id, { befehl: befehlNorm(b.input.command), zeit: zt });
+      }
+    } else if (z.includes('"tool_result"')) {
+      /* Der Ausgang eines Befehls: ausgepackt wird nur, wenn die Zeile
+         zu einem gehoert */
+      if (befehle.size) {
+        let meine = false;
+        for (const t of z.matchAll(/"tool_use_id":"([^"]+)"/g)) if (befehle.has(t[1])) { meine = true; break; }
+        if (meine) {
+          let d = null;
+          try { d = JSON.parse(z); } catch {}
+          const c = d && Array.isArray((d.message || {}).content) ? d.message.content : [];
+          for (const b of c) {
+            if (!b || b.type !== "tool_result" || !befehle.has(b.tool_use_id)) continue;
+            const text = ergebnisText(b.content);
+            const fehler = !!b.is_error && /^Exit code \d+/.test(text);
+            ausgang.set(b.tool_use_id, { fehler, abdruck: fehler ? fehlerAbdruck(text) : "", zeile: fehler ? fehlerZeile(text) : "" });
+          }
+        }
+      }
+      if (schreibt.size) {
+        if (z.includes('"is_error":true')) {
+          let d = null;
+          try { d = JSON.parse(z); } catch {}
+          const c = d && Array.isArray((d.message || {}).content) ? d.message.content : [];
+          for (const b of c)
+            if (b && b.type === "tool_result" && !b.is_error && b.tool_use_id) erledigt.add(b.tool_use_id);
+        } else {
+          for (const t of z.matchAll(/"tool_use_id":"([^"]+)"/g)) erledigt.add(t[1]);
+        }
       }
     }
   }
@@ -2595,7 +2749,12 @@ async function protokollLesen(pfad, groesse, mt) {
     geaendert.set(e.pfad, g);
   }
 
+  const laeufe = [];
+  for (const [id, b] of befehle) if (ausgang.has(id)) laeufe.push({ ...b, ...ausgang.get(id) });
+  laeufe.sort((x, y) => x.zeit - y.zeit);
+
   const daten = {
+    schleife: schleifeAus(laeufe),
     takt: takt.slice(-600), abgedecktAb: pos > 0 ? abgedecktAb : 0,
     geaendert: [...geaendert.values()].sort((x, y) => y.zuletzt - x.zuletzt).slice(0, 12),
     geaendertZahl: geaendert.size,
@@ -2746,7 +2905,7 @@ async function sessionLesen(k, elternName) {
        echten nachgesehen. */
     const berichtet = !fehlerText && letzterText && alter > 15000;
     return {
-      takt: p.takt, abgedecktAb: p.abgedecktAb,
+      takt: p.takt, abgedecktAb: p.abgedecktAb, schleife: p.schleife,
       geaendert: p.geaendert, geaendertZahl: p.geaendertZahl,
       id: "u:" + kennung,
       sid: kennung,
@@ -2780,7 +2939,7 @@ async function sessionLesen(k, elternName) {
 
   const liste = await aufgabenLesen(sid, k.mt);
   return {
-    takt: p.takt, abgedecktAb: p.abgedecktAb,
+    takt: p.takt, abgedecktAb: p.abgedecktAb, schleife: p.schleife,
     geaendert: p.geaendert, geaendertZahl: p.geaendertZahl,
     aufgaben: liste && liste.length ? liste : p.todos && p.todos.length ? p.todos : null,
     id: "s:" + (sid || k.name),
@@ -4685,6 +4844,7 @@ function liveNeuBauen() {
     Z.bruecke.typen.github  ? bruecke_github   : [],
   );
   konflikteAktualisieren();
+  schleifenAktualisieren();
   zeichneCrewLeiste();
   /* Steht die Crew-Liste offen, gehoert der neue Stand sofort hinein */
   if (document.getElementById("blende-crew")?.classList.contains("offen"))
@@ -4909,16 +5069,22 @@ function vorfuehrungTakt() {
                          modell: "claude-opus-5", aufwand: "high", agentArt: "general-purpose", ...o });
   if (s >= 10) {
     const fertig = s >= 70;
+    /* Er laesst den Linter viermal auf summe.ts los, und jedes Mal kommt
+       derselbe Fehler: er dreht sich im Kreis, bis er berichtet */
+    const LINT = "npx eslint src/korb/summe.ts", lint = [41, 47, 55, 61].filter(x => x <= s);
     const st = vorfSchritte([[14, "Grep", { pattern: "berechnePreis(" }],
       [22, "Read", { file_path: ort + "/src/korb/summe.ts" }], [38, "Read", { file_path: ort + "/src/kasse/preis.ts" }],
-      [52, "Grep", { pattern: "Math.round" }]], s, t0);
+      [41, "Bash", { command: LINT }], [47, "Bash", { command: LINT }],
+      [52, "Grep", { pattern: "Math.round" }], [55, "Bash", { command: LINT }], [61, "Bash", { command: LINT }]], s, t0);
     unter.push(kind({ id: "u:vorf-1", sid: "vorf-1", name: "Aufrufe berechnePreis", farbe: "#d98fb5",
       auftrag: "Alle Aufrufe von berechnePreis finden und prüfen, ob irgendwo doppelt gerundet wird",
       zustand: fertig ? "fertig" : "sendet", berichtet: fertig,
       antwort: fertig ? "Sieben Aufrufe. Zwei runden doppelt: kasse/preis.ts:88 und korb/summe.ts:41." : "",
       taetigkeit: fertig ? "Bericht abgegeben" : (st[0] ? st[0].text : "liest sich ein"),
       werkzeug: st[0] ? st[0].werkzeug : "", seit: fertig ? um(70) : (st[0] ? st[0].zeit : um(10)),
-      seitStart: um(10), schritte: st, takt: st.map(x => x.zeit), abgedecktAb: 0 }));
+      seitStart: um(10), schritte: st, takt: st.map(x => x.zeit), abgedecktAb: 0,
+      schleife: lint.length >= 3 ? { befehl: LINT, n: lint.length, seit: um(41), zuletzt: um(lint[lint.length - 1]),
+        zeile: "41:12  error  Doppelte Rundung: Math.round auf gerundeten Betrag  kasse/keine-doppelte-rundung" } : null }));
   }
   if (s >= 12) {
     const fertig = s >= 28;
@@ -21929,6 +22095,7 @@ function rahmen(jetzt) {
   cx.restore();
   zeichneFunk(funkPunkte, t);
   zeichneKonflikte(funkPunkte, t);
+  zeichneSchleifen(funkPunkte, t);
   for (const b of blasen) {
     b.fuss = inSicht(b.x, b.fuss).y;
     const s2 = inSicht(b.x, b.y); b.x = s2.x; b.y = s2.y;
@@ -23584,6 +23751,19 @@ function zeichneDetail(id) {
       z.querySelector(".w").style.color = "#e0a24e";
       box.appendChild(z);
     }
+    /* Im Kreis: welcher Befehl, wie oft, seit wann, und der Fehler selbst */
+    const sch = schleifeAktiv(a);
+    if (sch) {
+      const z = zeile("Im Kreis", sch.n + "-mal derselbe Fehler  ·  seit " + uhr(sch.seit));
+      z.querySelector(".w").style.color = "#f5963c";
+      box.appendChild(z);
+      const f = document.createElement("div");
+      f.className = "d-schleife";
+      const bf = document.createElement("code"); bf.textContent = sch.befehl;
+      const fz = document.createElement("div"); fz.textContent = sch.zeile;
+      f.append(bf, fz);
+      box.appendChild(f);
+    }
     /* Das Zuletzt-Gesagte als Zitat. Beim fertigen Unteragenten heisst
        es Bericht und ist gruen gerandet: es ist das Ergebnis, fuer das
        er losgeschickt wurde. Acht Zeilen, ein Tipp zeigt alles — und
@@ -24999,6 +25179,10 @@ function zeichneTelemetrie(t) {
     ...(KONFLIKT.liste.length ? [["KONFLIKT", KONFLIKT.liste[0].name + " · " + KONFLIKT.liste[0].a.name + " und "
       + KONFLIKT.liste[0].b.name + (KONFLIKT.liste.length > 1 ? " · " + (KONFLIKT.liste.length - 1) + " weitere" : ""),
       undefined, "schlecht"]] : []),
+    /* Wer sich im Kreis dreht */
+    ...(SCHLEIFE.liste.length ? [["SCHLEIFE", SCHLEIFE.liste[0].a.name + " · " + anfang(SCHLEIFE.liste[0].s.befehl, 28) + " · "
+      + SCHLEIFE.liste[0].s.n + "× derselbe Fehler" + (SCHLEIFE.liste.length > 1 ? " · " + (SCHLEIFE.liste.length - 1) + " weitere" : ""),
+      undefined, "warm"]] : []),
     /* Wie lange ist der laengste Einsatz schon im Gang? Der Balken
        misst gegen die geplanten 6,5 Stunden plus die halbe Stunde
        Reserve — dieselbe Skala wie die Anzuguhr im Detailfenster. */
@@ -25413,7 +25597,10 @@ const HILFE = [
       + "Sitzungen im selben Ordner, oder ein Unteragent im Hintergrund neben seiner Sitzung), zieht "
       + "sich eine rote Zackenlinie zwischen ihren Figuren, mit dem Namen der Datei. Unter "
       + "Stationswerte steht dann KONFLIKT, im Detailfenster bei der Datei, wer sie noch geändert hat, "
-      + "und ORBIT meldet sich einmal. Im Mac-Programm öffnet es die Sitzung oder den Ordner "
+      + "und ORBIT meldet sich einmal. Scheitert einer dreimal hintereinander mit demselben Befehl an "
+      + "genau demselben Fehler, dreht sich um seine Figur ein orangefarbener Ring mit der Zahl: er "
+      + "kommt nicht weiter. Ändert sich der Fehler, ist das Fortschritt und kein Kreis. "
+      + "Im Mac-Programm öffnet es die Sitzung oder den Ordner "
       + "direkt in VS Code oder im Finder, und unter „Fortsetzen“ steht der fertige Befehl, mit dem "
       + "die Sitzung im Terminal weitergeht: kopieren, einfügen — ORBIT selbst führt nichts aus. "
       + "Unter Brücke steht der ganze Tag: je Projekt eine Zeile, "

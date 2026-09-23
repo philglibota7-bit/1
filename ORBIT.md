@@ -116,6 +116,23 @@ Gemeldet wird nur, was zwischen zwei Durchläufen der Brücke entstanden ist: Be
 
 In der Vorführung soll der Unteragent „pruefung:rundung“ die Rundung nur prüfen, ändert `preis.ts` bei Sekunde 86 aber gleich selbst, und die Sitzung ändert dieselbe Datei bei Sekunde 95.
 
+### Wer sich im Kreis dreht
+
+Ein Agent, der denselben Befehl immer wieder startet und jedes Mal an demselben Fehler scheitert, kommt nicht weiter und verbraucht dabei Kontext. Das kann eine Viertelstunde gehen, bevor man es merkt. ORBIT zeigt es:
+
+- **In der Szene** dreht sich um seine Figur ein gestrichelter orangefarbener Ring, daran ein Schild mit der Zahl („⟲ 4×“). Orange und nicht bernstein, denn bernstein ist der Ring dessen, der auf dich wartet.
+- **Unter Stationswerte** steht SCHLEIFE mit Namen, Befehl und Zahl.
+- **Im Detailfenster** steht „Im Kreis · 4-mal derselbe Fehler · seit 14:02“, darunter der Befehl und die Zeile, die den Fehler sagt.
+- **Eine Mitteilung** und ein Eintrag im Bordbuch, je Reihe einmal. Wird eine Reihe nur länger, klingelt es nicht noch einmal.
+
+Als Schleife gilt: derselbe Befehl mindestens dreimal hintereinander gescheitert, jedes Mal mit **demselben** Fehler, und der letzte Lauf ist der gescheiterte. Andere Befehle und Änderungen an Dateien dazwischen unterbrechen die Reihe nicht, ein gelungener Lauf desselben Befehls schon. Verglichen wird die ganze Ausgabe, bis auf Farbcodes, Uhrzeiten und Dauern („Time: 2.31 s“). Dreimal ein roter Test ist also noch keine Schleife, wenn sich der Fehler ändert: Aus „5 failed“ über „3 failed“ zu „1 failed“ kommt der Agent voran.
+
+Aus dem Protokoll, an einem echten nachgesehen: Ein gescheiterter Befehl steht als `tool_result` mit `"is_error": true`, und sein Inhalt beginnt mit „Exit code 1“. Nur das zählt als Fehlschlag. Eine Ablehnung durch dich ist auch `is_error`, aber kein Fehlschlag des Befehls; sie unterbricht die Reihe. Der Inhalt kann Text sein oder eine Liste von Textblöcken, beides wird gelesen.
+
+Die Schleife gilt, solange die Figur arbeitet und der letzte Fehlschlag keine Viertelstunde her ist. Hat ein Unteragent berichtet oder ist die Sitzung mit ihrem Zug fertig, ist sie vorbei, wie auch immer sie ausging. Gemeldet wird wie beim Konflikt nur für Figuren, die schon beim letzten Durchlauf da waren.
+
+In der Vorführung lässt der Unteragent „Aufrufe berechnePreis“ den Linter viermal auf `summe.ts` los, und jedes Mal kommt derselbe Fehler in Zeile 41, genau die doppelte Rundung, die er am Ende berichtet.
+
 ### Wie voll, wofür, und wer noch mitläuft
 
 - **Kontext.** Jeder Assistenteneintrag im Protokoll führt mit, wie groß der Prompt beim letzten Aufruf war. Frisch gesendet plus neu zwischengespeichert plus aus dem Zwischenspeicher gelesen ist der belegte Kontext — abgerechnet, nicht geschätzt. Daneben steht der Anteil aus dem Zwischenspeicher und, wenn es welche gab, die Denk-Tokens des letzten Aufrufs. Gezählt wird nur der neueste Eintrag: die Frage ist, wie voll die Sitzung gerade ist, nicht was sie insgesamt verbraucht hat.
@@ -556,7 +573,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-104 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+105 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
 - **Regenradar** (regen.mjs, ein nachgebautes RainViewer mit bekannten Werten):
@@ -612,6 +629,15 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Die Vorführung: bei Sekunde 70 und 94 nichts, bei 96 und 140 `preis.ts` von pruefung:rundung zu webshop-kasse.
   - Gegengeprüft mit zwölf kaputten Fassungen: ohne Zeitregel, ohne Frist, meldet beim Start, meldet immer wieder, vergleicht nur den Dateinamen, zählt Projektordner, kein Bild, keine Zeile, kein Hinweis im Detail, Vorführung ohne Konflikt, Richtung verkehrt, die alten zuerst. Alle zwölf schlagen an. Ohne die Zeitregel meldete die Vorführung schon bei Sekunde 94 einen Konflikt, obwohl die Sitzung `preis.ts` geändert hatte, bevor die Prüfung überhaupt losging.
   - Dazu grün: dateien, vorf, detailtausch, familie, funk, aufgaben, test-bruecke, palette, werkzeug, minitakt, github, lieferung, hilfe und menue.
+- **Wer sich im Kreis dreht** (schleife.mjs, sechs nachgebaute Sitzungen im echten Protokollformat, gelesen über die Brücke):
+  - kreis: `npm test -- kasse` viermal mit demselben Fehler, nur die Dauern verschieden („1.24 s“, „Time: 2.31 s“), dazwischen Änderungen und ein anderer Befehl, einmal mit doppelten Leerzeichen geschrieben. Erkannt: vier, die Fehlerzeile „FAIL tests/kasse.test.ts“.
+  - fortschritt: viermal rot, aber 5, 3, 2, 1 failed: kein Kreis. geloest: dreimal derselbe Fehler, dann grün: keiner. abgelehnt: zweimal, eine Ablehnung, einmal, dazu dreimal ein anderer Befehl abgelehnt: keiner. zwei: `tsc` dreimal mit dem Inhalt als Liste und Exit code 2, danach `pytest` nur zweimal: der Kreis ist `tsc`. alt: dreimal vor 16 bis 20 Minuten: erkannt, gilt aber nicht mehr.
+  - Beim ersten Lesen keine Meldung. Danach wird kreis nur länger (fünf): keine neue Meldung. geloest fällt in eine neue Reihe: genau eine, „geloest dreht sich im Kreis“ mit „cargo build: 3-mal derselbe Fehler. error[E0425]…“, und im Bordbuch.
+  - Stationswerte „geloest · cargo build · 3× derselbe Fehler · 2 weitere“. Im Detail „Im Kreis · 5-mal derselbe Fehler · seit …“, Befehl und Fehlerzeile. In der Szene der Ring mit „⟲ 5×“, gemessen an orangefarbenen Bildpunkten links und unten auf dem Ring und am Schild.
+  - Vorführung: bei Sekunde 50 nichts, bei 56 dreimal, bei 62 viermal, nach dem Bericht bei 71 nichts.
+  - Gegengeprüft mit 13 kaputten Fassungen: ohne Fehlervergleich, Dauern zählen mit, Ablehnung zählt als Fehlschlag, Schwelle 2, Inhalt als Liste nicht gelesen, ohne Frist, gilt nach dem Ende weiter, meldet immer wieder, meldet beim Start, kein Ring, keine Zeile, kein Hinweis im Detail, Vorführung ohne. Alle 13 schlagen an. „Meldet beim Start“ kam zuerst durch, weil der Test zu spät hinsah: Die Brücke läuft beim Laden schon von selbst, und ihr erster Durchlauf war vorbei, bevor der Test mitschrieb. Jetzt stellt er den Stand des Starts her.
+  - An echten Daten: Das ganze Protokoll dieser Sitzung (516 MB) mit derselben Regel in Python durchgerechnet: 4668 Befehle, 57 gescheitert, keine einzige Reihe von drei gleichen Fehlschlägen, auch ohne den Fehlervergleich nicht. Fehlalarme gab es dort also keine. Einen echten Kreis aber auch nicht: Dass die Regel einen findet, ist nur an den nachgebauten Protokollen geprüft.
+  - Weil der Leser geändert ist, dazu grün: echt, echt2, dateien, aufgaben, stoerung, unteragent, familie, test-bruecke, werkzeug, vorf, funk, melden, wartet, energie-echt und konflikt.
   - Zehn kaputte Fassungen schlagen an.
 - **Lieferungen** (lieferung.mjs, Flugzeiten für den Test verkürzt):
   - Erste Sichtung: ein alter Merge und drei offene PRs, nichts wird geliefert.
