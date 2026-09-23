@@ -1084,6 +1084,7 @@ body.sicht #blende-detail, body.sicht #blende-teil{
     <div id="tm-alarm"></div>
     <div id="tm-zeilen"></div>
     <button id="tm-iss" class="tm-knopf" type="button"></button>
+    <button id="tm-wetter" class="tm-knopf" type="button"></button>
     <div class="tm-kopf" id="tm-buchkopf" style="margin:12px 0 7px">BORDBUCH</div>
     <div id="tm-buch"></div>
   </div>
@@ -1404,6 +1405,7 @@ let Z = {
   umlauf: true,       // Tag-Nacht-Wechsel im Orbit
   melden: null,       // Mitteilungen; null = Voreinstellung: im Programm an, im Browser aus
   echteIss: false,    // wo die echte ISS ist, von wheretheiss.at — nur auf Wunsch
+  weltraumwetter: false, // Kp und Polarlicht-Vorhersage der NOAA — nur auf Wunsch
   bruecke: {
     typen: { session: true, ordner: true, prozess: true, github: true },
     ordner: [],                 // beobachtete Projektordner
@@ -1428,6 +1430,7 @@ function laden() {
       if (typeof d.umlauf === "boolean") Z.umlauf = d.umlauf;
       if (typeof d.melden === "boolean") Z.melden = d.melden;
       if (typeof d.echteIss === "boolean") Z.echteIss = d.echteIss;
+      if (typeof d.weltraumwetter === "boolean") Z.weltraumwetter = d.weltraumwetter;
       /* Die Zeitraffung ist eine Einstellung wie der Hintergrund — wer
          sie auf das Zwoelffache gestellt hat, will das beim naechsten
          Mal nicht wieder suchen muessen. Angehalten wird NICHT
@@ -1467,7 +1470,7 @@ function sichern() {
       log: Z.log.slice(0, 60),
       key: Z.key, maxTok: Z.maxTok, gewaehlt: Z.gewaehlt,
       thema: Z.thema, umlauf: Z.umlauf, melden: Z.melden, bruecke: Z.bruecke, rate: ZEIT.rate,
-      echteIss: Z.echteIss,
+      echteIss: Z.echteIss, weltraumwetter: Z.weltraumwetter,
     }));
   } catch (e) {
     /* Speicher voll oder privater Modus — die App laeuft trotzdem weiter */
@@ -11137,6 +11140,11 @@ uniform vec3 uSonne;
 uniform vec4 uMond;
 uniform float uSchicht;
 uniform sampler2D uTag, uWolken, uLichter, uKorn;
+/* Das Weltraumwetter: x Kp-Stufen ueber dem gewoehnlichen Tag, y
+   Helligkeit, z ob die echte Polarlicht-Karte gilt, w Anteil Rot. Aus
+   ist es (0, 1, 0, 0), und alles bleibt, wie es war. */
+uniform vec4 uPolar;
+uniform sampler2D uOval;
 const float PI = 3.14159265;
 
 void main() {
@@ -11292,8 +11300,11 @@ void main() {
   vec3 sq = normalize(uSonne - MAGPOL * dot(uSonne, MAGPOL) + 1e-5);
   float mittag = dot(mq, sq);                        // 1 mittags, -1 um Mitternacht
   float mbreite = degrees(asin(abs(mz)));
-  float oval = 71.0 + 4.0 * mittag;
-  float band = exp(-pow((mbreite - oval) / (2.2 + 1.2 * (1.0 - mittag)), 2.0));
+  /* Je Kp-Stufe ueber dem gewoehnlichen Tag rueckt das Oval auf der
+     Mitternachtsseite gut zwei Grad zum Aequator, mittags knapp eins,
+     und es wird breiter; bei ruhigem Wetter zieht es sich zum Pol. */
+  float oval = 71.0 + 4.0 * mittag - uPolar.x * (1.35 - 0.65 * mittag);
+  float band = exp(-pow((mbreite - oval) / ((2.2 + 1.2 * (1.0 - mittag)) * (1.0 + 0.06 * uPolar.x)), 2.0));
   vec3 e1 = normalize(cross(MAGPOL, vec3(0.0, 0.0, 1.0)));
   vec3 e2 = cross(MAGPOL, e1);
   float mlaenge = atan(dot(p, e2), dot(p, e1));
@@ -11306,8 +11317,19 @@ void main() {
   float vorhang = texture2D(uKorn, vq).r * 0.65
                 + texture2D(uKorn, vec2(mlaenge * 0.3, mbreite * 0.012) + 0.21 + halbkugel).r * 0.35;
   vorhang = 0.25 + 1.3 * smoothstep(0.36, 0.7, vorhang);
-  float polar = band * vorhang * (0.55 - 0.45 * mittag) * smoothstep(0.02, -0.18, sonne);
-  f += vec3(0.25, 1.0, 0.5) * polar * 0.32;
+  float gerechnet = band * (0.55 - 0.45 * mittag) * uPolar.y;
+  /* Mit der Vorhersage der NOAA: ihre Karte statt des gerechneten
+     Ovals. Sie sagt, wie wahrscheinlich dort Polarlicht zu sehen ist.
+     In einer ruhigen Nacht hat das Oval um zehn Prozent, das wird so
+     hell wie das gerechnete bei Kp 0; dreissig Prozent so hell wie bei
+     Kp 2, und darueber geht es langsam in die Saettigung. Ein Prozent
+     ist Grundrauschen und bleibt dunkel. Die Vorhaenge bleiben: die
+     Karte ist ein Grad fein, die Boegen sind feiner. */
+  float lg = mod(degrees(laenge) + 360.0, 360.0);
+  float ov = texture2D(uOval, vec2((lg + 0.5) / 361.0, (degrees(breite) + 90.5) / 181.0)).r;
+  float vorhergesagt = 1.6 * (1.0 - exp(-max(ov * 100.0 - 1.0, 0.0) / 28.0));
+  float polar = mix(gerechnet, vorhergesagt, uPolar.z) * vorhang * smoothstep(0.02, -0.18, sonne);
+  f += mix(vec3(0.25, 1.0, 0.5), vec3(0.95, 0.3, 0.42), uPolar.w * 0.4) * polar * 0.32;
   float rand = pow(1.0 - sqrt(1.0 - r2), 3.0);
   f = mix(f, vec3(0.42, 0.62, 1.0) * (0.12 + 0.88 * licht), rand * 0.6);
   gl_FragColor = vec4(f + korn, 1.0);
@@ -11389,12 +11411,19 @@ function erdkarteAufbauen() {
       const korn = new Uint8Array(128 * 128);
       for (let i = 0; i < korn.length; i++) korn[i] = Math.floor(streu(i & 127, i >> 7, 5077) * 256);
       textur(3, { daten: korn, b: 128, h: 128 }, gl.LUMINANCE, 2, true);
+      /* Die Polarlicht-Karte der NOAA: erst ein einzelner leerer Punkt,
+         die echte kommt, wenn sie gewuenscht und geladen ist */
+      const ovalTx = textur(4, { daten: new Uint8Array(4), b: 1, h: 1 }, gl.LUMINANCE, false, false);
       const u = {};
       for (const n of ["uGroesse", "uMitte", "uRadius", "uBlick", "uSonne", "uMond", "uSchicht",
-                       "uTag", "uWolken", "uLichter", "uKorn"])
+                       "uTag", "uWolken", "uLichter", "uKorn", "uPolar", "uOval"])
         u[n] = gl.getUniformLocation(prog, n);
       gl.uniform1i(u.uTag, 0); gl.uniform1i(u.uWolken, 1);
       gl.uniform1i(u.uLichter, 2); gl.uniform1i(u.uKorn, 3);
+      gl.uniform1i(u.uOval, 4);
+      gl.uniform4f(u.uPolar, 0, 1, 0, 0);
+      ERDKARTE.ovalTx = ovalTx;
+      ERDKARTE.ovalGeladen = null;
       const fehler = gl.getError();
       if (fehler) throw new Error("GL-Fehler " + fehler);
       /* Verliert der Browser den Grafikkontext — der Grafikchip wurde
@@ -11538,6 +11567,22 @@ function erdkarteMalen(ziel, bw, bh, mx, my, rr, blick, schicht) {
   const mo = blick.mond;
   gl.uniform4f(u.uMond, mo ? mo.v[0] : 0, mo ? mo.v[1] : 0, mo ? mo.v[2] : 0, mo ? mo.licht : 0);
   gl.uniform1f(u.uSchicht, schicht);
+  if (schicht > 2.5) {
+    /* Eine neue Karte der NOAA einmal hochladen. 361 Bytes je Zeile
+       sind kein Vielfaches von vier; ohne die Ausrichtung auf eins
+       verrutscht jede Zeile ein Stueck mehr. */
+    const o = ovalJetzt();
+    if (o && o !== ERDKARTE.ovalGeladen) {
+      gl.activeTexture(gl.TEXTURE4);
+      gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.ovalTx);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, 361, 181, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, o.daten);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+      ERDKARTE.ovalGeladen = o;
+    }
+    const pw = polarWerte();
+    gl.uniform4f(u.uPolar, pw.ruck, pw.hell, o ? 1 : 0, pw.rot);
+  }
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -12425,6 +12470,199 @@ function echteIssKnopf() {
   const klein = document.createElement("small");
   klein.textContent = Z.echteIss ? "fragt alle 20 s bei wheretheiss.at nach"
                                  : "fragt dann bei wheretheiss.at nach, wo sie gerade ist";
+  k.append(klein);
+}
+
+/* --- Das echte Weltraumwetter, auf Wunsch ---------------------------------
+   Wie weit das Polarlicht zum Aequator reicht und wie hell es ist, haengt
+   an der Sonne: an dem, was sie gerade an Teilchen herueberschickt. Das
+   Mass dafuer ist der Kp-Index, von 0 (ganz ruhig) bis 9 (schwerster
+   Sturm), in Dritteln: 5- ist 4,67, 5+ ist 5,33. Ohne echte Werte rechnet
+   ORBIT mit Kp 2, einem gewoehnlichen Tag; so sah es immer aus.
+
+   Auf Wunsch fragt ORBIT beim Space Weather Prediction Center der NOAA
+   nach, zwei oeffentlichen Diensten ohne Schluessel, die jedem Browser
+   die Antwort erlauben:
+   - alle fuenf Minuten nach dem Kp, geschaetzt aus der letzten Minute;
+   - solange die ganze Erde offen ist, alle zehn Minuten nach der
+     Polarlicht-Vorhersage OVATION fuer die naechste Stunde. Das ist eine
+     Karte, ein Wert je Grad Breite und Laenge: wie wahrscheinlich dort
+     Polarlicht zu sehen ist, in Prozent. Auf der Kugel liegt dann genau
+     diese Karte statt des gerechneten Ovals. Sie ist gut 900 Kilobyte
+     gross, gepackt 140.
+   Ausgeschaltet geht keine Anfrage hinaus, im Hintergrund auch nicht.
+
+   Wie Kp das Oval verschiebt: je Stufe um gut zwei Grad magnetischer
+   Breite zum Aequator, auf der Mittagsseite um knapp eins, und es wird
+   breiter. Das ist die uebliche Faustregel, keine Modellrechnung; bei
+   Kp 9 liegt die Mitte des Ovals damit um Mitternacht bei 53 Grad, was
+   zu den Stuermen im Mai 2024 passt, als es bis Mitteleuropa zu sehen
+   war. */
+const WELTRAUMWETTER = { kp: null, oval: null, kpFehler: null, ovalFehler: null,
+                         kpLaeuft: false, ovalLaeuft: false, kpUm: 0, ovalUm: 0,
+                         anfragen: 0, gemeldet: 0 };
+const KP_ADRESSE = "https://services.swpc.noaa.gov/json/planetary_k_index_1m.json";
+const OVAL_ADRESSE = "https://services.swpc.noaa.gov/json/ovation_aurora_latest.json";
+const KP_TAKT = 300000, OVAL_TAKT = 600000;
+
+function weltraumwetterTakt() {
+  if (!Z.weltraumwetter || document.hidden) return;
+  const W_ = WELTRAUMWETTER, jetzt = Date.now();
+  if (!W_.kpLaeuft && jetzt - W_.kpUm >= KP_TAKT) {
+    W_.kpLaeuft = true; W_.kpUm = jetzt;
+    swpcHolen(KP_ADRESSE, (d) => {
+      const k = kpLesen(d);
+      if (!k) throw new Error("unlesbar");
+      W_.kp = { ...k, t: Date.now() };
+      W_.kpFehler = null;
+      kpMelden();
+    }, () => {
+      W_.kpFehler = "nicht erreichbar";
+      /* Nicht fuenf Minuten warten: in einer Minute noch einmal */
+      W_.kpUm = Date.now() - KP_TAKT + 60000;
+    }, () => { W_.kpLaeuft = false; });
+  }
+  if (ERDANSICHT.an && !W_.ovalLaeuft && jetzt - W_.ovalUm >= OVAL_TAKT) {
+    W_.ovalLaeuft = true; W_.ovalUm = jetzt;
+    swpcHolen(OVAL_ADRESSE, (d) => {
+      const o = ovalLesen(d);
+      if (!o) throw new Error("unlesbar");
+      W_.oval = { ...o, t: Date.now() };
+      W_.ovalFehler = null;
+    }, () => {
+      W_.ovalFehler = "nicht erreichbar";
+      W_.ovalUm = Date.now() - OVAL_TAKT + 60000;
+    }, () => { W_.ovalLaeuft = false; });
+  }
+}
+
+function swpcHolen(adresse, gut, schlecht, immer) {
+  WELTRAUMWETTER.anfragen++;
+  const ab = typeof AbortController === "function" ? new AbortController() : null;
+  const wecker = setTimeout(() => ab && ab.abort(), 15000);
+  fetch(adresse, { cache: "no-cache", signal: ab ? ab.signal : undefined })
+    .then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))
+    .then((d) => { if (Z.weltraumwetter) gut(d); })
+    .catch(schlecht)
+    .finally(() => { clearTimeout(wecker); immer(); });
+}
+
+/* Der letzte gueltige Wert. Heute eine Liste von Objekten; aeltere
+   Fassungen der Dienste lieferten eine Tabelle mit Kopfzeile. Beides
+   wird gelesen. Die Zeitangaben sind UTC, aber ohne "Z" — ohne das
+   Anhaengen laese der Browser sie als Ortszeit. */
+function kpLesen(d) {
+  if (!Array.isArray(d) || !d.length) return null;
+  const kopf = Array.isArray(d[0]) && d[0].every(x => typeof x === "string" && !Number.isFinite(Number(x)))
+    ? d[0] : null;
+  for (let i = d.length - 1; i >= (kopf ? 1 : 0); i--) {
+    let e = d[i];
+    if (Array.isArray(e) && kopf) e = Object.fromEntries(kopf.map((k, j) => [k, e[j]]));
+    if (!e || typeof e !== "object") continue;
+    const roh = e.estimated_kp ?? e.Kp ?? e.kp_index;
+    const wert = roh === null || roh === "" ? NaN : Number(roh);
+    if (!Number.isFinite(wert) || wert < 0 || wert > 9.5) continue;
+    const tt = String(e.time_tag || "");
+    const zeit = Date.parse(/[zZ]$|[+-]\d\d:?\d\d$/.test(tt) ? tt : tt + "Z");
+    return { wert: Math.min(9, wert), zeit: Number.isFinite(zeit) ? zeit : null };
+  }
+  return null;
+}
+
+/* Die Karte als Grauwerte, 361 mal 181: eine Spalte je Grad Laenge von
+   0 bis 359 und die erste noch einmal hinten angehaengt, damit der
+   Grafikchip ueber den Nullmeridian hinweg weich dazwischen rechnet.
+   Eine Zeile je Grad Breite, von Sued nach Nord. 100 Prozent sind 255. */
+function ovalLesen(d) {
+  const k = d && d.coordinates;
+  if (!Array.isArray(k) || k.length < 1000) return null;
+  const B = 361, H = 181, daten = new Uint8Array(B * H);
+  let max = 0, n = 0;
+  for (const e of k) {
+    if (!Array.isArray(e) || e.length < 3) continue;
+    const lon = Math.round(Number(e[0])), lat = Math.round(Number(e[1])), v = Number(e[2]);
+    if (!Number.isFinite(lon) || !Number.isFinite(lat) || !Number.isFinite(v) || lat < -90 || lat > 90) continue;
+    daten[(lat + 90) * B + (((lon % 360) + 360) % 360)] = Math.max(0, Math.min(255, Math.round(v * 2.55)));
+    if (v > max) max = v;
+    n++;
+  }
+  if (n < 1000) return null;
+  for (let j = 0; j < H; j++) daten[j * B + 360] = daten[j * B];
+  const vorher = Date.parse(d["Forecast Time"]);
+  return { daten, max, vorher: Number.isFinite(vorher) ? vorher : null };
+}
+
+/* Wie wahrscheinlich ist dort Polarlicht, in Prozent? Null ohne Karte. */
+function ovalBei(breite, laenge) {
+  const o = ovalJetzt();
+  if (!o) return null;
+  const x = ((laenge % 360) + 360) % 360, y = Math.max(0, Math.min(180, breite + 90));
+  const x0 = Math.min(359, Math.floor(x)), y0 = Math.min(179, Math.floor(y));
+  const fx = x - x0, fy = y - y0, w = (i, j) => o.daten[j * 361 + i];
+  const a = w(x0, y0) * (1 - fx) + w(x0 + 1, y0) * fx;
+  const b = w(x0, y0 + 1) * (1 - fx) + w(x0 + 1, y0 + 1) * fx;
+  return (a * (1 - fy) + b * fy) / 2.55;
+}
+
+/* Was gilt: aelter als drei Stunden (Kp) oder eine Stunde (Karte) gilt
+   nichts mehr, dann wieder der gewoehnliche Tag. */
+function kpJetzt() {
+  const k = Z.weltraumwetter ? WELTRAUMWETTER.kp : null;
+  return k && Date.now() - k.t < 3 * 3600000 ? k.wert : null;
+}
+function ovalJetzt() {
+  const o = Z.weltraumwetter ? WELTRAUMWETTER.oval : null;
+  return o && Date.now() - o.t < 3600000 ? o : null;
+}
+
+/* Fuer Szene und Kugel: um wie viele Kp-Stufen weicht es vom
+   gewoehnlichen Tag ab, wie hell ist es, und wie viel Rot kommt dazu —
+   bei starken Stuermen leuchtet der Sauerstoff hoch oben rot, das
+   waren im Mai 2024 die roten und rosa Himmel ueber Europa. Bei Kp 2
+   ist alles wie immer. */
+function polarWerte() {
+  const kp = kpJetzt() ?? 2;
+  return { kp, ruck: kp - 2, hell: klemm(0.45 + 0.275 * kp, 0.35, 2.4),
+           rot: klemm((kp - 4.5) / 4, 0, 1), echt: ovalJetzt() ? 1 : 0 };
+}
+
+/* Kp in der ueblichen Schreibweise: 1- ist 0,67, 0+ ist 0,33 */
+function kpText(wert) {
+  const drittel = Math.round(wert * 3), stufe = Math.round(drittel / 3), rest = drittel - stufe * 3;
+  return "Kp " + stufe + (rest < 0 ? "−" : rest > 0 ? "+" : "");
+}
+/* Die Sturmstufe der NOAA: G1 ab Kp 5-, G4 bis einschliesslich 9-, G5 ab 9 */
+function sturmStufe(wert) {
+  const d = Math.round(wert * 3) / 3;
+  if (d < 4.6) return 0;
+  if (d >= 8.95) return 5;
+  return Math.min(4, Math.round(d) - 4);
+}
+function kpLage(wert) {
+  const g = sturmStufe(wert);
+  if (g) return "Sturm G" + g + " · " + ["", "gering", "mäßig", "stark", "schwer", "extrem"][g];
+  return wert < 2.5 ? "ruhig" : wert < 3.5 ? "unruhig" : "aktiv";
+}
+
+/* Beginnt ein Sturm oder wird er staerker, steht es im Bordbuch */
+function kpMelden() {
+  const k = WELTRAUMWETTER.kp;
+  if (!k) return;
+  const g = sturmStufe(k.wert);
+  if (g > WELTRAUMWETTER.gemeldet) {
+    bordbuch("Geomagnetischer Sturm G" + g + " (" + kpText(k.wert)
+      + "): das Polarlicht reicht bis etwa " + Math.round(62 - (k.wert - 2) * 2.3) + " Grad magnetischer Breite");
+  }
+  WELTRAUMWETTER.gemeldet = g;
+}
+
+function weltraumwetterKnopf() {
+  const k = document.getElementById("tm-wetter");
+  if (!k) return;
+  k.textContent = Z.weltraumwetter ? "Echtes Weltraumwetter aus" : "Echtes Weltraumwetter";
+  const klein = document.createElement("small");
+  klein.textContent = Z.weltraumwetter ? "fragt bei der NOAA nach Kp und Polarlicht"
+                                       : "Polarlicht nach Kp und Vorhersage der NOAA";
   k.append(klein);
 }
 
@@ -13539,7 +13777,15 @@ function sonnenhoch(c, bw, bh, termX, tags, lauf) {
    Mit der echten Erde wird genau das gerechnet: die magnetische Breite
    des Punkts unter der Station, als Dipol genaehert. Ohne sie bleibt es
    bei der alten Naeherung, zweimal je Umlauf nahe der hoechsten und
-   tiefsten Breite. */
+   tiefsten Breite.
+
+   Mit dem echten Weltraumwetter rueckt die Grenze je Kp-Stufe um zwei
+   Grad, und die Staerke waechst mit. Liegt die Vorhersage der NOAA vor,
+   gilt sie: aus 420 Kilometern Hoehe sieht die Crew Polarlicht in hundert
+   Kilometern Hoehe bis gut zwanzig Grad weit ueber den Horizont hinaus.
+   Also zaehlt das Hellste im Umkreis, das Nahe mehr als das Ferne. Der
+   Wert kann ueber 1 gehen: bei einem Sturm ist es heller als je an
+   einem gewoehnlichen Tag. */
 function magnetBreite(breite, laenge) {
   const RAD = Math.PI / 180;
   const pb = 80.7 * RAD, pl = -72.7 * RAD;
@@ -13549,8 +13795,28 @@ function magnetBreite(breite, laenge) {
 }
 function polarNaehe(ph) {
   const u = unterUns();
-  if (u) return Math.pow(klemm((Math.abs(magnetBreite(u.breite, u.laenge)) - 46) / 16, 0, 1), 1.6);
+  if (u) {
+    if (ovalJetzt()) return ovalUmkreis(u.breite, u.laenge);
+    const pw = polarWerte();
+    return Math.pow(klemm((Math.abs(magnetBreite(u.breite, u.laenge)) - 46 + pw.ruck * 2) / 16, 0, 1), 1.6) * pw.hell;
+  }
   return Math.pow(Math.abs(Math.sin(ph * Math.PI * 2)), 3.4);
+}
+function ovalUmkreis(breite, laenge) {
+  const RAD = Math.PI / 180, b0 = breite * RAD, l0 = laenge * RAD;
+  let best = ovalBei(breite, laenge);
+  for (const ab of [6, 12, 18, 24]) {
+    const d = ab * RAD, nah = 1 - ab / 32;
+    for (let k = 0; k < 16; k++) {
+      const az = k * Math.PI / 8;
+      const b = Math.asin(Math.sin(b0) * Math.cos(d) + Math.cos(b0) * Math.sin(d) * Math.cos(az));
+      const l = l0 + Math.atan2(Math.sin(az) * Math.sin(d) * Math.cos(b0), Math.cos(d) - Math.sin(b0) * Math.sin(b));
+      best = Math.max(best, ovalBei(b / RAD, l / RAD) * nah);
+    }
+  }
+  /* Wie auf der Kugel: zehn Prozent so hell wie das gerechnete Oval bei
+     Kp 0, dreissig wie am gewoehnlichen Tag */
+  return 1.6 * (1 - Math.exp(-Math.max(best - 1, 0) / 28));
 }
 
 function zeichneErde(t) {
@@ -13846,7 +14112,15 @@ function zeichneErde(t) {
      Mit der echten Erde kommt es aus dem Ort, siehe polarNaehe(). */
   const breite = polarNaehe(ph);
   if (TAGLICHT < 0.92 && breite > 0.04) {
-    const staerke = (1 - TAGLICHT) * breite;
+    /* Ueber dem gewoehnlichen Tag gestaucht: sonst stuende im Sturm
+       jeder Vorhang am Anschlag, und aus Knoten und Luecken wuerde eine
+       gleichmaessige Wand. Die Kraft geht stattdessen in die Hoehe. */
+    const roh = (1 - TAGLICHT) * breite;
+    const staerke = roh <= 1 ? roh : 1 + (roh - 1) * 0.4;
+    /* Bei einem Sturm stehen die Vorhaenge hoeher, und oben kommt das
+       Rot des Sauerstoffs dazu. Am gewoehnlichen Tag bleibt beides aus. */
+    const pw = polarWerte();
+    const hoch = 1 + 0.12 * Math.max(0, pw.kp - 3), rotOben = pw.rot;
     /* In Bildschirmkoordinaten, nicht in denen der gebackenen Scheibe:
        deren Nullpunkt liegt bei ERDE.oben, und wer den hier abzieht,
        zeichnet das Polarlicht um genau diesen Betrag zu hoch. */
@@ -13862,7 +14136,9 @@ function zeichneErde(t) {
        wird eine Perlenkette. */
     const bg = cx.createRadialGradient(mx, my, rr * 0.997, mx, my, rr * 1.02);
     bg.addColorStop(0, "rgba(70,210,160,0)");
-    bg.addColorStop(0.4, `rgba(86,226,170,${staerke * 0.18})`);
+    /* Gedeckelt: im Sturm werden die Vorhaenge heller und hoeher, das
+       Band darunter nicht zur Leuchtroehre */
+    bg.addColorStop(0.4, `rgba(86,226,170,${Math.min(0.26, staerke * 0.18)})`);
     bg.addColorStop(1, "rgba(90,200,255,0)");
     cx.fillStyle = bg;
     cx.beginPath();
@@ -13898,8 +14174,8 @@ function zeichneErde(t) {
       const welle = 0.5 + 0.5 * Math.sin(f * 11 + t * 0.00021)
                   * Math.sin(f * 4.3 - t * 0.00013 + 1.7);
       const eigen = 0.35 + streu(i, 11, 17) * 1.3;
-      const hoehe = rr * 0.012 * (0.25 + welle * 1.6) * eigen;
-      const a = staerke * (0.05 + welle * 0.3) * (0.6 + streu(i, 5, 23) * 0.8);
+      const hoehe = rr * 0.012 * (0.25 + welle * 1.6) * eigen * hoch;
+      const a = Math.min(0.8, staerke * (0.05 + welle * 0.3) * (0.6 + streu(i, 5, 23) * 0.8));
       if (a < 0.02) continue;
       const ex = px + Math.cos(w) * hoehe, ey = py + Math.sin(w) * hoehe;
       const g = cx.createLinearGradient(px, py, ex, ey);
@@ -13909,8 +14185,8 @@ function zeichneErde(t) {
          Farbfehler. */
       g.addColorStop(0, `rgba(96,255,176,${a * 0.9})`);
       g.addColorStop(0.38, `rgba(70,226,190,${a * 0.55})`);
-      g.addColorStop(0.72, `rgba(148,150,230,${a * 0.2})`);
-      g.addColorStop(1, `rgba(214,96,150,0)`);
+      g.addColorStop(0.72, `rgba(${148 + 72 * rotOben | 0},${150 - 60 * rotOben | 0},${230 - 90 * rotOben | 0},${a * (0.2 + 0.25 * rotOben)})`);
+      g.addColorStop(1, `rgba(214,96,150,${a * 0.3 * rotOben})`);
       cx.strokeStyle = g;
       cx.lineWidth = rr * 0.006 * (0.5 + streu(i, 7, 19) * 1.4);
       cx.lineCap = "butt";
@@ -14905,6 +15181,7 @@ function rahmen(jetzt) {
   funkTakt(t, dt);
   durchgangTakt(t, dt);
   echteIssTakt();
+  weltraumwetterTakt();
 
   /* Liegt die ganze Erde voll ueber allem, wird die Station nicht
      gezeichnet — zu sehen waere von ihr nichts. Was an Bord laeuft,
@@ -18237,6 +18514,15 @@ $("#tm-iss").onclick = () => {
   echteIssKnopf();
   tmUhr = 0;
 };
+$("#tm-wetter").onclick = () => {
+  Z.weltraumwetter = !Z.weltraumwetter;
+  const W_ = WELTRAUMWETTER;
+  W_.kpUm = W_.ovalUm = 0;
+  if (!Z.weltraumwetter) Object.assign(W_, { kp: null, oval: null, kpFehler: null, ovalFehler: null });
+  sichern();
+  weltraumwetterKnopf();
+  tmUhr = 0;
+};
 $("#btn-vorf").onclick = () => vorfuehrungBeenden();
 $("#vorf-band").onclick = () => vorfuehrungBeenden();
 
@@ -18621,6 +18907,16 @@ function zeichneTelemetrie(t) {
       return br > 0.55 ? "über dem Horizont" : "schwach";
     })(),
       TAGLICHT > 0.92 ? 0 : polarNaehe(ph)],
+    /* Das echte Weltraumwetter, wenn gewuenscht: Kp und was er bedeutet.
+       Der Balken misst gegen Kp 9, ab einem Sturm warm, ab G3 rot. */
+    ...(() => {
+      if (!Z.weltraumwetter) return [];
+      const kp = kpJetzt();
+      if (kp === null) return [["WELTRAUMWETTER", WELTRAUMWETTER.kpFehler || "wird gefragt …"]];
+      const g = sturmStufe(kp);
+      return [["WELTRAUMWETTER", kpText(kp) + " · " + kpLage(kp), kp / 9,
+               g >= 3 ? "schlecht" : g ? "warm" : "gut"]];
+    })(),
     /* Die echte ISS, wenn gewuenscht */
     ...(() => {
       if (!Z.echteIss) return [];
@@ -19103,8 +19399,8 @@ const HILFE = [
     text: "Unter der Station liegt die echte Erde: Land, Meeresboden und Wolken aus den Blue-Marble-"
       + "Aufnahmen der NASA, nachts die Lichter der Städte aus Black Marble. Die Bahn ist 51,6 Grad "
       + "gegen den Äquator geneigt wie die der ISS, und die Sonne steht, wo sie gerade wirklich steht: "
-      + "ist es in Europa Nacht, zieht Europa auf der Nachtseite vorbei. Wo die echte ISS gerade ist, "
-      + "weiß ORBIT nicht, und die Wolken sind eine Aufnahme, kein Wetter von heute. Unter Stationswerte "
+      + "ist es in Europa Nacht, zieht Europa auf der Nachtseite vorbei. Die Station fliegt aber nicht dort, "
+      + "wo die echte ISS gerade ist, und die Wolken sind eine Aufnahme, kein Wetter von heute. Unter Stationswerte "
       + "steht, worüber die Station gerade fliegt, und eine kleine Weltkarte zeigt ihre Spur, die Nacht "
       + "und wo sie gerade ist. Tippst du auf die Erde, steht da, welches Land oder Meer an der Stelle "
       + "liegt. Zoomst du weiter heraus, als es geht, oder drückst E, siehst du die ganze Erde: die Kugel "
@@ -19125,7 +19421,11 @@ const HILFE = [
       + "starken Gewitter am Horizont für einen Augenblick ein roter Kobold, eine Entladung nach oben "
       + "bis fast in die Leuchtschicht. Sternschnuppen sieht man von hier oben unter sich, über der "
       + "dunklen Erde. Steht der Mond voll, liegen nachts die Wolken grau im Licht; bei Neumond ist "
-      + "die Nachtseite bis auf die Städte schwarz.",
+      + "die Nachtseite bis auf die Städte schwarz. Polarlicht siehst du nur, wenn die Station nahe an "
+      + "den magnetischen Polen vorbeikommt, über Kanada oder südlich von Australien. Unter Stationswerte "
+      + "kannst du das echte Weltraumwetter einschalten; dann fragt ORBIT bei der NOAA nach dem Kp-Index "
+      + "und nach ihrer Vorhersage des Polarlichts. Bei einem Sturm wird es heller, reicht weiter nach "
+      + "Süden und bekommt rote Spitzen, und auf der ganzen Erde liegt die Vorhersage der NOAA.",
   },
   {
     titel: "Der Lebenserhalt",
@@ -19655,8 +19955,13 @@ function zeigerLoslassen(ev) {
       const e = erdansichtBei(ev.clientX, ev.clientY);
       if (e) {
         const sz = sonnenzeit(e.breite, e.laenge);
+        /* Mit der Vorhersage der NOAA: wie wahrscheinlich dort gerade
+           Polarlicht zu sehen ist. Bei Tag ist es nie zu sehen, und
+           unter drei Prozent ist es Rauschen. */
+        const ov = sz.licht === "Tag" ? null : ovalBei(e.breite, e.laenge);
         teilZeigen("erde", e.name || (e.meer ? "Meer" : "Erde"),
-          gradText(e.breite, e.laenge) + " · " + sz.uhr + " Sonnenzeit · " + sz.licht);
+          gradText(e.breite, e.laenge) + " · " + sz.uhr + " Sonnenzeit · " + sz.licht
+          + (ov !== null && ov >= 3 ? " · Polarlicht " + Math.round(ov) + " %" : ""));
       } else erdansicht(false);
       return;
     }
@@ -19738,6 +20043,7 @@ laden();
    hierher — nach dem Laden. */
 zeitKnopfStand();
 echteIssKnopf();
+weltraumwetterKnopf();
 if (umlaufSchalter) umlaufSchalter.classList.toggle("an", Z.umlauf !== false);
 themaAnwenden();
 groesseAnpassen();

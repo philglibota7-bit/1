@@ -243,6 +243,13 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
 - **Polarlicht am magnetischen Pol.**
   - Das Polarlicht kommt nicht mehr zweimal je Umlauf nach Formel, sondern aus dem Ort. Gerechnet wird die magnetische Breite des Punkts unter der Station, als Dipol mit dem Pol über Nordkanada.
   - Deshalb leuchtet es dort, wo die Crew es wirklich filmt: über Kanada und über dem Südpolarmeer südlich von Australien. Dort kommt die Station auf gut 60 Grad magnetische Breite, über Europa nur auf knapp 52.
+- **Das echte Weltraumwetter, auf Wunsch.** Wie weit das Polarlicht zum Äquator reicht und wie hell es ist, hängt an der Sonne. Das Maß dafür ist der Kp-Index, von 0 (ganz ruhig) bis 9 (schwerster Sturm), in Dritteln: 5− ist 4,67, 5+ ist 5,33. Ohne echte Werte rechnet ORBIT mit Kp 2, einem gewöhnlichen Tag; so sah es immer aus. Unter Stationswerte lässt sich das echte Weltraumwetter einschalten.
+  - Dann fragt ORBIT alle fünf Minuten beim Space Weather Prediction Center der NOAA nach dem Kp, geschätzt aus der letzten Minute. Solange die ganze Erde offen ist, holt es alle zehn Minuten auch die Vorhersage OVATION: eine Karte mit einem Wert je Grad Breite und Länge, wie wahrscheinlich dort in der nächsten Stunde Polarlicht zu sehen ist. Sie ist gut 900 Kilobyte groß, gepackt 140. Beide Dienste sind öffentlich, brauchen keinen Schlüssel und erlauben Browsern die Antwort.
+  - Ausgeschaltet geht keine Anfrage hinaus, im Hintergrund auch nicht. Nach einem Fehler kommt der nächste Versuch nach einer Minute. Ein Kp, der älter ist als drei Stunden, und eine Karte, die älter ist als eine Stunde, gelten nicht mehr; dann steht „nicht erreichbar“ da, und es gilt wieder der gewöhnliche Tag.
+  - **In der Szene** rückt die Grenze des Polarlichts je Kp-Stufe um zwei Grad magnetischer Breite zum Äquator, und es wird heller. Bei Kp 7 leuchtet es auch über Europa, bei Kp 0 über Kanada nur schwach. Bei einem Sturm stehen die Vorhänge höher und bekommen oben das Rot des Sauerstoffs, wie bei den Stürmen im Mai 2024. Die Helligkeit ist über dem gewöhnlichen Tag gestaucht, sonst stünde im Sturm jeder Vorhang am Anschlag, und aus Knoten und Lücken würde eine gleichmäßige Wand. Liegt die Karte der NOAA vor, zählt sie: das Hellste im Umkreis von 24 Grad, so weit sieht die Crew Polarlicht über den Horizont hinaus, das Nahe mehr als das Ferne.
+  - **Auf der Kugel** liegt die Karte der NOAA statt des gerechneten Ovals. Zehn Prozent, so viel hat das Oval in einer ruhigen Nacht, werden so hell wie das gerechnete bei Kp 0, dreißig Prozent so hell wie bei Kp 2, darüber geht es in die Sättigung. Ein Prozent ist Grundrauschen und bleibt dunkel. Die Vorhänge bleiben, denn die Karte ist nur ein Grad fein. Ohne Karte rückt das gerechnete Oval mit Kp: um Mitternacht gut zwei Grad je Stufe, mittags knapp eins, und es wird breiter.
+  - Die Stationswerte nennen den Kp in der üblichen Schreibweise und die Sturmstufe der NOAA, etwa „Kp 7+ · Sturm G3 · stark“. Beginnt ein Sturm oder wird er stärker, steht es im Bordbuch. Ein Tipp auf die Nachtseite der Kugel nennt die Wahrscheinlichkeit dort, etwa „Polarlicht 45 %“.
+  - Um wie viel Kp das Oval verschiebt, ist die übliche Faustregel, keine Modellrechnung. Bei Kp 9 liegt die Mitte des Ovals um Mitternacht damit bei 53 Grad magnetischer Breite; das passt zum Mai 2024, als es bis Mitteleuropa zu sehen war.
 - **Wolken.**
   - Ihre Schatten fallen auf die sonnenabgewandte Seite, und die sonnenzugewandte Flanke ist heller.
   - An den Rändern liegt feines Rauschen, denn die Karte hat dort acht Kilometer je Bildpunkt, der Schirm zwei.
@@ -467,6 +474,15 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Sternschnuppen: je 200, keine im Sternhimmel.
   - Echte ISS: Die Antworten des Dienstes sind nachgebaut, mit den Feldern der echten API. Ausgeschaltet geht keine Anfrage hinaus. Eingeschaltet kommt die erste sofort, die nächste nach zwanzig Sekunden, nicht früher. Über Bayern steht „Deutschland · 48° N · 12° O · Tag“. Auf der Kugel liegt der Punkt auf 0,003 Bildpunkte genau an ihrer Stelle, zwischen den Antworten weitergerechnet. Fällt der Dienst aus, steht „nicht erreichbar“ da. Wieder ausgeschaltet kommt keine Anfrage mehr.
   - Meteorströme: Am 12. August um 20 Uhr UTC laufen die Perseiden mit elffacher Rate und stehen im Bordbuch, am 14. Dezember die Geminiden mit sechzehnfacher. Am 23. September läuft keiner.
+  - Weltraumwetter:
+    - Die Antworten der NOAA sind nachgebaut, mit den Feldern der echten Dienste. Das Format ist an ihren echten Antworten von heute früh geprüft: Kp 0, Karte bis 12 %.
+    - Aus geht keine Anfrage hinaus, auch nicht mit offener Kugel. Ein kommt sofort der Kp, die Karte nur mit offener Kugel. Danach alle fünf und zehn Minuten, nicht früher, nach einem Fehler nach einer Minute, im Hintergrund nie. Wieder aus kommt keine Anfrage mehr.
+    - Kp 7,33 steht als „Kp 7+ · Sturm G3 · stark“ in den Stationswerten und im Bordbuch. Die Schreibweise stimmt an den Grenzen: 5− ist G1, 9− ist G4, 9 ist G5. Auch die ältere Tabellenform der Antwort wird gelesen.
+    - Szene: Über Europa ist das Polarlicht am gewöhnlichen Tag 0,04 stark, bei Kp 7+ 1,69; über Kanada 0,67 und 2,4; am Äquator nie.
+    - Kugel: Ein Fleck der Karte über Kansas liegt genau dort, 19,6 Stufen grüner. Zwanzig Grad östlich, westlich und südlich davon und auf dem gerechneten Oval ist nichts, höchstens 0,4. Über den Nullmeridian läuft ein Band ohne Naht, mit dem 1,07- und 1,16-fachen des Umfelds. Ohne Karte rückt das gerechnete Oval bei Kp 7+ entlang 100 Grad West von 59 auf 48 Grad Nord.
+    - Ein Tipp auf die Nachtseite nennt „Polarlicht 45 %“, wo die Karte 45 hat.
+    - Ausgeschaltet ist die Kugel innen bildpunktgleich mit Version 19, das Polarlicht der Szene auch. Im äußersten Bildpunkt der Kugel ist sie halb durchsichtig; dort schwankt schon Version 19 zwischen zwei gleichen Aufrufen um ein paar Stufen.
+    - Gegengeprüft mit sechs absichtlich kaputten Fassungen: ohne Ausrichtung der Zeilen beim Hochladen, mit gespiegelter Breite, ohne angehängte Spalte, ohne Kp in der Szene, mit der Karte zusätzlich statt anstelle des Ovals und mit um 180 Grad verschobener Länge. Alle sechs schlagen an. Die fehlende Spalte fällt auf der Kugel mit dem 0,63-fachen des Umfelds auf.
   - Nähte im Nachthimmelsleuchten: 36 → 0,7.
   - Mondlicht: Neumond 11, Halbmond 16, Vollmond 35; die Tagseite bleibt gleich.
 - **Nahansicht**:
@@ -520,6 +536,8 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 - **Die Erde ist echt, die Bahn nicht.**
   - Die Station fliegt eine Bahn mit der Neigung der ISS, aber nicht die echte ISS an ihrer echten Stelle. Wo die echte ist, zeigt ORBIT auf Wunsch zusätzlich an; die Szene selbst folgt ihr nicht.
   - Ob wheretheiss.at aus dem Betrachter von claude.ai heraus erreichbar ist, habe ich nicht geprüft. Dort könnte die Seite fremde Adressen sperren; dann steht „nicht erreichbar“ da.
+  - Dasselbe gilt für die Dienste der NOAA. Ich habe sie hier nur mit curl erreicht, nicht aus dem Browser, denn dem Testbrowser fehlt hier der Weg nach draußen. Geprüft ist das Format an ihren echten Antworten.
+  - OVATION sagt, wie wahrscheinlich Polarlicht vom Boden aus zu sehen ist, nicht wie hell es von oben aussieht. Die Umrechnung in Helligkeit habe ich gewählt, sie ist nicht gemessen.
   - Der Umlauf ist zwölffach gerafft, die Sonne läuft in Echtzeit. Deshalb verschiebt sich die Bahn von Runde zu Runde nur um knapp zwei Grad statt um 23.
   - Die Wolken sind eine Aufnahme, kein Wetter von heute.
   - Auf einem Mac mit Grafikchip ist die Erde nicht gemessen, nur in Software-Rasterung.
