@@ -12,6 +12,12 @@ const SHELL = [
   './orbit-icon-512.png',
   './orbit-icon-maskable.png',
   './orbit-apple-touch-icon.png',
+  /* Die echte Erde: Tag, Wolken, Stadtlichter — zusammen 1,4 MB. Ohne
+     sie zeichnet die Seite die gerechnete Erde, also laeuft sie auch,
+     wenn eine davon fehlt. */
+  './orbit-erde-tag.jpg',
+  './orbit-erde-wolken.jpg',
+  './orbit-erde-lichter.jpg',
 ];
 
 self.addEventListener('install', e => {

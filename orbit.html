@@ -10864,6 +10864,414 @@ const ERDE = { bild: null, lichter: null, maske: null, saum: null, ring: null,
                   Bildpunkten der fertigen Scheibe. */
                schub: 0, schubGebacken: null, uhr: 0 };
 
+/* --- Die echte Erde ----------------------------------------------------
+   Bis hierher war die Erde gerechnet: Land, Meer und Wolken aus
+   Rauschen, zu einer endlosen Bahn gebacken, die unter einer runden
+   Maske durchzog. Das sah nach einem Planeten aus, aber nach keinem
+   bestimmten.
+
+   Jetzt liegt darunter die echte. Die Bilder sind von der NASA und
+   gemeinfrei: Blue Marble fuer Land und Meeresboden ohne Wolken, die
+   Wolkendecke aus demselben Satz und die Lichter der Staedte aus Black
+   Marble. Sie liegen als drei Dateien neben der Seite. Fehlt eine, oder
+   kann der Browser kein WebGL, bleibt die gerechnete Erde — sie ist
+   weiter vollstaendig da und wird nur nicht mehr gezeigt, sobald die
+   echte bereitsteht.
+
+   Wie die Scheibe entsteht. Die Erde ist hier eine Kugel, gesehen von
+   weit weg und senkrecht auf die Bahnebene. Dann liegt der Punkt unter
+   der Station genau oben auf der Kante, und was darunter zu sehen ist,
+   ist der Streifen seitlich der Bahn, zur Kante hin immer flacher.
+   Die Station fliegt nach rechts, und in dieser Ansicht dreht sich
+   dabei die ganze Scheibe um ihren Mittelpunkt: oben laeuft der Boden
+   nach links, an den Seiten ein wenig nach unten und oben. Genau das
+   rechnet der Grafikchip fuer jeden Bildpunkt aus: welcher Punkt der
+   Kugel liegt hier, welche Laenge und Breite hat er, was zeigt die
+   Karte dort.
+
+   Die Bahn ist die der ISS: 51,6 Grad gegen den Aequator geneigt.
+   Und die Sonne steht, wo sie wirklich steht — aus Datum und Uhrzeit
+   gerechnet. Die Bahnebene wird so gelegt, dass die Sonne in ihr
+   liegt; damit stimmt sie mit dem Tag-und-Nacht-Wechsel der Szene
+   ueberein, der genau davon ausgeht. Die Folge: unter der Station
+   liegt am Mittag der Station das Land, auf dem gerade Mittag ist,
+   und wer abends in Europa hinsieht, sieht bei Nacht die Lichter
+   Europas vorbeiziehen und nicht irgendwelche. */
+const ERDKARTE = {
+  bilder: null, bereit: false, kaputt: false, grund: "",
+  lw: null, gl: null, prog: null, u: null, eck: null,
+  /* Womit zuletzt zusammengesetzt wurde. Die Gewitter haengen an genau
+     diesem Stand, nicht am laufenden. */
+  blick: null, phi: null,
+  zellen: null,
+};
+const ERDKARTE_DATEIEN = {
+  tag: "orbit-erde-tag.jpg",
+  wolken: "orbit-erde-wolken.jpg",
+  lichter: "orbit-erde-lichter.jpg",
+};
+const BAHN_NEIGUNG = 51.64 * Math.PI / 180;
+
+function erdkarteLaden() {
+  if (ERDKARTE.bilder || ERDKARTE.kaputt) return;
+  ERDKARTE.bilder = {};
+  ERDKARTE.seit = performance.now();
+  let offen = Object.keys(ERDKARTE_DATEIEN).length;
+  for (const [k, datei] of Object.entries(ERDKARTE_DATEIEN)) {
+    const b = new Image();
+    b.onload = () => { if (--offen === 0 && !ERDKARTE.kaputt) erdkarteAufbauen(); };
+    b.onerror = () => { ERDKARTE.kaputt = true; ERDKARTE.grund = datei + " fehlt"; };
+    b.src = datei;
+    ERDKARTE.bilder[k] = b;
+  }
+}
+
+/* Solange die Karte noch laedt, lieber einen Augenblick keine Erde als
+   erst die gerechnete und dann einen Sprung zur echten — und die
+   gerechnete kostet beim Backen eine halbe Sekunde, die dann umsonst
+   war. Laenger als zwei Sekunden wird aber nicht gewartet: bei einer
+   langsamen Leitung kommt erst die gerechnete, und die echte loest sie
+   ab, sobald sie da ist. */
+function erdkarteLaedt() {
+  if (ERDKARTE.bereit || ERDKARTE.kaputt || !ERDKARTE.bilder) return false;
+  return performance.now() - ERDKARTE.seit < 2000;
+}
+
+/* Der Schattierer. Eine Zeichnung, ein Dreieck ueber die ganze
+   Leinwand; alles andere passiert je Bildpunkt. Drei Schichten, weil
+   die Szene sie getrennt braucht: die Oberflaeche als Farbe, die
+   Stadtlichter als Licht zum Aufaddieren und die Wolkendecke allein —
+   die leuchten der Mond und die Blitze an. */
+function erdkarteQuelle(ableitung) {
+  return (ableitung ? "#extension GL_OES_standard_derivatives : enable\n" : "") + `
+precision highp float;
+uniform vec2 uGroesse;
+uniform vec2 uMitte;
+uniform float uRadius;
+uniform mat3 uBlick;
+uniform vec3 uSonne;
+uniform float uSchicht;
+uniform sampler2D uTag, uWolken, uLichter, uKorn;
+const float PI = 3.14159265;
+
+void main() {
+  vec2 px = vec2(gl_FragCoord.x, uGroesse.y - gl_FragCoord.y);
+  vec2 q = (px - uMitte) / uRadius;
+  /* Ausserhalb der Scheibe die Farbe der Kante weiterfuehren: die Maske
+     blendet weich aus, und dort darf kein Schwarz durchscheinen. */
+  float r2 = dot(q, q);
+  if (r2 > 0.99995) { q *= sqrt(0.99995 / r2); r2 = 0.99995; }
+  vec3 p = normalize(uBlick * vec3(q.x, -q.y, sqrt(1.0 - r2)));
+  float breite = asin(clamp(p.z, -1.0, 1.0));
+  float laenge = atan(p.y, p.x);
+  float s = laenge / (2.0 * PI) + 0.5;
+  float t = 0.5 - breite / PI;
+  vec2 uv = vec2(s, t);
+` + (ableitung ? `
+  /* An der Datumsgrenze springt s von 1 auf 0. Der Grafikchip sieht dort
+     einen riesigen Sprung und nimmt die kleinste Stufe der Textur — eine
+     haarfeine Naht quer durchs Bild. Also zwei Fassungen von s, und die
+     mit dem kleineren Sprung gewinnt. */
+  float s2 = fract(s + 0.5) - 0.5;
+  if (fwidth(s2) < fwidth(s) - 0.0001) uv.x = s2;
+` : "") + `
+  /* Die Wolkenkarte ist gut acht Kilometer je Bildpunkt fein, auf dem
+     Schirm liegen an der Kante zwei Kilometer auf einem. Ohne Zutat
+     wuerde sie dort weich. Also bekommt die Kante jeder Wolke feines
+     Rauschen dazu — nur die Kante, denn ein dichtes Feld ist auch aus
+     der Naehe dicht, und klarer Himmel bleibt klar. */
+  float w = texture2D(uWolken, uv).r;
+  float n1 = texture2D(uKorn, uv * vec2(24.0, 12.0)).r;
+  float n2 = texture2D(uKorn, uv * vec2(67.0, 33.5) + 0.37).r;
+  float fein = (n1 - 0.5) * 0.6 + (n2 - 0.5) * 0.4;
+  float wolke = smoothstep(0.14, 0.88, w + fein * w * (1.0 - w) * 1.1);
+
+  /* Richtung zur Sonne, in der Ebene des Bodens hier, als Schritt auf
+     der Karte. Damit fallen die Wolkenschatten auf die sonnenabgewandte
+     Seite, und die sonnenzugewandte Flanke der Wolke ist heller. */
+  vec3 ost = normalize(vec3(-p.y, p.x, 0.0) + 1e-6);
+  vec3 nord = cross(p, ost);
+  vec3 st = uSonne - p * dot(uSonne, p);
+  vec2 schritt = vec2(dot(st, ost) / max(0.2, cos(breite)) / (2.0 * PI), -dot(st, nord) / PI) * 0.0035;
+
+  if (uSchicht < 0.5) {
+    vec3 boden = texture2D(uTag, uv).rgb;
+    /* Blue Marble ist fuer Karten gemacht, hell und satt. Aus dem Orbit
+       liegt ueber allem ein Hauch Luft: etwas weniger Saettigung, etwas
+       tiefere Schatten. */
+    float grau = dot(boden, vec3(0.3, 0.55, 0.15));
+    boden = mix(vec3(grau), boden, 0.86);
+    boden = pow(boden, vec3(1.12)) * 0.95;
+    float schatten = smoothstep(0.2, 0.9, texture2D(uWolken, uv - schritt).r);
+    boden *= 1.0 - schatten * 0.42 * (1.0 - wolke);
+    float sonnenseitig = texture2D(uWolken, uv + schritt * 0.6).r;
+    float kamm = clamp((w - sonnenseitig) * 3.0 + 0.5, 0.0, 1.0);
+    vec3 weiss = vec3(0.82, 0.84, 0.87) + kamm * 0.16;
+    vec3 farbe = mix(boden, weiss, min(1.0, wolke * 1.15));
+    /* Ein Hauch Korn gegen Streifen in den weichen Verlaeufen */
+    farbe += (texture2D(uKorn, gl_FragCoord.xy / 128.0).r - 0.5) * 0.012;
+    gl_FragColor = vec4(farbe, 1.0);
+  } else if (uSchicht < 1.5) {
+    /* Stadtlichter: Natriumdampf ist orange, neuere Lampen weisser, und
+       die hellsten Kerne der Grossstaedte brennen fast weiss. Dicke
+       Wolken verschlucken sie, duenne machen sie nur weich. */
+    float l = texture2D(uLichter, uv).r;
+    vec3 farbe = mix(vec3(1.0, 0.6, 0.28), vec3(1.0, 0.9, 0.72), l) * l;
+    float durch = 1.0 - smoothstep(0.25, 0.85, w) * 0.88;
+    farbe *= durch * 1.25;
+    float a = min(1.0, max(farbe.r, max(farbe.g, farbe.b)));
+    gl_FragColor = vec4(min(farbe, vec3(a)), a);
+  } else {
+    /* Die Wolkendecke allein, als Licht: nachts unsichtbar, bis Mond
+       oder Blitz sie beleuchten. */
+    float sonnenseitig = texture2D(uWolken, uv + schritt * 0.6).r;
+    float kamm = clamp((w - sonnenseitig) * 3.0 + 0.5, 0.0, 1.0);
+    float a = min(1.0, wolke * 1.9) * (0.5 + 0.5 * kamm);
+    gl_FragColor = vec4(vec3(0.808, 0.863, 1.0) * a, a);
+  }
+}`;
+}
+
+function erdkarteAufbauen() {
+  try {
+    const lw = document.createElement("canvas");
+    lw.width = 4; lw.height = 4;
+    const opt = { alpha: true, premultipliedAlpha: true, antialias: false,
+                  depth: false, stencil: false, preserveDrawingBuffer: false };
+    const gl = lw.getContext("webgl", opt) || lw.getContext("experimental-webgl", opt);
+    if (!gl) throw new Error("kein WebGL");
+    const ableitung = !!gl.getExtension("OES_standard_derivatives");
+    const aniso = gl.getExtension("EXT_texture_filter_anisotropic")
+               || gl.getExtension("WEBKIT_EXT_texture_filter_anisotropic");
+
+    const schatt = (art, text) => {
+      const s = gl.createShader(art);
+      gl.shaderSource(s, text);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+        throw new Error("Schattierer: " + gl.getShaderInfoLog(s));
+      return s;
+    };
+    const prog = gl.createProgram();
+    gl.attachShader(prog, schatt(gl.VERTEX_SHADER,
+      "attribute vec2 aEcke; void main(){ gl_Position = vec4(aEcke, 0.0, 1.0); }"));
+    gl.attachShader(prog, schatt(gl.FRAGMENT_SHADER, erdkarteQuelle(ableitung)));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS))
+      throw new Error("Programm: " + gl.getProgramInfoLog(prog));
+    gl.useProgram(prog);
+
+    /* Ein Dreieck, das die ganze Leinwand ueberdeckt */
+    const eck = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, eck);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const ae = gl.getAttribLocation(prog, "aEcke");
+    gl.enableVertexAttribArray(ae);
+    gl.vertexAttribPointer(ae, 2, gl.FLOAT, false, 0, 0);
+
+    const textur = (einheit, quelle, format, wiederholen, stufen) => {
+      const tx = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE0 + einheit);
+      gl.bindTexture(gl.TEXTURE_2D, tx);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+      if (quelle.daten) gl.texImage2D(gl.TEXTURE_2D, 0, format, quelle.b, quelle.h, 0, format, gl.UNSIGNED_BYTE, quelle.daten);
+      else gl.texImage2D(gl.TEXTURE_2D, 0, format, format, gl.UNSIGNED_BYTE, quelle);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wiederholen ? gl.REPEAT : gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wiederholen === 2 ? gl.REPEAT : gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      /* Stufen gegen das Flimmern an der Kante: dort liegen viele
+         Kartenpunkte auf einem Bildpunkt. Ohne Ableitungen gibt es
+         dafuer an der Datumsgrenze eine Naht — dann lieber ohne. */
+      if (stufen && ableitung) {
+        gl.generateMipmap(gl.TEXTURE_2D);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+        if (aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT,
+          Math.min(8, gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
+      } else {
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      }
+      return tx;
+    };
+    const B = ERDKARTE.bilder;
+    textur(0, B.tag, gl.RGB, true, true);
+    textur(1, B.wolken, gl.LUMINANCE, true, true);
+    textur(2, B.lichter, gl.LUMINANCE, true, true);
+    /* Feines Rauschen, nahtlos gekachelt: 128 mal 128 Zufallswerte, vom
+       Grafikchip weich dazwischen gerechnet. */
+    const korn = new Uint8Array(128 * 128);
+    for (let i = 0; i < korn.length; i++) korn[i] = Math.floor(streu(i & 127, i >> 7, 5077) * 256);
+    textur(3, { daten: korn, b: 128, h: 128 }, gl.LUMINANCE, 2, true);
+
+    const u = {};
+    for (const n of ["uGroesse", "uMitte", "uRadius", "uBlick", "uSonne", "uSchicht",
+                     "uTag", "uWolken", "uLichter", "uKorn"])
+      u[n] = gl.getUniformLocation(prog, n);
+    gl.uniform1i(u.uTag, 0); gl.uniform1i(u.uWolken, 1);
+    gl.uniform1i(u.uLichter, 2); gl.uniform1i(u.uKorn, 3);
+    const fehler = gl.getError();
+    if (fehler) throw new Error("GL-Fehler " + fehler);
+
+    /* Verliert der Browser den Grafikkontext — der Grafikchip wurde
+       zurueckgesetzt, oder es sind zu viele Kontexte offen —, dann gilt
+       ab da wieder die gerechnete Erde. Neu gebacken wird sie beim
+       naechsten Bild, weil die Scheibe verworfen wird. */
+    lw.addEventListener("webglcontextlost", (e) => {
+      e.preventDefault();
+      ERDKARTE.bereit = false; ERDKARTE.kaputt = true;
+      ERDKARTE.grund = "Grafikkontext verloren";
+      ERDE.bild = null;
+      GEWITTER.zellen = [];
+    });
+    Object.assign(ERDKARTE, { lw, gl, prog, u, eck });
+    erdkarteZellen();
+    ERDKARTE.bereit = true;
+    GEWITTER.zellen = ERDKARTE.zellen;
+    /* Die gerechnete Scheibe ist schon zusammengesetzt; neu, damit die
+       echte sofort erscheint. */
+    if (typeof ERDE !== "undefined") ERDE.schubGebacken = null;
+  } catch (e) {
+    ERDKARTE.kaputt = true;
+    ERDKARTE.grund = String(e && e.message || e);
+  }
+}
+
+/* --- Sonne und Bahn ----------------------------------------------------
+   Wo steht die Sonne gerade senkrecht? Die Formeln sind die kurzen aus
+   dem Astronomischen Almanach, auf ein Hundertstel Grad genau — fuer
+   den Tagesrand auf einer Karte mit acht Kilometern je Bildpunkt mehr
+   als genug. Ergebnis ist die Richtung zur Sonne im erdfesten System:
+   x zum Nullmeridian, z zum Nordpol. */
+function sonneErdfest(ms) {
+  const RAD = Math.PI / 180;
+  const d = ms / 86400000 - 10957.5;              // Tage seit 2000-01-01 12:00 UTC
+  const g = (357.529 + 0.98560028 * d) * RAD;     // mittlere Anomalie
+  const q = 280.459 + 0.98564736 * d;             // mittlere Laenge
+  const L = (q + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * RAD;
+  const e = (23.439 - 0.00000036 * d) * RAD;      // Schiefe der Ekliptik
+  const ra = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L));
+  const dek = Math.asin(Math.sin(e) * Math.sin(L));
+  const gmst = (((18.697374558 + 24.06570982441908 * d) % 24) + 24) % 24 * 15 * RAD;
+  const lon = ra - gmst;
+  return [Math.cos(dek) * Math.cos(lon), Math.cos(dek) * Math.sin(lon), Math.sin(dek)];
+}
+
+/* Die Blickrichtung fuer einen Stand im Umlauf. phi ist der Winkel der
+   Station von der Sonne aus gesehen, null am Mittag — derselbe, mit dem
+   die Szene ihr Licht rechnet. Zurueck kommt die Matrix, die einen
+   Punkt der Scheibe (rechts, oben, zum Betrachter) ins erdfeste System
+   dreht: rechts ist die Flugrichtung, oben der Punkt unter der Station. */
+function erdBlick(phi, ms) {
+  const S = sonneErdfest(ms);
+  const i = BAHN_NEIGUNG;
+  /* Die Bahnnormale n mit n·S = 0 (die Sonne liegt in der Bahnebene)
+     und n·z = cos i (die Neigung). */
+  const cd = Math.max(1e-6, Math.hypot(S[0], S[1]));
+  const ls = Math.atan2(S[1], S[0]);
+  const k = Math.max(-1, Math.min(1, -S[2] / cd * Math.cos(i) / Math.sin(i)));
+  const Wn = ls + Math.asin(k);
+  const n = [Math.sin(i) * Math.sin(Wn), -Math.sin(i) * Math.cos(Wn), Math.cos(i)];
+  const T = [n[1] * S[2] - n[2] * S[1], n[2] * S[0] - n[0] * S[2], n[0] * S[1] - n[1] * S[0]];
+  const c = Math.cos(phi), s = Math.sin(phi);
+  const O = [c * S[0] + s * T[0], c * S[1] + s * T[1], c * S[2] + s * T[2]];
+  const V = [-s * S[0] + c * T[0], -s * S[1] + c * T[1], -s * S[2] + c * T[2]];
+  /* Spaltenweise, so wie WebGL sie liest */
+  return { m: [V[0], V[1], V[2], O[0], O[1], O[2], -n[0], -n[1], -n[2]], S };
+}
+
+/* Wo liegt ein erdfester Punkt auf dem Schirm? Die Umkehrung der
+   Matrix ist ihre Transponierte. Zurueck: rechts, oben, zum Betrachter
+   — negativ heisst Rueckseite. */
+function erdPunktSicht(m, p) {
+  return [
+    m[0] * p[0] + m[1] * p[1] + m[2] * p[2],
+    m[3] * p[0] + m[4] * p[1] + m[5] * p[2],
+    m[6] * p[0] + m[7] * p[1] + m[8] * p[2],
+  ];
+}
+
+/* Eine Schicht zeichnen und sofort ins Ziel kopieren. Die Leinwand von
+   WebGL behaelt ihren Inhalt nur bis zum naechsten Bild, also muss die
+   Kopie im selben Zug passieren. */
+function erdkarteMalen(ziel, bw, bh, mx, my, rr, blick, schicht) {
+  const { gl, lw, u } = ERDKARTE;
+  if (lw.width !== bw || lw.height !== bh) { lw.width = bw; lw.height = bh; }
+  gl.viewport(0, 0, bw, bh);
+  gl.uniform2f(u.uGroesse, bw, bh);
+  gl.uniform2f(u.uMitte, mx, my);
+  gl.uniform1f(u.uRadius, rr);
+  gl.uniformMatrix3fv(u.uBlick, false, new Float32Array(blick.m));
+  gl.uniform3f(u.uSonne, blick.S[0], blick.S[1], blick.S[2]);
+  gl.uniform1f(u.uSchicht, schicht);
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  ziel(lw);
+}
+
+/* --- Gewitter auf der echten Wolkendecke ----------------------------------
+   Die Zellen sitzen in den dicksten Wolken der Karte, und zwar erdfest:
+   einmal gewaehlt, ziehen sie mit dem Boden vorbei und kommen nach
+   einem Umlauf auch wieder. Ein Grad Abstand (gut hundert Kilometer),
+   nur zwischen fuenfzig Grad Nord und Sued — polwaerts ist es fuer
+   Gewittertuerme zu kalt. */
+function erdkarteZellen() {
+  const B = ERDKARTE.bilder;
+  const bw = 360, bh = 180;
+  const lies = (bild) => {
+    const c = document.createElement("canvas");
+    c.width = bw; c.height = bh;
+    const g = c.getContext("2d");
+    g.drawImage(bild, 0, 0, bw, bh);
+    return g.getImageData(0, 0, bw, bh).data;
+  };
+  let wd, td;
+  try { wd = lies(B.wolken); td = lies(B.tag); }
+  catch { ERDKARTE.zellen = []; return; }
+  const RAD = Math.PI / 180;
+  const zellen = [], raster = new Map();
+  for (let y = 40; y < bh - 40; y++) {
+    for (let x = 0; x < bw; x++) {
+      const i = (y * bw + x) * 4;
+      const dick = wd[i] / 255;
+      const r = td[i], g = td[i + 1], b = td[i + 2];
+      const land = !(b > r * 1.25 && b > g * 1.05);
+      if (dick < (land ? 0.55 : 0.66)) continue;
+      /* Nur, wo die Wolke dicker ist als ringsum: ein Turm, kein Schleier */
+      let hoch = true;
+      for (let dy = -1; dy <= 1 && hoch; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          const j = ((y + dy) * bw + ((x + dx + bw) % bw)) * 4;
+          if (wd[j] > wd[i]) { hoch = false; break; }
+        }
+      if (!hoch && streu(x, y, 919) > 0.35) continue;
+      /* Nicht genau auf dem Raster: ein wenig verstreut */
+      const lon = (x + streu(x, y, 31)) / bw * 360 - 180;
+      const lat = 90 - (y + streu(x, y, 37)) / bh * 180;
+      const cl = Math.cos(lat * RAD);
+      const z = {
+        p: [cl * Math.cos(lon * RAD), cl * Math.sin(lon * RAD), Math.sin(lat * RAD)],
+        dick, land, gx: x, gy: y,
+        kraft: 0.2 + streu(x, y, 613) * 0.8,
+        blitz: null, kette: null, nachbarn: [], sicht: 0, sx: 0, sy: 0, quetsch: 1,
+      };
+      zellen.push(z);
+      raster.set(y * bw + x, z);
+    }
+  }
+  /* Nachbarn: alles im Umkreis von zwei Grad, ueber das Raster statt
+     jeder gegen jeden */
+  for (const z of zellen)
+    for (let dy = -2; dy <= 2; dy++)
+      for (let dx = -2; dx <= 2; dx++) {
+        if (!dx && !dy) continue;
+        const nb = raster.get((z.gy + dy) * bw + ((z.gx + dx + bw) % bw));
+        if (nb) z.nachbarn.push(nb);
+      }
+  ERDKARTE.zellen = zellen;
+}
+
 function erdeMasse() {
   /* Im Hochformat ist der Schirm schmal und hoch: eine Kugel, deren
      Radius an der Breite haengt, waere dort so flach, dass von ihr
@@ -10931,6 +11339,37 @@ function erdeBacken() {
   const rr = m.r * fein, mx = (m.cx + seit) * fein, my = (m.cy - oben) * fein;
   /* Wo die Wolken am dicksten sind — dort stehen die Gewitter */
   const gewitterOrte = [];
+  /* Liegt die echte Erde bereit, braucht es von hier nur die Maske und
+     den Luftschleier. Boden, Wolken und Lichter malt der Grafikchip —
+     und das Backen dauert dann einen Bruchteil. */
+  const echt = ERDKARTE.bereit;
+  /* Streifender Blick am Rand: die Atmosphaere legt sich als
+     blauer Schleier darueber und wird zur Kante hin dichter. Der
+     gehoert zur SCHEIBE, nicht zur Oberflaeche — er steht still,
+     waehrend der Boden darunter vorbeizieht. Also kommt er in ein
+     eigenes Bild.
+
+     Wie dick ist die Luft auf dem Weg zum Auge? Streifend blickt
+     man durch ein Vielfaches der Atmosphaere, senkrecht nur durch
+     eine Schicht — daher der blaue Schleier, der zur Kante hin
+     zunimmt.
+
+     Der Exponent war 2,2, und damit lag ueber der GANZEN
+     sichtbaren Flaeche Dunst: bei Kante 0,88, also am unteren
+     Bildrand, noch vierundzwanzig Prozent. Gemessen hat der
+     Schleier so zwei Drittel des Oberflaechenkontrasts
+     weggenommen — die ganze Muehe an Land, Meer und Wolken war
+     umsonst, weil man sie nicht mehr sah.
+
+     Mit 3,4 faellt die Kurve viel schneller: am unteren Bildrand
+     bleiben zehn Prozent, dicht wird es erst im letzten Prozent
+     des Radius. Das ist auch das, was Fotos aus dem Orbit zeigen:
+     ein schmaler, sehr heller blauer Bogen, und darunter sofort
+     klare Sicht auf Wolken und Kuesten. */
+  const schleier = (i, steil, kante2) => {
+    sd[i] = 118; sd[i + 1] = 168; sd[i + 2] = 232;
+    sd[i + 3] = Math.round(255 * Math.pow(1 - steil, 3.4) * kante2);
+  };
 
   for (let y = 0; y < bh; y++) {
     for (let x = 0; x < bw; x++) {
@@ -10955,11 +11394,13 @@ function erdeBacken() {
          daher der helle Saum, den jedes Foto aus dem Orbit zeigt. */
       const kante = ab / rr;
       const steil = Math.sqrt(Math.max(0, 1 - kante * kante));
+      schleier(i, steil, kante2);
+      if (echt) continue;
 
-      /* Land und Meer aus demselben Rauschen: ueber einer Schwelle
-         Land, darunter Wasser. Eine echte Karte waere hier weder
-         moeglich noch noetig — was man aus dem Orbit erkennt, sind
-         Formen und Farben, keine Laender. */
+      /* Ab hier die gerechnete Erde — der Rueckfall, wenn die Karten
+         fehlen oder der Browser kein WebGL kann. Land und Meer aus
+         demselben Rauschen: ueber einer Schwelle Land, darunter Wasser.
+         Laender erkennt man darauf nicht, Formen und Farben schon. */
       const sx = dx / rr * 2.6, sy = dy / rr * 2.6;
       /* Der Boden zieht vorbei, und zwar endlos. Damit das geht, muss
          die Textur sich fortsetzen: die Spalte ganz rechts muss zur
@@ -11101,32 +11542,6 @@ function erdeBacken() {
         wl[i + 3] = Math.round(255 * a * (0.5 + 0.5 * kamm));
       }
 
-      /* Streifender Blick am Rand: die Atmosphaere legt sich als
-         blauer Schleier darueber und wird zur Kante hin dichter. Der
-         gehoert zur SCHEIBE, nicht zur Oberflaeche — er steht still,
-         waehrend der Boden darunter vorbeizieht. Also kommt er in ein
-         eigenes Bild. */
-      /* Wie dick ist die Luft auf dem Weg zum Auge? Streifend blickt
-         man durch ein Vielfaches der Atmosphaere, senkrecht nur durch
-         eine Schicht — daher der blaue Schleier, der zur Kante hin
-         zunimmt.
-
-         Der Exponent war 2,2, und damit lag ueber der GANZEN
-         sichtbaren Flaeche Dunst: bei Kante 0,88, also am unteren
-         Bildrand, noch vierundzwanzig Prozent. Gemessen hat der
-         Schleier so zwei Drittel des Oberflaechenkontrasts
-         weggenommen — die ganze Muehe an Land, Meer und Wolken war
-         umsonst, weil man sie nicht mehr sah.
-
-         Mit 3,4 faellt die Kurve viel schneller: am unteren Bildrand
-         bleiben zehn Prozent, dicht wird es erst im letzten Prozent
-         des Radius. Das ist auch das, was Fotos aus dem Orbit zeigen:
-         ein schmaler, sehr heller blauer Bogen, und darunter sofort
-         klare Sicht auf Wolken und Kuesten. */
-      const dunst = Math.pow(1 - steil, 3.4);
-      sd[i] = 118; sd[i + 1] = 168; sd[i + 2] = 232;
-      sd[i + 3] = Math.round(255 * dunst * kante2);
-
       /* Ein Hauch Rauschen gegen Streifenbildung. Weiche Verlaeufe
          ueber viele hundert Bildpunkte treffen sonst dieselbe
          gerundete Farbe in ganzen Baendern, und die sieht man. */
@@ -11253,7 +11668,7 @@ function erdeBacken() {
   ERDE.termX = null; ERDE.schubGebacken = null;
   /* Nur was zwischen Erdkante und Fussleiste liegt, ist je zu sehen */
   const unten = Math.min(H, bedienRand().unten || H);
-  GEWITTER.zellen = gewitterWaehlen(gewitterOrte, bw,
+  GEWITTER.zellen = echt ? ERDKARTE.zellen : gewitterWaehlen(gewitterOrte, bw,
     (m.oben + 3 - oben) * fein, (unten - 6 - oben) * fein);
 }
 
@@ -11405,10 +11820,25 @@ function zeichneGewitter(t, dx, dy, zieh, hoehe, termX, tags) {
      belichtet, und dieselben Blitze wirken blasser. */
   const belicht = 1 - TAGLICHT * 0.6;
   let aktiv = 0;
+  const echt = ERDKARTE.bereit && ERDKARTE.blick && zellen === ERDKARTE.zellen;
   for (const z of zellen) {
-    let f = (z.x / rw - versatz) % 1;
-    if (f < 0) f += 1;
-    const X = links + f * breite, Y = oben + (z.y / rh) * hoehe;
+    let X, Y;
+    if (echt) {
+      /* Erdfest: mit genau dem Stand gedreht, der gerade zu sehen ist.
+         Was auf der Rueckseite liegt, kostet nichts weiter. */
+      const v = erdPunktSicht(ERDKARTE.blick.m, z.p);
+      if (v[2] < 0.01) {
+        z.sicht = 0;
+        if (z.kette && t >= z.kette.um) z.kette = null;
+        if (z.blitz && t > z.blitz.ende) z.blitz = null;
+        continue;
+      }
+      X = kmx + v[0] * m.r; Y = kmy - v[1] * m.r;
+    } else {
+      let f = (z.x / rw - versatz) % 1;
+      if (f < 0) f += 1;
+      X = links + f * breite; Y = oben + (z.y / rh) * hoehe;
+    }
     z.sx = X; z.sy = Y;
     const ab = Math.hypot(X - kmx, Y - kmy);
     const nacht = tags ? klemm((X - rand - kante) / weich, 0, 1)
@@ -11445,7 +11875,10 @@ function zeichneGewitter(t, dx, dy, zieh, hoehe, termX, tags) {
   cx.beginPath();
   cx.arc(kmx * DPR, kmy * DPR, m.r * DPR, 0, Math.PI * 2);
   cx.clip();
-  const ab = { links, breite, oben, hoehe, versatz, rw, rh };
+  const ab = echt && ERDE.wolkenLichtEcht
+    ? { links, breite, oben, hoehe, versatz: 0, rw: ERDE.wolkenLichtEcht.width,
+        rh: ERDE.wolkenLichtEcht.height, echt: true }
+    : { links, breite, oben, hoehe, versatz, rw, rh };
   for (const z of zellen) {
     const b = z.blitz;
     if (!b || z.sicht <= 0) continue;
@@ -11580,7 +12013,7 @@ function zeichneKobolde(t, belicht) {
    jeden Blitz wiederverwendet werden. */
 const BLITZ_ZETTEL = { wolke: null, licht: null };
 function blitzWolke(b, R, q, X, Y, ab) {
-  const kr = ERDE.wolkenLicht;
+  const kr = ab.echt ? ERDE.wolkenLichtEcht : ERDE.wolkenLicht;
   if (!kr) return null;
   const w = Math.max(2, Math.ceil(2 * R * DPR)), h = Math.max(2, Math.ceil(2 * R * q * DPR));
   if (!BLITZ_ZETTEL.wolke) {
@@ -11612,7 +12045,13 @@ function blitzWolke(b, R, q, X, Y, ab) {
     if (sw <= 0.5 || sh <= 0.5 || zw <= 0.5 || zh <= 0.5) return;
     gw.drawImage(kr, su, sv, sw, sh, zx, zy, zw, zh);
   };
-  if (u0 + uw <= ab.rw) stueck(u0, uw, 0, w);
+  if (ab.echt) {
+    /* Die Decke setzt sich hier nicht fort — am Rand wird beschnitten */
+    let su = ((X - R - ab.links) / ab.breite) * ab.rw, sw = uw, zx = 0, zw = w;
+    if (su < 0) { const k = -su / sw; zx += k * zw; zw -= k * zw; sw += su; su = 0; }
+    if (su + sw > ab.rw) { const k = (su + sw - ab.rw) / sw; zw -= k * zw; sw = ab.rw - su; }
+    stueck(su, sw, zx, zw);
+  } else if (u0 + uw <= ab.rw) stueck(u0, uw, 0, w);
   else {
     const erst = ab.rw - u0, anteil = erst / uw;
     stueck(u0, erst, 0, w * anteil);
@@ -11662,8 +12101,24 @@ function erdeSchatten(termX, tags, lauf) {
      nichts fehlt; die Textur ist dafuer in der Breite periodisch
      gebacken. */
   const schub = ((ERDE.schub % bw) + bw) % bw;
-  c.drawImage(ERDE.roh, -schub, 0, bw, bh);
-  c.drawImage(ERDE.roh, bw - schub, 0, bw, bh);
+  /* Bei der echten Erde zieht nichts seitlich durch: die ganze Scheibe
+     dreht sich um ihren Mittelpunkt, und der Grafikchip malt sie fuer
+     genau diesen Stand im Umlauf neu. */
+  const echt = ERDKARTE.bereit;
+  let malen = null;
+  if (echt) {
+    const mK = erdeMasse();
+    const skK = bw / (ERDE.bildBreite || W);
+    const blick = erdBlick(ERDE.phiJetzt || 0, Date.now());
+    ERDKARTE.blick = blick;
+    ERDKARTE.phi = ERDE.phiJetzt || 0;
+    malen = (schicht, ziel) => erdkarteMalen(ziel, bw, bh,
+      (mK.cx + (ERDE.seit || 0)) * skK, (mK.cy - ERDE.oben) * skK, mK.r * skK, blick, schicht);
+    malen(0, (lw) => c.drawImage(lw, 0, 0, bw, bh));
+  } else {
+    c.drawImage(ERDE.roh, -schub, 0, bw, bh);
+    c.drawImage(ERDE.roh, bw - schub, 0, bw, bh);
+  }
 
   /* Die Scheibe steht still, also wird erst jetzt auf ihre Form
      beschnitten. "destination-in" laesst nur stehen, wo die Maske
@@ -11745,14 +12200,31 @@ function erdeSchatten(termX, tags, lauf) {
      Tagesrand: je tiefer die Nacht, desto mehr Mondlicht ist zu sehen,
      und auf der Tagseite gar keins. */
   const mond = ERDE.wolkenLicht ? 0.3 * Math.pow(mondBeleuchtet(), 2.5) : 0;
+  /* Die Wolkendecke als Licht braucht es fuer den Mond und fuer jeden
+     Blitz. Bei der echten Erde wird sie mit jedem Stand neu gemalt und
+     aufgehoben — die Blitze schneiden sich daraus ihre Wolke. */
+  /* Nur wenn es sie braucht: bei Mondlicht, oder wenn Nacht im Bild
+     liegt und es blitzen kann. Bei Tag spart das ein Drittel. */
+  const nachtImBild = tags ? (termX + vorrat) * sk + W * 0.09 * sk < bw
+                           : (termX + vorrat) * sk - W * 0.09 * sk > 0;
+  if (echt && (mond > 0.012 || nachtImBild)) {
+    const wz = ERDE.wolkenLichtEcht || (ERDE.wolkenLichtEcht = document.createElement("canvas"));
+    if (wz.width !== bw || wz.height !== bh) { wz.width = bw; wz.height = bh; }
+    const wg = wz.getContext("2d");
+    wg.clearRect(0, 0, bw, bh);
+    malen(2, (lw) => wg.drawImage(lw, 0, 0, bw, bh));
+  }
   if (mond > 0.012) {
     const z = ERDE.mondZettel || (ERDE.mondZettel = document.createElement("canvas"));
     if (z.width !== bw || z.height !== bh) { z.width = bw; z.height = bh; }
     const g = z.getContext("2d");
     g.globalCompositeOperation = "source-over";
     g.clearRect(0, 0, bw, bh);
-    g.drawImage(ERDE.wolkenLicht, -schub, 0, bw, bh);
-    g.drawImage(ERDE.wolkenLicht, bw - schub, 0, bw, bh);
+    if (echt) g.drawImage(ERDE.wolkenLichtEcht, 0, 0, bw, bh);
+    else {
+      g.drawImage(ERDE.wolkenLicht, -schub, 0, bw, bh);
+      g.drawImage(ERDE.wolkenLicht, bw - schub, 0, bw, bh);
+    }
     g.globalCompositeOperation = "destination-in";
     g.fillStyle = sg;
     g.fillRect(0, 0, bw, bh);
@@ -11806,8 +12278,11 @@ function erdeSchatten(termX, tags, lauf) {
     c.arc((mE.cx + vorrat) * sk, (mE.cy - ERDE.oben) * sk, mE.r * sk, 0, Math.PI * 2);
     c.clip();
     c.globalCompositeOperation = "lighter";
-    c.drawImage(ERDE.lichter, -schub, 0, bw, bh);
-    c.drawImage(ERDE.lichter, bw - schub, 0, bw, bh);
+    if (echt) malen(1, (lw) => c.drawImage(lw, 0, 0, bw, bh));
+    else {
+      c.drawImage(ERDE.lichter, -schub, 0, bw, bh);
+      c.drawImage(ERDE.lichter, bw - schub, 0, bw, bh);
+    }
     c.restore();
   }
 
@@ -11881,6 +12356,8 @@ function sonnenhoch(c, bw, bh, termX, tags, lauf) {
 
 function zeichneErde(t) {
   if (sparsam) return;
+  erdkarteLaden();
+  if (!ERDE.bild && erdkarteLaedt()) return;
   /* Die Scheibe zu backen kostet gut vier Zehntelsekunden: fuer jeden
      Bildpunkt ein Dutzend Rauschabfragen, plus Wolkenschatten und
      Stadtlichter. Einmal beim Start ist das in Ordnung.
@@ -12002,7 +12479,14 @@ function zeichneErde(t) {
      hoechstens ein Zwoelftel der Zeit frisst. Wo es nichts kostet,
      zieht der Boden fluessig; wo es teuer ist, bleibt es bei den
      alten Spruengen, statt die ganze Szene auszubremsen. */
-  const bodenTempo = 0.024 * ERDE.bild.width * Math.max(0.05, ZEIT.rate);
+  /* Bei der echten Erde dreht sich die Scheibe einmal je Umlauf; am
+     Rand laeuft der Boden damit mit Radius mal Winkelgeschwindigkeit. */
+  const echt = ERDKARTE.bereit;
+  const phi = umlaufWinkel(ph);
+  ERDE.phiJetzt = phi;
+  const rK = erdeMasse().r * ERDE.bild.width / (ERDE.bildBreite || W);
+  const bodenTempo = (echt ? (2 * Math.PI * 1000 / UMLAUF) * rK : 0.024 * ERDE.bild.width)
+    * Math.max(0.05, ZEIT.rate);
   const erdKosten = Math.max(0, ERDKOSTEN.mit - ERDKOSTEN.ohne) / 1000;
   const schwelle = klemm(bodenTempo * erdKosten * 12, 1,
                          22 * Math.max(1, ZEIT.rate * 0.6));
@@ -12017,7 +12501,8 @@ function zeichneErde(t) {
   const randSchwelle = 20 * Math.max(1, ZEIT.rate * 0.6);
   if (ERDE.termX === null || Math.abs(termX - ERDE.termX) > randSchwelle || ERDE.tags !== tags
       || ERDE.schubGebacken === null
-      || Math.abs(ERDE.schub - ERDE.schubGebacken) > schwelle) {
+      || (echt ? ERDKARTE.phi === null || Math.abs(phi - ERDKARTE.phi) * rK > schwelle
+               : Math.abs(ERDE.schub - ERDE.schubGebacken) > schwelle)) {
     ERDE.tags = tags;
     ERDKOSTEN.eben = true;
     erdeSchatten(termX, tags, lauf);
@@ -17185,6 +17670,15 @@ const HILFE = [
       + "Solarflügel sich drehen.",
   },
   {
+    titel: "Die Erde",
+    text: "Unter der Station liegt die echte Erde: Land, Meeresboden und Wolken aus den Blue-Marble-"
+      + "Aufnahmen der NASA, nachts die Lichter der Städte aus Black Marble. Die Bahn ist 51,6 Grad "
+      + "gegen den Äquator geneigt wie die der ISS, und die Sonne steht, wo sie gerade wirklich steht: "
+      + "ist es in Europa Nacht, zieht Europa auf der Nachtseite vorbei. Wo die echte ISS gerade ist, "
+      + "weiß ORBIT nicht, und die Wolken sind eine Aufnahme, kein Wetter von heute. Ohne WebGL oder "
+      + "ohne die drei Kartenbilder zeichnet ORBIT eine gerechnete Erde.",
+  },
+  {
     titel: "Der Himmel",
     text: "Sonne und Mond gehen hinter der Erdkante auf und unter, jeweils einmal je Umlauf. Beide sind "
       + "ein halbes Grad breit — winzig, und das ist richtig so. Vier Sternbilder stehen an ihrem echten "
@@ -17901,6 +18395,9 @@ window.__AGENT_DAZU = (a) => { Z.agenten.push(a); zeichneCrewLeiste(); };
 window.__BUCH = () => BORDBUCH;
 window.__LOGPUSH = (e) => { Z.log.unshift(e); zeichneLog(); };
 window.__PHASE = (ph) => { PHASE_TEST = ph; };
+window.__ERDKARTE = () => ({ bereit: ERDKARTE.bereit, kaputt: ERDKARTE.kaputt,
+  grund: ERDKARTE.grund, zellen: ERDKARTE.zellen ? ERDKARTE.zellen.length : 0,
+  phi: ERDKARTE.phi });
 window.__GEWITTER = () => GEWITTER;
 window.__HAKEN = () => HAKEN;
 window.__HAKENBOX = () => HAKEN_LETZT;

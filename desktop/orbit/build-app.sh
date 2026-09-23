@@ -8,6 +8,8 @@ cd "$(dirname "$0")"
 echo "1/4  App-Datei einsammeln…"
 mkdir -p resources/js
 cp ../../orbit.html resources/index.html
+# Die Karten der echten Erde liegen neben der Seite
+cp ../../orbit-erde-*.jpg resources/
 
 echo "2/4  Programm-Start einbauen…"
 python3 - <<'PY'
