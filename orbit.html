@@ -12118,6 +12118,21 @@ float regenDbz(vec2 st) {
   vec4 r = texture2D(uRegen, st);
   return r.r * 255.0 / max(r.a, 0.001) - 32.0;
 }
+/* Die Regentuerme: wie hoch die Saeule ueber einem Punkt steht, in
+   Erdradien. Schwacher Regen bleibt flach, ab 55 dBZ die ganze Hoehe
+   uRegenHoehe; die ist ueberhoeht, damit man sie aus der Ferne sieht
+   (siehe regenHoehe). 0 = alles flach. */
+uniform float uRegenHoehe;
+/* Wie viele Schritte entlang des Blicks: 12, auf langsamen Geraeten 6 */
+uniform float uRegenSchritte;
+float regenSaeule(float dbz) { return uRegenHoehe * pow(clamp((dbz - 12.0) / 43.0, 0.0, 1.0), 1.3); }
+/* Die Laenge wie in der Karte, aber auf derselben Seite der Datumsgrenze
+   wie s0: so bleiben die Ableitungen fuer die Verkleinerungsstufen stetig */
+float regenS(vec3 q, float s0) {
+  float s = atan(q.y, q.x) / (2.0 * PI) + 0.5;
+  if (s - s0 > 0.5) s -= 1.0; else if (s0 - s > 0.5) s += 1.0;
+  return s;
+}
 /* Wie dicht der Regen dort wirkt, 0 bis gut 0,9 */
 float regenDeck(float dbz) {
   return smoothstep(10.0, 20.0, dbz) * 0.6 + smoothstep(20.0, 42.0, dbz) * 0.32;
@@ -12492,32 +12507,100 @@ void main() {
      der Sonne weg liegt. Nachts leuchtet der Regen gedaempft aus sich
      selbst, wie die Beschriftung. */
   if (uRegenFenster.w > 0.0) {
-    vec3 ro = regenOrt(p, uv.x);
-    if (ro.z > 0.0) {
+    /* Die Tuerme: Der Blick kommt von oben durch die Schale in der Hoehe
+       uRegenHoehe und sinkt bis zum Boden unter diesem Bildpunkt. Der erste
+       Punkt auf dem Weg, der in einer Saeule liegt, ist das, was man sieht:
+       ihr Dach, wenn der Schritt davor ueber dem Dach lag, sonst ihre Wand.
+       Dreizehn Schritte, immer alle, ohne Abbruch: dann bleiben die
+       Ableitungen fuer die Verkleinerungsstufen der Textur ueberall gleich. */
+    float H = uRegenHoehe;
+    float pd = dot(p, zumAuge);
+    float tmax = -pd + sqrt(max(pd * pd + (1.0 + H) * (1.0 + H) - 1.0, 0.0));
+    float deck = 0.0, dbz = -32.0, schnee = 0.0, wand = 0.0, hoehe = 0.0, hVor = 1e9;
+    float tDrin = 0.0, tDraussen = tmax, tLetzt = tmax;
+    vec2 tst = vec2(0.0);
+    vec3 tq = p;
+    for (int i = 0; i <= 12; i++) {
+      if (float(i) > uRegenSchritte) break;
+      float t = tmax * (1.0 - float(i) / uRegenSchritte);
+      vec3 x = p + zumAuge * t;
+      float lx = length(x);
+      vec3 q = x / lx;
+      vec3 ro = regenOrt(q, regenS(q, uv.x));
       vec4 rr = texture2D(uRegen, ro.xy);
-      float dbz = rr.r * 255.0 / max(rr.a, 0.001) - 32.0;
-      float deck = regenDeck(dbz) * ro.z * uRegenFenster.w * step(0.01, rr.a);
-      float schnee = rr.g / max(rr.a, 0.001);
-      /* Ein Schritt: ein Radarpunkt, oder so gross wie ein Bildpunkt, wenn
-         der Punkt kleiner ist */
-      vec2 e = vec2(1.0 / 2048.0);
-#ifdef ABLEITUNG
-      e = max(e, fwidth(ro.xy) * 1.2);
-#endif
-      vec2 sw = vec2(dot(uSonne, ost), -dot(uSonne, nord));
-      float sl2 = length(sw);
-      vec2 sd = sl2 > 0.02 ? sw / sl2 : vec2(-0.7071, -0.7071);
-      float hx = regenDeck(regenDbz(ro.xy + vec2(e.x, 0.0))) - regenDeck(regenDbz(ro.xy - vec2(e.x, 0.0)));
-      float hy = regenDeck(regenDbz(ro.xy + vec2(0.0, e.y))) - regenDeck(regenDbz(ro.xy - vec2(0.0, e.y)));
-      vec3 rn = normalize(vec3(-hx * 1.6, -hy * 1.6, 1.0));
-      vec3 rl = normalize(vec3(sd * 0.8, 0.6));
-      float plastisch = clamp(1.0 + 1.3 * (dot(rn, rl) - rl.z), 0.55, 1.45);
-      float wurf = regenDeck(regenDbz(ro.xy + sd * e * 5.0)) * ro.z * uRegenFenster.w;
-      float tagHell = clamp(sonne * 3.0 + 0.5, 0.0, 1.0);
-      f *= 1.0 - wurf * (1.0 - deck) * 0.38 * (0.3 + 0.7 * tagHell);
-      vec3 rc = regenFarbe(dbz, schnee) * plastisch * mix(0.62, 1.0, tagHell);
-      f = mix(f, rc, deck * (1.0 - rand * 0.5));
+      float db = rr.r * 255.0 / max(rr.a, 0.001) - 32.0;
+      float oben = regenSaeule(db);
+      float drin = step(0.0001, ro.z) * step(0.01, rr.a) * step(12.0, db) * step(lx - 1.0, oben + 1e-6);
+      if (deck == 0.0 && drin > 0.0) {
+        deck = max(regenDeck(db), 0.35 * step(0.0005, oben)) * ro.z;
+        dbz = db; schnee = rr.g / max(rr.a, 0.001); tst = ro.xy; tq = q; hoehe = lx - 1.0;
+        wand = hVor > oben + 1e-6 ? 0.0 : 1.0;
+        tDrin = t; tDraussen = tLetzt;
+      }
+      hVor = lx - 1.0;
+      tLetzt = t;
     }
+    /* Die Kante genauer: dreimal halbieren zwischen dem letzten Schritt
+       draussen und dem ersten drinnen. Sonst stuenden die Waende in
+       dreizehn Stufen. Auch diese Schritte laufen immer. */
+    for (int j = 0; j < 3; j++) {
+      float t = 0.5 * (tDrin + tDraussen);
+      vec3 x = p + zumAuge * t;
+      float lx = length(x);
+      vec3 q = x / lx;
+      vec3 ro = regenOrt(q, regenS(q, uv.x));
+      vec4 rr = texture2D(uRegen, ro.xy);
+      float db = rr.r * 255.0 / max(rr.a, 0.001) - 32.0;
+      float drin = step(0.0001, ro.z) * step(0.01, rr.a) * step(12.0, db) * step(lx - 1.0, regenSaeule(db) + 1e-6);
+      if (deck > 0.0 && drin > 0.0) {
+        tDrin = t; dbz = db; schnee = rr.g / max(rr.a, 0.001); tst = ro.xy; tq = q; hoehe = lx - 1.0;
+      } else tDraussen = t;
+    }
+    deck *= uRegenFenster.w;
+    /* Ein Schritt: ein Radarpunkt, oder so gross wie ein Bildpunkt */
+    vec2 e = vec2(1.0 / 2048.0);
+#ifdef ABLEITUNG
+    e = max(e, fwidth(tst) * 1.2);
+#endif
+    vec2 sw = vec2(dot(uSonne, ost), -dot(uSonne, nord));
+    float sl2 = length(sw);
+    vec2 sd = sl2 > 0.02 ? sw / sl2 : vec2(-0.7071, -0.7071);
+    float hx = regenDeck(regenDbz(tst + vec2(e.x, 0.0))) - regenDeck(regenDbz(tst - vec2(e.x, 0.0)));
+    float hy = regenDeck(regenDbz(tst + vec2(0.0, e.y))) - regenDeck(regenDbz(tst - vec2(0.0, e.y)));
+    float tagHell = clamp(sonne * 3.0 + 0.5, 0.0, 1.0);
+    /* Das Licht: aufs Dach wie bisher nach der Steigung, an der Wand nach
+       ihrer Richtung zur Sonne; unten an der Wand dunkler, weil die
+       Nachbarn Licht nehmen */
+    vec3 rn = normalize(vec3(-hx * 1.6, -hy * 1.6, 1.0));
+    vec3 rl = normalize(vec3(sd * 0.8, 0.6));
+    float dach = clamp(1.0 + 1.3 * (dot(rn, rl) - rl.z), 0.55, 1.45);
+    vec2 aussen = length(vec2(hx, hy)) > 1e-4 ? normalize(vec2(-hx, -hy)) : -sd;
+    float seite = 0.5 + 0.75 * max(dot(aussen, sd), 0.0) * clamp(sl2 * 1.4, 0.0, 1.0);
+    float oben = regenSaeule(dbz);
+    float tiefe = oben > 0.0 ? clamp(hoehe / oben, 0.0, 1.0) : 1.0;
+    float licht = mix(dach, seite * (0.6 + 0.4 * tiefe), wand);
+    /* Schatten auf dem Boden: Steht zwischen dem Boden hier und der Sonne
+       eine Saeule, die den Strahl schneidet? Sechs Schritte bis zur Hoehe
+       uRegenHoehe; ohne Tuerme wie bisher ein kurzer Versatz. */
+    float wurf = 0.0;
+    float sonneHoch = max(sonne, 0.12);
+    for (int k = 1; k <= 6; k++) {
+      if (float(k) > uRegenSchritte * 0.5) break;
+      float hk = H * float(k) / (uRegenSchritte * 0.5);
+      vec3 y = p + uSonne * (hk / sonneHoch);
+      vec3 qy = normalize(y);
+      vec3 roy = regenOrt(qy, regenS(qy, uv.x));
+      vec4 ry = texture2D(uRegen, roy.xy);
+      float dy = ry.r * 255.0 / max(ry.a, 0.001) - 32.0;
+      wurf = max(wurf, step(0.0001, roy.z) * step(hk, regenSaeule(dy)) * regenDeck(dy));
+    }
+    if (H <= 0.0) wurf = regenDeck(regenDbz(tst + sd * e * 5.0));
+    wurf *= uRegenFenster.w * step(0.0, sonne);
+    f *= 1.0 - wurf * (1.0 - deck) * 0.42 * (0.3 + 0.7 * tagHell);
+    vec3 rc = regenFarbe(dbz, schnee) * licht * mix(0.62, 1.0, tagHell);
+    /* Waende sind dicht, Daecher so durchscheinend wie der Regen */
+    float a = mix(deck, max(deck, 0.92 * uRegenFenster.w), wand);
+    f = mix(f, rc, a * (1.0 - rand * 0.5));
   }
 #endif
   f = mix(f, sat.rgb, smoothstep(0.35, 0.9, satSchrift));
@@ -12625,14 +12708,14 @@ function erdkarteAufbauen() {
                        "uTag", "uWolken", "uLichter", "uKorn", "uPolar", "uOval",
                        "uSat", "uSatGueltig", "uSatFenster", "uSatRaster", "uWolkenWeg",
                        "uNacht", "uNachtBox", "uNachtGewicht", "uGestern", "uSatRelief", "uReliefStaerke",
-                       "uRegen", "uRegenFenster"])
+                       "uRegen", "uRegenFenster", "uRegenHoehe", "uRegenSchritte"])
         u[n] = gl.getUniformLocation(prog, n);
       gl.uniform1i(u.uTag, 0); gl.uniform1i(u.uWolken, 1);
       gl.uniform1i(u.uLichter, 2); gl.uniform1i(u.uKorn, 3);
       gl.uniform1i(u.uOval, 4); gl.uniform1i(u.uSat, 5); gl.uniform1i(u.uSatGueltig, 6);
       gl.uniform1i(u.uNacht, 7);
       if (ERDKARTE.reliefMoeglich) { gl.uniform1i(u.uSatRelief, 8); gl.uniform1f(u.uReliefStaerke, 0); }
-      if (ERDKARTE.regenMoeglich) { gl.uniform1i(u.uRegen, 9); gl.uniform4f(u.uRegenFenster, 0, 0, 4, 0); }
+      if (ERDKARTE.regenMoeglich) { gl.uniform1i(u.uRegen, 9); gl.uniform4f(u.uRegenFenster, 0, 0, 4, 0); gl.uniform1f(u.uRegenHoehe, 0); gl.uniform1f(u.uRegenSchritte, 12); }
       gl.uniform4f(u.uNachtBox, 0, 0, 1, 1);
       gl.uniform1f(u.uNachtGewicht, 0);
       gl.uniform1f(u.uGestern, 0);
@@ -12823,6 +12906,10 @@ function erdkarteMalen(ziel, bw, bh, mx, my, rr, blick, schicht) {
   if (ERDKARTE.regenMoeglich) {
     const rg = schicht > 2.5 && blick.regen ? blick.regen : null;
     gl.uniform4f(u.uRegenFenster, rg ? rg.x0 : 0, rg ? rg.y0 : 0, rg ? rg.n : 4, rg ? rg.gewicht : 0);
+    gl.uniform1f(u.uRegenHoehe, rg ? regenHoehe(rr) : 0);
+    /* Kostet ein Bild der Kugel mehr als 120 Millisekunden, rechnet
+       offenbar kein Grafikchip: dann halb so viele Schritte */
+    gl.uniform1f(u.uRegenSchritte, (ERDANSICHT.kosten || 0) > 120 ? 6 : 12);
   }
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
@@ -16859,6 +16946,15 @@ function regenVorbereiten(g, blick) {
   R_.stufenNeu = false;
   R_.gewicht = 1;
   return { x0, y0, n, gewicht: 1 };
+}
+
+/* Wie hoch die hoechsten Regentuerme stehen, in Erdradien, nach dem Radius
+   der Kugel in Geraetepunkten. Echt reichen Gewitter gut 12 Kilometer
+   hoch, 0,0019 Erdradien; aus der Ferne waeren das ein halber Bildpunkt.
+   Deshalb ueberhoeht: hoechstens 26 Bildpunkte, hoechstens 0,03 Erdradien
+   (rund 190 km), nah heran nie weniger als echt. */
+function regenHoehe(radiusPx) {
+  return klemm(26 / Math.max(1, radiusPx), 0.0019, 0.03);
 }
 
 /* Der Wert an einem Ort, aus der feinsten Kachel, die im Speicher liegt;
@@ -25115,7 +25211,9 @@ const HILFE = [
       + "Unter Stationswerte → LIVE lässt sich das Regenradar einschalten: Auf der ganzen Erde steht dann, wo es "
       + "gerade regnet oder schneit, alle zehn Minuten neu aus den Wetterradaren vieler Länder, zusammengesetzt "
       + "von RainViewer. Blau ist leichter Regen, grün mäßiger, gelb bis rot starker, violett kann Hagel sein, "
-      + "weiß bis lila ist Schnee. Die Zellen sind nach der echten Sonne schattiert und werfen Schatten, und "
+      + "weiß bis lila ist Schnee. Jede Zelle steht als Turm auf der Erde, so hoch, wie sie stark ist, überhöht, "
+      + "damit man es aus der Ferne sieht: zum Rand der Kugel hin sieht man die Wände. Die Türme sind nach der "
+      + "echten Sonne beleuchtet und werfen Schatten, und "
       + "nachts blitzt es in den echten Gewittern. Hineingezoomt wird das Radar feiner, bis gut einen Kilometer. "
       + "Der Knopf ▶ unten auf der Erde spielt die letzten zwei Stunden im Zeitraffer ab, dreizehn Bilder im "
       + "Kreis: So siehst du, wohin der Regen zieht. "
