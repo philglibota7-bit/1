@@ -218,9 +218,41 @@ Dazu: Handläufe höchstens 61 cm auseinander, Steppmuster der Schutzdecken in M
 
 **Keine Namensschilder an den Bauteilen.** Sie standen früher ab Zoom 1,5 über der halben Station und haben genau das verdeckt, was man sich ansehen wollte. Die Namen gibt es weiter — beim Antippen, und zwar bei jedem Zoom. Es gewinnt das nächstgelegene Bauteil, nicht das erste in der Liste.
 
+## Die Erde
+
+Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Meer und Wolken aus Rauschen, zu einer endlosen Bahn gebacken, die unter einer runden Maske durchzog. Das sah nach einem Planeten aus, aber nach keinem bestimmten.
+
+- **Die Karten.** Drei Bilder der NASA, gemeinfrei, zusammen 1,4 MB, als Dateien neben der Seite.
+  - Blue Marble: Land und Meeresboden ohne Wolken, 4096 × 2048.
+  - Die Wolkendecke aus demselben Satz, 2048 × 1024. Sie ist leicht weichgezeichnet, damit das feine Korn der Passatwolken nicht wie Rauschen aussieht.
+  - Black Marble: die Stadtlichter, 4096 × 2048. ORBIT nimmt davon nur die Lichter, nicht das mondbeschienene Gelände.
+- **Die Abbildung.** Ein WebGL-Schattierer rechnet für jeden Bildpunkt der Scheibe aus, welcher Punkt der Kugel dort liegt, und schlägt Länge und Breite in den Karten nach. Die Erde ist dabei eine Kugel, von weit weg und senkrecht auf die Bahnebene gesehen. Der Punkt unter der Station liegt oben auf der Kante, darunter der Streifen seitlich der Bahn, zur Kante hin immer flacher. Mit dem Umlauf dreht sich die ganze Scheibe um ihren Mittelpunkt.
+- **Bahn und Sonne.**
+  - Die Bahn ist wie die der ISS 51,6 Grad geneigt.
+  - Die Sonne steht, wo sie wirklich steht, aus Datum und Uhrzeit auf ein Hundertstel Grad gerechnet.
+  - Die Bahnebene wird so gelegt, dass die Sonne in ihr liegt, wie es der Tag-und-Nacht-Takt der Szene annimmt.
+  - Am Mittag der Station liegt unter ihr das Land, auf dem gerade Mittag ist. Ist es in Europa Nacht, zieht Europa mit seinen Lichtern auf der Nachtseite vorbei.
+- **Wolken.**
+  - Ihre Schatten fallen auf die sonnenabgewandte Seite, und die sonnenzugewandte Flanke ist heller.
+  - An den Rändern liegt feines Rauschen, denn die Karte hat dort acht Kilometer je Bildpunkt, der Schirm zwei.
+  - Dicke Wolken verschlucken Stadtlichter, dünne machen sie weich.
+- **Gewitter, Mond und Blitze** hängen an der echten Wolkendecke.
+  - Die Zellen sitzen erdfest in ihren dicksten Stellen zwischen 50 Grad Nord und Süd, auf einem Raster von einem Grad. Über die ganze Erde sind es 651.
+  - Der Mond beleuchtet nur, wo wirklich Wolken sind. Über klarem Himmel bleibt die Nacht schwarz, mit den Städten darin.
+- **Worüber die Station fliegt.**
+  - Unter Stationswerte steht zum Beispiel „Unter uns: Italien · 44° N · 12° O“.
+  - Wer auf die Erde tippt, erfährt, welches Land oder Meer an der Stelle liegt. Ist gerade etwas offen, schließt der Tipp es wie bisher.
+  - Die Grenzen kommen von Natural Earth und sind gemeinfrei: Länder im Maßstab 1:50 Millionen, dazu Ozeane, Meere, Golfe und Meeresstraßen, zusammen 355 deutsche Namen.
+  - Gebacken sind sie zu einer Karte von 1440 × 720 Punkten (47 KB), mit der Nummer des Namens in jedem Punkt. Enklaven wie Lesotho bleiben erhalten, Zwergstaaten wie der Vatikan fallen durchs Raster.
+- **Rückfall.** Fehlt eines der Bilder, kann der Browser kein WebGL oder geht der Grafikkontext verloren, zeichnet ORBIT die gerechnete Erde wie bisher. Solange die Karten laden, wartet die Seite bis zu zwei Sekunden mit der Erde. So zeigt sie nicht erst die gerechnete und springt dann um.
+- **Kosten.**
+  - Neu gemalt wird nur, wenn sich die Scheibe weit genug gedreht hat. Das regelt dieselbe Schwelle wie vorher beim Durchziehen.
+  - In reiner Software-Rasterung kostet ein Stand 25–47 Millisekunden. Die Bildrate bleibt bei 58–62 Bildern je Sekunde, vorher 49–62. Mit Grafikchip kostet es so gut wie nichts.
+  - Die Wolkendecke als Licht wird nur gemalt, wenn Mond oder Nacht sie brauchen.
+
 ## Die Nacht unter der Station
 
-- **Gewitter.** Auf jedem Nachtflug zucken unten die Wolken auf. Die Zellen sitzen in den dicksten Wolken der Erdscheibe, verteilt über die ganze Breite, und ziehen mit dem Boden vorbei. Ein Blitz leuchtet die echte Wolkendecke von innen aus — beim Backen entsteht dafür ein eigenes Bild der Wolken —, mit ein bis vier Folgeschlägen, weicher in der Wolke, härter zum Boden, und zündet manchmal die Nachbarzelle, sodass das Leuchten über das Wolkenfeld läuft. Über Land und kurz nach Sonnenuntergang blitzt es am meisten; bei Tag, angehalten und neben der Scheibe nie.
+- **Gewitter.** Auf jedem Nachtflug zucken unten die Wolken auf. Die Zellen sitzen in den dicksten Wolken der Erdscheibe, bei der echten Erde in denen der Karte, und ziehen mit dem Boden vorbei. Ein Blitz leuchtet die echte Wolkendecke von innen aus — beim Backen entsteht dafür ein eigenes Bild der Wolken —, mit ein bis vier Folgeschlägen, weicher in der Wolke, härter zum Boden, und zündet manchmal die Nachbarzelle, sodass das Leuchten über das Wolkenfeld läuft. Über Land und kurz nach Sonnenuntergang blitzt es am meisten; bei Tag, angehalten und neben der Scheibe nie.
 - **Rote Kobolde.** Selten steht über einem starken Schlag zum Boden am Horizont für einen Augenblick ein roter Kobold (Sprite) — eine Entladung nach oben bis fast in neunzig Kilometer Höhe, in echter Größe, mit roter Krone und violetten Ranken. Einmal in zehn Minuten ein Eintrag im Bordbuch.
 - **Wolken im Mondlicht.** Die Nachtseite war bis auf die Städte schwarz — so sieht sie nur bei Neumond aus. Steht der Mond, liegen die Wolken grau-blau im Licht, und bei Vollmond erkennt man jede Front. Die Helligkeit folgt der Mondphase der Szene mit einer hohen Potenz: Der Halbmond ist nur rund ein Zehntel so hell wie der Vollmond. Die Städte liegen weiterhin obenauf.
 - **Sternschnuppen unter der Station.** Ein Meteor verglüht in achtzig bis hundert Kilometern Höhe, weit unter der Station. Er zog bisher durch das obere Bilddrittel, mitten durch die Sterne, und auch bei Tag — obwohl der Kommentar im Code das Richtige sagte. Jetzt nur nachts, über der dunklen Erde oder in der Leuchtschicht am Horizont, grün vom Sauerstoff wie auf dem bekannten Bild einer Perseide von der Station.
@@ -300,7 +332,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-72 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+74 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
 - **Echte Arbeitsumgebung**:
@@ -340,6 +372,16 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 - **Tag als Text**: Kopf, Summe und die Sitzungen der Zeit nach. Der Download heißt `orbit-heute-2026-09-23.md`, die Vorführung ist gekennzeichnet, und im Betrachter ohne Dateien fehlt der Dateiknopf.
 
 **Szene**
+- **Echte Erde**:
+  - Die Sonne steht am 23. September um 12 Uhr UTC über dem Äquator bei −1,9 Grad, das ist die Zeitgleichung. Im Juni steht sie bei 23,44 Grad Nord.
+  - Die Bahn ist 51,64 Grad geneigt, mit der Sonne in ihrer Ebene. Am Mittag der Station liegt sie genau unter der Sonne, und der Boden zieht nach links.
+  - An 120 klaren Stellen weicht die gemalte Farbe im Mittel um 2 Stufen von der Karte am selben Ort ab. Gegengeprüft: Um 3,6 Grad verschoben sind es 18.
+  - Ohne Karten fällt die Seite auf die gerechnete Erde zurück, mit Gewittern.
+  - Mondlicht auf den Wolken ist mit beiden Erden geprüft.
+- **Überflug**:
+  - Über Norditalien steht in den Stationswerten „Italien · 44° N · 12° O“.
+  - Acht bekannte Orte werden richtig benannt: Berlin, Kairo, Mittelmeer, Atlantik, Lesotho, Nordsee, Tokio und Sydney.
+  - Ein Tipp südlich davon nennt das Mittelmeer, ein zweiter Tipp schließt, und über der Kante gibt es keine Erde.
 - **Tempo**: 60 Bilder/s bei 0,8- bis 11-fachem Zoom und bei Nacht. Backzeit und Speicher sind unverändert.
 - **Nacht**:
   - Gewitter: 19 Blitze in 12 s am Abend, keiner bei Tag, gegengeprüft.
@@ -393,5 +435,9 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 - Die Lichtrichtung der Szene ist eine Stilisierung. Deshalb sitzt an den Berührungsstellen Umgebungsverschattung statt geworfener Schatten: die hat keine Richtung und kann darum auch keine falsche haben.
 - Die Bildraten sind in reiner Software-Rasterung gemessen (SwiftShader, ohne Grafikkarte) und damit der schlechteste Fall. Bei 24 Figuren liegt sie dort bei 37 statt 60, bei Nacht und 1400 × 900 Punkten bei 23.
 - **Der flüssige Boden ist auf einem Mac nicht gemessen.** Die Regelung misst dort selbst, was das Zusammensetzen kostet; hier ließ sich nur die Software-Rasterung messen, und dort kostet er bei doppelter Auflösung zwei Bilder je Sekunde.
-- Gewitter, Kobolde und Sternschnuppen sind nach echten Größen und Häufigkeiten gebaut, liegen aber auf einer erfundenen Erde: Land, Meer und Wolken der Scheibe sind Rauschen, keine Karte.
+- **Die Erde ist echt, die Bahn nicht.**
+  - Die Station fliegt eine Bahn mit der Neigung der ISS, aber nicht die echte ISS an ihrer echten Stelle. Dafür bräuchte es aktuelle Bahndaten aus dem Netz.
+  - Der Umlauf ist zwölffach gerafft, die Sonne läuft in Echtzeit. Deshalb verschiebt sich die Bahn von Runde zu Runde nur um knapp zwei Grad statt um 23.
+  - Die Wolken sind eine Aufnahme, kein Wetter von heute.
+  - Auf einem Mac mit Grafikchip ist die Erde nicht gemessen, nur in Software-Rasterung.
 - **Fortsetzen ist nicht auf einem Mac ausprobiert.** Die Zwischenablage über Neutralino ist gegen die mitgelieferte Client-Bibliothek geprüft, nicht im laufenden Programm. Das Quoten ist in bash, dash und sh ausgeführt. zsh, die Standard-Shell des Mac, war hier nicht installiert: Sie behandelt einfache Anführungszeichen gleich, ausprobiert ist es aber nicht. Wie `claude --resume` mit einer Sitzung umgeht, die noch in einem anderen Terminal offen ist, habe ich nicht geprüft. ORBIT bietet den Befehl in diesem Fall deshalb gar nicht an.
