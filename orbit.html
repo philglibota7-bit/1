@@ -13863,7 +13863,10 @@ function rahmen(jetzt) {
   if (Z.umlauf !== false) {
     const jetztTag = umlaufPhase < TAGANTEIL;
     if (LETZTER_TAG !== null && LETZTER_TAG !== jetztTag) {
-      bordbuch(jetztTag ? "Sonnenaufgang" : "Eintritt in den Erdschatten");
+      /* Mit der echten Erde auch, wo: "Sonnenaufgang · Indischer Ozean" */
+      const u = unterUns();
+      bordbuch((jetztTag ? "Sonnenaufgang" : "Eintritt in den Erdschatten")
+        + (u && u.name ? " · " + u.name : ""));
     }
     LETZTER_TAG = jetztTag;
   }
