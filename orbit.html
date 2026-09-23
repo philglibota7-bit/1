@@ -11097,6 +11097,13 @@ void main() {
     float d = sqrt(r2) - 1.0;
     float g = (exp(-d / 0.011) * 0.85 + exp(-d / 0.035) * 0.16) * hell;
     vec3 f = mix(vec3(0.33, 0.58, 1.0), vec3(0.66, 0.82, 1.0), exp(-d / 0.006));
+    /* Wo der Rand ueber den Tagesrand laeuft, geht dort gerade die Sonne
+       auf oder unter: das Licht kommt flach durch viel Luft, das Blau ist
+       herausgestreut, es bleiben Orange und Rot — der farbige Saum, den
+       jedes Foto der Erde im Gegenlicht zeigt. Unten am Boden roter,
+       weiter oben gelblich. */
+    float abend = exp(-pow(dot(n, uSonne) / 0.13, 2.0));
+    f = mix(f, mix(vec3(1.0, 0.36, 0.14), vec3(1.0, 0.7, 0.38), smoothstep(0.0, 0.02, d)), abend * 0.75);
     gl_FragColor = vec4(f * g, g);
     return;
   }
@@ -11797,9 +11804,8 @@ function zeichneErdansicht(t, dt) {
   ERDANSICHT.blick = blick;
   ERDANSICHT.geo = g;
 
-  /* Der Hintergrund: schwarz mit wenigen Sternen, einmal gebacken. So
-     sieht der Weltraum auf Fotos der ganzen Erde aus — die Erde ist
-     hell, die Belichtung kurz, von den Sternen bleiben nur die hellsten. */
+  /* Der Hintergrund: fast schwarz, einmal gebacken. Die Sterne kommen
+     danach, vom echten Himmel (erdansichtHimmel). */
   const q = ERDANSICHT_BILD;
   if (!q.grund || q.grund.width !== Math.round(W * DPR) || q.grund.height !== Math.round(H * DPR)) {
     q.grund = document.createElement("canvas");
@@ -11809,12 +11815,6 @@ function zeichneErdansicht(t, dt) {
       q.grund.width / 2, q.grund.height * 0.52, Math.max(q.grund.width, q.grund.height) * 0.7);
     vg.addColorStop(0, "#070b14"); vg.addColorStop(1, "#020308");
     gg.fillStyle = vg; gg.fillRect(0, 0, q.grund.width, q.grund.height);
-    for (let i = 0; i < 260; i++) {
-      const x = streu(i, 1, 881) * q.grund.width, y = streu(i, 2, 881) * q.grund.height;
-      const h = Math.pow(streu(i, 3, 881), 3);
-      gg.fillStyle = `rgba(${220 + h * 35},${225 + h * 30},255,${0.25 + h * 0.6})`;
-      gg.beginPath(); gg.arc(x, y, (0.5 + h * 1.1) * DPR, 0, Math.PI * 2); gg.fill();
-    }
   }
   /* Die Kugel selbst, in einem Quadrat mit Platz fuer den Luftsaum */
   const fein = Math.min(DPR, 1.5);
@@ -11839,6 +11839,7 @@ function zeichneErdansicht(t, dt) {
   cx.setTransform(1, 0, 0, 1, 0, 0);
   cx.globalAlpha = a;
   cx.drawImage(q.grund, 0, 0);
+  erdansichtHimmel(g, blick, Date.now());
   cx.drawImage(q.c, 0, 0, bw, bw,
     Math.round((g.cx - kante) * DPR), Math.round((g.cy - kante) * DPR),
     Math.round(kante * 2 * DPR), Math.round(kante * 2 * DPR));
@@ -11902,6 +11903,153 @@ function zeichneErdansicht(t, dt) {
     cx.fillText(z, st.x, y);
   });
   cx.restore();
+}
+
+/* Die hellsten Sterne am echten Himmel, Aequinoktium J2000: Rektaszension
+   in Stunden, Deklination in Grad, Helligkeit in Groessenklassen, bei
+   den auffallend farbigen die Farbe (r rot, o orange, b blau). Das reicht
+   fuer die Bilder, die jeder kennt: Orion, den Grossen Wagen und den
+   Polarstern, Kassiopeia, das Kreuz des Suedens mit den beiden Zeigern,
+   den Skorpion, den Schuetzen, das Sommerdreieck mit dem Schwan, das
+   Pegasusquadrat, die Plejaden und die Hyaden. */
+const STERNKARTE = [
+  /* Orion */
+  [5.919, 7.407, 0.45, "r"], [5.242, -8.202, 0.18, "b"], [5.419, 6.350, 1.64, "b"], [5.533, -0.299, 2.23, "b"],
+  [5.604, -1.202, 1.69, "b"], [5.679, -1.943, 1.77, "b"], [5.796, -9.670, 2.07, "b"], [5.585, 9.934, 3.39],
+  /* Grosser Wagen, Polarstern, Kochab */
+  [11.062, 61.751, 1.79, "o"], [11.031, 56.382, 2.37], [11.897, 53.695, 2.44], [12.257, 57.033, 3.31],
+  [12.900, 55.960, 1.77], [13.399, 54.925, 2.23], [13.792, 49.313, 1.86, "b"], [2.530, 89.264, 1.98],
+  [14.845, 74.156, 2.08, "o"],
+  /* Kassiopeia */
+  [0.675, 56.537, 2.24, "o"], [0.153, 59.150, 2.28], [0.945, 60.717, 2.47, "b"], [1.430, 60.235, 2.68], [1.907, 63.670, 3.37],
+  /* Kreuz des Suedens und die Zeiger */
+  [12.443, -63.099, 0.77, "b"], [12.795, -59.689, 1.25, "b"], [12.519, -57.113, 1.59, "r"], [12.252, -58.749, 2.79, "b"],
+  [14.660, -60.834, -0.27], [14.064, -60.373, 0.61, "b"],
+  /* Skorpion */
+  [16.490, -26.432, 1.06, "r"], [17.560, -37.104, 1.62, "b"], [17.622, -42.998, 1.86], [16.006, -22.622, 2.29, "b"],
+  [16.091, -19.806, 2.62, "b"], [17.513, -37.296, 2.70, "b"], [16.836, -34.293, 2.29, "o"], [17.708, -39.030, 2.39, "b"],
+  [16.598, -28.216, 2.82, "b"],
+  /* Schuetze */
+  [18.403, -34.385, 1.79], [18.921, -26.297, 2.05, "b"], [18.350, -29.828, 2.70, "o"], [18.466, -25.422, 2.81, "o"],
+  [19.044, -29.880, 2.60], [18.761, -26.991, 3.17], [19.116, -27.671, 3.32, "o"], [18.097, -30.424, 2.98, "o"],
+  /* Sommerdreieck und Schwan */
+  [18.616, 38.784, 0.03], [20.690, 45.280, 1.25], [19.846, 8.868, 0.76], [20.370, 40.257, 2.23, "o"],
+  [20.770, 33.970, 2.48, "o"], [19.512, 27.960, 3.08, "o"], [19.750, 45.131, 2.87],
+  /* Pegasus und Andromeda */
+  [23.079, 15.205, 2.49], [23.063, 28.083, 2.42, "r"], [0.221, 15.184, 2.83, "b"], [0.140, 29.090, 2.06, "b"],
+  [1.162, 35.621, 2.05, "r"], [2.065, 42.330, 2.26, "o"], [21.736, 9.875, 2.39, "o"],
+  /* Plejaden und Hyaden mit Aldebaran */
+  [3.791, 24.105, 2.87, "b"], [3.819, 24.053, 3.62, "b"], [3.747, 24.113, 3.70, "b"], [3.763, 24.368, 3.87, "b"],
+  [3.772, 23.948, 4.18, "b"], [3.753, 24.467, 4.30, "b"], [4.599, 16.509, 0.87, "o"], [4.478, 15.871, 3.40],
+  [4.477, 19.180, 3.53, "o"], [4.330, 15.628, 3.65, "o"], [4.382, 17.543, 3.76, "o"],
+  /* Die uebrigen hellen */
+  [6.752, -16.716, -1.46], [6.399, -52.696, -0.74], [14.261, 19.182, -0.05, "o"], [5.278, 45.998, 0.08, "o"],
+  [7.655, 5.225, 0.34], [1.629, -57.237, 0.46, "b"], [13.420, -11.161, 0.97, "b"], [7.755, 28.026, 1.14, "o"],
+  [7.577, 31.888, 1.58], [22.961, -29.622, 1.16], [10.140, 11.967, 1.40, "b"], [6.977, -28.972, 1.50, "b"],
+  [5.438, 28.608, 1.65, "b"], [9.220, -69.717, 1.67], [22.137, -46.961, 1.73, "b"], [3.405, 49.861, 1.79],
+  [7.140, -26.393, 1.83], [8.375, -59.510, 1.86, "o"], [5.992, 44.948, 1.90], [16.811, -69.028, 1.91, "o"],
+  [6.629, 16.399, 1.93], [20.427, -56.735, 1.94, "b"], [6.378, -17.956, 1.98, "b"], [9.460, -8.659, 1.98, "o"],
+  [2.120, 23.462, 2.00, "o"], [0.726, -17.987, 2.04, "o"], [14.111, -36.370, 2.06, "o"], [17.582, 12.560, 2.08],
+  [3.136, 40.956, 2.12, "b"], [11.818, 14.572, 2.14], [11.235, 20.524, 2.56], [10.333, 19.842, 2.08, "o"],
+  [21.310, 62.585, 2.45], [17.943, 51.489, 2.23, "o"], [17.507, 52.301, 2.79], [9.133, -43.433, 2.21, "o"],
+  [8.060, -40.003, 2.21, "b"], [8.745, -54.709, 1.96], [8.159, -47.337, 1.83, "b"], [9.368, -55.011, 2.47, "b"],
+  [9.285, -59.275, 2.21], [15.578, 26.715, 2.23], [14.848, -16.042, 2.75], [15.283, -9.383, 2.61],
+  [0.438, -42.306, 2.40, "o"], [22.711, -46.885, 2.07, "r"], [3.038, 4.090, 2.54, "r"],
+];
+
+/* Der Himmel hinter der ganzen Erde, wie er wirklich steht. Die Sterne
+   kommen aus ihren Himmelskoordinaten, mit der Sternzeit ins erdfeste
+   System gedreht, und durch dieselbe Kamera wie die Kugel — nur mit
+   Brennweite, denn der Himmel ist unendlich weit weg. Dreht man die
+   Kugel, dreht sich der Himmel mit. Die Milchstrasse ist ein Band aus
+   vielen schwachen Sternen um ihre Ebene (ihr Nordpol steht bei 12 h
+   51 min, +27,1 Grad). Schaut die Kamera gegen das Licht, steht hinter
+   der Erde die Sonne. Und weil die Erde hell ist und die Belichtung
+   kurz, sind die Sterne gedaempft — auf echten Fotos der ganzen Erde
+   sieht man meist gar keine. */
+const HIMMELSKUGEL = { sterne: null };
+function erdansichtHimmel(g, blick, ms) {
+  const RAD = Math.PI / 180;
+  const einheit = (ra, dek) => [Math.cos(dek) * Math.cos(ra), Math.cos(dek) * Math.sin(ra), Math.sin(dek)];
+  if (!HIMMELSKUGEL.sterne) {
+    const liste = STERNKARTE.map(([ra, dek, mag, farbe]) =>
+      ({ v: einheit(ra * 15 * RAD, dek * RAD), mag, farbe: farbe || "" }));
+    /* Schwache Sterne ueberall, gleichmaessig ueber die Kugel */
+    for (let i = 0; i < 1100; i++) {
+      const z = streu(i, 1, 4441) * 2 - 1, w = streu(i, 2, 4441) * 2 * Math.PI, rz = Math.sqrt(1 - z * z);
+      liste.push({ v: [rz * Math.cos(w), rz * Math.sin(w), z], mag: 3.6 + 2.4 * Math.sqrt(streu(i, 3, 4441)), farbe: "" });
+    }
+    /* Und dichter in der Ebene der Milchstrasse */
+    const pol = einheit((12 + 51.4 / 60) * 15 * RAD, 27.13 * RAD);
+    const ea = [pol[1], -pol[0], 0], la = Math.hypot(ea[0], ea[1]);
+    ea[0] /= la; ea[1] /= la;
+    const eb = [pol[1] * ea[2] - pol[2] * ea[1], pol[2] * ea[0] - pol[0] * ea[2], pol[0] * ea[1] - pol[1] * ea[0]];
+    for (let i = 0; i < 2600; i++) {
+      const l = streu(i, 4, 4441) * 2 * Math.PI;
+      /* Breite: dicht an der Ebene, gut sechs Grad breit */
+      const u = streu(i, 5, 4441) - 0.5;
+      const b = Math.sign(u) * Math.pow(Math.abs(u) * 2, 1.6) * 16 * RAD;
+      const cb = Math.cos(b), sb = Math.sin(b);
+      const v = [0, 1, 2].map(k => cb * (Math.cos(l) * ea[k] + Math.sin(l) * eb[k]) + sb * pol[k]);
+      liste.push({ v, mag: 4.8 + 1.7 * streu(i, 6, 4441), farbe: "", band: true });
+    }
+    HIMMELSKUGEL.sterne = liste;
+  }
+  const m = blick.m;
+  const d = ms / 86400000 - 10957.5;
+  const gmst = ((((18.697374558 + 24.06570982441908 * d) % 24) + 24) % 24) * 15 * RAD;
+  const cg = Math.cos(gmst), sg = Math.sin(gmst);
+  /* Die Achsen der Kamera, vom erdfesten ins Himmelssystem gedreht */
+  const achse = (o) => [cg * m[o] - sg * m[o + 1], sg * m[o] + cg * m[o + 1], m[o + 2]];
+  const ax = achse(0), ay = achse(3), az = achse(6);
+  const f = Math.max(W, H) * 0.62;
+  const farben = { r: "255,186,150", o: "255,214,170", b: "205,218,255", "": "236,240,255" };
+  /* Die vielen schwachen in wenigen Eimern gleicher Farbe und Helligkeit,
+     je Eimer ein Pfad und ein Fuellen — viertausend einzelne Fuellungen
+     je Bild kosteten ohne Grafikchip spuerbar */
+  const eimer = new Map();
+  for (const st of HIMMELSKUGEL.sterne) {
+    const v = st.v;
+    const tief = -(v[0] * az[0] + v[1] * az[1] + v[2] * az[2]);
+    if (tief < 0.05) continue;
+    const x = g.cx + f * (v[0] * ax[0] + v[1] * ax[1] + v[2] * ax[2]) / tief;
+    const y = g.cy - f * (v[0] * ay[0] + v[1] * ay[1] + v[2] * ay[2]) / tief;
+    if (x < -4 || y < -4 || x > W + 4 || y > H + 4) continue;
+    const hell = Math.max(0, Math.min(0.95, 1.0 - 0.13 * st.mag)) * (st.band ? 0.55 : 1);
+    if (hell <= 0.03) continue;
+    const rad = Math.max(0.6, 1.8 - 0.28 * st.mag) * DPR;
+    if (rad < 0.95 * DPR) {
+      const k = st.farbe + "|" + (Math.round(hell * 10) / 10);
+      let pfad = eimer.get(k);
+      if (!pfad) { pfad = new Path2D(); eimer.set(k, pfad); }
+      pfad.rect(x * DPR - rad, y * DPR - rad, rad * 2, rad * 2);
+    } else {
+      cx.fillStyle = `rgba(${farben[st.farbe]},${hell.toFixed(3)})`;
+      cx.beginPath(); cx.arc(x * DPR, y * DPR, rad, 0, Math.PI * 2); cx.fill();
+    }
+  }
+  for (const [k, pfad] of eimer) {
+    const [fb, a] = k.split("|");
+    cx.fillStyle = `rgba(${farben[fb]},${a})`;
+    cx.fill(pfad);
+  }
+  /* Die Sonne, wenn die Kamera gegen das Licht schaut */
+  const S = blick.S;
+  const tief = -(S[0] * m[6] + S[1] * m[7] + S[2] * m[8]);
+  if (tief > 0.05) {
+    const x = (g.cx + f * (S[0] * m[0] + S[1] * m[1] + S[2] * m[2]) / tief) * DPR;
+    const y = (g.cy - f * (S[0] * m[3] + S[1] * m[4] + S[2] * m[5]) / tief) * DPR;
+    const R = Math.max(W, H) * 0.09 * DPR;
+    const gl = cx.createRadialGradient(x, y, 0, x, y, R);
+    gl.addColorStop(0, "rgba(255,252,242,0.95)");
+    gl.addColorStop(0.05, "rgba(255,244,214,0.55)");
+    gl.addColorStop(0.3, "rgba(255,228,180,0.12)");
+    gl.addColorStop(1, "rgba(255,220,170,0)");
+    cx.fillStyle = gl;
+    cx.beginPath(); cx.arc(x, y, R, 0, Math.PI * 2); cx.fill();
+    cx.fillStyle = "#fffdf6";
+    cx.beginPath(); cx.arc(x, y, 3.2 * DPR, 0, Math.PI * 2); cx.fill();
+  }
 }
 
 /* Blitze auf der Nachtseite der ganzen Erde. Es sind dieselben Zellen
