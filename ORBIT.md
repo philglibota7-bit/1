@@ -267,7 +267,8 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
   - **Blitze.** In den Gewitterzellen der Szene, den dicksten Wolken der Karte, leuchtet es auf der Nachtseite kurz auf. Ein Blitz dauert ein bis drei Schläge, manchmal springt er auf die Nachbarzelle über. Über Land blitzt es öfter als über dem Meer. Bei Tag und bei angehaltener Zeit blitzt es nie. Auf der Nachtseite der echten Erde sind es rund vierzig Blitze je Sekunde, hier nur die hellen, im Mittel vier.
   - Die Bahn läuft als Ellipse um die Kugel, in echter Höhe: 420 über 6371 Kilometern. Hinter der Kugel ist sie verdeckt, vor der Station heller als hinter ihr.
   - Oben auf der Bahn steht die Station als heller Punkt. Maßstäblich wäre sie von hier aus nicht einmal ein Bildpunkt. Darüber steht, wer an Bord ist und was unter ihr liegt, etwa „Unter uns: Atlantischer Ozean“. Die Namen kommen aus einer Liste ohne Artikel; „über Atlantischer Ozean“ wäre falsch gebeugt, deshalb der Doppelpunkt.
-  - Ein Tipp auf die Kugel nennt Land oder Meer mit Sonnenzeit. Ein Tipp auf die Station, Esc oder Plus führen zurück. Esc schließt zuerst die Karte zum angetippten Ort.
+  - **Ziehen dreht die Kugel.** Was man greift, geht mit dem Finger: seitwärts um die Station herum, hoch und runter gekippt, von fast senkrecht über ihr bis flach von der Seite. Die Station bleibt dabei oben in der Mitte. Beim nächsten Hineinzoomen steht die Kamera wieder fünfzig Grad schräg.
+  - Ein Tipp auf die Kugel nennt Land oder Meer mit Sonnenzeit. Ein Tipp auf die Station, Esc, Plus, Doppelklick und die Leertaste führen zurück, ebenso der Sprung zu einem Astronauten. Esc schließt zuerst die Karte zum angetippten Ort.
   - Die Überblendung läuft nach der Uhr und nicht nach Bildern. Eine Blende mit festem Schritt je Bild stand ohne Grafikchip nach Sekunden noch auf halbem Weg, und die Station schimmerte durch die Erde.
   - Liegt die Kugel ganz über allem, wird die Station nicht gezeichnet. Was an Bord läuft, läuft weiter. Die Kugel selbst wird nur neu gerechnet, wenn sie sich um einen halben Bildpunkt gedreht hat, und alle zwei Sekunden für die Sonne.
   - Auf dem Handy bestimmt die Breite die Größe: Die Bahn reicht links und rechts ein Fünfzehntel über die Kugel hinaus und passt noch ins Bild.
@@ -431,6 +432,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Sonnenglanz: An klarem Wasser rund um die Stelle zwischen Sonne und Auge ist es im Mittel 92 Stufen heller als ohne Glanz. Weit davon entfernt sind es 0,6. Gegengeprüft: Ohne Glanz sind es auch in der Mitte −0,2, und der Farbvergleich weicht dann um 12 statt 2 Stufen ab.
   - Auf dem Schirm ist die Tagseite im Mittel 59 hell, die Nachtseite 4.
   - Ein Tipp nennt das Land samt Sonnenzeit, hier Namibia. Esc schließt zuerst die Karte, dann die Ansicht. E, Plus und ein Tipp auf die Station führen hinein und zurück.
+  - Ziehen um 150 Punkte zur Seite und 60 nach unten dreht die Kugel um genau 150 und 60 durch den Radius, im Bogenmaß. Die Station bleibt auf einen Punkt genau oben in der Mitte, in der Höhe, die zur neuen Neigung gehört. Die Kugel wird dafür neu gerechnet, und es öffnet sich nichts.
   - Die Beschriftung beugt nicht falsch. Auf dem Handy passt die Kugel zwischen Kopf und Leiste.
 - **Überflug**:
   - Über Norditalien steht in den Stationswerten „Italien · 44° N · 12° O“.

@@ -11720,13 +11720,17 @@ function erdeBei(px, py) {
    Ein Punkt Station wird die Station hier bewusst: in echtem Massstab
    waere sie von hier aus nicht einmal ein Bildpunkt. Die Bahn liegt
    dafuer in echter Hoehe ueber dem Boden, 420 von 6371 Kilometern. */
-const ERDANSICHT = { an: false, blend: 0, drang: 1, drangUm: 0, blick: null, geo: null };
+const ERDANSICHT = { an: false, blend: 0, drang: 1, drangUm: 0, blick: null, geo: null,
+                     neig: 50 * Math.PI / 180, az: 0 };
 const ERDANSICHT_NEIGUNG = 50 * Math.PI / 180;
 
 function erdansicht(an) {
   if (an && !ERDKARTE.bereit) return;
+  const vorher = ERDANSICHT.an;
   ERDANSICHT.an = !!an;
   ERDANSICHT.drang = 1;
+  /* Jedes Mal wieder aus der gewohnten Richtung */
+  if (ERDANSICHT.an && !vorher) { ERDANSICHT.neig = ERDANSICHT_NEIGUNG; ERDANSICHT.az = 0; }
   if (ERDANSICHT.an) {
     /* Was sonst ueber der Szene liegt, gehoert zur Station */
     if (RUNDGANG.laeuft) rundgangEnde();
@@ -11736,19 +11740,24 @@ function erdansicht(an) {
 }
 
 /* Die Blickrichtung fuer die ganze Erde, im selben erdfesten System wie
-   der Schattierer: rechts die Flugrichtung, oben die Station, zum
-   Betrachter der Punkt fuenfzig Grad seitlich unter ihr. */
+   der Schattierer: oben die Station, zum Betrachter ein Punkt, der um
+   die Neigung von ihr weg liegt — ohne Ziehen fuenfzig Grad zur Seite,
+   auf die die Szene blickt. Wer zieht, dreht diese Richtung um die
+   Senkrechte der Station (seitlich) und kippt sie (hoch und runter).
+   Die Station bleibt dabei oben in der Mitte. */
 function erdansichtBlick(phi, ms) {
   const b = erdBlick(phi, ms);
   const m = b.m;
   const V = [m[0], m[1], m[2]], O = [m[3], m[4], m[5]], Z = [m[6], m[7], m[8]];
-  const c = Math.cos(ERDANSICHT_NEIGUNG), s = Math.sin(ERDANSICHT_NEIGUNG);
-  /* Zum Betrachter: zwischen dem Punkt unter der Station und der Seite,
-     auf die die Szene blickt. Oben: das, was von der Station senkrecht
-     dazu uebrig bleibt. */
-  const ez = [c * O[0] + s * Z[0], c * O[1] + s * Z[1], c * O[2] + s * Z[2]];
-  const ey = [s * O[0] - c * Z[0], s * O[1] - c * Z[1], s * O[2] - c * Z[2]];
-  return { m: [V[0], V[1], V[2], ey[0], ey[1], ey[2], ez[0], ez[1], ez[2]], S: b.S };
+  const c = Math.cos(ERDANSICHT.neig), s = Math.sin(ERDANSICHT.neig);
+  const ca = Math.cos(ERDANSICHT.az), sa = Math.sin(ERDANSICHT.az);
+  /* Die Seite, zu der die Kamera kippt: senkrecht zur Station */
+  const D = [ca * Z[0] + sa * V[0], ca * Z[1] + sa * V[1], ca * Z[2] + sa * V[2]];
+  const ez = [c * O[0] + s * D[0], c * O[1] + s * D[1], c * O[2] + s * D[2]];
+  const ey = [s * O[0] - c * D[0], s * O[1] - c * D[1], s * O[2] - c * D[2]];
+  /* Rechts: oben mal zum Betrachter, also O x D */
+  const ex = [ca * V[0] - sa * Z[0], ca * V[1] - sa * Z[1], ca * V[2] - sa * Z[2]];
+  return { m: [ex[0], ex[1], ex[2], ey[0], ey[1], ey[2], ez[0], ez[1], ez[2]], S: b.S };
 }
 
 function erdansichtMasse() {
@@ -11816,11 +11825,12 @@ function zeichneErdansicht(t, dt) {
      die Sonne. Die Erde dreht sich hier gemaechlich, und ohne
      Grafikchip ist jedes gesparte Mal ein Bild mehr je Sekunde. */
   const alt = q.stand;
-  if (!alt || Math.abs(phi - alt.phi) * g.r * fein > 0.5 || uhr - alt.um > 2000) {
+  if (!alt || Math.abs(phi - alt.phi) * g.r * fein > 0.5 || uhr - alt.um > 2000
+      || alt.neig !== ERDANSICHT.neig || alt.az !== ERDANSICHT.az) {
     const kg = q.c.getContext("2d");
     kg.clearRect(0, 0, bw, bw);
     erdkarteMalen((lw) => kg.drawImage(lw, 0, 0), bw, bw, bw / 2, bw / 2, g.r * fein, blick, 3);
-    q.stand = { phi, um: uhr };
+    q.stand = { phi, um: uhr, neig: ERDANSICHT.neig, az: ERDANSICHT.az };
   }
 
   cx.save();
@@ -14037,6 +14047,8 @@ function kameraZurueck() {
 function fahreZu(id, zoom) {
   const v = SICHT.get(id);
   if (!v) return;
+  /* Wer zu einem Astronauten will, will ihn sehen — nicht die Kugel */
+  if (ERDANSICHT.an) erdansicht(false);
   KAM.zielZoom = klemm(zoom || 2.6, ZOOM_MIN, ZOOM_MAX);
   /* Und dann dranbleiben. Seit die Astronauten sich ueber die Station
      hangeln, waere ein einmaliges Hinfahren sinnlos — nach einer
@@ -18620,7 +18632,7 @@ const HILFE = [
       + "und wo sie gerade ist. Tippst du auf die Erde, steht da, welches Land oder Meer an der Stelle "
       + "liegt. Zoomst du weiter heraus, als es geht, oder drückst E, siehst du die ganze Erde: die Kugel "
       + "mit Tag, Dämmerung und den Lichtern der Nacht, darum die Bahn in echter Höhe und oben die "
-      + "Station. Ein Tipp auf die Station bringt dich zurück. Ohne WebGL oder ohne die Kartenbilder "
+      + "Station. Ziehen dreht die Kugel, ein Tipp auf die Station bringt dich zurück. Ohne WebGL oder ohne die Kartenbilder "
       + "zeichnet ORBIT eine gerechnete Erde.",
   },
   {
@@ -18941,7 +18953,7 @@ document.addEventListener("keydown", (e) => {
   }
   /* Leertaste stellt die Kamera zurueck — das braucht man am
      haeufigsten, wenn man sich beim Zoomen verlaufen hat. */
-  if (e.key === " ") { e.preventDefault(); kameraZurueck(); }
+  if (e.key === " ") { e.preventDefault(); if (ERDANSICHT.an) erdansicht(false); kameraZurueck(); }
   /* Plus und Minus zoomen, damit es auch ohne Mausrad geht */
   if (e.key === "+" || e.key === "=") { e.preventDefault(); zoomeAuf(W / 2, H / 2, 1.25); }
   if (e.key === "-" || e.key === "_") { e.preventDefault(); zoomeAuf(W / 2, H / 2, 1 / 1.25); }
@@ -19090,7 +19102,8 @@ cv.addEventListener("pointerdown", (ev) => {
   cv.setPointerCapture(ev.pointerId);
   ZEIGER.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
   if (ZEIGER.size === 1) {
-    zieh = { x0: ev.clientX, y0: ev.clientY, kx: KAM.zielX, ky: KAM.zielY, bewegt: false };
+    zieh = { x0: ev.clientX, y0: ev.clientY, kx: KAM.zielX, ky: KAM.zielY, bewegt: false,
+             neig: ERDANSICHT.neig, az: ERDANSICHT.az };
   } else if (ZEIGER.size === 2) {
     const [a, b] = [...ZEIGER.values()];
     kneifAbstand = Math.hypot(a.x - b.x, a.y - b.y);
@@ -19120,6 +19133,15 @@ cv.addEventListener("pointermove", (ev) => {
     cv.classList.add("zieht");
     /* Wer selbst schiebt, will nicht, dass die Kamera dagegenhaelt */
     KAM.folgt = null;
+  }
+  /* Ueber der ganzen Erde dreht Ziehen die Kugel: was man greift,
+     geht mit dem Finger — seitwaerts um die Station herum, hoch und
+     runter gekippt, von fast senkrecht darueber bis flach von der Seite */
+  if (zieh.bewegt && ERDANSICHT.an) {
+    const r = (ERDANSICHT.geo && ERDANSICHT.geo.r) || 200;
+    ERDANSICHT.az = zieh.az - dx / r;
+    ERDANSICHT.neig = klemm(zieh.neig - dy / r, 3 * Math.PI / 180, 88 * Math.PI / 180);
+    return;
   }
   if (zieh.bewegt) {
     if (RUNDGANG.laeuft) rundgangEnde();
@@ -19206,6 +19228,8 @@ cv.addEventListener("wheel", (ev) => {
 }, { passive: false });
 
 cv.addEventListener("dblclick", (ev) => {
+  /* Ueber der ganzen Erde: heran heisst zurueck zur Station */
+  if (ERDANSICHT.an) { erdansicht(false); return; }
   const treffer = astronautBei(ev.clientX, ev.clientY);
   if (treffer) fahreZu(treffer.id, 3.4);
   else kameraZurueck();
