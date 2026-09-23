@@ -17093,8 +17093,11 @@ function regenFilmTakt(jetzt) {
     while (F.laden < REGEN_GLEICHZEITIG && F.warte.length) { const [k, s] = F.warte.shift(); regenFilmHolen(F, k, s); }
     if (!F.bereit && !F.warte.length && !F.laden) {
       F.bereit = true;
-      /* Kam keine einzige der fehlenden Kacheln, gibt es keinen Film */
-      if (F.gesamt && F.fehler >= F.gesamt) { regenFilmEnde(); R_.filmFehlerBis = jetzt + 5000; regenFilmKnopf(true); return; }
+      /* Haben weniger als zwei Bilder auch nur eine Kachel, gibt es keinen
+         Film. Nur zu zaehlen, ob alle Anfragen scheiterten, reichte nicht:
+         Fehlten beim Start Kacheln des neuesten Bilds, holte der Film sie
+         mit, und dann liefen zwoelf leere Bilder. */
+      if (F.bilder.filter(b => b.kacheln.size).length < 2) { regenFilmEnde(); R_.filmFehlerBis = jetzt + 5000; regenFilmKnopf(true); return; }
     }
     if (F.bereit && jetzt >= F.naechste) {
       F.i = (F.i + 1) % F.bilder.length;
