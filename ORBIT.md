@@ -414,7 +414,20 @@ Ziehen und Zoomen mit Maus, Rad und Fingern; weiter heraus, als der Zoom reicht,
 - Aktionen: zum Nächsten, der wartet, Rundgang, ganze Erde, Kamera zurück, Vorführung,
 - die Blenden oben, mit ihrer Taste daneben,
 - die Schalter unter Stationswerte, mit ihrem Zustand,
+- Orte: 1822 Städte und 242 Länder, deutsch und englisch („Munich“ findet München), die größere zuerst, höchstens zwölf,
 - die 42 Hintergründe, aber erst, wenn man nach ihnen sucht.
+
+**Ortssuche und Flug.** Enter auf einen Ort fliegt die ganze Erde dorthin, wie bei Google Earth:
+- über den Großkreis, weich an- und auslaufend, 1,2 bis 3 Sekunden je nach Weite;
+- bei weiten Flügen ein Stück hinaus, höchstens so weit, dass Start und Ziel zugleich zu sehen wären (München nach Tokio: von 220-fach auf 1,6-fach und wieder hinein);
+- unterwegs dreht sich Norden nach oben.
+
+Am Ziel steht ein pulsierender Ring mit dem Namen, und die Karte zum Ort geht auf: Land, Koordinaten, Sonnenzeit. Wie nah es geht:
+- ohne Satellitenbilder bis 2,4-fach,
+- mit ihnen eine Stadt auf gut siebzig Kilometer Bildhöhe,
+- ein Land so, dass es drei Viertel der Höhe füllt (Italien 11,8-fach).
+
+Wer zoomt oder greift, hält den Flug an, ohne dass das Bild ans Ziel springt. Die Orte stammen aus Natural Earth (gemeinfrei): alle Städte ab 250.000 Einwohnern, alle Hauptstädte und alle Orte in Deutschland, Österreich und der Schweiz, zusammen 67 kB in der Datei.
 
 Gesucht wird ohne Groß- und Kleinschreibung und ohne Akzente: „bru“ findet die Brücke und hebt „Brü“ hervor. Jedes Wort muss vorkommen; Treffer im Titel stehen vor denen im Untertitel. Pfeile wählen und laufen oben und unten herum, Enter führt aus, Escape schließt nur die Palette, und der Fokus kehrt dorthin zurück, wo er war. Ein Tipp neben die Karte schließt ebenfalls. Buchstaben in der Suche lösen keine Tastenkürzel aus.
 
@@ -485,9 +498,16 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-96 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+97 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
+- **Ortssuche und Flug** (orte.mjs):
+  - Gefunden werden München auch als „Munich“, Italien als Land, Frankfurt am Main vor Frankfurt (Oder). Ein Buchstabe liefert keine Orte, „san“ höchstens zwölf.
+  - Der Flug wird bei angehaltener Szene in vierzig Schritten nachgerechnet. Er liegt auf dem Großkreis (Abweichung 10⁻¹⁶) und springt nie weiter als erlaubt. Bei München nach Tokio geht der Zoom genau bis 1,57-fach hinaus.
+  - Am Ziel: München genau in der Mitte, Norden oben, der Ring auf den Bildpunkt über München, auch 5 Grad verschoben. Die Karte ist offen, Esc schließt erst sie, dann die Erde.
+  - Zoom 2,4 ohne, 220 mit Satellitenbildern, Italien 11,8. Das Mausrad bei 30 % des Wegs hält den Flug an, ohne Sprung. Ohne Erde gibt es keine Orte.
+  - Dabei gefunden: Das Ende des Flugs verglich einen Bruch mit 1, und (t0 + d − t0) / d liegt in 42 % der Fälle knapp darunter. Jetzt wird die Uhr verglichen, mit einem Test genau dafür.
+  - Zehn kaputte Fassungen schlagen an.
 - **Lieferungen** (lieferung.mjs, Flugzeiten für den Test verkürzt):
   - Erste Sichtung: ein alter Merge und drei offene PRs, nichts wird geliefert.
   - Dann PR #12 gemergt, zwei Abläufe auf denselben Commit: genau eine Lieferung mit dem Titel des offenen PR, Anflug, Schild am Stutzen, Stationswerte.
@@ -707,6 +727,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 ## Offene Punkte
 
 - **Die Grenze des Abos kennt ORBIT nicht.** Anthropic veröffentlicht sie nicht, und wie die Teile (frisch, Zwischenspeicher, erzeugt) gegen sie zählen, ist ebenfalls nicht bekannt. Deshalb gibt es keinen Prozentwert, nur Zeit, Summe und Tempo. Dass ein Fenster zur vollen Stunde UTC beginnt, ist die Regel von ccusage, nicht eine von Anthropic.
+- **Die Ortsliste ist grob:** Städte ab 250.000 Einwohnern und Hauptstädte, nur im deutschsprachigen Raum auch kleinere. Adressen, Berge oder Sehenswürdigkeiten findet sie nicht. Einen Dienst im Netz zu fragen hätte mehr gefunden, aber ohne Netz nichts, und jede Suche wäre nach draußen gegangen.
 - **Der Rückblick sucht höchstens 48 Stunden zurück** und erkennt eine Pause nur, wenn in ihr fünf Stunden lang keine Zeile mit Nutzung steht. Nur im Mac-Programm; nicht auf einem Mac gemessen, wie schnell Neutralino die Megabytes liefert.
 
 - **VS Code meldet nicht selbst, welche Datei offen ist.** Dafür gibt es keine Schnittstelle. ORBIT leitet es aus Datei-Zeitstempeln ab, was in der Praxis fast immer zutrifft — aber reines Lesen oder ungespeichertes Tippen ist unsichtbar. Im Detailfenster steht ein Hinweis darauf.
