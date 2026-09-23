@@ -777,6 +777,11 @@ body.sicht #blende-detail{
 .d-pr .art{font-size:9.5px; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
   color:var(--tx3);}
 .d-pr .wann{margin-left:auto; flex:0 0 auto; font-size:10px; color:var(--tx3);}
+.d-pr .rv{flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:10px; line-height:1.5; padding:0 7px; border-radius:999px; border:1px solid rgba(255,255,255,.12); color:var(--tx2);}
+.d-pr .rv.frei{color:var(--good); border-color:rgba(116,180,141,.35); background:rgba(116,180,141,.1);}
+.d-pr .rv.aenderungen{color:var(--bad); border-color:rgba(224,122,106,.38); background:rgba(224,122,106,.1);}
+.d-pr .rv.angefragt{color:var(--tx3);}
 .d-pr .titel{margin-top:3px; font-size:12.5px; line-height:1.42; color:var(--tx);
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
 .d-pr .zweig{margin-top:3px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -3489,6 +3494,45 @@ async function prPruefung(repo, sha) {
   }
 }
 
+/* Wie steht die Durchsicht eines PRs? GitHub fuehrt je Pruefer eine Reihe
+   von Bewertungen; es zaehlt die letzte entscheidende — Freigabe oder
+   "Aenderungen gewuenscht". Ein Kommentar allein entscheidet nichts, eine
+   verworfene Bewertung nimmt die vorige zurueck. Wer angefragt ist und
+   noch nicht geantwortet hat, steht in der PR-Liste selbst
+   (requested_reviewers) und kostet keine Abfrage.
+
+   Eine Abfrage je PR, gemerkt, bis sich der PR aendert — eine neue
+   Bewertung aendert sein updated_at —, hoechstens zehn Minuten. */
+const PR_REVIEW = new Map();            // repo#nr -> { geaendert, zeit, freigaben, aenderungen }
+async function prReview(repo, p) {
+  const k = repo + "#" + p.number;
+  const alt = PR_REVIEW.get(k);
+  let r = alt && alt.geaendert === p.updated_at && Date.now() - alt.zeit < PR_FRIST ? alt : null;
+  if (!r) {
+    try {
+      const liste = await gh(`/repos/${repo}/pulls/${p.number}/reviews?per_page=100`);
+      const je = new Map();
+      for (const x of Array.isArray(liste) ? liste : []) {
+        const wer = x.user && x.user.login;
+        if (!wer) continue;
+        if (x.state === "APPROVED" || x.state === "CHANGES_REQUESTED") je.set(wer, x.state);
+        else if (x.state === "DISMISSED") je.delete(wer);
+      }
+      const z = [...je.values()];
+      r = { geaendert: p.updated_at, zeit: Date.now(),
+            freigaben: z.filter(x => x === "APPROVED").length,
+            aenderungen: z.filter(x => x === "CHANGES_REQUESTED").length };
+      PR_REVIEW.set(k, r);
+    } catch {
+      r = alt || null;                  // lieber der alte Stand als keiner
+    }
+  }
+  const angefragt = (p.requested_reviewers || []).length + (p.requested_teams || []).length;
+  if (!r) return angefragt ? { stand: "angefragt", freigaben: 0, aenderungen: 0, angefragt } : null;
+  const stand = r.aenderungen ? "aenderungen" : r.freigaben ? "frei" : angefragt ? "angefragt" : null;
+  return stand ? { stand, freigaben: r.freigaben, aenderungen: r.aenderungen, angefragt } : null;
+}
+
 /* Die Summe ueber alle Ablaeufe eines PRs, in derselben Rangfolge,
    die GitHub fuer den kombinierten Status benutzt: ein einziger
    roter macht den Stand rot, auch wenn andere noch laufen — das
@@ -3519,16 +3563,21 @@ async function sammleGithub() {
       gh(`/repos/${r.full_name}/actions/runs?per_page=5`).then(x => x.workflow_runs || []).catch(() => []),
       gh(`/repos/${r.full_name}/pulls?state=open&per_page=5`).catch(() => []),
     ]);
-    const pruefungen = await Promise.all(prs.map(p => prPruefung(r.full_name, p.head && p.head.sha)));
-    return { r, laeufe, prs, pruefungen };
+    const [pruefungen, reviews] = await Promise.all([
+      Promise.all(prs.map(p => prPruefung(r.full_name, p.head && p.head.sha))),
+      Promise.all(prs.map(p => prReview(r.full_name, p))),
+    ]);
+    return { r, laeufe, prs, pruefungen, reviews };
   }));
 
   /* Aufraeumen: gemerkt wird nur, was noch zu einem offenen PR gehoert */
   const offen = new Set(roh.flatMap(x => x.prs.map(p => p.head && p.head.sha)));
   for (const sha of PR_PRUEFUNG.keys()) if (!offen.has(sha)) PR_PRUEFUNG.delete(sha);
+  const offenNr = new Set(roh.flatMap(x => x.prs.map(p => x.r.full_name + "#" + p.number)));
+  for (const k of PR_REVIEW.keys()) if (!offenNr.has(k)) PR_REVIEW.delete(k);
 
   const raus = [];
-  for (const { r, laeufe, prs, pruefungen } of roh) {
+  for (const { r, laeufe, prs, pruefungen, reviews } of roh) {
     const liste = laeufe.map(laufLesen);
     const l0 = liste[0];
     /* Fuer den Zustand der Figur zaehlen nur die drei juengsten
@@ -3546,8 +3595,10 @@ async function sammleGithub() {
       geaendert: Date.parse(p.updated_at) || 0,
       pruefung: pruefungen[i] ? pruefungen[i].laeufe : [],
       stand: pruefungGesamt(pruefungen[i]),
+      review: reviews[i] || null,
     }));
     const prRot = prListe.filter(p => p.stand === "rot");
+    const prAend = prListe.find(p => p.review && p.review.stand === "aenderungen");
     const prWartet = prListe.find(p => p.stand === "wartet");
 
     raus.push({
@@ -3567,6 +3618,7 @@ async function sammleGithub() {
                 : rot ? l0.name + " fehlgeschlagen"
                 : prRot.length ? (prRot.length === 1 ? "PR #" + prRot[0].nr + ": Actions rot"
                                                       : prRot.length + " PRs mit roten Actions")
+                : prAend ? "PR #" + prAend.nr + ": Änderungen gewünscht"
                 : prs.length ? prs.length + (prs.length === 1 ? " offener Pull Request" : " offene Pull Requests")
                 : "ruhig",
       seit: r.pushed_at ? Date.parse(r.pushed_at) : 0,
@@ -3861,7 +3913,9 @@ function vorfuehrungTakt() {
     prs: [
       { nr: 12, titel: "Kasse: Rabattcodes einlösen, auch mehrere pro Bestellung", entwurf: false, url: "",
         zweig: "feature/rabatt", von: "du", geaendert: um(40),
-        pruefung: laeufe.slice(0, 2), stand: testsFertig ? "gruen" : "laeuft" },
+        pruefung: laeufe.slice(0, 2), stand: testsFertig ? "gruen" : "laeuft",
+        review: testsFertig ? { stand: "frei", freigaben: 1, aenderungen: 0, angefragt: 0 }
+                            : { stand: "angefragt", freigaben: 0, aenderungen: 0, angefragt: 1 } },
       { nr: 9, titel: "Versandkosten nach Gewicht", entwurf: true, url: "", zweig: "feature/versand",
         von: "du", geaendert: t0 - 3 * 86400000, pruefung: [], stand: null },
     ],
@@ -15877,7 +15931,22 @@ function prKarte(pr, mitAutor) {
   const wann = document.createElement("span"); wann.className = "wann";
   wann.textContent = pr.geaendert ? vorZeit(pr.geaendert) : "";
   wann.title = "zuletzt geändert";
-  kopf.append(nr, art, wann);
+  kopf.append(nr, art);
+  /* Die Durchsicht: freigegeben, Aenderungen gewuenscht, angefragt */
+  if (pr.review && pr.review.stand) {
+    const rv = document.createElement("span");
+    rv.className = "rv " + pr.review.stand;
+    const n = pr.review;
+    rv.textContent = n.stand === "aenderungen" ? "✎ Änderungen gewünscht"
+      : n.stand === "frei" ? "✓ " + (n.freigaben > 1 ? n.freigaben + " Freigaben" : "freigegeben")
+      : "◌ Durchsicht angefragt";
+    rv.title = n.stand === "aenderungen" ? n.aenderungen + (n.aenderungen === 1 ? " Prüfer wünscht" : " Prüfer wünschen") + " Änderungen"
+      : n.stand === "frei" ? n.freigaben + (n.freigaben === 1 ? " Freigabe" : " Freigaben")
+        + (n.angefragt ? ", " + n.angefragt + " weitere angefragt" : "")
+      : n.angefragt + (n.angefragt === 1 ? " Prüfer angefragt" : " Prüfer angefragt") + ", noch keine Antwort";
+    kopf.append(rv);
+  }
+  kopf.append(wann);
 
   const titel = document.createElement("div"); titel.className = "titel";
   titel.textContent = pr.titel; titel.title = pr.titel;
@@ -17007,7 +17076,8 @@ const HILFE = [
       + "Beispieldaten, wie es aussieht (unter Crew oder Brücke). Unter Crew stehen alle untereinander, "
       + "mit dem, was sie gerade tun; eine Zeile antippen fährt zu ihrer Figur. Im Detailfenster "
       + "steht über der Tätigkeit der Auftrag — das, was du zuletzt verlangt hast. Erst wo, dann "
-      + "wofür, dann was.",
+      + "wofür, dann was. Bei einem GitHub-Repo stehen dort die offenen Pull Requests mit dem Stand "
+      + "ihrer Actions und ihrer Durchsicht: freigegeben, Änderungen gewünscht oder angefragt.",
   },
   {
     titel: "Wer auf dich wartet",
