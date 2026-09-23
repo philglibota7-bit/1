@@ -17,8 +17,12 @@ rm -rf "$BUNDLE"
 mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
 
 cp "$BIN" "$BUNDLE/Contents/MacOS/${APP_NAME}"
-cp "$RES" "$BUNDLE/Contents/MacOS/resources.neu"
 chmod +x "$BUNDLE/Contents/MacOS/${APP_NAME}"
+# Neutralino sucht resources.neu neben dem Programm. In Contents/MacOS darf fuer eine
+# gueltige Signatur aber nur Programmcode liegen — die Daten liegen deshalb unter
+# Resources, neben dem Programm steht nur ein Verweis darauf.
+cp "$RES" "$BUNDLE/Contents/Resources/resources.neu"
+ln -s ../Resources/resources.neu "$BUNDLE/Contents/MacOS/resources.neu"
 [ -f build/icon.icns ] && cp build/icon.icns "$BUNDLE/Contents/Resources/icon.icns"
 
 cat > "$BUNDLE/Contents/Info.plist" <<PLIST
@@ -44,6 +48,21 @@ PLIST
 
 # Download-Markierung entfernen, falls vorhanden
 xattr -cr "$BUNDLE" 2>/dev/null || true
+
+# Ad-hoc signieren: ohne Apple-Konto, aber das ganze Paket versiegelt (Programm,
+# Info.plist, Daten). Ohne diese Siegel meldet macOS auf Apple Silicon gern
+# „beschädigt" statt nur „nicht überprüft". Auf dem Mac mit codesign, sonst mit
+# rcodesign (cargo install apple-codesign), falls vorhanden.
+RCODESIGN="${RCODESIGN:-$(command -v rcodesign || true)}"
+if command -v codesign >/dev/null 2>&1; then
+  codesign --force --deep --sign - --identifier app.orbit.leitstand "$BUNDLE"
+  echo "Signiert (ad-hoc, codesign)"
+elif [ -n "$RCODESIGN" ]; then
+  "$RCODESIGN" sign "$BUNDLE" >/dev/null 2>&1
+  echo "Signiert (ad-hoc, rcodesign)"
+else
+  echo "Nicht signiert: weder codesign noch rcodesign gefunden"
+fi
 
 ( cd dist && rm -f "${APP_NAME}-mac.zip" && zip -qry "${APP_NAME}-mac.zip" "${APP_NAME}.app" )
 echo "Fertig: $BUNDLE"

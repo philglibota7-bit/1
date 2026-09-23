@@ -30,19 +30,32 @@ VS Code, laufende Befehle — braucht dieses Programm.
 
 1. **[download/ORBIT-mac.zip](../../download/ORBIT-mac.zip)** herunterladen und entpacken
 2. `ORBIT.app` in den Ordner **Programme** ziehen
-3. Beim **allerersten Start**: Rechtsklick auf `ORBIT.app` → **Öffnen** → im Dialog
-   nochmal **Öffnen** klicken
+3. Beim **allerersten Start**:
+   - `ORBIT.app` doppelklicken. macOS meldet „ORBIT“ wurde nicht geöffnet.
+     Auf **Fertig** klicken, **nicht** auf „In den Papierkorb legen“.
+   - **Systemeinstellungen → Datenschutz & Sicherheit** öffnen und ganz nach unten
+     scrollen. Dort steht „ORBIT“ wurde blockiert … mit dem Knopf **Dennoch öffnen**.
+     Klicken, mit Passwort oder Touch ID bestätigen, im nächsten Dialog nochmal
+     **Dennoch öffnen**.
 
-Schritt 3 ist einmalig nötig, weil die App nicht bei Apple registriert ist
-(das kostet 99 $ im Jahr). Danach startet sie per Doppelklick.
+Danach startet ORBIT ganz normal per Doppelklick. Der Knopf in den Einstellungen
+erscheint nur etwa eine Stunde lang nach dem ersten Versuch — sonst einfach nochmal
+doppelklicken.
 
-Falls macOS trotzdem blockt:
+Nötig ist das, weil die App nicht bei Apple registriert ist (das kostet 99 $ im Jahr).
+Den früheren Weg „Rechtsklick → Öffnen“ gibt es seit macOS 15 nicht mehr.
+
+**Schneller, mit einem Befehl im Terminal** (Programme → Dienstprogramme → Terminal):
 
 ```bash
 xattr -cr /Applications/ORBIT.app
 ```
 
-Das entfernt nur die Download-Markierung, sonst nichts.
+Das entfernt nur die Download-Markierung, sonst nichts. Danach startet ORBIT per
+Doppelklick ohne jede Meldung. Das hilft auch, wenn macOS „beschädigt“ sagt.
+
+Das Paket ist ad-hoc signiert: ohne Apple-Konto, aber Programm, `Info.plist` und
+Daten sind versiegelt. Eine veränderte Datei fällt damit auf.
 
 ## Was du siehst
 
