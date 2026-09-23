@@ -280,7 +280,7 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
 - **Die echte ISS, auf Wunsch.** Die Station hier fliegt eine Bahn wie die ISS, aber nicht die echte an ihrer echten Stelle. Wer sehen will, wo die gerade ist, schaltet es unter Stationswerte ein.
   - Dann fragt ORBIT alle zwanzig Sekunden bei wheretheiss.at nach, einem öffentlichen Dienst ohne Schlüssel, der Browsern die Antwort erlaubt. Mitgeschickt wird nichts als die Anfrage selbst.
   - Ausgeschaltet geht keine einzige Anfrage hinaus. Gefragt wird nur, solange die Stationswerte oder die ganze Erde offen sind.
-  - In den Stationswerten steht, worüber sie fliegt, mit Breite, Länge und ob dort Tag ist. In der ganzen Erde erscheint sie als zweiter, türkiser Punkt in ihrer echten Höhe.
+  - In den Stationswerten steht, worüber sie fliegt, mit Breite, Länge und ob dort Tag ist. In der ganzen Erde erscheint sie als zweiter, türkiser Punkt in ihrer echten Höhe, dazu ihre Bahn gestrichelt: der Großkreis durch die letzten beiden Antworten. Daneben sieht man, wie weit unsere Bahn von der echten abliegt.
   - Zwischen zwei Antworten läuft sie auf dem Großkreis durch die letzten beiden Punkte weiter. Als Zeit gilt die eigene Uhr beim Empfang, nicht der Zeitstempel des Dienstes: Geht die Uhr des Rechners ein paar Minuten falsch, wäre die Antwort sonst sofort zu alt. Nach zwei Minuten ohne Antwort steht „nicht erreichbar“ da.
 - **Rückfall.** Fehlt eines der Bilder, kann der Browser kein WebGL oder geht der Grafikkontext verloren, zeichnet ORBIT die gerechnete Erde wie bisher. Solange die Karten laden, wartet die Seite bis zu zwei Sekunden mit der Erde. So zeigt sie nicht erst die gerechnete und springt dann um.
 - **Kosten.**

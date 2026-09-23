@@ -11997,6 +11997,32 @@ function zeichneErdansicht(t, dt) {
      echten Hoehe, anders gefaerbt, damit man die beiden nicht verwechselt */
   ERDANSICHT.echteIss = null;
   const echt = Z.echteIss ? echteIssJetzt(Date.now()) : null;
+  /* Ihre Bahn: der Grosskreis durch die letzten beiden Antworten, in ihrer
+     Hoehe, gestrichelt und blass — daneben sieht man, wie weit unsere
+     Bahn von der echten abliegt */
+  const fx = ECHTEISS.fixes;
+  if (echt && fx.length > 1) {
+    const a = fx[0].p, c = echt.p;
+    let nrm = [a[1] * c[2] - a[2] * c[1], a[2] * c[0] - a[0] * c[2], a[0] * c[1] - a[1] * c[0]];
+    const ln = Math.hypot(...nrm);
+    if (ln > 1e-6) {
+      nrm = nrm.map(x => x / ln);
+      const vv = [nrm[1] * c[2] - nrm[2] * c[1], nrm[2] * c[0] - nrm[0] * c[2], nrm[0] * c[1] - nrm[1] * c[0]];
+      const k = 1 + echt.hoehe / 6371;
+      cx.save();
+      cx.setLineDash([4 * DPR, 5 * DPR]);
+      cx.strokeStyle = "rgba(120,230,255,.4)"; cx.lineWidth = 1.1 * DPR;
+      for (let i = 0; i < 120; i++) {
+        const w0 = i / 120 * 2 * Math.PI, w1 = (i + 1) / 120 * 2 * Math.PI;
+        const q0 = aufSchirm([0, 1, 2].map(j => k * (Math.cos(w0) * c[j] + Math.sin(w0) * vv[j])));
+        const q1 = aufSchirm([0, 1, 2].map(j => k * (Math.cos(w1) * c[j] + Math.sin(w1) * vv[j])));
+        if (q0.verdeckt || q1.verdeckt) continue;
+        cx.beginPath(); cx.moveTo(q0.x, q0.y); cx.lineTo(q1.x, q1.y); cx.stroke();
+      }
+      cx.restore();
+      ERDANSICHT.echteBahn = true;
+    }
+  }
   if (echt) {
     const k = 1 + echt.hoehe / 6371;
     const e = aufSchirm(echt.p.map(x => x * k));
