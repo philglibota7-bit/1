@@ -11956,8 +11956,11 @@ function zeichneErdansicht(t, dt) {
      Station gleich hinkommt, heller als dort, wo sie war. */
   const hoch = 6791 / 6371;
   const bm = blick.m;
-  const V = [bm[0], bm[1], bm[2]];
+  /* Flugrichtung und Station aus der Bahn selbst, nicht aus der Kamera:
+     nach dem seitlichen Drehen zeigt deren Rechts nicht mehr in
+     Flugrichtung, und die Bahn lag dann stur waagerecht */
   const b0 = erdBlick(phi, Date.now()).m;
+  const V = [b0[0], b0[1], b0[2]];
   const O = [b0[3], b0[4], b0[5]];
   const aufSchirm = (p) => {
     const x = p[0] * bm[0] + p[1] * bm[1] + p[2] * bm[2];
@@ -11982,6 +11985,10 @@ function zeichneErdansicht(t, dt) {
   /* Die Station: ein heller Punkt mit Schein, und darueber, wer an Bord ist */
   const st = aufSchirm([hoch * O[0], hoch * O[1], hoch * O[2]]);
   ERDANSICHT.station = { x: st.x / DPR, y: st.y / DPR };
+  /* Fuer die Pruefung: wo die Bahn zehn Grad voraus auf dem Schirm liegt */
+  const w10 = 10 * Math.PI / 180;
+  const vor = aufSchirm([0, 1, 2].map(k => hoch * (Math.cos(w10) * O[k] + Math.sin(w10) * V[k])));
+  ERDANSICHT.bahnVoraus = { x: vor.x / DPR, y: vor.y / DPR };
   const puls = 0.75 + 0.25 * Math.sin(t * 0.004);
   const glanz = cx.createRadialGradient(st.x, st.y, 0, st.x, st.y, 14 * DPR);
   glanz.addColorStop(0, `rgba(255,240,205,${0.85 * puls})`);
