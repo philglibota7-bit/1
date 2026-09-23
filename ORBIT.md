@@ -260,6 +260,14 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
   - Mit der echten Erde endet der Rundgang mit dem Blick nach unten. Die ganze Station rückt ein Stück nach oben, und auf der Tafel steht, was gerade unter uns liegt.
   - Im Bordbuch steht bei Sonnenaufgang und Erdschatten der Ort: „Sonnenaufgang · Indischer Ozean“.
   - In der Hilfe standen „acht Halte“, es waren aber neun. Jetzt wird gezählt.
+- **Die ganze Erde.** Wer weiter herauszoomt, als der Zoom reicht, oder E drückt, fährt zurück, bis die ganze Kugel im Bild ist. Es sind dieselbe Karte, dieselbe Sonne und dieselbe Bahn, nur von weiter weg und schräg von oben: Die Kamera steht fünfzig Grad vom Punkt unter der Station entfernt.
+  - Tag und Nacht rechnet hier jeder Bildpunkt selbst aus der echten Sonne. In der Dämmerung liegt ein schmaler roter Saum, vor allem auf den Wolken, denn der Boden darunter ist dort schon dunkel. Auf der Nachtseite leuchten nur die Städte.
+  - Die Bahn läuft als Ellipse um die Kugel, in echter Höhe: 420 über 6371 Kilometern. Hinter der Kugel ist sie verdeckt, vor der Station heller als hinter ihr.
+  - Oben auf der Bahn steht die Station als heller Punkt. Maßstäblich wäre sie von hier aus nicht einmal ein Bildpunkt. Darüber steht, wer an Bord ist und was unter ihr liegt, etwa „Unter uns: Atlantischer Ozean“. Die Namen kommen aus einer Liste ohne Artikel; „über Atlantischer Ozean“ wäre falsch gebeugt, deshalb der Doppelpunkt.
+  - Ein Tipp auf die Kugel nennt Land oder Meer mit Sonnenzeit. Ein Tipp auf die Station, Esc oder Plus führen zurück. Esc schließt zuerst die Karte zum angetippten Ort.
+  - Die Überblendung läuft nach der Uhr und nicht nach Bildern. Eine Blende mit festem Schritt je Bild stand ohne Grafikchip nach Sekunden noch auf halbem Weg, und die Station schimmerte durch die Erde.
+  - Liegt die Kugel ganz über allem, wird die Station nicht gezeichnet. Was an Bord läuft, läuft weiter. Die Kugel selbst wird nur neu gerechnet, wenn sie sich um einen halben Bildpunkt gedreht hat, und alle zwei Sekunden für die Sonne.
+  - Auf dem Handy bestimmt die Breite die Größe: Die Bahn reicht links und rechts ein Fünfzehntel über die Kugel hinaus und passt noch ins Bild.
 - **Rückfall.** Fehlt eines der Bilder, kann der Browser kein WebGL oder geht der Grafikkontext verloren, zeichnet ORBIT die gerechnete Erde wie bisher. Solange die Karten laden, wartet die Seite bis zu zwei Sekunden mit der Erde. So zeigt sie nicht erst die gerechnete und springt dann um.
 - **Kosten.**
   - Neu gemalt wird nur, wenn sich die Scheibe weit genug gedreht hat. Das regelt dieselbe Schwelle wie vorher beim Durchziehen.
@@ -301,7 +309,7 @@ Das **Bordbuch** — Frachter, Erdschatten, Einschläge, Ausweichschübe, Aus- u
 
 ## Bedienung
 
-Ziehen und Zoomen mit Maus, Rad und Fingern. Auf der Tastatur: L Log, C Crew, H Hintergrund, B Brücke, T Stationswerte, K Kinomodus, R Rundgang. **Pfeiltasten schieben** (ein Achtel der Bildbreite, mit Umschalt ein Viertel), Plus und Minus zoomen, **N und P springen von Astronaut zu Astronaut**, **W zum Nächsten, der auf dich wartet**, Leertaste stellt die Kamera zurück, Escape schließt. Tab springt ebenfalls durch die Crew, aber nur solange nichts anderes den Fokus hat — Tab ist die Taste, mit der man überhaupt erst zu den Knöpfen kommt.
+Ziehen und Zoomen mit Maus, Rad und Fingern; weiter heraus, als der Zoom reicht, kommt die ganze Erde. Auf der Tastatur: L Log, C Crew, H Hintergrund, B Brücke, T Stationswerte, K Kinomodus, R Rundgang, E ganze Erde. **Pfeiltasten schieben** (ein Achtel der Bildbreite, mit Umschalt ein Viertel), Plus und Minus zoomen, **N und P springen von Astronaut zu Astronaut**, **W zum Nächsten, der auf dich wartet**, Leertaste stellt die Kamera zurück, Escape schließt. Tab springt ebenfalls durch die Crew, aber nur solange nichts anderes den Fokus hat — Tab ist die Taste, mit der man überhaupt erst zu den Knöpfen kommt.
 
 Behoben:
 - **R in einem Textfeld.** Der Rundgang wurde vor der Prüfung auf Textfelder abgefragt. Jedes r beim Tippen eines Ordnerpfads fing ihn deshalb an oder beendete ihn und schloss dabei die Brücke, in die man gerade schrieb. Auch Strg/⌘+R war ein Rundgang.
@@ -358,7 +366,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-76 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+77 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
 - **Echte Arbeitsumgebung**:
@@ -410,6 +418,14 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - An acht Ständen um Auf- und Untergang liegen je rund vierzig Stellen links und rechts vom Tagesrand. An jeder steht die Sonne auf der Karte über oder unter dem Horizont, genau wie die Szene es zeigt.
   - Mondlicht auf den Wolken ist mit beiden Erden geprüft.
   - Magnetische Breite: Churchill in Kanada liegt bei 67,2 Grad, Berlin bei 52,1, und südlich von Australien kommt die Station auf −60.
+- **Die ganze Erde**:
+  - Am Mausrad über den kleinsten Zoom hinaus kommt die Kugel, die Überblendung läuft durch, und die Zoomanzeige sagt „Erde“.
+  - Die Station steht auf weniger als einen Bildpunkt genau dort, wo die Bahn in 420 Kilometern Höhe sie hinstellt.
+  - An 120 klaren Stellen der Tagseite weicht die gemalte Farbe im Mittel um 1,9 Stufen von der Karte am selben Ort ab, samt Sonnenlicht und Luftsaum. Gegengeprüft: Um zehn Grad verdreht sind es 44,5.
+  - An 80 dunklen Stellen der Nachtseite ohne Städte ist keine heller als 10 von 255.
+  - Auf dem Schirm ist die Tagseite im Mittel 59 hell, die Nachtseite 4.
+  - Ein Tipp nennt das Land samt Sonnenzeit, hier Namibia. Esc schließt zuerst die Karte, dann die Ansicht. E, Plus und ein Tipp auf die Station führen hinein und zurück.
+  - Die Beschriftung beugt nicht falsch. Auf dem Handy passt die Kugel zwischen Kopf und Leiste.
 - **Überflug**:
   - Über Norditalien steht in den Stationswerten „Italien · 44° N · 12° O“.
   - Acht bekannte Orte werden richtig benannt: Berlin, Kairo, Mittelmeer, Atlantik, Lesotho, Nordsee, Tokio und Sydney.
