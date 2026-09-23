@@ -4608,9 +4608,50 @@ function meteorStarten() {
   return null;
 }
 
+/* Die grossen Meteorstroeme des Jahres, mit dem Tag ihres Hoehepunkts
+   (Monat, Tag) und ihrer Rate: wie viele Meteore ein Beobachter unter
+   idealem Himmel in einer Stunde saehe. Ohne Strom sind es rund zehn,
+   die sporadischen. In den Tagen um einen Hoehepunkt kommen
+   entsprechend mehr — um die Geminiden gut fuenfzehnmal so viele. */
+const METEORSTROEME = [
+  { name: "Quadrantiden", monat: 1, tag: 3.9, rate: 110, breite: 0.6 },
+  { name: "Lyriden", monat: 4, tag: 22.5, rate: 18, breite: 1.2 },
+  { name: "Eta-Aquariiden", monat: 5, tag: 6, rate: 50, breite: 2.5 },
+  { name: "Perseiden", monat: 8, tag: 12.8, rate: 100, breite: 1.8 },
+  { name: "Orioniden", monat: 10, tag: 21.5, rate: 20, breite: 2 },
+  { name: "Leoniden", monat: 11, tag: 17.5, rate: 15, breite: 1.2 },
+  { name: "Geminiden", monat: 12, tag: 14.2, rate: 150, breite: 1.4 },
+];
+function meteorStrom(ms) {
+  const d = new Date(ms);
+  let faktor = 1, staerkster = null, best = 0;
+  for (const st of METEORSTROEME) {
+    /* Abstand zum Hoehepunkt in Tagen, ueber den Jahreswechsel hinweg */
+    let ab = Infinity;
+    for (const jahr of [d.getUTCFullYear() - 1, d.getUTCFullYear(), d.getUTCFullYear() + 1]) {
+      const spitze = Date.UTC(jahr, st.monat - 1, 1) + (st.tag - 1) * 86400000;
+      ab = Math.min(ab, Math.abs(ms - spitze) / 86400000);
+    }
+    const anteil = (st.rate / 10) * Math.exp(-Math.pow(ab / st.breite, 2));
+    faktor += anteil;
+    if (anteil > best) { best = anteil; staerkster = st.name; }
+  }
+  return { faktor, name: best > 0.5 ? staerkster : null };
+}
+
 function zeichneSternschnuppe(t, dt) {
   if (sparsam) return;
-  if (!sternschnuppe && ZEIT.rate > 0 && Math.random() < dt * 0.00004) sternschnuppe = meteorStarten();
+  /* Einmal je Minute nachsehen, ob gerade ein Strom laeuft */
+  if (!zeichneSternschnuppe.strom || t - zeichneSternschnuppe.strom.um > 60000) {
+    zeichneSternschnuppe.strom = { um: t, ...meteorStrom(Date.now()) };
+    const n = zeichneSternschnuppe.strom.name;
+    if (n && n !== zeichneSternschnuppe.gemeldet) {
+      zeichneSternschnuppe.gemeldet = n;
+      bordbuch(n + ": heute Nacht mehr Sternschnuppen unter uns");
+    }
+  }
+  const rate = 0.00004 * zeichneSternschnuppe.strom.faktor;
+  if (!sternschnuppe && ZEIT.rate > 0 && Math.random() < dt * rate) sternschnuppe = meteorStarten();
   if (!sternschnuppe) return;
   const s = sternschnuppe;
   s.x += s.vx * dt; s.y += s.vy * dt; s.leben -= dt / s.dauer;

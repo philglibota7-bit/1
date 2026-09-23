@@ -289,6 +289,7 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
 - **Rote Kobolde.** Selten steht über einem starken Schlag zum Boden am Horizont für einen Augenblick ein roter Kobold (Sprite) — eine Entladung nach oben bis fast in neunzig Kilometer Höhe, in echter Größe, mit roter Krone und violetten Ranken. Einmal in zehn Minuten ein Eintrag im Bordbuch.
 - **Wolken im Mondlicht.** Die Nachtseite war bis auf die Städte schwarz — so sieht sie nur bei Neumond aus. Steht der Mond, liegen die Wolken grau-blau im Licht, und bei Vollmond erkennt man jede Front. Die Helligkeit folgt der Mondphase der Szene mit einer hohen Potenz: Der Halbmond ist nur rund ein Zehntel so hell wie der Vollmond. Die Städte liegen weiterhin obenauf. Die Phase beginnt beim Start mit der echten von heute und läuft dann mit der gerafften Zeit weiter. Vorher stand sie fest auf 118 Grad.
 - **Sternschnuppen unter der Station.** Ein Meteor verglüht in achtzig bis hundert Kilometern Höhe, weit unter der Station. Er zog bisher durch das obere Bilddrittel, mitten durch die Sterne, und auch bei Tag — obwohl der Kommentar im Code das Richtige sagte. Jetzt nur nachts, über der dunklen Erde oder in der Leuchtschicht am Horizont, grün vom Sauerstoff wie auf dem bekannten Bild einer Perseide von der Station.
+- **Die Meteorströme des Jahres.** In den Tagen um die großen Ströme gibt es mehr Sternschnuppen. Das sind die Quadrantiden, Lyriden, Eta-Aquariiden, Perseiden, Orioniden, Leoniden und Geminiden. Gerechnet wird mit ihrer Rate und einer Glocke um den Tag des Höhepunkts. Um die Geminiden sind es sechzehnmal so viele wie ohne Strom, um die Perseiden elfmal. Läuft einer, steht es im Bordbuch.
 - **Das Nachthimmelsleuchten ohne Nähte.** Das grüne Band über der Kante wird in 26 Streifen gezeichnet, die sich um einen Bildpunkt überlappten; weil das Leuchten addiert wird, stand an jeder Naht ein doppelt heller Strich — eine Linealskala entlang des Horizonts. Gemessen lagen die Nähte 36 (Desktop) und 53 (Handy) Helligkeitsstufen über ihrer Umgebung, jetzt 0,7.
 - **Der Boden zieht flüssig vorbei.** Die Erdscheibe wurde erst neu zusammengesetzt, wenn der Boden 22 Bildpunkte weiter war; gemessen sprang er damit um 45 Bildpunkte gut einmal je Sekunde. Jetzt hängt die Schwelle an dem, was das Zusammensetzen auf dem Gerät wirklich kostet — gemessen als Unterschied der Bilddauer mit und ohne, denn die Aufrufzeit sagt nichts, der Browser zeichnet später. Höchstens ein Zwölftel der Zeit darf es fressen.
 
@@ -375,7 +376,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-77 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+78 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
 - **Echte Arbeitsumgebung**:
@@ -457,6 +458,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Gewitter: 19 Blitze in 12 s am Abend, keiner bei Tag, gegengeprüft.
   - Kobolde.
   - Sternschnuppen: je 200, keine im Sternhimmel.
+  - Meteorströme: Am 12. August um 20 Uhr UTC laufen die Perseiden mit elffacher Rate und stehen im Bordbuch, am 14. Dezember die Geminiden mit sechzehnfacher. Am 23. September läuft keiner.
   - Nähte im Nachthimmelsleuchten: 36 → 0,7.
   - Mondlicht: Neumond 11, Halbmond 16, Vollmond 35; die Tagseite bleibt gleich.
 - **Nahansicht**:
