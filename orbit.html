@@ -4211,6 +4211,9 @@ function laufLesen(l) {
     name: l.name,
     titel: l.display_title || "",
     zweig: l.head_branch || "",
+    /* Mehrere Ablaeufe laufen auf denselben Push; der Commit macht sie
+       zu einer Lieferung */
+    sha: l.head_sha || "",
     anlass: l.event || "",
     stand: laufStand(l),
     versuch: l.run_attempt || 1,
@@ -4496,6 +4499,7 @@ function liveNeuBauen() {
   if (BR.live.map(x => x.id).join("|") !== vorher) aufraeumenSicht();
   if (offeneDetailId) zeichneDetail(offeneDetailId);
   meldungenPruefen();
+  lieferungenPruefen();
 }
 
 /* ================================================================
@@ -4523,6 +4527,7 @@ function vorfuehrungStarten() {
   if (VORF.an) return;
   VORF.an = true;
   VORF.t0 = Date.now();
+  lieferungenVergessen();
   bordbuch("Vorführung beginnt — alles Folgende sind Beispieldaten");
   vorfuehrungTakt();
   VORF.uhr = setInterval(vorfuehrungTakt, 1000);
@@ -4537,6 +4542,7 @@ function vorfuehrungBeenden() {
   HEUTE = [];
   WOCHE = null; WOCHE_WAHL = null;
   ENERGIE.lage = null; ENERGIE.um = 0;
+  lieferungenVergessen();
   bordbuch("Vorführung beendet");
   liveNeuBauen();
   vorfuehrungKnopf();
@@ -4742,32 +4748,38 @@ function vorfuehrungTakt() {
       seitStart: um(80), schritte: st, takt: st.map(x => x.zeit), abgedecktAb: 0 }));
   }
 
-  /* --- GitHub: ein PR, dessen Tests laufen und dann gruen werden --- */
-  const testsFertig = s >= 66;
+  /* --- GitHub: ein PR, dessen Tests laufen und dann gruen werden ---
+     Nach hundert Sekunden wird er gemergt: der Deploy auf main laeuft
+     an, und der Frachter bringt ihn. Der Commit traegt den Beginn des
+     Durchgangs, damit jeder Durchgang eine neue Lieferung ist. */
+  const testsFertig = s >= 66, gemergt = s >= 100;
   const laeufe = [
+    ...(gemergt ? [{ name: "Deploy", titel: "Merge pull request #12 from du/feature/rabatt", zweig: "main", anlass: "push",
+      stand: s >= 128 ? "gruen" : "laeuft", versuch: 1, zeit: um(100), ende: s >= 128 ? um(128) : 0, url: "", sha: "vorf-" + t0 + "-12" }] : []),
     { name: "Tests", titel: "Kasse: Rabattcodes einlösen", zweig: "feature/rabatt", anlass: "pull_request",
       stand: testsFertig ? "gruen" : "laeuft", versuch: 1, zeit: um(40), ende: testsFertig ? um(66) : 0, url: "" },
     { name: "Lint", titel: "Kasse: Rabattcodes einlösen", zweig: "feature/rabatt", anlass: "pull_request",
       stand: "gruen", versuch: 1, zeit: um(40), ende: um(52), url: "" },
     { name: "Deploy", titel: "Merge pull request #8", zweig: "main", anlass: "push",
-      stand: "gruen", versuch: 1, zeit: t0 - 26 * 3600000, ende: t0 - 26 * 3600000 + 74000, url: "" },
+      stand: "gruen", versuch: 1, zeit: t0 - 26 * 3600000, ende: t0 - 26 * 3600000 + 74000, url: "", sha: "vorf-8" },
   ];
   const G = {
     vorfuehrung: true, id: "g:vorf/webshop", typ: "github", name: "webshop", farbe: "#e0765a",
-    zustand: testsFertig ? "ruht" : "sendet", ort: "du/webshop", branch: "main",
-    taetigkeit: testsFertig ? "2 offene Pull Requests" : "„Tests“ läuft",
-    seit: t0 - 40 * 60000, url: "",
+    zustand: gemergt ? (s < 128 ? "sendet" : "ruht") : testsFertig ? "ruht" : "sendet", ort: "du/webshop", branch: "main",
+    taetigkeit: gemergt ? (s < 128 ? "„Deploy“ läuft" : "1 offener Pull Request")
+              : testsFertig ? "2 offene Pull Requests" : "„Tests“ läuft",
+    seit: gemergt ? um(100) : t0 - 40 * 60000, url: "",
     prs: [
-      { nr: 12, titel: "Kasse: Rabattcodes einlösen, auch mehrere pro Bestellung", entwurf: false, url: "",
+      ...(gemergt ? [] : [{ nr: 12, titel: "Kasse: Rabattcodes einlösen, auch mehrere pro Bestellung", entwurf: false, url: "",
         zweig: "feature/rabatt", von: "du", geaendert: um(40),
         /* Dazu die Vorschau von Vercel — eine Pruefung, die keine Action ist */
-        pruefung: laeufe.slice(0, 2).concat([{ name: "Vercel – webshop", titel: testsFertig
+        pruefung: laeufe.filter(l => l.zweig === "feature/rabatt").concat([{ name: "Vercel – webshop", titel: testsFertig
             ? "Vorschau bereit" : "Vorschau wird gebaut", zweig: "", anlass: "Vercel",
           stand: testsFertig ? "gruen" : "laeuft", versuch: 1, zeit: um(41),
           ende: testsFertig ? um(58) : 0, url: "", fremd: true }]),
         stand: testsFertig ? "gruen" : "laeuft",
         review: testsFertig ? { stand: "frei", freigaben: 1, aenderungen: 0, angefragt: 0 }
-                            : { stand: "angefragt", freigaben: 0, aenderungen: 0, angefragt: 1 } },
+                            : { stand: "angefragt", freigaben: 0, aenderungen: 0, angefragt: 1 } }]),
       { nr: 9, titel: "Versandkosten nach Gewicht", entwurf: true, url: "", zweig: "feature/versand",
         von: "du", geaendert: t0 - 3 * 86400000, pruefung: [], stand: null },
     ],
@@ -6420,10 +6432,45 @@ const FRACHT = {
   bis: 0,               // wann der naechste Abschnitt beginnt
   von: 0,               // wann der laufende Abschnitt begann
   seite: 1,
+  /* Ist GitHub angeschlossen, fliegt er nicht mehr nach Plan, sondern
+     bringt, was wirklich geliefert wurde (siehe Lieferungen) */
+  echt: false,
+  ladung: [],           // Lieferungen, die auf den naechsten Flug warten
+  fracht: [],           // was er gerade an Bord hat
+  dauer: { anflug: 52000, gedockt: 180000, abflug: 44000 },
 };
 
 function frachtTakt(t, hafen) {
   if (!hafen) return;
+  if (FRACHT.echt) {
+    const d = FRACHT.dauer;
+    if (FRACHT.lage === "wartet") {
+      if (!FRACHT.ladung.length) return;          // nichts zu bringen, kein Flug
+      FRACHT.fracht = FRACHT.ladung.splice(0);
+      FRACHT.lage = "anflug"; FRACHT.von = t; FRACHT.bis = t + d.anflug;
+      FRACHT.seite = Math.sin(t * 0.001) > 0 ? 1 : -1;
+      bordbuch("Frachter im Anflug · bringt " + ladungText(FRACHT.fracht, true));
+      return;
+    }
+    /* Kommt waehrend des Anflugs oder am Stutzen noch etwas, geht es mit
+       an Bord; angedockt bleibt er dann eine Minute laenger. Was beim
+       Ablegen kommt, wartet auf den naechsten Flug. */
+    if (FRACHT.ladung.length && (FRACHT.lage === "anflug" || FRACHT.lage === "gedockt")) {
+      FRACHT.fracht.push(...FRACHT.ladung.splice(0));
+      if (FRACHT.lage === "gedockt") FRACHT.bis = Math.max(FRACHT.bis, t + Math.min(60000, d.gedockt));
+    }
+    if (t < FRACHT.bis) return;
+    if (FRACHT.lage === "anflug") {
+      FRACHT.lage = "gedockt"; FRACHT.von = t; FRACHT.bis = t + d.gedockt;
+      bordbuch("Frachter angedockt · " + ladungText(FRACHT.fracht, false));
+    } else if (FRACHT.lage === "gedockt") {
+      FRACHT.lage = "abflug"; FRACHT.von = t; FRACHT.bis = t + d.abflug;
+      bordbuch("Frachter legt ab");
+    } else {
+      FRACHT.lage = "wartet"; FRACHT.von = t; FRACHT.bis = 0; FRACHT.fracht = [];
+    }
+    return;
+  }
   if (FRACHT.bis === 0) { FRACHT.bis = t + 25000; FRACHT.von = t; }
   if (t < FRACHT.bis) return;
   if (FRACHT.lage === "wartet") {
@@ -6439,6 +6486,94 @@ function frachtTakt(t, hafen) {
   } else {
     FRACHT.lage = "wartet"; FRACHT.von = t; FRACHT.bis = t + 70000;
   }
+}
+
+/* --- Lieferungen ----------------------------------------------------
+   Der Frachter bringt, was wirklich angekommen ist: ein Pull Request,
+   der gemergt wurde, oder ein Push auf den Hauptzweig eines Repos. Er
+   fliegt an, sobald GitHub es meldet, bleibt drei Minuten am Stutzen,
+   mit einem Schild, was er gebracht hat, und legt wieder ab. Ohne
+   Lieferung kommt er nicht; ohne GitHub fliegt er wie bisher nach Plan,
+   damit an der Station trotzdem etwas ankommt.
+
+   Erkannt wird ohne weitere Abfragen aus dem, was GitHub ohnehin
+   liefert:
+   - ein neuer Lauf mit dem Anlass push auf dem Hauptzweig. Mehrere
+     Ablaeufe auf denselben Commit sind eine Lieferung. Heisst er
+     "Merge pull request #12 …" oder endet er auf "(#12)", ist es der
+     PR, mit dem Titel, den er als offener hatte;
+   - ein PR, der aus der Liste der offenen verschwindet und zu dem kein
+     solcher Lauf kam: dann einmal nachfragen, ob er gemergt oder nur
+     geschlossen wurde. Nur gemergt ist eine Lieferung.
+   Die erste Sichtung holt nichts nach, wie bei den Meldungen. */
+const LIEFER = { gesehen: null, offen: new Map(), geliefert: new Set(), letzte: null };
+
+function prNummerAus(titel) {
+  const m = /^Merge pull request #(\d+)/.exec(titel || "") || /\(#(\d+)\)\s*$/.exec(titel || "");
+  return m ? Number(m[1]) : 0;
+}
+
+/* "PR #12 · webshop" fuer das Schild, mit Titel fuer das Bordbuch */
+function ladungText(liste, lang) {
+  if (!liste.length) return "";
+  if (liste.length > 1) return liste.length + " Lieferungen" + (lang ? ": " + liste.map(x => x.kurz + " · " + x.repo).join(", ") : "");
+  const x = liste[0];
+  return x.kurz + " · " + x.repo + (lang && x.titel ? " — " + x.titel : "");
+}
+
+function lieferungDazu(x) {
+  if (FRACHT.ladung.concat(FRACHT.fracht).some(y => y.schluessel === x.schluessel)) return;
+  FRACHT.ladung.push(x);
+  LIEFER.letzte = x;
+  bordbuch("Lieferung aus " + x.repo + ": " + x.kurz + (x.titel ? " — " + x.titel : ""));
+  melden(x.repo + ": " + x.kurz + " geliefert", x.titel || "", "fracht:" + x.schluessel, "lieferung");
+}
+
+function lieferungenPruefen() {
+  const repos = Z.bruecke.typen.github ? bruecke_github : [];
+  FRACHT.echt = repos.length > 0;
+  if (!repos.length) return;
+  const erst = LIEFER.gesehen === null;
+  if (erst) LIEFER.gesehen = new Set();
+  const jetzt = Date.now();
+  for (const g of repos) {
+    for (const l of g.laeufe || []) {
+      if (l.anlass !== "push" || !l.zweig || l.zweig !== g.branch) continue;
+      const k = g.ort + "@" + (l.sha || l.titel + "|" + l.zeit);
+      if (LIEFER.gesehen.has(k)) continue;
+      LIEFER.gesehen.add(k);
+      /* Nichts nachholen: nicht bei der ersten Sichtung, und nichts, was
+         laenger als eine Stunde her ist */
+      if (erst || jetzt - l.zeit > 3600000) continue;
+      const nr = prNummerAus(l.titel);
+      if (nr) {
+        const pk = g.ort + "#" + nr;
+        if (LIEFER.geliefert.has(pk)) continue;
+        LIEFER.geliefert.add(pk);
+        const pr = LIEFER.offen.get(pk);
+        lieferungDazu({ schluessel: pk, repo: g.name, kurz: "PR #" + nr, titel: pr ? pr.titel : l.titel.replace(/\s*\(#\d+\)\s*$/, ""), zeit: jetzt });
+      } else {
+        lieferungDazu({ schluessel: k, repo: g.name, kurz: "Push auf " + g.branch, titel: l.titel, zeit: jetzt });
+      }
+    }
+    const jetztOffen = new Set((g.prs || []).map(p => g.ort + "#" + p.nr));
+    for (const [pk, p] of [...LIEFER.offen]) {
+      if (!pk.startsWith(g.ort + "#") || jetztOffen.has(pk)) continue;
+      LIEFER.offen.delete(pk);
+      if (erst || LIEFER.geliefert.has(pk) || VORF.an || !Z.bruecke.ghToken) continue;
+      gh(`/repos/${g.ort}/pulls/${p.nr}`).then((x) => {
+        if (!x || !x.merged_at || LIEFER.geliefert.has(pk)) return;
+        LIEFER.geliefert.add(pk);
+        lieferungDazu({ schluessel: pk, repo: g.name, kurz: "PR #" + p.nr, titel: p.titel, zeit: Date.parse(x.merged_at) || Date.now() });
+      }).catch(() => {});
+    }
+    for (const p of g.prs || []) LIEFER.offen.set(g.ort + "#" + p.nr, { nr: p.nr, titel: p.titel });
+  }
+}
+
+function lieferungenVergessen() {
+  LIEFER.gesehen = null; LIEFER.offen.clear(); LIEFER.geliefert.clear(); LIEFER.letzte = null;
+  FRACHT.ladung = [];
 }
 
 /* Ein kleiner Frachter: Druckkoerper in Folie, zwei Solarpaneele, vorn
@@ -17539,6 +17674,13 @@ function rahmen(jetzt) {
     cx.restore();
     /* Wo er steht, merken: die Crew sieht ihm zu. */
     if (FRACHT.lage === "anflug" || FRACHT.lage === "abflug") schauspiel = { x: fx, y: fy };
+    /* Bringt er etwas Echtes, sagt ein Schild, was: wie bei der Crew */
+    if (FRACHT.echt && FRACHT.fracht.length && FRACHT.lage !== "abflug") {
+      const sp = inSicht(fx, fy + Rst * 0.55);
+      if (sp.x > 0 && sp.x < W && sp.y > 0 && sp.y < H)
+        schilder.push({ x: sp.x, y: sp.y, id: "fracht", name: "FRACHTER", unter: ladungText(FRACHT.fracht, false),
+                        zustand: "fertig", vorrat: 0 });
+    }
   }
   /* Nach dem Namen sortiert, damit dieselbe Mannschaft immer dieselbe
      Aufstellung ergibt — sonst springen die Figuren, sobald eine
@@ -21221,7 +21363,13 @@ function zeichneTelemetrie(t) {
       laengster > ANZUG.geplant + ANZUG.reserve ? "schlecht"
         : laengster > ANZUG.geplant ? "warm" : "gut"],
     ["AUSLASTUNG", Math.round(last * 100) + " %", last],
-    ["FRACHT", FRACHT.lage === "gedockt" ? "angedockt"
+    ["FRACHT", FRACHT.echt
+      ? (FRACHT.lage === "anflug" ? "bringt " + ladungText(FRACHT.fracht, false)
+        : FRACHT.lage === "gedockt" ? "angedockt · " + ladungText(FRACHT.fracht, false)
+        : FRACHT.lage === "abflug" ? "legt ab"
+        : LIEFER.letzte ? "zuletzt " + LIEFER.letzte.kurz + " · " + vorZeit(LIEFER.letzte.zeit)
+        : "wartet auf eine Lieferung")
+      : FRACHT.lage === "gedockt" ? "angedockt"
       : FRACHT.lage === "anflug" ? "im Anflug"
       : FRACHT.lage === "abflug" ? "legt ab" : "keine"],
     ["BAHNLAGE", KONJ.lage === "ruhig" ? "frei"
@@ -21657,7 +21805,9 @@ const HILFE = [
       + "Bord: kommt ein Frachter, sieht die ganze Crew hin, und läuft ein Triebwerk, hält sich jeder "
       + "fest. Im Bordbuch, dem zweiten Reiter im Log, steht der ganze Verlauf. Wer einsteigt, "
       + "hinterlässt dort einen kurzen Einsatzbericht: wie lange er draußen war und wie weit seine "
-      + "Aufgabenliste gekommen ist.",
+      + "Aufgabenliste gekommen ist. Ist GitHub angeschlossen, bringt der Frachter, was wirklich "
+      + "geliefert wurde: einen gemergten Pull Request oder einen Push auf den Hauptzweig. Ein Schild "
+      + "sagt, was er an Bord hat; ohne Lieferung kommt er nicht.",
   },
   {
     titel: "Die Station",

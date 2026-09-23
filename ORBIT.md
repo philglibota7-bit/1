@@ -231,6 +231,15 @@ Daraus folgt: die Druckmodule sind ein kleiner Klumpen in der Mitte eines langen
 
 **Die Rückseite der Flügel leuchtet.** Weil das Gelenk den Flügel immer zur Sonne dreht, steht die Sonne dahinter, wenn man von hinten daraufsieht — sie scheint durch die Kaptonfolie, und die Zellen zeichnen sich als dunkles Gitter davor ab wie ein Blatt gegen den Himmel.
 
+**Der Frachter bringt, was wirklich geliefert wurde.** Ist GitHub angeschlossen, fliegt er nicht mehr nach Plan. Er kommt, wenn ein Pull Request gemergt oder auf den Hauptzweig gepusht wurde, bleibt drei Minuten am Stutzen und legt wieder ab. Ein Schild sagt, was er gebracht hat („FRACHTER · PR #12 · webshop“), und unter Stationswerte steht es ebenso. Im Bordbuch steht jede Lieferung mit Titel, und liegt ORBIT nicht vorn, kommt eine Mitteilung.
+- **Erkannt wird ohne weitere Abfragen.** Ein neuer Lauf mit dem Anlass `push` auf dem Hauptzweig ist eine Lieferung; mehrere Abläufe auf denselben Commit (`head_sha`) sind eine.
+  - Heißt er „Merge pull request #12 …“ oder endet er auf „(#12)“ wie ein Squash-Merge, ist es dieser PR, mit dem Titel, den er als offener hatte.
+  - Verschwindet ein PR aus den offenen, ohne dass ein solcher Lauf kam, fragt ORBIT einmal nach. Nur gemergt zählt, geschlossen nicht.
+- **Nichts wird nachgeholt:** nicht bei der ersten Sichtung und nichts, was länger als eine Stunde her ist.
+- **Was dazukommt,** während er anfliegt oder angedockt ist, geht mit an Bord; angedockt bleibt er dann eine Minute länger. Was beim Ablegen kommt, nimmt der nächste Flug mit.
+- **Ohne GitHub** fliegt er wie bisher nach Plan, damit an der Station trotzdem etwas ankommt.
+- **In der Vorführung** wird PR #12 nach hundert Sekunden gemergt, und der Frachter bringt ihn.
+
 **Der Träger trägt Leitungen.** Ein Baugerüst hat Streben, eine Station hat Leitungen: zwei dick isolierte Ammoniakleitungen über die ganze Länge, eine warme hin und eine kalte zurück, daneben der Kabelstrang der Flügel — mit Schellen an jedem zweiten Feldknoten, denn eine Leitung, die nirgends befestigt ist, sieht aufgemalt aus.
 
 **Die Fenster sind Glas.** Vier Dinge machen aus einem farbigen Kreis ein Fenster: die tiefe Fassung als schmaler dunkler Ring, der vom Rahmen verdeckte Rand, die Erde als heller Bogen auf der erdzugewandten Seite und der harte kleine Sonnenpunkt (die Sonne misst ein halbes Grad, also ist ihr Spiegelbild scharf). Das Innenlicht wird bei Tag halbiert — gegen Erde und Sonne draußen ist eine Deckenleuchte nichts.
@@ -476,9 +485,15 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-95 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+96 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
+- **Lieferungen** (lieferung.mjs, Flugzeiten für den Test verkürzt):
+  - Erste Sichtung: ein alter Merge und drei offene PRs, nichts wird geliefert.
+  - Dann PR #12 gemergt, zwei Abläufe auf denselben Commit: genau eine Lieferung mit dem Titel des offenen PR, Anflug, Schild am Stutzen, Stationswerte.
+  - Angedockt kommen dazu: ein Squash-Merge „(#15)“, ein gewöhnlicher Push mit zwei Abläufen, PR #13 (GitHub meldet gemergt) und PR #14 (nur geschlossen). Genau vier Lieferungen an Bord, #14 nicht, das Andocken verlängert.
+  - Nach dem Ablegen liefert derselbe Stand nichts noch einmal. Ohne GitHub wieder der Plan. In der Vorführung bringt er PR #12 nach hundert Sekunden.
+  - Gegengeprüft mit sieben kaputten Fassungen: alles nachholen, je Ablauf zählen, ohne Titel, geschlossen zählt, kein Nachschub, immer nach Plan, Squash nicht erkannt. Alle sieben schlagen an.
 - **Befehlspalette** (palette.mjs): Strg+K und / öffnen; ohne Suchwort die Gruppen Crew, Aktionen, Öffnen und Schalter, samt „Zum Nächsten, der wartet“. Die Pfeile laufen oben und unten herum. „bru“ findet „Brücke“ mit „Brü“ hervorgehoben, und dabei startet kein Rundgang. Enter schaltet das Relief um, fährt zu webshop-kasse und öffnet sie, und wählt den Hintergrund Trifid. Esc lässt die Hilfe darunter offen. Aus dem Auftragsfeld öffnet Strg+K, ein / dort bleibt ein Zeichen, und nach Esc ist der Fokus wieder im Feld. Am Handy passt die Karte mit 16 Punkten Rand. Gegengeprüft mit sechs kaputten Fassungen: mit Akzenten, Esc ungefangen, ohne Fokus zurück, ohne Umlauf, nicht im Textfeld, Hintergründe immer. Alle sechs schlagen an.
 - **Energie, nachgebaut** (energie.mjs):
   - Zwei Fenster mit über fünf Stunden Pause dazwischen, jede Antwort in zwei Zeilen, eine synthetische Antwort und ein Werkzeugergebnis mit `"usage"` als Text.
