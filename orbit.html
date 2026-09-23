@@ -1581,7 +1581,7 @@ function meldungenPruefen() {
       else if (stand === "idle" && (vorher === "busy" || vorher === "waiting"))
         melden(a.name + " ist fertig", anfang(a.auftrag, 110) || "Die Sitzung wartet auf den nächsten Auftrag.", a.id, "fertig");
     } else if (a.typ === "github" && (stand === "winkt" || stand === "fehler")) {
-      melden(a.name + ": " + a.taetigkeit, "GitHub Actions", a.id, stand);
+      melden(a.name + ": " + a.taetigkeit, "GitHub", a.id, stand);
     }
   }
   /* Die Durchsicht eines PRs: freigegeben heisst meist "jetzt
@@ -3484,6 +3484,41 @@ function laufLesen(l) {
   };
 }
 
+/* Nicht jede Pruefung ist eine Action. Vercel, Netlify, CircleCI und
+   andere melden sich ueber die Checks-Schnittstelle oder mit einem
+   Commit-Status, und bis hierher blieben sie unsichtbar: ein PR, dessen
+   Vorschau-Deploy scheiterte, stand gruen da. Beides wird jetzt zum
+   selben Stand mit abgefragt und liest sich wie ein Lauf — derselbe
+   Name, dieselben fuenf Zustaende. */
+function checkLesen(c) {
+  return {
+    name: c.name,
+    titel: (c.output && c.output.title) || "",
+    zweig: "",
+    anlass: (c.app && (c.app.name || c.app.slug)) || "",
+    stand: laufStand({ status: c.status, conclusion: c.conclusion }),
+    versuch: 1,
+    zeit: Date.parse(c.started_at) || 0,
+    ende: c.status === "completed" ? (Date.parse(c.completed_at) || 0) : 0,
+    url: c.html_url || c.details_url || "",
+    fremd: true,
+  };
+}
+function statusLesen(s) {
+  return {
+    name: s.context,
+    titel: s.description || "",
+    zweig: "",
+    anlass: "Status",
+    stand: s.state === "success" ? "gruen" : s.state === "pending" ? "laeuft" : "rot",
+    versuch: 1,
+    zeit: Date.parse(s.created_at) || 0,
+    ende: s.state === "pending" ? 0 : (Date.parse(s.updated_at) || 0),
+    url: s.target_url || "",
+    fremd: true,
+  };
+}
+
 /* Zu jedem offenen Pull Request: sind seine Actions gruen?
    GitHub liefert die Laeufe gefiltert nach dem Stand (head_sha), eine
    Abfrage je PR. Damit das bei zehn Repos mit je fuenf PRs nicht bei
@@ -3500,7 +3535,15 @@ async function prPruefung(repo, sha) {
   const alt = PR_PRUEFUNG.get(sha);
   if (alt && alt.fertig && Date.now() - alt.zeit < PR_FRIST) return alt;
   try {
-    const x = await gh(`/repos/${repo}/actions/runs?head_sha=${sha}&per_page=20`);
+    /* Die Checks und der Commit-Status duerfen fehlen: ein
+       feinkoerniger Schluessel braucht dafuer eigene Leserechte
+       ("Checks", "Commit statuses"). Ohne sie bleibt es bei den
+       Actions, still, wie bisher. */
+    const [x, cr, st] = await Promise.all([
+      gh(`/repos/${repo}/actions/runs?head_sha=${sha}&per_page=20`),
+      gh(`/repos/${repo}/commits/${sha}/check-runs?per_page=50`).catch(() => null),
+      gh(`/repos/${repo}/commits/${sha}/status`).catch(() => null),
+    ]);
     /* Je Arbeitsablauf und Anlass zaehlt nur der juengste Lauf. Ein
        zweiter Versuch ersetzt den ersten, er kommt nicht dazu; die
        Liste kommt von GitHub neu zuerst. */
@@ -3510,6 +3553,12 @@ async function prPruefung(repo, sha) {
       if (!je.has(k)) je.set(k, laufLesen(l));
     }
     const laeufe = [...je.values()];
+    /* Die Checks von GitHub Actions stehen dort auch, je Job einer —
+       die Laeufe sind schon da, also fallen sie weg. GitHub liefert je
+       Name nur den juengsten Check und je Kontext den juengsten Status. */
+    for (const c of (cr && cr.check_runs) || [])
+      if (!c.app || c.app.slug !== "github-actions") laeufe.push(checkLesen(c));
+    for (const s of (st && st.statuses) || []) laeufe.push(statusLesen(s));
     const neu = {
       zeit: Date.now(),
       fertig: laeufe.every(l => l.stand !== "laeuft" && l.stand !== "wartet"),
@@ -3646,8 +3695,8 @@ async function sammleGithub() {
                 : prWartet ? "PR #" + prWartet.nr + " wartet auf Freigabe"
                 : laufend ? laufend.name + " läuft"
                 : rot ? l0.name + " fehlgeschlagen"
-                : prRot.length ? (prRot.length === 1 ? "PR #" + prRot[0].nr + ": Actions rot"
-                                                      : prRot.length + " PRs mit roten Actions")
+                : prRot.length ? (prRot.length === 1 ? "PR #" + prRot[0].nr + ": Prüfung rot"
+                                                      : prRot.length + " PRs mit roten Prüfungen")
                 : prAend ? "PR #" + prAend.nr + ": Änderungen gewünscht"
                 : prs.length ? prs.length + (prs.length === 1 ? " offener Pull Request" : " offene Pull Requests")
                 : "ruhig",
@@ -3943,7 +3992,12 @@ function vorfuehrungTakt() {
     prs: [
       { nr: 12, titel: "Kasse: Rabattcodes einlösen, auch mehrere pro Bestellung", entwurf: false, url: "",
         zweig: "feature/rabatt", von: "du", geaendert: um(40),
-        pruefung: laeufe.slice(0, 2), stand: testsFertig ? "gruen" : "laeuft",
+        /* Dazu die Vorschau von Vercel — eine Pruefung, die keine Action ist */
+        pruefung: laeufe.slice(0, 2).concat([{ name: "Vercel – webshop", titel: testsFertig
+            ? "Vorschau bereit" : "Vorschau wird gebaut", zweig: "", anlass: "Vercel",
+          stand: testsFertig ? "gruen" : "laeuft", versuch: 1, zeit: um(41),
+          ende: testsFertig ? um(58) : 0, url: "", fremd: true }]),
+        stand: testsFertig ? "gruen" : "laeuft",
         review: testsFertig ? { stand: "frei", freigaben: 1, aenderungen: 0, angefragt: 0 }
                             : { stand: "angefragt", freigaben: 0, aenderungen: 0, angefragt: 1 } },
       { nr: 9, titel: "Versandkosten nach Gewicht", entwurf: true, url: "", zweig: "feature/versand",
@@ -16705,13 +16759,13 @@ function prKarte(pr, mitAutor) {
 
   /* null heisst: nicht nachgesehen (Abfrage fehlgeschlagen) — dann
      steht hier nichts. Eine leere Liste heisst: nachgesehen, und zu
-     diesem Stand gibt es keine Actions. Das ist eine Auskunft und
+     diesem Stand gibt es keine Pruefungen. Das ist eine Auskunft und
      steht deshalb da. */
   if (Array.isArray(pr.pruefung)) {
     const p = document.createElement("div"); p.className = "pruef";
     if (!pr.pruefung.length) {
       const s = document.createElement("span"); s.className = "keine";
-      s.textContent = "keine Actions zu diesem Stand";
+      s.textContent = "keine Prüfungen zu diesem Stand";
       p.append(s);
     }
     for (const l of pr.pruefung) {
@@ -16719,7 +16773,9 @@ function prKarte(pr, mitAutor) {
       const z = document.createElement("b"); z.textContent = LAUF_ZEICHEN[l.stand];
       s.append(z, document.createTextNode(" " + l.name
         + (l.stand === "laeuft" ? "  " + luecke(Date.now() - l.zeit) : "")));
-      s.title = l.name + ": " + LAUF_TEXT[l.stand];
+      s.title = l.name + ": " + LAUF_TEXT[l.stand]
+        + (l.fremd && l.anlass ? " · " + l.anlass : "")
+        + (l.fremd && l.titel ? " · " + l.titel : "");
       p.append(s);
     }
     d.append(p);
@@ -17926,7 +17982,8 @@ const HILFE = [
       + "mit dem, was sie gerade tun; eine Zeile antippen fährt zu ihrer Figur. Im Detailfenster "
       + "steht über der Tätigkeit der Auftrag — das, was du zuletzt verlangt hast. Erst wo, dann "
       + "wofür, dann was. Bei einem GitHub-Repo stehen dort die offenen Pull Requests mit dem Stand "
-      + "ihrer Actions und ihrer Durchsicht: freigegeben, Änderungen gewünscht oder angefragt. "
+      + "ihrer Prüfungen — GitHub Actions und andere Dienste wie Vercel oder CircleCI — und ihrer "
+      + "Durchsicht: freigegeben, Änderungen gewünscht oder angefragt. "
       + "Wird einer freigegeben oder wünscht jemand Änderungen, meldet ORBIT sich.",
   },
   {

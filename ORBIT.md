@@ -26,7 +26,7 @@ Sie liefert dieselben Felder wie die echte Brücke, deshalb laufen Szene, Liste,
 | ↳ | Unteragent | `<sitzung>/subagents/agent-*.jsonl`, auch `subagents/workflows/<lauf>/` | Aufgabe, von welcher Sitzung geschickt, Agententyp und Phase, Bericht oder Abbruch, eigener Zeitstrahl |
 | ▣ | Projektordner / VS Code | `git`, Datei-Zeitstempel, Prozessliste | Pfad, Branch, zuletzt gespeicherte Dateien, geänderte Dateien, letzter Commit, ob VS Code läuft |
 | ▶ | Laufender Befehl | `ps` | PID, Auslastung, Anzuguhr, vollständiger Befehl |
-| ⑂ | GitHub-Repo | GitHub-API | offene Pull Requests als Karten mit dem Stand ihrer Actions, Läufe als Zeitstrahl mit Dauer, anklickbar |
+| ⑂ | GitHub-Repo | GitHub-API | offene Pull Requests als Karten mit dem Stand ihrer Prüfungen, Läufe als Zeitstrahl mit Dauer, anklickbar |
 | ◆ | Eigener Claude-Agent | Anthropic-API | Rolle, Modell, Missionen, Tokens |
 
 Unter **Crew** stehen die selbst angelegten Agenten und darunter alles, was wirklich läuft — je Zeile Name, aktuelle Tätigkeit, Branch und die Dauer; Unteragenten eingerückt unter ihrer Sitzung, Berichte grün, Abbrüche rot. Antippen fährt zur Figur.
@@ -119,9 +119,13 @@ Oben neben dem Namen der App steht dann ein Knopf „2 warten": ein Tipp fährt 
 
 ### GitHub: Pull Requests mit ihrem Stand
 
-Jeder offene PR ist eine Karte: links ein Streifen in der Farbe seines Stands, Nummer und Alter, der ganze Titel, der Zweig und je Arbeitsablauf eine Marke — ✓ erfolgreich, ✗ fehlgeschlagen, ● läuft (mit Dauer), ✋ wartet auf Freigabe, ⊘ abgebrochen. Gibt es zu einem Stand keine Actions, steht das da, statt dass die Zeile fehlt. Die Läufe des Repos stehen auf demselben Strahl wie die Schritte einer Sitzung, mit Dauer, Anlass und Versuch; ein Lauf von gestern zeigt „gestern 11:24" und nicht nur eine Uhrzeit.
+Jeder offene PR ist eine Karte: links ein Streifen in der Farbe seines Stands, Nummer und Alter, der ganze Titel, der Zweig und je Arbeitsablauf eine Marke — ✓ erfolgreich, ✗ fehlgeschlagen, ● läuft (mit Dauer), ✋ wartet auf Freigabe, ⊘ abgebrochen. Gibt es zu einem Stand keine Prüfungen, steht das da, statt dass die Zeile fehlt. Die Läufe des Repos stehen auf demselben Strahl wie die Schritte einer Sitzung, mit Dauer, Anlass und Versuch; ein Lauf von gestern zeigt „gestern 11:24" und nicht nur eine Uhrzeit.
 
 - Abgefragt über `actions/runs?head_sha=…` je PR, an der echten API geprüft. Ein Zwischenspeicher je Stand hält die Zahl der Abfragen klein: solange etwas läuft, wird jeden Takt nachgesehen; ist alles fertig, gilt das Ergebnis zehn Minuten — nicht für immer, weil ein neu gestarteter Job das Ergebnis ändert, ohne dass ein neuer Stand entsteht.
+- **Nicht nur Actions.** Vercel, Netlify, CircleCI und andere melden sich über die Checks-Schnittstelle oder mit einem Commit-Status. Beides wird zum selben Stand mit abgefragt und steht als Marke neben den Actions, mit Dienst und Beschreibung im Tooltip.
+  - Die Checks von GitHub Actions selbst fallen weg, denn die Läufe sind schon da.
+  - Ein feinkörniger Schlüssel braucht dafür die Leserechte „Checks“ und „Commit statuses“. Fehlen sie, bleibt es still bei den Actions.
+  - Ein Vorschau-Deploy, das scheitert, macht den PR rot, wie ein roter Job.
 - Die Summe folgt derselben Rangfolge wie der kombinierte Status bei GitHub: ein roter Ablauf macht den PR rot, auch wenn andere noch laufen.
 - Ein Lauf, der vor einer geschützten Umgebung auf Freigabe wartet, lässt den Astronauten winken wie eine wartende Sitzung.
 - „Läuft" hat eine feste blaue Farbe. Der Akzent wechselt mit dem Himmel, und bei fünf Himmeln ist er orange oder rot — dann sahen ein laufender und ein fehlgeschlagener Lauf gleich aus.
@@ -351,7 +355,11 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Störung und Verdichten im echten Wortlaut.
   - Geänderte Dateien: aus einem Protokoll voller Fallen zählen genau die vier echten Änderungen.
 - **Durchsicht**: Zwei Freigaben, mit einem Kommentar und einer verworfenen Bewertung dazwischen; angefragt; Änderungen gewünscht. Ein PR ohne Zugriff auf die Bewertungen zeigt keine Marke. Der zweite Durchlauf fragt nicht neu, ein geänderter PR schon, und genau diese Änderung ergibt eine Mitteilung.
-- **GitHub**: Ein roter Ablauf macht den PR rot, ein älterer Versuch wird verdrängt, ein wartender Lauf winkt. Die Abfragen sind über vier Takte gezählt.
+- **GitHub**:
+  - Ein roter Ablauf macht den PR rot, ein älterer Versuch wird verdrängt, und ein wartender Lauf winkt. Die Abfragen sind über vier Takte gezählt.
+  - Ein gescheiterter Vercel-Check und ein laufender CircleCI-Status stehen neben den Actions.
+  - Derselbe Job als Actions-Check erscheint nicht doppelt.
+  - Ohne Leserecht für Checks (403) bleiben die zwei Actions, ohne Fehler.
 - **Meldungen**: Die erste Sichtung bleibt still, Titel und Mitteilung stimmen, im Hintergrund wird nur das Register gelesen.
 
 **Tagesbogen, Fortsetzen, Tag als Text**
@@ -426,7 +434,6 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 ## Offene Punkte
 
 - **VS Code meldet nicht selbst, welche Datei offen ist.** Dafür gibt es keine Schnittstelle. ORBIT leitet es aus Datei-Zeitstempeln ab, was in der Praxis fast immer zutrifft — aber reines Lesen oder ungespeichertes Tippen ist unsichtbar. Im Detailfenster steht ein Hinweis darauf.
-- **Die PR-Prüfungen kennen nur GitHub Actions.** Prüfungen anderer Dienste, die über die Checks- oder Status-API melden, erscheinen nicht. Dafür bräuchte es je PR eine zweite Abfrage und bei feingranularen Tokens eine weitere Berechtigung.
 - **Die Mitteilungen des Mac-Programms sind nicht auf einem Mac ausprobiert.** Neutralino benutzt dafür `NSUserNotificationCenter` bzw. `osascript`; ob ein unsigniertes Programm damit etwas anzeigt, weiß ich nicht. Der Fenstertitel funktioniert unabhängig davon. Ob ein verdecktes Fenster in WebKit seine Zeitgeber so weit drosselt, dass der Hintergrund-Durchlauf seltener läuft, ist ebenfalls ungeprüft.
 - **Die echten Daten kamen aus einer Linux-Umgebung**, nicht von einem Mac: Protokollformat, Register und Verzeichnisaufbau sind dieselben, die Befehle `ps` und `stat` verhalten sich aber verschieden — deshalb stehen beide Schreibweisen im Code. In dieser Umgebung stand in `last-prompt` nur die allererste Eingabe; ob eine lokale Sitzung die Zeile bei jeder Eingabe fortschreibt, ist nicht geprüft.
 - Dass das Agent-Werkzeug sein Ergebnis mit `agentId` im `toolUseResult` mitschreibt, ist angenommen — gesehen habe ich das Feld bei einem abgezweigten Skill. Fehlt es, greift die Vermutung aus dem Protokoll des Unteragenten.
