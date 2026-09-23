@@ -308,6 +308,16 @@ Behoben:
 - **Leertaste auf einem Knopf.** Die Leertaste drückt jetzt einen Knopf, zu dem man mit Tab gegangen ist, statt die Kamera zurückzustellen. Nach einem Mausklick, wenn der Knopf den Fokus nur unsichtbar hat, bleibt sie bei der Kamera.
 - **Tasten, die schon jemand behandelt hat.** Leertaste und Pfeile auf einer Zeile des Tagesbogens bewegten zusätzlich die Kamera.
 
+**Die Kopfzeile läuft nie über.** Wie breit sie ist, hängt daran, ob jemand wartet, ob die Vorführung läuft, an der Beschriftung des Logs und an der Schrift. Feste Grenzen in Bildpunkten reichten dafür nicht: Zwischen 470 und 770 Punkten Breite lief sie über, sobald jemand wartete, um bis zu 215 Punkte, und der letzte Knopf war nicht mehr zu erreichen. Jetzt misst sie nach und spart Stufe um Stufe:
+
+1. die Beschriftung der Knöpfe (das Symbol bleibt, der Titel beim Draufzeigen sagt dasselbe),
+2. die Unterzeile,
+3. den Namen,
+4. das Logo,
+5. zuletzt das Wort neben der Zahl der Wartenden.
+
+Die Zahl und alle sieben Knöpfe bleiben immer. Die Knöpfe animieren auch keine Größen mehr. Nach dem Drehen des Telefons wuchsen sie sonst eine Viertelsekunde lang in ihrer alten Breite nach.
+
 Bei vielen Astronauten greifen zwei Grenzen: höchstens elf Namensschilder (auf schmalen Schirmen fünf), sortiert nach Zustand, die verfolgte Figur fällt nie heraus; und wo sich mehrere einen Arbeitsplatz teilen müssen, rücken sie quer zur Fläche auseinander statt übereinander zu stehen.
 
 ## Tempo
@@ -348,7 +358,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-75 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+76 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
 - **Echte Arbeitsumgebung**:
@@ -443,6 +453,8 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   Gegengeprüft.
 - **Crew-Liste**: Nur geänderte Karten werden neu gebaut, und ein langer Tipp über einen Neuaufbau kommt an, gegengeprüft. Das Missions-Log trägt die Uhrzeit, gegengeprüft. Die Stationswerte decken am Handy das Vorführungsband nicht.
 - **Öffnen und Sichern**: Öffnen über `vscode://file/…` ohne einen einzigen Befehl. Sichern geprüft mit Download, mit Ablehnung und ohne die Fähigkeit.
+- **Kopfzeile**: Geprüft bei 16 Breiten von 340 bis 1280 Punkten, jeweils ohne Wartende, mit 2 und mit 12 Wartenden und in der Vorführung. Sie läuft nie über, kein Knopf wird zusammengedrückt, und wer wartet, bleibt als Zahl sichtbar. Gegengeprüft: Vorher lief sie in 81 dieser Fälle über, um bis zu 215 Punkte.
+- **Rundgang**: Der Test wartet auf den Zähler „RUNDGANG n VON 10“ und nicht mehr auf die Uhr. Er fragte alle 9,2 Sekunden nach, ein Halt dauert aber 9,5. Bei langsamen Bildern kam er so beim zehnten Halt zu früh, mit 96 % auf dem neunten.
 - Kein waagerechtes Scrollen bei 320 bis 760 px, keine Konsolen- oder Seitenfehler.
 
 ## Offene Punkte
