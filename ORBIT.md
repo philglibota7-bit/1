@@ -109,6 +109,27 @@ Darunter steht, welche Dateien die Sitzung geändert hat: der Name vorn, der Ord
 
 Alle Feldnamen sind an echten Protokollen geprüft und nicht aus der Doku übernommen.
 
+### Energie: der Verbrauch im Fenster von fünf Stunden
+
+Ganz oben unter Stationswerte steht, was Claude Code gerade verbraucht. Ein Abo rechnet in Fenstern von fünf Stunden: die erste Antwort nach einer Pause öffnet eines, und was darin anfällt, zählt gegen eine Grenze. Wie groß die ist, sagt Anthropic nicht, und ORBIT rät sie nicht. Wann das Fenster aufging und wie viel schon hineinging, steht aber in den eigenen Protokollen.
+
+- **Die Zeilen:**
+  - FENSTER, zum Beispiel 12:00–17:00. Der Balken ist die verstrichene Zeit, nicht der Verbrauch.
+  - NEUES FENSTER in 2 Std. 26 Min.
+  - VERBRAUCH in Tokens.
+  - ZWISCHENSPEICHER: welcher Anteil davon aus dem Zwischenspeicher kam, meist über neunzig Prozent.
+  - TEMPO der letzten zehn Minuten und HOCHGERECHNET bis zum Ende des Fensters.
+  - GRÖSSTER: die Sitzung mit dem größten Anteil, ihre Unteragenten eingeschlossen.
+- **Im Detailfenster** jeder Sitzung und jedes Unteragenten steht „Im Fenster: 1,2 Mio. Tokens · 38 % des Fensters“, bei einer Sitzung dazu, wie viel davon auf ihre Unteragenten entfiel.
+- **Gezählt wird wie bei ccusage**, damit die Zahlen vergleichbar sind:
+  - Alle Protokolle der letzten zehn Stunden, auch die der Unteragenten und der Agenten eines Arbeitsablaufs.
+  - Jede Antwort einmal. Claude Code schreibt jeden Block einer Antwort als eigene Zeile und wiederholt darin dieselbe Nutzung; an einem echten Protokoll nachgesehen. Gezählt wird deshalb nach `message.id` und `requestId`.
+  - Die Summe ist alles, was abgerechnet wurde: frisch gesendet, neu zwischengespeichert, aus dem Zwischenspeicher gelesen und erzeugt. Fehlermeldungen von Claude Code selbst (`<synthetic>`) zählen nicht.
+  - Ein Fenster beginnt zur vollen Stunde (UTC) vor seiner ersten Antwort. Die erste Antwort nach seinem Ende öffnet das nächste.
+- **Gelesen wird nur das Neue**, je Datei bis wohin. Beim ersten Mal sucht eine Halbierung die Stelle, an der die zehn Stunden beginnen. Das Protokoll dieser Sitzung hatte beim Testen 480 MB, davon betrafen die zehn Stunden 136 MB. Je Durchlauf werden höchstens 8 MB gelesen, bis dahin steht „LIEST NOCH 40 %“ da.
+- **Der Rückblick.** Wer den ganzen Tag arbeitet, reiht Fenster an Fenster; wo das laufende begann, hängt dann an der letzten Pause von fünf Stunden. Bei dieser Sitzung lag sie 18 Stunden zurück, und nur mit zehn Stunden kam der Beginn eine Stunde zu spät heraus (10:00 statt 09:00 UTC). ORBIT sucht deshalb, statt alles zu lesen: rückwärts in Schritten von vier Stunden, bis vor einer Antwort fünf Stunden lang keine war, dann vorwärts Fenster für Fenster. Unteragenten zählen dabei mit. Das läuft nebenher und höchstens 48 Stunden zurück. Findet sich keine Pause, steht „etwa“ vor der Zeit.
+- **Anker.** Ist ein Fenster einmal sicher, merkt ORBIT es sich und rechnet von dort weiter; danach wird nicht mehr zurückgesucht.
+
 ### Wer auf dich wartet, winkt
 
 Meldet das Sitzungsregister `waiting` — eine Rückfrage oder eine Freigabe —, hebt der Astronaut einen Arm, lehnt sich ein Stück von der Struktur weg, und sein Ring pulst bernsteinfarben. Der Fehler blinkt schnell, das Winken langsam: zwei Dringlichkeiten, zwei Takte. Wie lange schon, steht dabei: „wartet auf deine Freigabe — seit 4 Min.", aus `statusUpdatedAt` im Register.
@@ -446,9 +467,23 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-91 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+94 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
+- **Energie, nachgebaut** (energie.mjs):
+  - Zwei Fenster mit über fünf Stunden Pause dazwischen, jede Antwort in zwei Zeilen, eine synthetische Antwort und ein Werkzeugergebnis mit `"usage"` als Text.
+  - Dazu ein Unteragent, ein Ablauf-Agent und dieselbe Antwort auch im Protokoll der Mutter.
+  - Eine 14-MB-Datei, deren Anfang vor den zehn Stunden liegt: gelesen wird ab 4 kB vor der ersten zählenden Zeile, kein Happen über 4 MB.
+  - Eine Zeile, die in zwei Stücken geschrieben wird, zählt genau einmal, und erst, wenn sie ganz ist.
+  - Die Uhr steht in Indien (UTC+5:30), damit ein Beginn zur vollen Ortsstunde auffiele. Summen, Tempo, Aufteilung, alle Zeilen und das Detailfenster sind auf die Zahl geprüft, dazu die Vorführung und dass ohne Brücke nichts dasteht.
+  - Gegengeprüft mit zehn kaputten Fassungen, darunter doppelt gezählt, Ortsstunde, ohne Rest, von vorn gelesen, ohne Unteragenten, immer sicher. Alle zehn schlagen an.
+- **Energie, echt** (energie-echt.mjs): Das Protokoll dieser Sitzung (480 MB, mit Umlauten) wird byte-genau wie von Neutralino gelesen und mit einer eigenen Rechnung in Python über alle Antworten verglichen. Beginn 09:00 UTC, 393 Antworten, 172.064.380 Tokens, in allen vier Feldern gleich. Das Lesen der zehn Stunden dauerte hier 91 Sekunden. Der Rückblick las 78 bis 116 MB in 8 bis 13 Sekunden, weil 78 % der Datei in Zeilen über 256 kB stecken.
+- **Die Kette der Fenster** (energie-kette.mjs):
+  - Nach einer alten Sitzung folgen sechseinhalb Stunden Pause, dann 22 Stunden durchgehende Arbeit in zwei Dateien. An einer Fenstergrenze arbeitet nur ein Unteragent weiter.
+  - Erwartet wird 10:00 UTC; ohne den Unteragenten käme 11:00 heraus. Nach dem Rückblick wandert der Anker mit.
+  - 60 Stunden ohne Pause ergeben „etwa“.
+  - Fünf kaputte Fassungen schlagen an: ohne Rückblick, ohne Unteragenten, ohne den Weg vorwärts, Zwischenspeicher ohne Zeitpunkt und eine verschobene Stunde.
+- **Pulse der Hand** (werkzeug.mjs): Der Test zählte die Pulse erst zwei Bilder nach dem Planen. Jeder Puls verlischt aber 750 ms nach seinem Zeitpunkt, und unter der Last der ganzen Reihe dauerte ein Bild über 1,6 Sekunden. So meldete er „Bündel nicht begrenzt: 3“, obwohl sechs geplant waren. Mit zwölffach gedrosseltem Prozessor ließ sich das nachstellen. Jetzt hält er fest, was die App im selben Bild plant, und ist auch gedrosselt grün. Gegengeprüft: ohne Obergrenze meldet er 20, ohne Verteilung drei gleichzeitige.
 - **Echte Arbeitsumgebung**:
   - eine Sitzung von 221 MB,
   - sechs Ablauf-Agenten, drei im Limit abgebrochen, drei mit Ergebnis,
@@ -645,6 +680,9 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 - Kein waagerechtes Scrollen bei 320 bis 760 px, keine Konsolen- oder Seitenfehler.
 
 ## Offene Punkte
+
+- **Die Grenze des Abos kennt ORBIT nicht.** Anthropic veröffentlicht sie nicht, und wie die Teile (frisch, Zwischenspeicher, erzeugt) gegen sie zählen, ist ebenfalls nicht bekannt. Deshalb gibt es keinen Prozentwert, nur Zeit, Summe und Tempo. Dass ein Fenster zur vollen Stunde UTC beginnt, ist die Regel von ccusage, nicht eine von Anthropic.
+- **Der Rückblick sucht höchstens 48 Stunden zurück** und erkennt eine Pause nur, wenn in ihr fünf Stunden lang keine Zeile mit Nutzung steht. Nur im Mac-Programm; nicht auf einem Mac gemessen, wie schnell Neutralino die Megabytes liefert.
 
 - **VS Code meldet nicht selbst, welche Datei offen ist.** Dafür gibt es keine Schnittstelle. ORBIT leitet es aus Datei-Zeitstempeln ab, was in der Praxis fast immer zutrifft — aber reines Lesen oder ungespeichertes Tippen ist unsichtbar. Im Detailfenster steht ein Hinweis darauf.
 - **Die Mitteilungen des Mac-Programms sind nicht auf einem Mac ausprobiert.** Neutralino benutzt dafür `NSUserNotificationCenter` bzw. `osascript`; ob ein unsigniertes Programm damit etwas anzeigt, weiß ich nicht. Der Fenstertitel funktioniert unabhängig davon. Ob ein verdecktes Fenster in WebKit seine Zeitgeber so weit drosselt, dass der Hintergrund-Durchlauf seltener läuft, ist ebenfalls ungeprüft.

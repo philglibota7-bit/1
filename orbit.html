@@ -3231,6 +3231,477 @@ function vorfuehrungWoche(jetzt) {
   return { tage, farben: wocheFarben(tage), lesen: false };
 }
 
+/* --- Energie: der Verbrauch im Fuenf-Stunden-Fenster --------------------
+   Ein Abo bei Claude rechnet in Fenstern von fuenf Stunden: die erste
+   Anfrage nach einer Pause oeffnet eines, und was darin verbraucht wird,
+   zaehlt gegen eine Grenze. Wie gross die ist, sagt Anthropic nicht.
+   Wann das Fenster aufging und wie viel schon hineinging, steht aber in
+   den eigenen Protokollen: jede Antwort fuehrt mit, was sie verbraucht
+   hat.
+
+   Gezaehlt wird wie bei ccusage, damit die Zahlen vergleichbar sind:
+   - alle Protokolle der letzten zehn Stunden, auch die der Unteragenten
+     und der Agenten eines Arbeitsablaufs;
+   - jede Antwort einmal. Claude Code schreibt jeden Block einer Antwort
+     als eigene Zeile und wiederholt darin dieselbe Nutzung. Das habe ich
+     an einem echten Protokoll nachgesehen. Gezaehlt wird deshalb nach
+     message.id und requestId;
+   - ein Fenster beginnt zur vollen Stunde (UTC) vor seiner ersten
+     Antwort und dauert fuenf Stunden. Die erste Antwort danach oeffnet
+     das naechste.
+   Die Summe ist alles, was abgerechnet wurde: frisch gesendet, neu
+   zwischengespeichert, aus dem Zwischenspeicher gelesen und erzeugt. Wie
+   Anthropic diese Teile gegen die Grenze gewichtet, ist nicht bekannt.
+   Deshalb steht daneben, wie viel davon aus dem Zwischenspeicher kam.
+
+   Gelesen wird nur, was neu ist: je Datei, bis wohin. Beim ersten Mal
+   sucht eine Halbierung die Stelle, an der die zehn Stunden beginnen.
+   Ein Protokoll kann Hunderte Megabyte gross sein; das dieser Sitzung
+   hier hat 480 MB. Je Durchlauf werden hoechstens 8 MB gelesen, damit
+   das Bild nicht stockt. Solange noch gelesen wird, steht das dabei. */
+const ENERGIE_FENSTER = 5 * 3600000, ENERGIE_RUECK = 10 * 3600000;
+const ENERGIE_TAKT = 10000, ENERGIE_HAPPEN = 8 * 1048576;
+const ENERGIE = {
+  dateien: new Map(),     // pfad -> { pos, start, rest, schneiden, groesse }
+  antworten: new Map(),   // message.id:requestId -> { t, ein, schreib, lesen, aus, sid, agent, modell }
+  unter: new Map(),       // subagents-Ordner -> { um, dateien: [{ pfad, groesse, mt }] }
+  um: 0, laeuft: false, lage: null,
+  anker: null,            // das juengste Fenster, dessen Beginn sicher ist: { start, ende }
+  rueckblick: "", rueckblickUm: 0,
+};
+
+/* Die Stelle, ab der eine Datei nicht mehr vor `ab` liegt, auf `genau`
+   Bytes genau. Was davor noch mitgelesen wird, sortiert die Zeit aus.
+   `merk` haelt fest, welcher Zeitstempel hinter welcher Stelle steht:
+   mehrere Suchen in derselben Datei beginnen mit denselben Schritten.
+   Das lohnt sich, weil ein Schritt teuer sein kann: liegt er mitten in
+   einer Zeile mit einem Bildschirmfoto, kommt der naechste Zeitstempel
+   erst Megabytes spaeter. */
+async function stempelStelle(pfad, groesse, ab, genau = 65536, merk = null) {
+  const lies = (pos, size) => Neutralino.filesystem.readFile(pfad, { pos, size });
+  let lo = 0, hi = groesse, runden = 0;
+  while (hi - lo > genau && runden++ < 40) {
+    const mitte = Math.floor((lo + hi) / 2);
+    let t = merk ? merk.get(pfad + "|" + mitte) : undefined;
+    if (t === undefined) {
+      for (const fenster of [16384, 262144, 4194304]) {
+        t = ersterStempel(await lies(mitte, Math.min(fenster, groesse - mitte)), false);
+        if (t !== undefined || mitte + fenster >= groesse) break;
+      }
+      if (merk) merk.set(pfad + "|" + mitte, t === undefined ? null : t);
+    } else if (t === null) t = undefined;
+    if (t === undefined) { hi = mitte; continue; }
+    if (t < ab) lo = mitte; else hi = mitte;
+  }
+  return lo;
+}
+
+/* Eine Zeile mit Nutzung. Andere Zeilen kommen gar nicht erst hierher:
+   gesucht wird nach dem Feld selbst, und die grossen Zeilen mit
+   Werkzeugergebnissen werden so nie zerlegt. */
+function energieZeile(zeile, jetzt) {
+  let d;
+  try { d = JSON.parse(zeile); } catch { return; }
+  if (!d || d.type !== "assistant" || !d.message || !d.message.usage || synthetisch(d)) return;
+  const t = Date.parse(d.timestamp);
+  if (!Number.isFinite(t) || jetzt - t > ENERGIE_RUECK) return;
+  const m = d.message, u = m.usage, z = (v) => Number.isFinite(v) && v > 0 ? v : 0;
+  const neu = { t, ein: z(u.input_tokens), schreib: z(u.cache_creation_input_tokens),
+                lesen: z(u.cache_read_input_tokens), aus: z(u.output_tokens),
+                sid: d.sessionId || "", agent: d.agentId || "", modell: m.model || "" };
+  if (!neu.ein && !neu.schreib && !neu.lesen && !neu.aus) return;
+  const schluessel = (m.id || d.uuid || "") + ":" + (d.requestId || "");
+  const alt = ENERGIE.antworten.get(schluessel);
+  if (!alt) { ENERGIE.antworten.set(schluessel, neu); return; }
+  /* Dieselbe Antwort noch einmal: in einer zweiten Zeile oder, bei
+     aelteren Fassungen, auch im Protokoll der Mutter-Sitzung. */
+  for (const k of ["ein", "schreib", "lesen", "aus"]) alt[k] = Math.max(alt[k], neu[k]);
+  alt.t = Math.min(alt.t, t);
+  if (!alt.agent) alt.agent = neu.agent;
+}
+
+/* Liest das Neue einer Datei, hoechstens `budget` Bytes. Gibt zurueck,
+   wie viel gelesen wurde. Die Position zaehlt in Bytes wie
+   Neutralino selbst; eine Zeile, die ueber das Ende eines Happens
+   reicht, wartet als Rest auf den naechsten. */
+async function energieLesen(pfad, groesse, budget, jetzt) {
+  let d = ENERGIE.dateien.get(pfad);
+  if (!d || groesse < d.pos) {
+    /* Neu oder kleiner geworden, also neu geschrieben */
+    let pos = 0;
+    if (groesse > 1048576) {
+      try { pos = await stempelStelle(pfad, groesse, jetzt - ENERGIE_RUECK); } catch { pos = 0; }
+    }
+    d = { pos, start: pos, rest: "", schneiden: pos > 0, groesse };
+    ENERGIE.dateien.set(pfad, d);
+  }
+  d.groesse = groesse;
+  let gelesen = 0;
+  while (d.pos < groesse && gelesen < budget) {
+    const size = Math.min(groesse - d.pos, 4194304, budget - gelesen);
+    const text = await Neutralino.filesystem.readFile(pfad, { pos: d.pos, size });
+    d.pos += size; gelesen += size;
+    let s = d.rest + text, i = 0;
+    d.rest = "";
+    if (d.schneiden) {
+      /* Mitten in einer Zeile begonnen: bis zu ihrem Ende ueberspringen */
+      i = s.indexOf("\n") + 1;
+      if (i === 0) continue;
+      d.schneiden = false;
+    }
+    for (;;) {
+      const u = s.indexOf('"usage":{', i);
+      if (u < 0) break;
+      const e = s.indexOf("\n", u);
+      if (e < 0) break;
+      energieZeile(s.slice(s.lastIndexOf("\n", u) + 1, e), jetzt);
+      i = e + 1;
+    }
+    d.rest = s.slice(Math.max(i, s.lastIndexOf("\n") + 1));
+    /* Eine Zeile ueber acht Megabyte, etwa mit eingebetteten Bildern:
+       nicht im Speicher halten, sondern bis zu ihrem Ende ueberspringen */
+    if (d.rest.length > 8388608) { d.rest = ""; d.schneiden = true; }
+  }
+  return gelesen;
+}
+
+/* Die Protokolle der Unteragenten einer Sitzung. Der Ordner wird einmal
+   je Minute neu angesehen; dazwischen nur die Groesse der Dateien, die in
+   den letzten zehn Minuten wuchsen. */
+async function energieUnteragenten(sitzung, jetzt) {
+  const ordner = sitzung.replace(/\.jsonl$/, "") + "/subagents";
+  let c = ENERGIE.unter.get(ordner);
+  if (c && jetzt - c.um <= 60000) {
+    for (const f of c.dateien) {
+      if (jetzt - f.mt > 600000) continue;
+      try { const s = await Neutralino.filesystem.getStats(f.pfad); f.groesse = s.size; f.mt = s.modifiedAt; } catch {}
+    }
+    return c.dateien;
+  }
+  const dateien = [];
+  const sammeln = async (o, eintraege) => {
+    for (const u of eintraege) {
+      if (!u.entry.startsWith("agent-") || !u.entry.endsWith(".jsonl")) continue;
+      try {
+        const s = await Neutralino.filesystem.getStats(o + "/" + u.entry);
+        if (jetzt - s.modifiedAt <= ENERGIE_RUECK) dateien.push({ pfad: o + "/" + u.entry, groesse: s.size, mt: s.modifiedAt });
+      } catch { /* inzwischen weg */ }
+    }
+  };
+  try {
+    const eintraege = await Neutralino.filesystem.readDirectory(ordner);
+    await sammeln(ordner, eintraege);
+    if (eintraege.some(u => u.entry === "workflows" && u.type === "DIRECTORY")) {
+      for (const w of await Neutralino.filesystem.readDirectory(ordner + "/workflows")) {
+        if (w.type !== "DIRECTORY" || w.entry.startsWith(".")) continue;
+        try { await sammeln(ordner + "/workflows/" + w.entry, await Neutralino.filesystem.readDirectory(ordner + "/workflows/" + w.entry)); }
+        catch { /* weg oder nicht lesbar */ }
+      }
+    }
+  } catch { /* keine Unteragenten */ }
+  ENERGIE.unter.set(ordner, c = { um: jetzt, dateien });
+  return dateien;
+}
+
+async function energieSammeln(jetzt) {
+  if (ENERGIE.laeuft || jetzt - ENERGIE.um < ENERGIE_TAKT) return;
+  ENERGIE.laeuft = true; ENERGIE.um = jetzt;
+  try {
+    const dateien = [];
+    for (const stand of PROJEKT_STAND.values()) for (const f of stand.dateien) {
+      if (!f.mt || jetzt - f.mt > ENERGIE_RUECK) continue;
+      dateien.push({ pfad: f.pfad, groesse: f.groesse || 0, mt: f.mt });
+      for (const u of await energieUnteragenten(f.pfad, jetzt)) dateien.push(u);
+    }
+    /* Die juengsten zuerst: sie entscheiden ueber das laufende Fenster */
+    dateien.sort((a, b) => b.mt - a.mt);
+    let budget = ENERGIE_HAPPEN;
+    for (const f of dateien) {
+      if (budget <= 0) break;
+      try { budget -= await energieLesen(f.pfad, f.groesse, budget, jetzt); } catch { /* beim naechsten Mal */ }
+    }
+    const da = new Set(dateien.map(f => f.pfad));
+    for (const p of ENERGIE.dateien.keys()) if (!da.has(p)) ENERGIE.dateien.delete(p);
+    for (const o of ENERGIE.unter.keys()) if (!da.has(o.replace(/\/subagents$/, ".jsonl"))) ENERGIE.unter.delete(o);
+    /* Wie viel der zehn Stunden schon gelesen ist */
+    let offen = 0, ganz = 0;
+    for (const f of dateien) {
+      const d = ENERGIE.dateien.get(f.pfad);
+      if (!d) { offen += f.groesse; ganz += f.groesse; continue; }
+      offen += Math.max(0, f.groesse - d.pos); ganz += Math.max(0, f.groesse - d.start);
+    }
+    const fortschritt = offen > 0 && ganz > 0 ? 1 - offen / ganz : 1;
+    ENERGIE.lage = energieLage(jetzt, fortschritt);
+    /* Ist der Anfang der Kette unsicher, einmal zurueckblicken; findet
+       sich nichts, erst in einer Stunde wieder. Das laeuft nebenher:
+       in einer Datei voller Bildschirmfotos dauert es ein paar Sekunden,
+       und so lange soll die Szene nicht stehen. Der naechste Durchlauf
+       rechnet dann mit dem Anker. */
+    if (ENERGIE.lage.unsicherAb && !ENERGIE.anker && ENERGIE.rueckblick !== "sucht"
+        && jetzt - ENERGIE.rueckblickUm > 3600000) {
+      ENERGIE.rueckblickUm = jetzt; ENERGIE.rueckblick = "sucht";
+      energieRueckblick(ENERGIE.lage.unsicherAb).then((a) => {
+        ENERGIE.rueckblick = a ? "gefunden" : "keiner";
+        if (a && !ENERGIE.anker) { ENERGIE.anker = a; ENERGIE.um = 0; }
+      }, () => { ENERGIE.rueckblick = "keiner"; });
+    }
+    /* Bis alles gelesen ist, geht es mit jedem Durchlauf der Bruecke
+       weiter statt nur alle zehn Sekunden */
+    if (ENERGIE.lage.gelesen < 1) ENERGIE.um = 0;
+  } finally {
+    ENERGIE.laeuft = false;
+  }
+}
+
+/* --- Rueckblick: wo die Kette der Fenster begann ----------------------
+   Wer den ganzen Tag arbeitet, reiht Fenster an Fenster: jedes beginnt
+   mit der ersten Antwort nach dem Ende des vorigen. Wo das laufende
+   begann, haengt dann an der letzten Pause von fuenf Stunden, und die
+   kann weit vor den zehn gelesenen Stunden liegen. Bei dieser Sitzung
+   hier lag sie 18 Stunden zurueck; ohne sie kam der Beginn eine Stunde
+   zu spaet heraus (10:00 statt 09:00 UTC).
+
+   Statt alles zu lesen, wird gesucht: die erste Antwort ab einem
+   Zeitpunkt, je Datei mit Halbierung. Rueckwaerts in Schritten von vier
+   Stunden, bis vor einer Antwort fuenf Stunden lang keine war; jede
+   solche Pause enthaelt einen der Schritte. Von dort vorwaerts Fenster
+   fuer Fenster bis zur ersten gelesenen Antwort. Das sind ein paar
+   hundert kleine Lesezugriffe statt Hunderter Megabyte. Unteragenten
+   zaehlen mit: arbeitet die Sitzung nur ueber sie weiter, ist deren
+   Antwort die erste eines Fensters. Hoechstens 48 Stunden zurueck;
+   findet sich keine Pause, bleibt es bei "etwa". */
+const ENERGIE_BLICK = 48 * 3600000;
+
+/* Die Zeit einer Antwort mit Nutzung, nach denselben Regeln wie beim
+   Zaehlen; sonst null */
+function antwortZeit(zeile) {
+  let d;
+  try { d = JSON.parse(zeile); } catch { return null; }
+  if (!d || d.type !== "assistant" || !d.message || !d.message.usage || synthetisch(d)) return null;
+  const u = d.message.usage, z = (v) => Number.isFinite(v) && v > 0;
+  if (!z(u.input_tokens) && !z(u.cache_creation_input_tokens) && !z(u.cache_read_input_tokens) && !z(u.output_tokens)) return null;
+  const t = Date.parse(d.timestamp);
+  return Number.isFinite(t) ? t : null;
+}
+
+/* Die erste Antwort ab T in einer Datei, oder null. Die Halbierung
+   richtet sich nach jedem Zeitstempel, gezaehlt wird dann nur eine
+   Antwort. Hoechstens 32 MB weit, sonst gilt die Suche als gescheitert. */
+async function antwortAb(f, T, merk) {
+  const lies = (pos, size) => Neutralino.filesystem.readFile(f.pfad, { pos, size });
+  /* Entstand die Datei erst nach T, steht die gesuchte Antwort vorn.
+     Sonst halbieren, aber nur bis auf ein Megabyte: den Rest am Stueck
+     zu lesen ist billiger als die letzten Schritte. */
+  let pos = f.groesse > 1048576 && !(f.ct > T) ? await stempelStelle(f.pfad, f.groesse, T, 1048576, merk) : 0;
+  let rest = "", schneiden = pos > 0, gelesen = 0;
+  while (pos < f.groesse) {
+    if (gelesen >= 33554432) throw new Error("zu weit");
+    const size = Math.min(f.groesse - pos, 1048576);
+    const s = rest + await lies(pos, size);
+    pos += size; gelesen += size; rest = "";
+    let i = 0;
+    if (schneiden) { i = s.indexOf("\n") + 1; if (i === 0) continue; schneiden = false; }
+    for (;;) {
+      const u = s.indexOf('"usage":{', i);
+      if (u < 0) break;
+      const e = s.indexOf("\n", u);
+      if (e < 0) break;
+      const t = antwortZeit(s.slice(s.lastIndexOf("\n", u) + 1, e));
+      if (t !== null && t >= T) return t;
+      i = e + 1;
+    }
+    rest = s.slice(Math.max(i, s.lastIndexOf("\n") + 1));
+    if (rest.length > 8388608) { rest = ""; schneiden = true; }
+  }
+  return null;
+}
+
+async function energieRueckblick(e0) {
+  const frueh = e0 - ENERGIE_BLICK - ENERGIE_FENSTER;
+  const dateien = [];
+  const dazu = (pfad, st) => { if (st.modifiedAt >= frueh) dateien.push({ pfad, groesse: st.size, mt: st.modifiedAt,
+    ct: st.createdAt > 0 && st.createdAt <= st.modifiedAt ? st.createdAt : 0 }); };
+  for (const stand of PROJEKT_STAND.values()) for (const f of stand.dateien) {
+    if (!f.mt || f.mt < frueh) continue;
+    dateien.push({ pfad: f.pfad, groesse: f.groesse || 0, mt: f.mt, ct: f.ct > 0 && f.ct <= f.mt ? f.ct : 0 });
+    const ordner = f.pfad.replace(/\.jsonl$/, "") + "/subagents";
+    const agenten = async (o) => {
+      for (const u of await Neutralino.filesystem.readDirectory(o)) {
+        if (u.type === "DIRECTORY" && o === ordner && u.entry === "workflows") {
+          for (const w of await Neutralino.filesystem.readDirectory(o + "/workflows"))
+            if (w.type === "DIRECTORY" && !w.entry.startsWith(".")) { try { await agenten(o + "/workflows/" + w.entry); } catch {} }
+        } else if (u.entry.startsWith("agent-") && u.entry.endsWith(".jsonl")) {
+          try { dazu(o + "/" + u.entry, await Neutralino.filesystem.getStats(o + "/" + u.entry)); } catch {}
+        }
+      }
+    };
+    try { await agenten(ordner); } catch { /* keine Unteragenten */ }
+  }
+  /* Die erste Antwort in [T, bis) ueber alle Dateien */
+  const merk = new Map(), schritte = new Map();
+  const erste = async (T, bis) => {
+    let best = null;
+    for (const f of dateien) {
+      if (f.mt < T || f.ct >= (best === null ? bis : best)) continue;
+      const k = f.pfad + "|" + T;
+      if (!merk.has(k)) merk.set(k, await antwortAb(f, T, schritte));
+      const t = merk.get(k);
+      if (t !== null && t < bis && (best === null || t < best)) best = t;
+    }
+    return best;
+  };
+  const stunde = (t) => { const d = new Date(t); d.setUTCMinutes(0, 0, 0); return d.getTime(); };
+  let anfang = null;
+  for (let k = 0; k * 4 * 3600000 <= ENERGIE_BLICK && anfang === null; k++) {
+    const T = e0 - k * 4 * 3600000;
+    const o = k ? (await erste(T, e0)) ?? e0 : e0;
+    if ((await erste(o - ENERGIE_FENSTER, o)) === null) anfang = o;
+  }
+  if (anfang === null) return null;
+  let s = stunde(anfang), e = s + ENERGIE_FENSTER;
+  for (let n = 0; e <= e0 && n < 40; n++) {
+    s = stunde((await erste(e, e0)) ?? e0); e = s + ENERGIE_FENSTER;
+  }
+  return e > e0 ? { start: s, ende: e } : null;
+}
+
+/* Aus den Antworten die Fenster, wie ccusage sie bildet, und das
+   laufende davon. Ob sein Beginn sicher ist, haengt an der Kette davor:
+   ein Fenster ist sicher, wenn vor seiner ersten Antwort fuenf Stunden
+   Stille lagen, oder wenn das Fenster davor sicher war. Liegt der Anfang
+   der Kette vor den zehn gelesenen Stunden, ist er nur ungefaehr. */
+function energieLage(jetzt, gelesen) {
+  const ab = jetzt - ENERGIE_RUECK, anker = ENERGIE.anker;
+  /* Vor dem Anker braucht es nichts mehr: sein Ende ist bekannt */
+  const vorne = anker ? Math.max(ab, anker.start) : ab;
+  for (const [k, a] of ENERGIE.antworten) if (a.t < vorne) ENERGIE.antworten.delete(k);
+  const liste = [...ENERGIE.antworten.values()].sort((a, b) => a.t - b.t);
+  /* Sicher ist nur, was aus vollstaendigen Daten folgt: solange noch
+     gelesen wird, kann jede Antwort die fehlende sein */
+  const voll = gelesen >= 1;
+  let f = anker ? { ...anker, gewiss: true, liste: [] } : null, vorher = null, unsicherAb = 0;
+  let sicher = anker;
+  for (const a of liste) {
+    if (!f || a.t >= f.ende) {
+      const s = new Date(a.t); s.setUTCMinutes(0, 0, 0);
+      const gewiss = voll && (vorher ? a.t - vorher.t >= ENERGIE_FENSTER || f.gewiss
+                                     : f ? f.gewiss : a.t - ab >= ENERGIE_FENSTER);
+      if (!f && !gewiss) unsicherAb = a.t;
+      f = { start: s.getTime(), ende: s.getTime() + ENERGIE_FENSTER, gewiss, liste: [] };
+      if (gewiss) sicher = { start: f.start, ende: f.ende };
+    }
+    f.liste.push(a); vorher = a;
+  }
+  if (voll && sicher) ENERGIE.anker = sicher;
+  if (!f || jetzt >= f.ende) return { offen: false, gelesen, zuletzt: f ? f.ende : 0, unsicherAb };
+  const summe = { ein: 0, schreib: 0, lesen: 0, aus: 0 };
+  const jeSitzung = new Map(), jeAgent = new Map(), jeModell = new Map();
+  let frisch = 0;
+  const dazu = (m, k, n) => { const x = m.get(k) || { tokens: 0, antworten: 0 }; x.tokens += n; x.antworten++; m.set(k, x); };
+  for (const a of f.liste) {
+    const n = a.ein + a.schreib + a.lesen + a.aus;
+    for (const k in summe) summe[k] += a[k];
+    if (a.sid) {
+      const x = jeSitzung.get(a.sid) || { tokens: 0, eigen: 0, antworten: 0 };
+      x.tokens += n; x.antworten++; if (!a.agent) x.eigen += n;
+      jeSitzung.set(a.sid, x);
+    }
+    if (a.agent) dazu(jeAgent, a.agent, n);
+    dazu(jeModell, a.modell.replace(/^claude-/, "").replace(/-\d{8}$/, "") || "?", n);
+    if (jetzt - a.t < 600000) frisch += n;
+  }
+  const tokens = summe.ein + summe.schreib + summe.lesen + summe.aus;
+  /* Das Tempo der letzten zehn Minuten; ist das Fenster juenger, zaehlt
+     die Zeit seit seiner ersten Antwort */
+  const minuten = Math.max(1, Math.min(10, f.liste.length ? (jetzt - f.liste[0].t) / 60000 : 10));
+  return { offen: true, gelesen, start: f.start, ende: f.ende, gewiss: f.gewiss, tokens, summe, unsicherAb,
+           antworten: f.liste.length, tempo: frisch / minuten, jeSitzung, jeAgent, jeModell, um: jetzt };
+}
+
+/* Die Beispielzahlen der Vorfuehrung: ein Fenster, das vor gut zwei
+   Stunden aufging, und ein Verbrauch, der mit dem Durchgang waechst.
+   Aufgeteilt auf die Figuren der Vorfuehrung. */
+function energieVorfuehrung(jetzt, s) {
+  const st = new Date(jetzt - (2 * 60 + 13) * 60000); st.setUTCMinutes(0, 0, 0);
+  const wachs = 1 + s / VORF_DAUER * 0.04;
+  const teile = [["vorf-a", "", 1480000], ["vorf-a", "vorf-1", 610000], ["vorf-a", "vorf-2", 395000],
+                 ["vorf-a", "vorf-3", s >= 80 ? 188000 * Math.min(1, (s - 80) / 17) : 0], ["vorf-b", "", 842000]];
+  const jeSitzung = new Map(), jeAgent = new Map();
+  let tokens = 0;
+  for (const [sid, agent, n0] of teile) {
+    const n = Math.round(n0 * wachs), antworten = Math.round(n / 31000);
+    tokens += n;
+    const x = jeSitzung.get(sid) || { tokens: 0, eigen: 0, antworten: 0 };
+    x.tokens += n; x.antworten += antworten; if (!agent) x.eigen += n;
+    jeSitzung.set(sid, x);
+    if (agent && n) jeAgent.set(agent, { tokens: n, antworten });
+  }
+  const lesen = Math.round(tokens * 0.93), aus = Math.round(tokens * 0.012);
+  return { offen: true, gelesen: 1, start: st.getTime(), ende: st.getTime() + ENERGIE_FENSTER, gewiss: true, tokens,
+           summe: { ein: Math.round(tokens * 0.0004), schreib: tokens - lesen - aus - Math.round(tokens * 0.0004), lesen, aus },
+           antworten: [...jeSitzung.values()].reduce((a, x) => a + x.antworten, 0),
+           tempo: 21400 + 6800 * Math.sin(s / 9), jeSitzung, jeAgent,
+           jeModell: new Map([["opus-5", { tokens: Math.round(tokens * 0.86), antworten: 0 }],
+                              ["haiku-4-5", { tokens: tokens - Math.round(tokens * 0.86), antworten: 0 }]]),
+           um: jetzt, vorfuehrung: true };
+}
+
+/* Grosse Zahlen kurz: 3,1 Mio., 812 Tsd., 940 */
+function tokKurz(n) {
+  if (n >= 1e9) return kz(n / 1e9) + " Mrd.";
+  if (n >= 1e6) return kz(n / 1e6) + " Mio.";
+  if (n >= 1e4) return Math.round(n / 1e3) + " Tsd.";
+  if (n >= 1e3) return kz(n / 1e3) + " Tsd.";
+  return String(Math.round(n));
+}
+
+/* Die Zeilen in den Stationswerten. Ohne Bruecke und ohne Vorfuehrung
+   gibt es nichts zu zeigen; dann fehlt der Abschnitt ganz. */
+function energieZeilen(jetzt) {
+  const e = ENERGIE.lage;
+  if (!e) return [];
+  const kopf = ["~", "ENERGIE · CLAUDE CODE"];
+  const liest = e.gelesen < 1 ? [["LIEST NOCH", Math.round(e.gelesen * 100) + " %", e.gelesen]] : [];
+  if (!e.offen) return [kopf, ["FENSTER", e.zuletzt ? "zu seit " + uhr(e.zuletzt) : "zu"], ...liest];
+  const rest = Math.max(0, e.ende - jetzt);
+  /* Wer am meisten verbraucht hat: die Sitzung samt ihren Unteragenten */
+  let groesster = null;
+  for (const [sid, x] of e.jeSitzung) if (!groesster || x.tokens > groesster.tokens) groesster = { sid, tokens: x.tokens };
+  const figur = groesster && (BR.live || []).find(x => x.typ === "session" && x.sid === groesster.sid);
+  /* Kurze Zeilen: die Spalte ist 236 Punkte breit */
+  return [kopf,
+    /* Der Balken ist die verstrichene Zeit, nicht der Verbrauch: die
+       Grenze des Abos ist nicht bekannt, die Zeit schon */
+    ["FENSTER", (e.gewiss ? "" : "etwa ") + uhr(e.start) + "–" + uhr(e.ende),
+      klemm((jetzt - e.start) / ENERGIE_FENSTER, 0, 1)],
+    ["NEUES FENSTER", "in " + dauer(rest)],
+    ["VERBRAUCH", tokKurz(e.tokens) + " Tokens"],
+    ["ZWISCHENSPEICHER", prozentText(e.summe.lesen, e.tokens)],
+    ["TEMPO", e.tempo >= 1 ? tokKurz(e.tempo) + " Tokens/min" : "still"],
+    ...(e.tempo >= 1 ? [["HOCHGERECHNET", tokKurz(e.tokens + e.tempo * rest / 60000) + " bis " + uhr(e.ende)]] : []),
+    ...(groesster ? [["GRÖSSTER", (figur ? figur.name : "ruhende Sitzung") + " · " + prozentText(groesster.tokens, e.tokens)]] : []),
+    ...liest,
+  ];
+}
+function prozentText(teil, ganz) {
+  if (!ganz) return "0 %";
+  const p = teil / ganz * 100;
+  return p > 0 && p < 1 ? "< 1 %" : Math.round(p) + " %";
+}
+
+/* Was eine Figur im laufenden Fenster verbraucht hat. Eine Sitzung
+   zaehlt ihre Unteragenten mit; wie viel davon auf sie entfiel, steht
+   dabei. */
+function energieVon(a) {
+  const e = ENERGIE.lage;
+  if (!e || !e.offen || !e.tokens || !a.sid) return "";
+  const x = a.typ === "unteragent" ? e.jeAgent.get(a.sid) : a.typ === "session" ? e.jeSitzung.get(a.sid) : null;
+  if (!x || !x.tokens) return "nichts";
+  let t = tokKurz(x.tokens) + " Tokens · " + prozentText(x.tokens, e.tokens) + " des Fensters";
+  if (a.typ === "session" && x.eigen < x.tokens) t += " · " + prozentText(x.tokens - x.eigen, x.tokens) + " davon Unteragenten";
+  return t;
+}
+
 /* Je Projekt die offene Zeit eines Tages, und die Anteile so gestreckt,
    dass sie zusammen die Zeit des Tages ergeben: zwei Projekte zur selben
    Zeit zaehlen im Tag einmal, im Stapel aber beide. */
@@ -4022,6 +4493,7 @@ function vorfuehrungBeenden() {
   bruecke_sessions = []; bruecke_ordner = []; bruecke_prozesse = []; bruecke_github = [];
   HEUTE = [];
   WOCHE = null; WOCHE_WAHL = null;
+  ENERGIE.lage = null; ENERGIE.um = 0;
   bordbuch("Vorführung beendet");
   liveNeuBauen();
   vorfuehrungKnopf();
@@ -4302,6 +4774,7 @@ function vorfuehrungTakt() {
   }
   HEUTE = [...projekte.entries()].map(([name, segmente], i) => ({ name, farbe: FARBEN[i % FARBEN.length], segmente }));
   WOCHE = vorfuehrungWoche(jetzt);
+  ENERGIE.lage = energieVorfuehrung(jetzt, s);
   liveNeuBauen();
 }
 
@@ -4321,6 +4794,7 @@ async function brueckeDurchlauf() {
       BR.uhren.sessions = jetzt; bruecke_sessions = await sammleSessions();
       await heuteSammeln();
       await wocheSammeln();
+      await energieSammeln(jetzt);
     }
     if (BR.aktiv && Z.bruecke.typen.ordner && Z.bruecke.ordner.length && jetzt - BR.uhren.ordner > TAKT.ordner) {
       BR.uhren.ordner = jetzt; bruecke_ordner = await sammleOrdner();
@@ -19383,6 +19857,9 @@ function zeichneDetail(id) {
         box.appendChild(zeile("Zuletzt gedacht", tsd(n.denken) + " von "
           + tsd(n.aus) + " Tokens"));
     }
+    /* Was sie im laufenden Fenster von fuenf Stunden verbraucht hat */
+    const imFenster = energieVon(a);
+    if (imFenster) box.appendChild(zeile("Im Fenster", imFenster));
     /* Wann zuletzt verdichtet wurde: danach kennt die Sitzung ihren
        eigenen Verlauf nur noch als Zusammenfassung — gut zu wissen,
        wenn sie auf einmal etwas von vorhin nicht mehr weiss. */
@@ -20592,6 +21069,9 @@ function zeichneTelemetrie(t) {
   const vz = bilanz >= 0 ? "+" : "−";
 
   const zeilen = [
+    /* Der echte Verbrauch von Claude Code steht oben: er ist das
+       Einzige hier, woran man etwas entscheidet */
+    ...energieZeilen(jetzt),
     ["~", "LEBENSERHALT"],
     ["BATTERIE", Math.round(LEBEN.akku * 100) + " % · " + vz + Math.abs(Math.round(bilanz)) + " kW",
       LEBEN.akku, LEBEN.akku < 0.22 ? "schlecht" : LEBEN.akku < 0.4 ? "warm" : "gut"],
@@ -21217,6 +21697,20 @@ const HILFE = [
       + "N und P springen von Astronaut zu Astronaut (Tab auch, solange kein Knopf "
       + "den Fokus hat), W zum Nächsten, der auf dich wartet, Leertaste stellt die Kamera zurück, "
       + "Escape schließt.",
+  },
+  {
+    titel: "Die Energie",
+    text: "Ganz oben unter Stationswerte steht, was Claude Code im laufenden Fenster von fünf Stunden "
+      + "verbraucht hat — dem Zeitraum, in dem ein Abo seine Grenze zählt. Das Fenster beginnt zur "
+      + "vollen Stunde vor der ersten Antwort nach einer Pause; gerechnet wird wie bei ccusage, aus "
+      + "deinen eigenen Protokollen, Unteragenten eingeschlossen, jede Antwort einmal. Der Balken ist "
+      + "die verstrichene Zeit, nicht der Verbrauch: wie groß die Grenze ist, sagt Anthropic nicht, "
+      + "und ORBIT rät sie nicht. Die Summe enthält alles, was abgerechnet wurde, auch was aus dem "
+      + "Zwischenspeicher kam — deshalb steht dessen Anteil dabei; er ist meist über neunzig Prozent. "
+      + "Hochgerechnet heißt: bei diesem Tempo bis zum Ende des Fensters. Im Detailfenster jeder "
+      + "Sitzung steht ihr Anteil. Steht „etwa“ vor der Zeit, reichte die Arbeit ohne fünf Stunden "
+      + "Pause weiter zurück, als ORBIT nachsehen konnte (zwei Tage). Nur im Mac-Programm; im Browser "
+      + "zeigt die Vorführung Beispielzahlen.",
   },
   {
     titel: "Was es kostet",
