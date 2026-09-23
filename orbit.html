@@ -2044,6 +2044,21 @@ function schleifeAktiv(a, jetzt = Date.now()) {
   if (a.zustand === "ruht" || a.zustand === "fertig") return null;
   return s_;
 }
+/* Was der Kreis gekostet hat: alle Antworten dieser Figur seit dem
+   ersten Fehlschlag der Reihe, gezaehlt wie in der Energie (frisch,
+   geschrieben, gelesen, erzeugt; jede Antwort einmal). Die Zahlen kommen
+   aus derselben Liste. null, wenn die Energie nichts von ihr weiss. */
+function schleifeKosten(a, s_) {
+  if (Number.isFinite(s_.tokens)) return s_.tokens;           // Vorfuehrung
+  let n = 0, da = false;
+  for (const e of ENERGIE.antworten.values()) {
+    if (e.t < s_.seit) continue;
+    if (a.typ === "unteragent" ? e.agent !== a.sid : (e.sid !== a.sid || e.agent)) continue;
+    da = true;
+    n += e.ein + e.schreib + e.lesen + e.aus;
+  }
+  return da ? n : null;
+}
 function schleifenAktualisieren() {
   const jetzt = Date.now();
   SCHLEIFE.liste = BR.live.filter(a => schleifeAktiv(a, jetzt)).map(a => ({ a, s: a.schleife }))
@@ -5105,6 +5120,7 @@ function vorfuehrungTakt() {
       werkzeug: st[0] ? st[0].werkzeug : "", seit: fertig ? um(70) : (st[0] ? st[0].zeit : um(10)),
       seitStart: um(10), schritte: st, takt: st.map(x => x.zeit), abgedecktAb: 0,
       schleife: lint.length >= 3 ? { befehl: LINT, n: lint.length, seit: um(41), zuletzt: um(lint[lint.length - 1]),
+        tokens: lint.length >= 4 ? 251400 : 186200,
         zeile: "41:12  error  Doppelte Rundung: Math.round auf gerundeten Betrag  kasse/keine-doppelte-rundung" } : null }));
   }
   if (s >= 12) {
@@ -23792,7 +23808,9 @@ function zeichneDetail(id) {
     /* Im Kreis: welcher Befehl, wie oft, seit wann, und der Fehler selbst */
     const sch = schleifeAktiv(a);
     if (sch) {
-      const z = zeile("Im Kreis", sch.n + "-mal derselbe Fehler  ·  seit " + uhr(sch.seit));
+      const kosten = schleifeKosten(a, sch);
+      const z = zeile("Im Kreis", sch.n + "-mal derselbe Fehler  ·  seit " + uhr(sch.seit)
+        + (kosten !== null ? "  ·  " + tokKurz(kosten) + " Tokens" : ""));
       z.querySelector(".w").style.color = "#f5963c";
       box.appendChild(z);
       const f = document.createElement("div");

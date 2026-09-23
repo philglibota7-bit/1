@@ -124,7 +124,7 @@ Ein Agent, der denselben Befehl immer wieder startet und jedes Mal an demselben 
 
 - **In der Szene** dreht sich um seine Figur ein gestrichelter orangefarbener Ring, daran ein Schild mit der Zahl („⟲ 4×“). Orange und nicht bernstein, denn bernstein ist der Ring dessen, der auf dich wartet.
 - **Unter Stationswerte** steht SCHLEIFE mit Namen, Befehl und Zahl.
-- **Im Detailfenster** steht „Im Kreis · 4-mal derselbe Fehler · seit 14:02“, darunter der Befehl und die Zeile, die den Fehler sagt.
+- **Im Detailfenster** steht „Im Kreis · 4-mal derselbe Fehler · seit 14:02 · 251 Tsd. Tokens“, darunter der Befehl und die Zeile, die den Fehler sagt. Die Tokens sind alle Antworten dieser Figur seit dem ersten Fehlschlag der Reihe, gezählt wie in der Energie, aus derselben Liste: frisch, geschrieben, gelesen und erzeugt, jede Antwort einmal, ohne die ihrer Unteragenten. Weiß die Energie nichts von ihr, fehlt die Zahl.
 - **Eine Mitteilung** und ein Eintrag im Bordbuch, je Reihe einmal. Wird eine Reihe nur länger, klingelt es nicht noch einmal.
 - **In der Leiste unten und in der Crew-Liste** steht statt der letzten Tätigkeit „⟲ 4× derselbe Fehler“, orange. Hat eine Figur beides, steht der Kreis vorn, denn er kostet, solange er läuft. Wer auf dich wartet, behält seine Zeile.
 
@@ -644,6 +644,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Vorführung: bei Sekunde 50 nichts, bei 56 dreimal, bei 62 viermal, nach dem Bericht bei 71 nichts.
   - Gegengeprüft mit 13 kaputten Fassungen: ohne Fehlervergleich, Dauern zählen mit, Ablehnung zählt als Fehlschlag, Schwelle 2, Inhalt als Liste nicht gelesen, ohne Frist, gilt nach dem Ende weiter, meldet immer wieder, meldet beim Start, kein Ring, keine Zeile, kein Hinweis im Detail, Vorführung ohne. Alle 13 schlagen an. „Meldet beim Start“ kam zuerst durch, weil der Test zu spät hinsah: Die Brücke läuft beim Laden schon von selbst, und ihr erster Durchlauf war vorbei, bevor der Test mitschrieb. Jetzt stellt er den Stand des Starts her.
   - An echten Daten: Das ganze Protokoll dieser Sitzung (516 MB) mit derselben Regel in Python durchgerechnet: 4668 Befehle, 57 gescheitert, keine einzige Reihe von drei gleichen Fehlschlägen, auch ohne den Fehlervergleich nicht. Fehlalarme gab es dort also keine. Einen echten Kreis aber auch nicht: Dass die Regel einen findet, ist nur an den nachgebauten Protokollen geprüft.
+  - Die Kosten: Von fünf Antworten in der Liste der Energie zählen genau die zwei dieser Sitzung nach dem ersten Fehlschlag (120.000 und 64.000, zusammen „184 Tsd. Tokens“); eine davor, eine einer anderen Sitzung und eine ihres Unteragenten nicht. Gegengeprüft: ohne die Auswahl nach Figur kamen 1,5 Mio. heraus, ohne die Zeitgrenze 9,4 Tsd.
   - Weil der Leser geändert ist, dazu grün: echt, echt2, dateien, aufgaben, stoerung, unteragent, familie, test-bruecke, werkzeug, vorf, funk, melden, wartet, energie-echt und konflikt.
   - Zehn kaputte Fassungen schlagen an.
 - **Lieferungen** (lieferung.mjs, Flugzeiten für den Test verkürzt):
