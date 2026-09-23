@@ -622,6 +622,10 @@ footer{
 .d-datei::before{content:""; position:absolute; left:1px; top:50%; width:5px; height:5px;
   margin-top:-2.5px; border-radius:50%; background:rgba(207,164,86,.42);}
 .d-datei.frisch::before{background:#cfa456; box-shadow:0 0 0 3px rgba(207,164,86,.18);}
+.d-datei.konflikt::before{background:#f07060; box-shadow:0 0 0 3px rgba(240,112,96,.2);}
+.d-datei.konflikt{border-bottom:0;}
+.d-konflikt{padding:0 2px 6px 13px; border-bottom:1px solid rgba(255,255,255,.05); font-size:11px;
+  color:#f3a092; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .d-datei .nm{flex:0 1 auto; max-width:58%; color:var(--tx); font-weight:600;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .d-datei .ord{flex:1 1 0; min-width:0; color:var(--tx3); font-size:10.5px;
@@ -1868,6 +1872,150 @@ function melden(titel, text, id, art) {
       .then(r => r && r.showNotification(titel, { body: text, tag: "orbit-" + id, icon: "orbit-icon-192.png" }))
       .catch(() => {});
   }
+}
+
+/* ---------- Zwei an derselben Datei ----------
+   Arbeiten zwei Sitzungen im selben Ordner, oder laeuft ein Unteragent im
+   Hintergrund neben seiner Sitzung, koennen beide dieselbe Datei aendern,
+   ohne voneinander zu wissen. Gemerkt wird das meist erst beim Mergen,
+   oder gar nicht, wenn die zweite Aenderung die erste stillschweigend
+   umbaut.
+
+   Als Konflikt gilt: Zwei Figuren haben dieselbe Datei geaendert, beide
+   in der letzten halben Stunde, und jede Aenderung fiel in eine Zeit, in
+   der die andere Figur da war. Eine Uebergabe ist also keiner: Aendert
+   die Sitzung eine Datei und schickt danach einen Unteragenten, der sie
+   weiter aendert, war der bei der ersten Aenderung noch nicht da. Zwei
+   Sitzungen im selben Ordner sind dagegen die ganze Zeit da. Verglichen
+   wird der volle Pfad; zwei Arbeitskopien desselben Projekts
+   (git worktree) sind also verschiedene Dateien, und das stimmt auch. */
+const KONFLIKT_FRIST = 30 * 60000;
+const KONFLIKT = { liste: [], gesehen: new Map(), bekannt: new Set(), gezeichnet: [] };
+
+/* Wann die Figur da war: ab ihrem Start, bis jetzt oder bis zu ihrem
+   Bericht */
+function konfliktZeit(a, jetzt) {
+  const von = a.seitStart || 0;
+  const bis = a.typ === "unteragent" && a.berichtet ? Math.max(von, a.seit || jetzt) : jetzt;
+  return [von, bis];
+}
+
+function konflikteRechnen(live, jetzt) {
+  const jeDatei = new Map();
+  for (const a of live) {
+    if ((a.typ !== "session" && a.typ !== "unteragent") || !Array.isArray(a.geaendert)) continue;
+    for (const g of a.geaendert) {
+      if (!g || typeof g.pfad !== "string" || !(g.zuletzt >= jetzt - KONFLIKT_FRIST)) continue;
+      if (!jeDatei.has(g.pfad)) jeDatei.set(g.pfad, []);
+      jeDatei.get(g.pfad).push({ a, zuletzt: g.zuletzt });
+    }
+  }
+  const liste = [];
+  for (const [pfad, l] of jeDatei) {
+    for (let i = 0; i < l.length; i++) for (let j = i + 1; j < l.length; j++) {
+      /* x hat zuerst geaendert, y zuletzt */
+      const [x, y] = l[i].zuletzt <= l[j].zuletzt ? [l[i], l[j]] : [l[j], l[i]];
+      if (x.a.id === y.a.id) continue;
+      const [xv, xb] = konfliktZeit(x.a, jetzt), [yv, yb] = konfliktZeit(y.a, jetzt);
+      if (!(x.zuletzt >= yv && x.zuletzt <= yb && y.zuletzt >= xv && y.zuletzt <= xb)) continue;
+      liste.push({
+        schluessel: pfad + "|" + [x.a.id, y.a.id].sort().join("|"),
+        pfad, name: pfad.split("/").pop() || pfad,
+        a: { id: x.a.id, name: x.a.name, zuletzt: x.zuletzt },
+        b: { id: y.a.id, name: y.a.name, zuletzt: y.zuletzt },
+        zuletzt: y.zuletzt,
+      });
+    }
+  }
+  return liste.sort((p, q) => q.zuletzt - p.zuletzt);
+}
+
+/* Nach jedem Durchlauf der Bruecke: neu rechnen und Neues melden.
+   Gemeldet wird nur, was zwischen zwei Durchlaeufen entstanden ist: beide
+   Figuren waren schon beim letzten da. Was beim Start oder mit einer neu
+   gelesenen Sitzung schon bestand, klingelt nicht, wie bei allen
+   Meldungen; in der Szene und unter Stationswerte steht es trotzdem. (Nur
+   "die erste Rechnung meldet nichts" reichte nicht: die erste laeuft, bevor
+   die Bruecke ueberhaupt Sitzungen gelesen hat.) Wer nur einen Durchlauf
+   lang fehlt, weil eine Datei gerade nicht lesbar war, klingelt danach
+   nicht noch einmal: vergessen wird erst nach fuenf Minuten. */
+function konflikteAktualisieren() {
+  const jetzt = Date.now();
+  KONFLIKT.liste = konflikteRechnen(BR.live, jetzt);
+  for (const k of KONFLIKT.liste) {
+    if (!KONFLIKT.gesehen.has(k.schluessel) && KONFLIKT.bekannt.has(k.a.id) && KONFLIKT.bekannt.has(k.b.id)) {
+      melden("Konflikt: " + k.name, k.a.name + " und " + k.b.name + " ändern beide " + k.pfad, k.b.id, "konflikt:" + k.pfad);
+      bordbuch("⚠ " + k.a.name + " und " + k.b.name + " ändern beide " + k.name);
+    }
+    KONFLIKT.gesehen.set(k.schluessel, jetzt);
+  }
+  for (const [s_, um] of KONFLIKT.gesehen) if (jetzt - um > 5 * 60000) KONFLIKT.gesehen.delete(s_);
+  KONFLIKT.bekannt = new Set(BR.live.map(a => a.id));
+}
+
+/* Die Konflikte einer Figur an einer Datei: mit wem */
+function konflikteBei(id, pfad) {
+  return KONFLIKT.liste.filter(k => k.pfad === pfad && (k.a.id === id || k.b.id === id))
+    .map(k => k.a.id === id ? k.b : k.a);
+}
+
+/* In der Szene: eine rote, gezackte Strecke zwischen den beiden, und in
+   der Mitte der Name der Datei. Wie die Funkstrecke gehoert sie zur
+   Bedienung und liegt in Bildpunkten ueber der Szene. Gezackt und rot,
+   damit sie nicht mit dem Funk verwechselt wird, der blau und gewoelbt
+   ist. */
+function zeichneKonflikte(punkte, t) {
+  const gezeichnet = [];
+  if (!KONFLIKT.liste.length) { KONFLIKT.gezeichnet = gezeichnet; return; }
+  cx.save();
+  cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const puls = 0.72 + 0.28 * Math.sin(t * 0.0035);
+  const schon = new Set();
+  for (const k of KONFLIKT.liste) {
+    const p = punkte.get(k.a.id), q = punkte.get(k.b.id);
+    if (!p || !q) continue;
+    /* Dasselbe Paar an mehreren Dateien: eine Strecke, die Zahl daran */
+    const paar = [k.a.id, k.b.id].sort().join("|");
+    if (schon.has(paar)) continue;
+    schon.add(paar);
+    const mehr = KONFLIKT.liste.filter(x => [x.a.id, x.b.id].sort().join("|") === paar).length - 1;
+    const dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy) || 1;
+    const ux = dx / d, uy = dy / d;
+    let mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, enden = null;
+    if (d > p.r + q.r + 16) {
+      const ax = p.x + ux * p.r, ay = p.y + uy * p.r, ex = q.x - ux * q.r, ey = q.y - uy * q.r;
+      enden = [ax, ay, ex, ey];
+      const l = Math.hypot(ex - ax, ey - ay);
+      /* Zacken mit fester Laenge in Bildpunkten, an den Enden flach */
+      const zahl = Math.max(2, Math.round(l / 9));
+      const zacke = () => {
+        cx.beginPath(); cx.moveTo(ax, ay);
+        for (let i = 1; i < zahl; i++) {
+          const u = i / zahl, h = (i % 2 ? 1 : -1) * 3 * Math.min(1, Math.min(u, 1 - u) * 6);
+          cx.lineTo(ax + (ex - ax) * u - uy * h, ay + (ey - ay) * u + ux * h);
+        }
+        cx.lineTo(ex, ey);
+      };
+      cx.lineJoin = "round"; cx.lineCap = "round";
+      cx.strokeStyle = "rgba(6,9,16,.55)"; cx.lineWidth = 3.4; zacke(); cx.stroke();
+      cx.strokeStyle = `rgba(240,112,96,${0.9 * puls})`; cx.lineWidth = 1.5; zacke(); cx.stroke();
+    } else {
+      /* Zu dicht fuer eine Strecke: der Name steht ueber beiden */
+      my = Math.min(p.y - p.r, q.y - q.r) - 14;
+    }
+    const text = "⚠ " + k.name + (mehr > 0 ? " +" + mehr : "");
+    cx.font = "600 11px OrbitInter, -apple-system, system-ui, sans-serif";
+    const bw = cx.measureText(text).width + 14, bh = 18;
+    cx.fillStyle = "rgba(38,12,12,.86)";
+    cx.strokeStyle = `rgba(240,112,96,${0.55 + 0.35 * puls})`; cx.lineWidth = 1;
+    rundRect(cx, mx - bw / 2, my - bh / 2, bw, bh, 9); cx.fill(); cx.stroke();
+    cx.fillStyle = "rgba(255,214,206,.96)";
+    cx.textAlign = "center"; cx.textBaseline = "middle";
+    cx.fillText(text, mx, my + 0.5);
+    gezeichnet.push({ a: k.a.id, b: k.b.id, x: mx, y: my, bw, bh, text, strecke: !!enden, enden });
+  }
+  cx.restore();
+  KONFLIKT.gezeichnet = gezeichnet;
 }
 
 /* Nach jedem Durchlauf der Bruecke: wer hat sich veraendert? Die erste
@@ -4536,6 +4684,7 @@ function liveNeuBauen() {
     Z.bruecke.typen.prozess ? bruecke_prozesse : [],
     Z.bruecke.typen.github  ? bruecke_github   : [],
   );
+  konflikteAktualisieren();
   zeichneCrewLeiste();
   /* Steht die Crew-Liste offen, gehoert der neue Stand sofort hinein */
   if (document.getElementById("blende-crew")?.classList.contains("offen"))
@@ -4664,6 +4813,9 @@ function vorfuehrungTakt() {
     [74, "Bash", { command: "npm test -- kasse" }],
     [80, "Agent", { description: "Rundung gegenprüfen" }],
     [92, "Edit", { file_path: ort + "/README.md" }],
+    /* Noch einmal die Preisberechnung, waehrend die Pruefung laeuft — und
+       die hat dieselbe Datei eben selbst geaendert: ein Konflikt */
+    [95, "Edit", { file_path: ort + "/src/kasse/preis.ts" }],
   ];
   const phaseA = s < 32 ? "busy" : s < 55 ? "waiting" : s < 100 ? "busy" : "idle";
   const phaseAb = s < 32 ? 0 : s < 55 ? 32 : s < 100 ? 55 : 100;
@@ -4782,7 +4934,10 @@ function vorfuehrungTakt() {
   }
   if (s >= 80) {
     const fertig = s >= 97;
+    /* Die Pruefung soll nur pruefen, aendert die Rundung aber gleich
+       selbst — dieselbe Datei, an der die Sitzung weiterarbeitet */
     const st = vorfSchritte([[83, "Read", { file_path: ort + "/src/kasse/preis.ts" }],
+      [86, "Edit", { file_path: ort + "/src/kasse/preis.ts" }],
       [89, "Bash", { command: "npm test -- rundung" }]], s, t0);
     unter.push(kind({ id: "u:vorf-3", sid: "vorf-3", name: "pruefung:rundung", farbe: "#cfa456",
       agentArt: "workflow-subagent", phase: "Pruefen",
@@ -4791,7 +4946,9 @@ function vorfuehrungTakt() {
       antwort: fertig ? "urteil: rundet kaufmännisch, 0,005 € wird zu 0,01 €\n\nfaelle: 6 Einträge" : "",
       taetigkeit: fertig ? "Bericht abgegeben" : (st[0] ? st[0].text : "liest sich ein"),
       werkzeug: st[0] ? st[0].werkzeug : "", seit: fertig ? um(97) : (st[0] ? st[0].zeit : um(80)),
-      seitStart: um(80), schritte: st, takt: st.map(x => x.zeit), abgedecktAb: 0 }));
+      seitStart: um(80), schritte: st, takt: st.map(x => x.zeit), abgedecktAb: 0,
+      geaendert: s >= 86 ? [{ pfad: ort + "/src/kasse/preis.ts", n: 1, zuletzt: um(86) }] : [],
+      geaendertZahl: s >= 86 ? 1 : 0 }));
   }
 
   /* --- GitHub: ein PR, dessen Tests laufen und dann gruen werden ---
@@ -21771,6 +21928,7 @@ function rahmen(jetzt) {
      sollen in jeder Zoomstufe gleich gross und gleich scharf sein. */
   cx.restore();
   zeichneFunk(funkPunkte, t);
+  zeichneKonflikte(funkPunkte, t);
   for (const b of blasen) {
     b.fuss = inSicht(b.x, b.fuss).y;
     const s2 = inSicht(b.x, b.y); b.x = s2.x; b.y = s2.y;
@@ -23190,6 +23348,16 @@ function dateiListe(a) {
     w.textContent = jetzt - g.zuletzt < 3600000 ? vorZeit(g.zuletzt) : zeitpunkt(g.zuletzt);
     z.append(nm, ord, n, w);
     box.appendChild(z);
+    /* Aendert eine andere Figur dieselbe Datei, steht das gleich darunter */
+    const mit = konflikteBei(a.id, g.pfad);
+    if (mit.length) {
+      z.classList.add("konflikt");
+      const k = document.createElement("div");
+      k.className = "d-konflikt";
+      k.textContent = "⚠ auch " + mit.map(m => m.name + " (" + vorZeit(m.zuletzt) + ")").join(", ");
+      k.title = "Beide haben diese Datei geändert, während die andere Figur lief";
+      box.appendChild(k);
+    }
   }
   const zahl = a.geaendertZahl || a.geaendert.length;
   const f = document.createElement("div");
@@ -24827,6 +24995,10 @@ function zeichneTelemetrie(t) {
       return st.name ? [["METEORE", st.name + " · " + Math.round(st.faktor) + "-mal so viele"]] : [];
     })(),
     ["BESATZUNG", alle.length + (laufend ? " · " + laufend + " arbeitet" : " · bereit")],
+    /* Zwei an derselben Datei: die juengste, und wie viele noch */
+    ...(KONFLIKT.liste.length ? [["KONFLIKT", KONFLIKT.liste[0].name + " · " + KONFLIKT.liste[0].a.name + " und "
+      + KONFLIKT.liste[0].b.name + (KONFLIKT.liste.length > 1 ? " · " + (KONFLIKT.liste.length - 1) + " weitere" : ""),
+      undefined, "schlecht"]] : []),
     /* Wie lange ist der laengste Einsatz schon im Gang? Der Balken
        misst gegen die geplanten 6,5 Stunden plus die halbe Stunde
        Reserve — dieselbe Skala wie die Anzuguhr im Detailfenster. */
@@ -25237,7 +25409,11 @@ const HILFE = [
       + "neben dem Namen läuft der Puls der ganzen Crew: jeder Zacken ein echter Aufruf, in der Farbe "
       + "seiner Sitzung, die letzten anderthalb Minuten, daneben die Aufrufe je Minute. Im "
       + "Detailfenster stehen dazu der Takt der letzten Stunde, die Arbeitsschritte und welche "
-      + "Dateien die Sitzung geändert hat. Im Mac-Programm öffnet es die Sitzung oder den Ordner "
+      + "Dateien die Sitzung geändert hat. Ändern zwei dieselbe Datei, während beide laufen (zwei "
+      + "Sitzungen im selben Ordner, oder ein Unteragent im Hintergrund neben seiner Sitzung), zieht "
+      + "sich eine rote Zackenlinie zwischen ihren Figuren, mit dem Namen der Datei. Unter "
+      + "Stationswerte steht dann KONFLIKT, im Detailfenster bei der Datei, wer sie noch geändert hat, "
+      + "und ORBIT meldet sich einmal. Im Mac-Programm öffnet es die Sitzung oder den Ordner "
       + "direkt in VS Code oder im Finder, und unter „Fortsetzen“ steht der fertige Befehl, mit dem "
       + "die Sitzung im Terminal weitergeht: kopieren, einfügen — ORBIT selbst führt nichts aus. "
       + "Unter Brücke steht der ganze Tag: je Projekt eine Zeile, "

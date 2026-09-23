@@ -97,6 +97,25 @@ Dabei aufgefallen: jedes Werkzeug ohne eigenen Text stand als rohes JSON da — 
 
 Darunter steht, welche Dateien die Sitzung geändert hat: der Name vorn, der Ordner klein daneben und von vorn gekürzt, wie oft und wann zuletzt, die jüngste oben. Gezählt wird ein Edit oder Write erst, wenn sein Ergebnis im Protokoll steht und kein Fehler war. Ein abgelehnter Edit steht dort als `"is_error": true` mit „The user doesn't want to proceed with this tool use" (an einem echten Protokoll nachgesehen), und die Datei ist dann unverändert. Ein gescheiterter („String to replace not found") oder noch offener zählt ebenso wenig. Was ein Befehl in der Shell ändert, ist aus dem Protokoll nicht sicher abzulesen; das steht unter der Liste, ebenso ab wann gezählt wird, wenn der gelesene Teil nicht bis zum Anfang reicht.
 
+### Zwei an derselben Datei
+
+Arbeiten zwei Sitzungen im selben Ordner, oder läuft ein Unteragent im Hintergrund neben seiner Sitzung, ändern beide manchmal dieselbe Datei, ohne voneinander zu wissen. Gemerkt wird das meist erst beim Mergen. ORBIT zeigt es, sobald es passiert:
+
+- **In der Szene** zieht sich eine rote Zackenlinie zwischen den beiden Figuren, in der Mitte ein Schild mit dem Namen der Datei („⚠ preis.ts“). Sind es mehrere Dateien, steht die Zahl daneben („+1“). Rot und gezackt, damit sie nicht mit dem Funk zwischen Sitzung und Unteragent verwechselt wird, der blau und gewölbt ist.
+- **Unter Stationswerte** steht KONFLIKT mit der jüngsten Datei und den beiden Namen, rot.
+- **Im Detailfenster** hat die Datei einen roten Punkt, darunter „⚠ auch pruefung:rundung (vor 11 Sek.)“.
+- **Eine Mitteilung** und ein Eintrag im Bordbuch, je Paar und Datei einmal: „Konflikt: preis.ts“ mit beiden Namen und dem vollen Pfad. Antippen öffnet die Figur, die zuletzt geändert hat.
+
+Als Konflikt gilt: Zwei Figuren haben dieselbe Datei geändert, beide in der letzten halben Stunde, und **jede Änderung fiel in eine Zeit, in der die andere Figur da war**. Das trennt zwei Fälle, die im Protokoll gleich aussehen:
+- Eine Übergabe ist keiner: Die Sitzung ändert `preis.ts`, danach schickt sie einen Unteragenten los, der die Datei weiter ändert. Bei der ersten Änderung war er noch nicht da.
+- Parallel ist einer: Der Unteragent läuft im Hintergrund, und die Sitzung ändert dieselbe Datei, bevor er berichtet hat.
+
+Ein Unteragent ist da von seinem Start bis zu seinem Bericht, eine Sitzung, solange sie in der Liste steht. Verglichen wird der volle Pfad. Zwei Arbeitskopien desselben Projekts (`git worktree`) sind also verschiedene Dateien, und das stimmt auch. Gezählt werden nur Edit und Write, die gelungen sind, wie bei den geänderten Dateien; was ein Befehl in der Shell ändert, sieht ORBIT nicht.
+
+Gemeldet wird nur, was zwischen zwei Durchläufen der Brücke entstanden ist: Beide Figuren waren schon beim letzten Durchlauf da. Was beim Start oder mit einer neu gelesenen Sitzung schon bestand, steht in Szene und Stationswerten, klingelt aber nicht. Nur „die erste Rechnung meldet nichts“ reichte dafür nicht, denn die erste läuft, bevor die Brücke überhaupt Sitzungen gelesen hat.
+
+In der Vorführung soll der Unteragent „pruefung:rundung“ die Rundung nur prüfen, ändert `preis.ts` bei Sekunde 86 aber gleich selbst, und die Sitzung ändert dieselbe Datei bei Sekunde 95.
+
 ### Wie voll, wofür, und wer noch mitläuft
 
 - **Kontext.** Jeder Assistenteneintrag im Protokoll führt mit, wie groß der Prompt beim letzten Aufruf war. Frisch gesendet plus neu zwischengespeichert plus aus dem Zwischenspeicher gelesen ist der belegte Kontext — abgerechnet, nicht geschätzt. Daneben steht der Anteil aus dem Zwischenspeicher und, wenn es welche gab, die Denk-Tokens des letzten Aufrufs. Gezählt wird nur der neueste Eintrag: die Frage ist, wie voll die Sitzung gerade ist, nicht was sie insgesamt verbraucht hat.
@@ -537,7 +556,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-103 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+104 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
 - **Regenradar** (regen.mjs, ein nachgebautes RainViewer mit bekannten Werten):
@@ -586,6 +605,13 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Vorher drehte das Oben mitten im Flug mit 0,37 Grad je Millisekunde, während die Blickrichtung 0,096 hatte. Deshalb rechnet jetzt jeder Flug das Oben als Drehung (siehe Ortssuche und Flug). orte.mjs, palette.mjs, kompass.mjs, erdansicht.mjs, erdunteruns.mjs, satellit.mjs und die drei Regen-Tests sind danach grün.
   - Vorn, aber 40-fach hineingezoomt: Zeiger am Schirmrand, „Station“, frei von Kopfzeile und Bedienung.
   - Gegengeprüft mit sechs kaputten Fassungen: Punkt scheint durch, Punkt außerhalb des Schirms, kein Zeiger, Ziel nicht nachgeführt (Sprung am Ende), Oben linear gemischt, Antippen ohne Wirkung. Alle sechs schlagen an.
+- **Zwei an derselben Datei** (konflikt.mjs):
+  - Die Regel an zehn nachgebauten Fällen: zwei Sitzungen an `preis.ts` (Konflikt), andere Datei, eine Änderung 31 Minuten alt, Übergabe an einen Unteragenten, Sitzung ändert, während der Unteragent läuft (Konflikt), Sitzung ändert nach seinem Bericht, zwei Geschwister gleichzeitig (Konflikt), zwei Arbeitskopien, drei Sitzungen an einer Datei (drei Paare, die jüngste zuerst), ein Projektordner zählt nicht.
+  - Durch die Brücke: Beim ersten Lesen besteht der Konflikt schon, also keine Meldung und kein Eintrag. Derselbe Stand noch einmal: nichts. Eine dritte, neu gelesene Sitzung an derselben Datei: drei Paare, keine Meldung. Dann ändert die erste Sitzung eine Datei der zweiten: genau eine Meldung „Konflikt: gutschein.ts“ an die, die zuletzt geändert hat, und „⚠ gutschein und kasse ändern beide gutschein.ts“ im Bordbuch.
+  - Stationswerte „gutschein.ts · gutschein und kasse · 1 weitere“ in Rot. Im Detailfenster beide Dateien mit rotem Punkt und „⚠ auch kasse (vor 9 Min.)“. In der Szene die Strecke mit „⚠ gutschein.ts +1“, gemessen an roten Bildpunkten am Rand des Schilds und an zwei Stellen der Zacken.
+  - Die Vorführung: bei Sekunde 70 und 94 nichts, bei 96 und 140 `preis.ts` von pruefung:rundung zu webshop-kasse.
+  - Gegengeprüft mit zwölf kaputten Fassungen: ohne Zeitregel, ohne Frist, meldet beim Start, meldet immer wieder, vergleicht nur den Dateinamen, zählt Projektordner, kein Bild, keine Zeile, kein Hinweis im Detail, Vorführung ohne Konflikt, Richtung verkehrt, die alten zuerst. Alle zwölf schlagen an. Ohne die Zeitregel meldete die Vorführung schon bei Sekunde 94 einen Konflikt, obwohl die Sitzung `preis.ts` geändert hatte, bevor die Prüfung überhaupt losging.
+  - Dazu grün: dateien, vorf, detailtausch, familie, funk, aufgaben, test-bruecke, palette, werkzeug, minitakt, github, lieferung, hilfe und menue.
   - Zehn kaputte Fassungen schlagen an.
 - **Lieferungen** (lieferung.mjs, Flugzeiten für den Test verkürzt):
   - Erste Sichtung: ein alter Merge und drei offene PRs, nichts wird geliefert.
