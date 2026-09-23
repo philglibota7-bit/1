@@ -403,6 +403,8 @@ footer{
 .fortsetzen .knopf{flex:0 0 auto; width:auto; height:34px; padding:0 12px; font-size:12px; white-space:nowrap;}
 .heute .wahl .fortsetzen input{height:30px; font-size:11px;}
 .heute .wahl .fortsetzen .knopf{height:30px;}
+.heute-knoepfe{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+.heute-knoepfe .knopf{width:auto; height:32px; padding:0 14px; font-size:12px;}
 @media (max-width:460px){ .heute .wahl{margin-left:0;} }
 .d-kind{display:flex; align-items:center; gap:9px; width:100%; text-align:left;
   padding:7px 9px; margin:0 0 5px; border-radius:9px; border:1px solid rgba(255,255,255,.06);
@@ -2586,6 +2588,7 @@ function zeichneHeute() {
   f.textContent = "Von der ersten bis zur letzten Zeile einer Sitzung — offen, nicht unbedingt "
     + "gearbeitet. Hell umrandet: läuft gerade. Antippen zeigt, worum es ging.";
   wrap.appendChild(f);
+  wrap.appendChild(heuteKnoepfe());
   box.appendChild(wrap);
   if (fokusZeile >= 0) {
     const z = box.querySelectorAll(".zeile")[fokusZeile];
@@ -2633,6 +2636,84 @@ function heuteWahl(p, sg, lebt) {
     w.appendChild(k);
   }
   return w;
+}
+
+/* --- Der Tag als Text ---------------------------------------------------
+   Fuer die Notiz am Abend, das Standup am naechsten Morgen, die
+   Stundenliste: dieselben Zahlen wie im Bogen — offen, nicht gearbeitet —,
+   je Projekt die Sitzungen mit Zeitspanne und womit sie begannen, bei
+   einer laufenden ihr Auftrag. Markdown, weil es so in jedem Chat und
+   jeder Notiz lesbar ankommt. In der Vorfuehrung steht obenan, dass
+   nichts davon echt ist. */
+function heuteText() {
+  const jetzt = Date.now();
+  const live = (BR.live || []).filter(x => x.typ === "session");
+  const lebend = new Set(live.map(x => x.sid));
+  const alle = HEUTE.flatMap(p => p.segmente);
+  const zahl = (n) => n + (n === 1 ? " Sitzung" : " Sitzungen");
+  const einzeilig = (t) => { const e = String(t).replace(/\s+/g, " ").trim();
+    return e.length > 200 ? e.slice(0, 199) + "…" : e; };
+  const z = ["# Heute · " + new Date(jetzt).toLocaleDateString("de-DE",
+    { weekday: "long", day: "numeric", month: "long", year: "numeric" }), ""];
+  if (VORF.an) z.push("_Beispieldaten der Vorführung — nichts davon ist echt._", "");
+  z.push(zahl(alle.length) + " · " + dauer(offenGesamt(alle)) + " offen", "");
+  for (const p of HEUTE) {
+    z.push("## " + p.name + " · " + zahl(p.segmente.length) + " · " + dauer(offenGesamt(p.segmente)) + " offen");
+    for (const sg of [...p.segmente].sort((a, b) => a.von - b.von)) {
+      const lebt = lebend.has(sg.sid);
+      const l = lebt ? live.find(x => x.sid === sg.sid) : null;
+      const text = (l && l.auftrag) || sg.auftrag;
+      let zeile = "- " + uhr(sg.von) + "–" + (lebt ? "jetzt" : uhr(sg.bis))
+        + " · " + dauer((lebt ? jetzt : sg.bis) - sg.von);
+      if (text) zeile += " · " + (l && l.auftrag ? "Auftrag" : "Begann mit") + " „" + einzeilig(text) + "“";
+      z.push(zeile);
+    }
+    z.push("");
+  }
+  z.push("_Offen heißt: von der ersten bis zur letzten Zeile einer Sitzung, nicht unbedingt gearbeitet._");
+  return z.join("\n");
+}
+
+/* Zwei Knoepfe unter dem Bogen. Er wird alle paar Sekunden neu gebaut;
+   die Knoepfe sind deshalb einmal gebaut und werden nur wieder
+   angehaengt — sonst sprang "Kopiert ✓" sofort zurueck. Der Text
+   entsteht erst beim Druecken, ist also immer der aktuelle. */
+let HEUTE_KNOEPFE = null;
+function heuteKnoepfe() {
+  if (HEUTE_KNOEPFE) return HEUTE_KNOEPFE;
+  const r = document.createElement("div");
+  r.className = "heute-knoepfe";
+  const melde = (k, text, ruhe) => {
+    k.textContent = text;
+    clearTimeout(k._uhr);
+    k._uhr = setTimeout(() => { k.textContent = ruhe; }, 1800);
+  };
+  const kop = document.createElement("button");
+  kop.className = "knopf leer heute-kopieren";
+  kop.textContent = "Tag kopieren";
+  kop.title = "Der Tag als Text: je Projekt die Sitzungen, von wann bis wann und worum es ging";
+  kop.onclick = async (ev) => {
+    ev.stopPropagation();
+    const ok = await inZwischenablage(heuteText());
+    melde(kop, ok ? "Kopiert ✓" : "Kopieren nicht erlaubt", "Tag kopieren");
+  };
+  const sich = document.createElement("button");
+  sich.className = "knopf leer heute-sichern";
+  sich.textContent = "Als Datei sichern";
+  sich.onclick = async (ev) => {
+    ev.stopPropagation();
+    const d = new Date(), tag = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")
+      + "-" + String(d.getDate()).padStart(2, "0");
+    const erg = await dateiHergeben("orbit-heute-" + tag + ".md",
+      new Blob([heuteText()], { type: "text/markdown;charset=utf-8" }));
+    if (erg === "gesichert") melde(sich, "Gesichert", "Als Datei sichern");
+    else if (erg === "abgelehnt") melde(sich, "Nicht gesichert", "Als Datei sichern");
+  };
+  /* Kann der Betrachter keine Dateien hergeben, faellt der Knopf weg —
+     wie beim Log und beim Bild. */
+  if (hergabe) hergabe.then(d => { if (!d) sich.style.display = "none"; });
+  r.append(kop, sich);
+  return HEUTE_KNOEPFE = r;
 }
 
 async function sammleSessions() {
@@ -15237,7 +15318,7 @@ function nochOffen(r, kurz) {
    Fokus. */
 function fortsetzenFokus() {
   const e = document.activeElement;
-  if (!e || !e.closest || !e.closest(".fortsetzen")) return () => {};
+  if (!e || !e.closest || !e.closest(".fortsetzen, .heute-knoepfe")) return () => {};
   const von = e.selectionStart, bis = e.selectionEnd;
   return () => {
     if (!e.isConnected || document.activeElement === e) return;
@@ -16457,7 +16538,9 @@ const HILFE = [
       + "jede Sitzung ein Balken von ihrem Beginn bis zu ihrem letzten Eintrag, die laufenden "
       + "hervorgehoben — und oben, wie lange heute insgesamt etwas lief. Eine Zeile antippen zeigt, "
       + "womit eine Sitzung begann, im Mac-Programm samt dem Befehl zum Fortsetzen, bei einer "
-      + "laufenden ihren Auftrag und den Weg zur Figur.",
+      + "laufenden ihren Auftrag und den Weg zur Figur. „Tag kopieren“ darunter gibt den ganzen "
+      + "Tag als Text her, je Projekt die Sitzungen mit Zeitspanne und worum es ging — für die "
+      + "Notiz am Abend oder das Standup am Morgen; „Als Datei sichern“ legt ihn als Markdown ab.",
   },
   {
     titel: "Was die Hand tut",
