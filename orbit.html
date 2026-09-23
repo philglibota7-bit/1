@@ -1588,9 +1588,16 @@ function meldungenPruefen() {
       const vorher = MELDE_VORHER.get(k);
       MELDE_VORHER.set(k, st);
       if (vorher === undefined || vorher === st) continue;
-      if (st === "frei") melden(a.name + ": PR #" + pr.nr + " freigegeben", anfang(pr.titel, 110), a.id, "frei#" + pr.nr);
-      else if (st === "aenderungen")
+      if (st === "frei") {
+        melden(a.name + ": PR #" + pr.nr + " freigegeben", anfang(pr.titel, 110), a.id, "frei#" + pr.nr);
+        /* Und in der Szene steigt ueber der Figur des Repos dasselbe
+           Haekchen auf wie fuer eine erledigte Aufgabe. */
+        HAKEN.push({ id: a.id, text: "PR #" + pr.nr + " freigegeben", um: performance.now() - T0 });
+        bordbuch(a.name + ": PR #" + pr.nr + " freigegeben");
+      } else if (st === "aenderungen") {
         melden(a.name + ": PR #" + pr.nr + " – Änderungen gewünscht", anfang(pr.titel, 110), a.id, "aenderungen#" + pr.nr);
+        bordbuch(a.name + ": PR #" + pr.nr + " – Änderungen gewünscht");
+      }
     }
   }
   if (MELDE_VORHER.size > BR.live.length * 6 + 30) {
