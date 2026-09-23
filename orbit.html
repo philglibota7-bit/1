@@ -600,10 +600,17 @@ select.eingabe{appearance:none; cursor:pointer;
   display:flex; align-items:center; justify-content:center; gap:8px;
   transition:all .22s var(--ease);}
 .knopf.voll{background:var(--acc); color:#06121f;}
-.knopf.voll:hover{background:#95b8e6;}
+.knopf.voll:hover{filter:brightness(1.12);}
 .knopf.voll:disabled{opacity:.35; cursor:default;}
-.knopf.leer{background:var(--p2); border:1px solid var(--edge); color:var(--tx2);}
-.knopf.leer:hover{background:var(--p3); color:var(--tx);}
+.knopf.leer{background:linear-gradient(150deg, rgba(255,255,255,.09), rgba(255,255,255,.03));
+  border:1px solid rgba(255,255,255,.10); box-shadow:inset 0 1px 0 rgba(255,255,255,.07); color:var(--tx2);}
+.knopf.leer:hover{background:linear-gradient(150deg, rgba(255,255,255,.14), rgba(255,255,255,.05));
+  border-color:rgba(255,255,255,.18); color:var(--tx);}
+/* Der gewaehlte Knopf einer Reihe (Zeitraffer): getoent in der Themenfarbe.
+   Bisher sah er aus wie die anderen. */
+.knopf.leer.an{color:var(--tx); border-color:color-mix(in srgb, var(--acc) 55%, transparent);
+  background:linear-gradient(150deg, color-mix(in srgb, var(--acc) 28%, transparent), color-mix(in srgb, var(--acc) 8%, transparent));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10), 0 0 14px color-mix(in srgb, var(--acc) 22%, transparent);}
 .d-knoepfe{display:flex; gap:8px; margin-top:16px;}
 .d-knoepfe .knopf{flex:1 1 0; min-width:0;}
 
@@ -775,12 +782,16 @@ body.sicht #blende-detail, body.sicht #blende-teil{
 #himmel-gitter{display:grid; grid-template-columns:repeat(auto-fill, minmax(132px, 1fr)); gap:10px;}
 @media (min-width:760px){ #himmel-gitter{grid-template-columns:repeat(auto-fill, minmax(118px, 1fr));} }
 .himmel-karte{
-  border:1px solid var(--edge); border-radius:var(--r1); overflow:hidden;
-  background:var(--p1); text-align:left; transition:all .2s var(--ease);
+  border:1px solid rgba(255,255,255,.09); border-radius:var(--r1); overflow:hidden;
+  background:linear-gradient(160deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+  text-align:left; transition:all .2s var(--ease);
   display:flex; flex-direction:column;
 }
-.himmel-karte:hover{border-color:var(--edge2); transform:translateY(-2px);}
-.himmel-karte.an{border-color:var(--acc); box-shadow:0 0 0 1px var(--acc);}
+.himmel-karte:hover{border-color:rgba(255,255,255,.2); transform:translateY(-2px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 10px 22px rgba(0,0,0,.3);}
+.himmel-karte.an{border-color:var(--acc);
+  box-shadow:0 0 0 1px var(--acc), 0 0 22px color-mix(in srgb, var(--acc) 30%, transparent);}
 .himmel-vorschau{height:64px; position:relative; overflow:hidden;}
 /* Ein Hauch Abdunklung unten, damit der Text darunter ruhig anschliesst */
 .himmel-vorschau::after{content:''; position:absolute; inset:0;
@@ -1133,8 +1144,14 @@ body.sicht #blende-detail, body.sicht #blende-teil{
 .b-hinweis{font-size:11.5px; color:var(--tx3); line-height:1.5; padding:4px 2px 0;}
 .b-hinweis:empty{display:none;}
 .schalter{display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:var(--r1);
-  background:var(--p1); border:1px solid var(--edge); transition:all .2s var(--ease); text-align:left;}
-.schalter:hover{background:var(--p2);}
+  background:linear-gradient(150deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.09); box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+  transition:all .2s var(--ease); text-align:left;}
+.schalter:hover{background:linear-gradient(150deg, rgba(255,255,255,.11), rgba(255,255,255,.035)); border-color:rgba(255,255,255,.17);}
+/* Erklaerungen, die frei in einer Blende stehen (unter Tag/Nacht und dem
+   Zeitraffer): klein und leise wie in den Schaltern. Frei stehend fielen
+   sie bisher auf die Grundschrift zurueck, gross und weiss. */
+.blende-inhalt > .zahl{font-size:11.5px; line-height:1.5; color:var(--tx3); padding:0 2px;}
 .schalter .kasten{width:17px; height:17px; border-radius:5px; flex:0 0 auto;
   border:1.5px solid var(--edge2); display:flex; align-items:center; justify-content:center;
   font-size:11px; color:transparent;}
