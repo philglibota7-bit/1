@@ -249,6 +249,10 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
   - Die Grenzen kommen von Natural Earth und sind gemeinfrei: Länder im Maßstab 1:50 Millionen, dazu Ozeane, Meere, Golfe und Meeresstraßen, zusammen 355 deutsche Namen.
   - Gebacken sind sie zu einer Karte von 1440 × 720 Punkten (47 KB), mit der Nummer des Namens in jedem Punkt. Enklaven wie Lesotho bleiben erhalten, Zwergstaaten wie der Vatikan fallen durchs Raster.
 - **Die Bodenspur.** Unter der Umlaufuhr zeigt eine kleine Weltkarte die Spur der Bahn: den letzten halben Umlauf blass, den nächsten hell. Dazu zeigt sie die Nacht aus dem echten Sonnenstand und einen Punkt, wo die Station gerade steht. So fangen die ISS-Verfolger im Netz an. Die Spur schlängelt sich zwischen 51,6 Grad Nord und Süd.
+- **Im Rundgang und im Bordbuch.**
+  - Mit der echten Erde endet der Rundgang mit dem Blick nach unten. Die ganze Station rückt ein Stück nach oben, und auf der Tafel steht, was gerade unter uns liegt.
+  - Im Bordbuch steht bei Sonnenaufgang und Erdschatten der Ort: „Sonnenaufgang · Indischer Ozean“.
+  - In der Hilfe standen „acht Halte“, es waren aber neun. Jetzt wird gezählt.
 - **Rückfall.** Fehlt eines der Bilder, kann der Browser kein WebGL oder geht der Grafikkontext verloren, zeichnet ORBIT die gerechnete Erde wie bisher. Solange die Karten laden, wartet die Seite bis zu zwei Sekunden mit der Erde. So zeigt sie nicht erst die gerechnete und springt dann um.
 - **Kosten.**
   - Neu gemalt wird nur, wenn sich die Scheibe weit genug gedreht hat. Das regelt dieselbe Schwelle wie vorher beim Durchziehen.
