@@ -1413,6 +1413,7 @@ body.sicht #blende-detail, body.sicht #blende-teil{
     <p id="teil-lang" style="font-size:13px; line-height:1.65; color:var(--tx2); margin:0 0 14px"></p>
     <p id="teil-zahl" style="font-size:12px; line-height:1.6; color:var(--tx3); margin:0;
       padding-top:12px; border-top:1px solid var(--edge)"></p>
+    <button id="teil-zuhause" class="knopf leer" type="button" hidden style="margin-top:12px"></button>
   </div>
 </div>
 
@@ -1667,6 +1668,7 @@ let Z = {
   relief: true, // Berge und Taeler nach der echten Sonne schattiert
   satellit: false,    // Satellitenbilder von Esri fuer die ganze Erde — nur auf Wunsch
   regen: false,       // Regenradar von RainViewer auf der ganzen Erde — nur auf Wunsch
+  zuhause: null,      // { name, breite, laenge }: das Wetter dort behaelt die Station im Blick
   bruecke: {
     typen: { session: true, ordner: true, prozess: true, github: true },
     ordner: [],                 // beobachtete Projektordner
@@ -1698,6 +1700,9 @@ function laden() {
       if (typeof d.relief === "boolean") Z.relief = d.relief;
       if (typeof d.satellit === "boolean") Z.satellit = d.satellit;
       if (typeof d.regen === "boolean") Z.regen = d.regen;
+      if (d.zuhause && typeof d.zuhause.name === "string" && isFinite(d.zuhause.breite) && isFinite(d.zuhause.laenge)
+          && Math.abs(d.zuhause.breite) <= 85 && Math.abs(d.zuhause.laenge) <= 180)
+        Z.zuhause = { name: d.zuhause.name.slice(0, 60), breite: +d.zuhause.breite, laenge: +d.zuhause.laenge };
       /* Die Zeitraffung ist eine Einstellung wie der Hintergrund — wer
          sie auf das Zwoelffache gestellt hat, will das beim naechsten
          Mal nicht wieder suchen muessen. Angehalten wird NICHT
@@ -1738,7 +1743,7 @@ function sichern() {
       key: Z.key, maxTok: Z.maxTok, gewaehlt: Z.gewaehlt,
       thema: Z.thema, umlauf: Z.umlauf, melden: Z.melden, bruecke: Z.bruecke, rate: ZEIT.rate,
       echteIss: Z.echteIss, weltraumwetter: Z.weltraumwetter, wolkenHeute: Z.wolkenHeute, erdeGestern: Z.erdeGestern, beschriftung: Z.beschriftung, relief: Z.relief,
-      satellit: Z.satellit, regen: Z.regen,
+      satellit: Z.satellit, regen: Z.regen, zuhause: Z.zuhause,
     }));
   } catch (e) {
     /* Speicher voll oder privater Modus — die App laeuft trotzdem weiter */
@@ -13442,6 +13447,7 @@ function zeichneErdansicht(t, dt) {
     Math.round(rw * DPR), Math.round(rh * DPR));
   erdansichtBlitze(g, blick, uhr);
   ortsmarkeZeichnen(g, blick, uhr);
+  heimZeichnen(g, blick);
   /* Esri verlangt die Quellenangabe, sobald seine Bilder zu sehen sind; die
      NASA bittet darum, sobald ihre Nachtlichter zu sehen sind */
   ERDANSICHT.quelle = sat && sat.gewicht > 0 ? SAT_QUELLE : null;
@@ -16622,9 +16628,10 @@ const REGEN_TAKT = 300000, REGEN_CACHE = 40, REGEN_GLEICHZEITIG = 6;
 const REGEN_TAFEL = [0,-10,99,97,89,20,0,-9,102,99,90,25,0,-8,105,102,92,30,0,-7,108,104,93,36,0,-6,111,107,95,41,0,-5,114,110,97,46,0,-4,117,112,98,52,0,-3,120,115,100,57,0,-2,124,117,101,62,0,-1,127,120,103,68,0,0,130,123,105,73,0,1,133,125,106,78,0,2,136,128,108,84,0,3,139,130,109,89,0,4,142,133,111,94,0,5,146,136,113,100,0,6,158,147,117,110,0,7,170,158,121,120,0,8,182,169,126,130,0,9,194,180,130,140,0,10,206,192,135,150,0,11,210,196,139,160,0,12,214,200,143,170,0,13,218,204,147,180,0,14,222,208,151,190,0,15,136,221,238,255,0,16,108,209,235,255,0,17,81,197,232,255,0,18,54,186,229,255,0,19,27,174,226,255,0,20,0,163,224,255,0,21,0,154,213,255,0,22,0,145,202,255,0,23,0,136,191,255,0,24,0,127,180,255,0,25,0,119,170,255,0,26,0,112,163,255,0,27,0,105,156,255,0,28,0,98,149,255,0,29,0,91,142,255,0,30,0,85,136,255,0,31,0,81,128,255,0,32,0,78,120,255,0,33,0,74,112,255,0,34,0,71,104,255,0,35,255,238,0,255,0,36,255,224,0,255,0,37,255,210,0,255,0,38,255,197,0,255,0,39,255,183,0,255,0,40,255,170,0,255,0,41,255,159,0,255,0,42,255,149,0,255,0,43,255,139,0,255,0,44,255,129,0,255,0,45,255,68,0,255,0,46,242,54,0,255,0,47,230,40,0,255,0,48,217,27,0,255,0,49,205,13,0,255,0,50,193,0,0,255,0,51,168,0,0,255,0,52,143,0,0,255,0,53,118,0,0,255,0,54,93,0,0,255,0,55,255,170,255,255,0,56,255,159,255,255,0,57,255,149,255,255,0,58,255,139,255,255,0,59,255,129,255,255,0,60,255,119,255,255,0,61,255,108,255,255,0,62,255,98,255,255,0,67,255,255,255,255,1,-8,205,255,255,25,1,-5,203,255,255,63,1,-4,202,255,255,76,1,-3,201,255,255,89,1,-2,200,255,255,102,1,-1,199,255,255,114,1,0,199,255,255,127,1,2,197,255,255,153,1,3,196,255,255,165,1,4,195,255,255,178,1,5,195,255,255,191,1,7,193,255,255,216,1,8,192,255,255,229,1,9,191,255,255,242,1,10,191,255,255,255,1,12,178,242,255,255,1,13,171,235,255,255,1,14,165,229,255,255,1,15,159,223,255,255,1,16,152,216,255,255,1,17,146,210,255,255,1,18,139,203,255,255,1,19,133,197,255,255,1,20,127,191,255,255,1,21,120,184,255,255,1,22,114,178,255,255,1,23,107,171,255,255,1,24,101,165,255,255,1,25,95,159,255,255,1,26,91,155,255,255,1,27,88,152,255,255,1,30,79,143,255,255,1,31,75,139,255,255,1,35,63,127,255,255];
 let regenTafelKarte = null;
 
-function regenTakt() {
+function regenTakt(hintergrund) {
   const R_ = REGEN;
-  if (!Z.regen || document.hidden || !ERDANSICHT.an || !ERDKARTE.bereit || !ERDKARTE.regenTx || R_.laeuft) return;
+  if (!Z.regen || (document.hidden && !(hintergrund && Z.zuhause)) || !(ERDANSICHT.an || Z.zuhause)
+      || !ERDKARTE.bereit || !ERDKARTE.regenTx || R_.laeuft) return;
   const jetzt = Date.now();
   if (jetzt - R_.um < REGEN_TAKT) return;
   R_.laeuft = true; R_.um = jetzt; R_.anfragen++;
@@ -16899,7 +16906,8 @@ let ORTREGEN = null;
 function erdOrtZeigen(name, basis, breite, laenge) {
   const rt = regenText(breite, laenge);
   teilZeigen("erde", name, basis + (rt ? " · " + rt : ""));
-  ORTREGEN = { basis, breite, laenge, version: REGEN.version, text: rt };
+  ORTREGEN = { basis, breite, laenge, version: REGEN.version, text: rt, name };
+  heimKnopf();
 }
 function erdOrtNachziehen() {
   const o = ORTREGEN;
@@ -17154,6 +17162,260 @@ function regenFilmKnopf(sofort) {
     t.classList.toggle("vorbei", aktiv >= 0 && i < aktiv);
     t.classList.toggle("jetzt", i === anzahl - 1);
   });
+}
+
+/* --- Zuhause: das Wetter an einem Ort, den die Station im Blick behaelt ------
+   Wer in der Karte eines Orts „Als Zuhause merken“ tippt, dem sagt ORBIT
+   unter Stationswerte, wie es dort gerade ist und ob Regen kommt, und es
+   meldet sich, wenn er in einer halben Stunde da sein duerfte oder es zu
+   regnen beginnt. Das geht nur mit dem Regenradar. Dafuer fragt ORBIT auch
+   bei geschlossener Erde alle fuenf Minuten den Index und holt die Kacheln
+   um das Zuhause: Stufe 4 zu 512 Punkten, gut drei Kilometer je Punkt in
+   Mitteleuropa, hoechstens vier Kacheln je Bild, von den letzten drei
+   Bildern. RainViewer erfaehrt dabei, in welchem Gebiet von gut 1500 km
+   das Zuhause liegt.
+
+   Die Vorhersage ist eine Verschiebung, kein Wettermodell. Aus dem Bild
+   von vor zwanzig Minuten und dem neuesten wird bestimmt, wohin sich der
+   Regen um das Zuhause bewegt hat: die Verschiebung mit der groessten
+   Uebereinstimmung, bis 16 Punkte in jede Richtung, das sind gut 150 km/h.
+   Dieselbe Bewegung wird eine Stunde weitergedacht, mit einem Rand von
+   einem Viertel des Wegs. Wo es steht, kommt also nichts an. Zellen, die wachsen, zerfallen oder neu entstehen,
+   sieht sie nicht. Fuer eine halbe Stunde passt das bei Fronten meist, bei
+   Gewittern oft nicht; deshalb steht immer „etwa“ davor. */
+const ZUHAUSE = { bilder: new Map(), laden: new Set(), stand: null, gemeldet: null, anfragen: 0, fehler: 0, rechnung: "" };
+const ZUHAUSE_Z = 4, ZUHAUSE_BOX = 192, ZUHAUSE_SUCH = 16;
+let heimVerschiebungen = null;
+
+/* Der Ausschnitt um das Zuhause in Punkten der Stufe 4 */
+function heimRahmen() {
+  const h = Z.zuhause;
+  const k = satKachel(h.breite, h.laenge, ZUHAUSE_Z);
+  const px = k.x * REGEN_PX, py = k.y * REGEN_PX;
+  const x0 = Math.round(px) - ZUHAUSE_BOX / 2, y0 = Math.round(py) - ZUHAUSE_BOX / 2;
+  const n = Math.pow(2, ZUHAUSE_Z);
+  const kacheln = new Set();
+  for (const [x, y] of [[x0, y0], [x0 + ZUHAUSE_BOX - 1, y0], [x0, y0 + ZUHAUSE_BOX - 1], [x0 + ZUHAUSE_BOX - 1, y0 + ZUHAUSE_BOX - 1]]) {
+    const ty = Math.floor(y / REGEN_PX);
+    if (ty < 0 || ty >= n) continue;
+    kacheln.add((((Math.floor(x / REGEN_PX)) % n) + n) % n + "/" + ty);
+  }
+  return { x0, y0, px, py, kacheln: [...kacheln], mpp: 156543.034 * Math.cos(h.breite * Math.PI / 180) / Math.pow(2, ZUHAUSE_Z) / 2 };
+}
+
+/* Eine Kachel lesen und ihren Teil in den Ausschnitt eines Bilds schreiben:
+   je Punkt dBZ plus 32, 0 fuer trocken, 255 fuer kein Radar */
+function heimKachel(bildEintrag, rahmen, s) {
+  const [x, y] = s.split("/").map(Number);
+  const b = bildEintrag;
+  if (b.laden.has(s)) return;
+  b.laden.add(s); ZUHAUSE.anfragen++;
+  fetch(REGEN.bild.host + b.path + "/" + REGEN_PX + "/" + ZUHAUSE_Z + "/" + s + "/255/1_1.png")
+    .then(r => r.ok ? r.blob() : Promise.reject(new Error("HTTP " + r.status)))
+    .then(bildAusBlob)
+    .then((bild) => {
+      const t = regenLesen(bild);
+      if (typeof bild.close === "function") bild.close();
+      const n = Math.pow(2, ZUHAUSE_Z), N = REGEN_PX;
+      for (let j = 0; j < ZUHAUSE_BOX; j++) {
+        const gy = rahmen.y0 + j;
+        if (Math.floor(gy / N) !== y) continue;
+        for (let i = 0; i < ZUHAUSE_BOX; i++) {
+          const gx = rahmen.x0 + i, tx = (((Math.floor(gx / N)) % n) + n) % n;
+          if (tx !== x) continue;
+          const v = t.code[(gy - y * N) * N + (((gx % N) + N) % N)];
+          b.feld[j * ZUHAUSE_BOX + i] = v === 0 ? 255 : v === 1 ? 0 : v & 127;
+        }
+      }
+      b.fertig.add(s);
+    })
+    .catch(() => { ZUHAUSE.fehler++; })
+    .finally(() => b.laden.delete(s));
+}
+
+function heimTakt() {
+  const H_ = ZUHAUSE;
+  if (!Z.regen || !Z.zuhause || !REGEN.bild || !REGEN.liste.length) return;
+  const rahmen = heimRahmen();
+  const schluessel = rahmen.x0 + "/" + rahmen.y0;
+  if (H_.rahmen !== schluessel) { H_.rahmen = schluessel; H_.bilder.clear(); H_.stand = null; }
+  /* Die letzten drei Bilder */
+  const liste = REGEN.liste.slice(-3);
+  for (const b of liste) {
+    let e = H_.bilder.get(b.path);
+    if (!e) {
+      e = { path: b.path, t: b.t, feld: new Uint8Array(ZUHAUSE_BOX * ZUHAUSE_BOX).fill(255), laden: new Set(), fertig: new Set() };
+      H_.bilder.set(b.path, e);
+    }
+    for (const s of rahmen.kacheln) if (!e.fertig.has(s) && !e.laden.has(s)) heimKachel(e, rahmen, s);
+  }
+  for (const p of [...H_.bilder.keys()]) if (!liste.some(b => b.path === p)) H_.bilder.delete(p);
+  /* Gerechnet wird, sobald das neueste und das von vor zwanzig Minuten ganz da sind */
+  const neu = H_.bilder.get(liste[liste.length - 1].path), alt = H_.bilder.get(liste[0].path);
+  if (!neu || neu.fertig.size < rahmen.kacheln.length) return;
+  const rechnung = neu.path + "|" + (alt && alt.fertig.size >= rahmen.kacheln.length ? alt.path : "");
+  if (rechnung === H_.rechnung) return;
+  H_.rechnung = rechnung;
+  H_.stand = heimRechnen(neu, alt && alt.fertig.size >= rahmen.kacheln.length && alt !== neu ? alt : null, rahmen);
+  heimMelden();
+}
+
+/* Die Staerke fuer den Vergleich: erst ab 12 dBZ, dann linear */
+function heimStaerke(v) { return v === 255 || v < 44 ? 0 : v - 44; }
+
+function heimRechnen(neu, alt, rahmen) {
+  const B = ZUHAUSE_BOX, S = ZUHAUSE_SUCH, mitte = B / 2;
+  const hier = neu.feld[mitte * B + mitte];
+  const stand = { t: neu.t, radar: hier !== 255, dbz: hier === 255 || hier === 0 ? null : hier - 32,
+                  bewegung: null, kommt: null, geht: null };
+  if (!stand.radar) return stand;
+  /* Die Bewegung: die Verschiebung d, bei der das alte Bild, um d
+     verschoben, am besten zum neuen passt (normierte Kreuzkorrelation) */
+  if (alt) {
+    const a = new Float32Array(B * B), b = new Float32Array(B * B);
+    let na = 0, nb = 0;
+    for (let q = 0; q < B * B; q++) { a[q] = heimStaerke(alt.feld[q]); b[q] = heimStaerke(neu.feld[q]); if (a[q]) na++; if (b[q]) nb++; }
+    if (na > 40 && nb > 40) {
+      /* Die kleinen Verschiebungen zuerst: Bei Gleichstand, etwa in einem
+         Feld ohne Struktur, gewinnt die kleinste, nicht die erste am Rand */
+      if (!heimVerschiebungen) {
+        heimVerschiebungen = [];
+        for (let dy = -S; dy <= S; dy++) for (let dx = -S; dx <= S; dx++) heimVerschiebungen.push([dx, dy]);
+        heimVerschiebungen.sort((p, q) => (p[0] * p[0] + p[1] * p[1]) - (q[0] * q[0] + q[1] * q[1]));
+      }
+      let best = -1, bd = null, null0 = 0;
+      for (const [dx, dy] of heimVerschiebungen) {
+        let ab = 0, aa = 0, bb = 0;
+        for (let y = S; y < B - S; y += 2) for (let x = S; x < B - S; x += 2) {
+          const va = a[(y - dy) * B + (x - dx)], vb = b[y * B + x];
+          ab += va * vb; aa += va * va; bb += vb * vb;
+        }
+        const k = aa && bb ? ab / Math.sqrt(aa * bb) : 0;
+        if (!dx && !dy) null0 = k;
+        if (k > best + 1e-6) { best = k; bd = [dx, dy]; }
+      }
+      const minuten = Math.max(1, (neu.t - alt.t) / 60000);
+      /* Am Rand der Suche ist das Maximum nicht sicher, und kaum besser als
+         gar keine Bewegung heisst: es steht */
+      if (bd && (Math.abs(bd[0]) === S || Math.abs(bd[1]) === S)) bd = null;
+      if (bd && best - null0 < 0.02) bd = [0, 0];
+      if (bd && best > 0.3) {
+        const vx = bd[0] / minuten, vy = bd[1] / minuten;
+        const kmh = Math.hypot(vx, vy) * rahmen.mpp * 60 / 1000;
+        stand.bewegung = { vx, vy, kmh, von: kmh < 3 ? null : himmelsrichtung(-vx, vy), guete: best };
+      }
+    }
+  }
+  /* Vorhersage: Wo steht jetzt der Regen, der in L Minuten ueber dem
+     Zuhause waere? Um diesen Punkt ein Rand, der mit der Zeit waechst. */
+  const v = stand.bewegung || { vx: 0, vy: 0 };
+  const regnetBei = (L) => {
+    const cx = mitte - v.vx * L, cy = mitte - v.vy * L, rand = 1 + Math.round(Math.hypot(v.vx, v.vy) * L * 0.25);
+    let max = 0;
+    for (let y = Math.round(cy) - rand; y <= Math.round(cy) + rand; y++) for (let x = Math.round(cx) - rand; x <= Math.round(cx) + rand; x++) {
+      if (x < 0 || y < 0 || x >= B || y >= B) continue;
+      const w = neu.feld[y * B + x];
+      if (w !== 255 && w > max) max = w;
+    }
+    return max ? max - 32 : -99;
+  };
+  const jetzt = stand.dbz !== null && stand.dbz >= 12;
+  for (let L = 10; L <= 60; L += 10) {
+    const d = regnetBei(L);
+    if (!jetzt && d >= 20 && stand.kommt === null) stand.kommt = { minuten: L, dbz: d };
+    if (jetzt && d < 12 && stand.geht === null) stand.geht = { minuten: L };
+  }
+  return stand;
+}
+
+/* Woher kommt es: die Richtung, aus der sich der Regen bewegt (x nach Osten,
+   y nach Norden) */
+function himmelsrichtung(x, y) {
+  const w = (Math.atan2(x, y) * 180 / Math.PI + 360) % 360;
+  return ["Norden", "Nordosten", "Osten", "Südosten", "Süden", "Südwesten", "Westen", "Nordwesten"][Math.round(w / 45) % 8];
+}
+
+function heimText() {
+  const s = ZUHAUSE.stand, h = Z.zuhause;
+  if (!h) return null;
+  if (!Z.regen) return h.name + " · mit dem Regenradar";
+  if (!s) return h.name + " · wird gefragt …";
+  if (!s.radar) return h.name + " · kein Radar dort";
+  const staerke = (d) => d < 20 ? "leichter" : d < 35 ? "mäßiger" : d < 45 ? "starker" : "sehr starker";
+  let t = h.name + " · " + (s.dbz !== null && s.dbz >= 12 ? staerke(s.dbz) + " Regen" : "trocken");
+  if (s.kommt) t += " · Regen in etwa " + s.kommt.minuten + " min";
+  else if (s.geht) t += " · hört in etwa " + s.geht.minuten + " min auf";
+  else if (!(s.dbz !== null && s.dbz >= 12)) t += " · nichts in Sicht";
+  if (s.bewegung && s.bewegung.von) t += " · zieht aus " + s.bewegung.von + ", " + Math.round(s.bewegung.kmh) + " km/h";
+  return t;
+}
+
+/* Melden, einmal je Ereignis: Regen kommt in einer halben Stunde, oder er
+   hat angefangen */
+function heimMelden() {
+  const s = ZUHAUSE.stand, h = Z.zuhause;
+  if (!s || !h) return;
+  const regnet = s.dbz !== null && s.dbz >= 15;
+  const bald = s.kommt && s.kommt.minuten <= 30;
+  const ereignis = regnet ? "regnet" : bald ? "bald" : "trocken";
+  if (ereignis === ZUHAUSE.gemeldet) return;
+  const vorher = ZUHAUSE.gemeldet;
+  ZUHAUSE.gemeldet = ereignis;
+  /* Die erste Rechnung nach dem Start meldet nichts */
+  if (vorher === null || ereignis === "trocken") return;
+  if (ereignis === "bald" && vorher === "regnet") return;
+  const titel = ereignis === "regnet" ? "Es regnet in " + h.name : "Regen in " + h.name + " in etwa " + s.kommt.minuten + " Minuten";
+  const text = heimText();
+  bordbuch(titel);
+  melden(titel, text, "zuhause", ereignis);
+}
+
+/* Das Haus auf der Erde: ein kleines Zeichen mit dem Namen, und bei Regen
+   ein Tropfen daneben */
+function heimZeichnen(g, blick) {
+  const h = Z.zuhause;
+  if (!h || !g || !blick) return;
+  const M = blick.m, v = erdVektor(h.breite, h.laenge);
+  const x = v[0] * M[0] + v[1] * M[1] + v[2] * M[2];
+  const y = v[0] * M[3] + v[1] * M[4] + v[2] * M[5];
+  const z = v[0] * M[6] + v[1] * M[7] + v[2] * M[8];
+  if (z < 0.02) return;
+  const px = (g.cx + g.r * x), py = (g.cy - g.r * y);
+  /* Liegt der Zielring genau hier, reicht der Ring */
+  if (ORTSMARKE && Math.hypot((ORTSMARKE.x || -99) - px, (ORTSMARKE.y || -99) - py) < 4) return;
+  cx.save();
+  cx.scale(DPR, DPR);
+  cx.translate(px, py);
+  cx.lineJoin = "round";
+  cx.beginPath();
+  cx.moveTo(-5, 1); cx.lineTo(0, -4.5); cx.lineTo(5, 1); cx.lineTo(3.6, 1); cx.lineTo(3.6, 5); cx.lineTo(-3.6, 5); cx.lineTo(-3.6, 1); cx.closePath();
+  cx.lineWidth = 3; cx.strokeStyle = "rgba(6,9,16,.75)"; cx.stroke();
+  cx.fillStyle = "rgba(255,214,150,.95)"; cx.fill();
+  const s = ZUHAUSE.stand;
+  if (s && s.dbz !== null && s.dbz >= 12) {
+    cx.beginPath(); cx.moveTo(9, -3); cx.quadraticCurveTo(12, 1, 9, 3); cx.quadraticCurveTo(6, 1, 9, -3);
+    cx.fillStyle = "#6fb8ff"; cx.fill();
+  }
+  schildSchrift(cx, false);
+  cx.textAlign = "center"; cx.textBaseline = "bottom";
+  cx.strokeStyle = "rgba(6,9,16,.78)"; cx.lineWidth = 3;
+  cx.strokeText(h.name, 0, -8);
+  cx.fillStyle = "rgba(255,226,180,.95)";
+  cx.fillText(h.name, 0, -8);
+  cx.restore();
+}
+
+/* Der Knopf in der Karte eines Orts: merken oder vergessen */
+function heimKnopf() {
+  const k = document.getElementById("teil-zuhause");
+  if (!k) return;
+  const o = ORTREGEN, h = Z.zuhause;
+  const zeigen = teilOffen === "erde" && o && o.name && o.name !== "Meer" && o.name !== "Erde";
+  k.hidden = !zeigen;
+  if (!zeigen) return;
+  const istEs = h && Math.abs(h.breite - o.breite) < 1e-6 && Math.abs(h.laenge - o.laenge) < 1e-6;
+  k.textContent = istEs ? "⌂ Zuhause · nicht mehr merken" : "⌂ Als Zuhause merken";
+  k.setAttribute("aria-pressed", istEs ? "true" : "false");
 }
 
 function regenKnopf() {
@@ -20441,6 +20703,7 @@ function rahmen(jetzt) {
   wolkenHeuteTakt();
   regenTakt();
   regenFilmTakt(performance.now());
+  heimTakt();
   erdOrtNachziehen();
   erdeGesternTakt();
 
@@ -23866,6 +24129,19 @@ $("#tm-wolken").onclick = () => {
   tmUhr = 0;
 };
 $("#regen-film-knopf").onclick = () => regenFilmUmschalten();
+$("#teil-zuhause").onclick = () => {
+  const o = ORTREGEN;
+  if (!o) return;
+  const h = Z.zuhause;
+  const istEs = h && Math.abs(h.breite - o.breite) < 1e-6 && Math.abs(h.laenge - o.laenge) < 1e-6;
+  Z.zuhause = istEs ? null : { name: o.name, breite: o.breite, laenge: o.laenge };
+  Object.assign(ZUHAUSE, { stand: null, gemeldet: null, rechnung: "", rahmen: null });
+  ZUHAUSE.bilder.clear();
+  if (Z.zuhause) REGEN.um = 0;
+  sichern();
+  heimKnopf();
+  tmUhr = 0;
+};
 $("#tm-regen").onclick = () => {
   Z.regen = !Z.regen;
   const R_ = REGEN;
@@ -24307,6 +24583,11 @@ function zeichneTelemetrie(t) {
         + (a ? " · nass auf " + Math.round(a.anteil * 100) + " % " + (a.ganz ? "der Radarfläche" : "im Ausschnitt") : "")
         + (r.fehler ? " · neu fragen gescheitert" : ""),
         a ? Math.min(1, a.anteil * 4) : undefined]];
+    })(),
+    /* Das Zuhause: wie es dort ist, und ob Regen kommt */
+    ...(() => {
+      const t = heimText();
+      return t ? [["ZUHAUSE", t]] : [];
     })(),
     /* Die Erde von gestern, wenn gewuenscht: welcher Tag */
     ...(() => {
@@ -24838,7 +25119,10 @@ const HILFE = [
       + "nachts blitzt es in den echten Gewittern. Hineingezoomt wird das Radar feiner, bis gut einen Kilometer. "
       + "Der Knopf ▶ unten auf der Erde spielt die letzten zwei Stunden im Zeitraffer ab, dreizehn Bilder im "
       + "Kreis: So siehst du, wohin der Regen zieht. "
-      + "Tippst du auf einen Ort, steht dort, wie stark es regnet. Wo kein Radar steht, über den Meeren und "
+      + "Tippst du auf einen Ort, steht dort, wie stark es regnet. Mit „Als Zuhause merken“ in der Karte eines "
+      + "Orts behält die Station ihn im Blick: Unter Stationswerte steht, ob es dort regnet und ob Regen kommt, "
+      + "geschätzt aus der Bewegung der letzten Radarbilder, und eine Mitteilung sagt Bescheid, wenn er in etwa "
+      + "einer halben Stunde da sein dürfte. Wo kein Radar steht, über den Meeren und "
       + "in weiten Teilen Afrikas und Asiens, gibt es keine Werte. "
       + "Ohne WebGL oder ohne die Kartenbilder zeichnet ORBIT eine gerechnete Erde.",
   },
@@ -24984,6 +25268,8 @@ function teilZeigen(schluessel, name, kurz) {
   const d = TEILE[schluessel];
   if (!d) return;
   teilOffen = schluessel;
+  if (schluessel !== "erde") ORTREGEN = null;
+  heimKnopf();
   /* Bei den Sternbildern steht in TEILE der gemeinsame Text, aber der
      Name kommt von der Figur, die angetippt wurde. Bei der Erde auch die
      erste Zeile: dort steht, wo genau man hingetippt hat. */
@@ -25836,6 +26122,10 @@ window.addEventListener("resize", groesseAnpassen);
 if (document.fonts && document.fonts.ready)
   document.fonts.ready.then(() => { kopfEinpassen.zuletzt = ""; kopfEinpassen(); });
 setInterval(kopfEinpassen, 700);
+/* Das Zuhause auch, wenn das Fenster im Hintergrund liegt: Dort steht das
+   Bild still, also ein eigener Zeitgeber. Der Browser drosselt ihn auf
+   hoechstens einmal je Minute; fuer Bilder alle zehn Minuten genuegt das. */
+setInterval(() => { if (document.hidden && Z.zuhause) { regenTakt(true); heimTakt(); } }, 30000);
 kopfEinpassen();
 window.addEventListener("orientationchange", () => setTimeout(groesseAnpassen, 120));
 
