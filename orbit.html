@@ -2438,11 +2438,87 @@ function sitzungsBeginn(kopf) {
   return "";
 }
 
+/* --- Wann begann eine Sitzung HEUTE? -------------------------------------
+   Bei einer, die vor Mitternacht angelegt wurde — ueber Nacht offen oder
+   mit "claude --resume" wieder aufgenommen —, stand bisher null Uhr da.
+   Eine Sitzung von Montag, heute um 14 Uhr fortgesetzt, war im Bogen seit
+   Mitternacht offen: vierzehn Stunden, die es nicht gab. Das Fortsetzen
+   aus dem Detail macht solche Sitzungen haeufiger.
+
+   Das Protokoll wird nur angehaengt; die Zeitstempel steigen also mit der
+   Stelle in der Datei. Eine Halbierungssuche findet die erste Zeile ab
+   Mitternacht mit einer Handvoll kleiner Lesezugriffe, auch in einer
+   Datei von 200 MB. Gemerkt wird das Ergebnis je Datei und Tag — was
+   heute zuerst geschah, aendert sich durch Anhaengen nicht mehr. */
+const HEUTE_BEGINN = new Map();      // pfad -> { ab, zeit }
+/* Der Zeitstempel einer ganzen Protokollzeile — nur der oberste. Er steht
+   am Ende der Zeile, und davor kann alles Moegliche stehen, auch fremde
+   Zeitstempel: das Ergebnis eines Werkzeugs, das selbst ein Protokoll
+   gelesen hat. Also die Zeile als JSON lesen, nicht den ersten Treffer. */
+function zeitstempelZeile(zeile) {
+  if (!zeile || zeile.charCodeAt(0) !== 123) return null;          // "{"
+  try {
+    const t = Date.parse(JSON.parse(zeile).timestamp);
+    return Number.isFinite(t) ? t : null;
+  } catch { return null; }
+}
+/* Der erste Zeitstempel ab einer Stelle: die angeschnittene Zeile
+   ueberspringen, dann Zeile fuer Zeile. undefined heisst: das Fenster
+   reichte nicht bis zum Ende einer Zeile mit Zeitstempel. */
+function ersterStempel(stueck, abAnfang) {
+  let i = abAnfang ? 0 : stueck.indexOf("\n") + 1;
+  if (!abAnfang && i === 0) return undefined;
+  for (;;) {
+    const e = stueck.indexOf("\n", i);
+    if (e < 0) return undefined;
+    const t = zeitstempelZeile(stueck.slice(i, e));
+    if (t !== null) return t;
+    i = e + 1;
+  }
+}
+async function ersteZeileAb(pfad, groesse, ab) {
+  const lies = (pos, size) => Neutralino.filesystem.readFile(pfad, { pos, size });
+  let lo = 0, hi = groesse, runden = 0;
+  /* Suchen, bis das Stueck klein ist. Eine Zeile kann ueber ein Megabyte
+     lang sein (eingebettete Bilder) — dann wird das Fenster groesser,
+     statt ohne Zeitstempel falsch zu entscheiden. */
+  while (hi - lo > 65536 && runden++ < 40) {
+    const mitte = Math.floor((lo + hi) / 2);
+    let t;
+    for (const fenster of [16384, 262144, 4194304]) {
+      t = ersterStempel(await lies(mitte, Math.min(fenster, groesse - mitte)), false);
+      if (t !== undefined || mitte + fenster >= groesse) break;
+    }
+    if (t === undefined) { hi = mitte; continue; }  // dahinter nichts Lesbares: vorn weitersuchen
+    if (t < ab) lo = mitte; else hi = mitte;
+  }
+  /* Den Rest Zeile fuer Zeile — bis ein Stueck hinter die letzte Grenze,
+     denn die gesuchte Zeile beginnt dort erst. Meist genuegen 64 kB;
+     nur wenn dort eine Riesenzeile steht, wird weiter gelesen. */
+  for (const zugabe of [65536, 4194304]) {
+    const laenge = Math.min(groesse - lo, (hi - lo) + zugabe);
+    const rest = await lies(lo, laenge);
+    const bisEnde = lo + laenge >= groesse;
+    let i = 0, fertig = bisEnde;
+    if (lo > 0) { i = rest.indexOf("\n") + 1; if (i === 0) continue; }
+    while (i < rest.length) {
+      let e = rest.indexOf("\n", i);
+      if (e < 0) { if (!bisEnde) break; e = rest.length; }  // die letzte Zeile ohne Umbruch
+      const t = zeitstempelZeile(rest.slice(i, e));
+      if (t !== null && t >= ab) return t;
+      if (t !== null && lo + i >= hi) fertig = true;        // hinter der Grenze und noch vor Mitternacht? dann nirgends
+      i = e + 1;
+    }
+    if (fertig) break;
+  }
+  return null;
+}
+
 async function heuteSammeln() {
   const mitternacht = new Date(); mitternacht.setHours(0, 0, 0, 0);
   const ab = mitternacht.getTime();
   const nachProjekt = new Map();
-  let gelesen = 0;
+  let gelesen = 0, gesucht = 0;
   for (const stand of PROJEKT_STAND.values()) {
     for (const f of stand.dateien) {
       if (!f.mt || f.mt < ab) continue;
@@ -2461,14 +2537,35 @@ async function heuteSammeln() {
         KOPF_ORT.set(f.pfad, ort);
       }
       if (!ort) continue;
+      /* Vor Mitternacht angelegt: der erste Eintrag von heute, sobald er
+         gefunden ist — bis dahin wie bisher Mitternacht. Drei Suchen je
+         Durchlauf, damit ein Morgen mit vielen alten Sitzungen die
+         Bruecke nicht aufhaelt. */
+      let beginn = Math.max(ab, Math.min(f.ct || f.mt, f.mt));
+      if (beginn === ab && (f.ct || f.mt) < ab) {
+        const g = HEUTE_BEGINN.get(f.pfad);
+        if (g && g.ab === ab) { if (g.zeit) beginn = Math.min(g.zeit, f.mt); }
+        else if (gesucht < 3) {
+          gesucht++;
+          /* Findet sich heute keine Zeile mit Zeitstempel, ist die letzte
+             Aenderung das Einzige, was man von heute weiss. Ein Lesefehler
+             wird nicht gemerkt, sondern beim naechsten Mal wiederholt. */
+          try {
+            const zeit = await ersteZeileAb(f.pfad, f.groesse || 0, ab);
+            HEUTE_BEGINN.set(f.pfad, { ab, zeit: zeit || f.mt });
+            beginn = Math.min(zeit || f.mt, f.mt);
+          } catch { /* naechster Durchlauf */ }
+        }
+      }
       const name = ort.split("/").pop() || ort;
       if (!nachProjekt.has(name)) nachProjekt.set(name, []);
-      nachProjekt.get(name).push({ von: Math.max(ab, Math.min(f.ct || f.mt, f.mt)), bis: f.mt,
+      nachProjekt.get(name).push({ von: beginn, bis: f.mt,
                                    sid: f.name.replace(/\.jsonl$/, ""), ort,
                                    auftrag: KOPF_AUFTRAG.get(f.pfad) || "" });
     }
   }
   if (KOPF_ORT.size > 2000) { KOPF_ORT.clear(); KOPF_AUFTRAG.clear(); }
+  if (HEUTE_BEGINN.size > 500) HEUTE_BEGINN.clear();
   /* Die Farben der Reihe nach und nicht aus dem Namen: bei acht Farben
      traefen sich sonst schon drei Projekte oft genug auf einer */
   HEUTE = [...nachProjekt.entries()].map(([name, segmente]) => ({
@@ -2585,7 +2682,7 @@ function zeichneHeute() {
   if (gewaehlt) wrap.appendChild(heuteWahl(gewaehlt.p, gewaehlt.sg, lebend.has(gewaehlt.sg.sid)));
   const f = document.createElement("div");
   f.className = "d-fussnote";
-  f.textContent = "Von der ersten bis zur letzten Zeile einer Sitzung — offen, nicht unbedingt "
+  f.textContent = "Von der ersten bis zur letzten Zeile einer Sitzung heute — offen, nicht unbedingt "
     + "gearbeitet. Hell umrandet: läuft gerade. Antippen zeigt, worum es ging.";
   wrap.appendChild(f);
   wrap.appendChild(heuteKnoepfe());
@@ -2670,7 +2767,7 @@ function heuteText() {
     }
     z.push("");
   }
-  z.push("_Offen heißt: von der ersten bis zur letzten Zeile einer Sitzung, nicht unbedingt gearbeitet._");
+  z.push("_Offen heißt: von der ersten bis zur letzten Zeile einer Sitzung heute, nicht unbedingt gearbeitet._");
   return z.join("\n");
 }
 
