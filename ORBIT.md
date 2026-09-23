@@ -244,6 +244,7 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
   - Wer auf die Erde tippt, erfährt, welches Land oder Meer an der Stelle liegt. Ist gerade etwas offen, schließt der Tipp es wie bisher.
   - Die Grenzen kommen von Natural Earth und sind gemeinfrei: Länder im Maßstab 1:50 Millionen, dazu Ozeane, Meere, Golfe und Meeresstraßen, zusammen 355 deutsche Namen.
   - Gebacken sind sie zu einer Karte von 1440 × 720 Punkten (47 KB), mit der Nummer des Namens in jedem Punkt. Enklaven wie Lesotho bleiben erhalten, Zwergstaaten wie der Vatikan fallen durchs Raster.
+- **Die Bodenspur.** Unter der Umlaufuhr zeigt eine kleine Weltkarte die Spur der Bahn: den letzten halben Umlauf blass, den nächsten hell. Dazu zeigt sie die Nacht aus dem echten Sonnenstand und einen Punkt, wo die Station gerade steht. So fangen die ISS-Verfolger im Netz an. Die Spur schlängelt sich zwischen 51,6 Grad Nord und Süd.
 - **Rückfall.** Fehlt eines der Bilder, kann der Browser kein WebGL oder geht der Grafikkontext verloren, zeichnet ORBIT die gerechnete Erde wie bisher. Solange die Karten laden, wartet die Seite bis zu zwei Sekunden mit der Erde. So zeigt sie nicht erst die gerechnete und springt dann um.
 - **Kosten.**
   - Neu gemalt wird nur, wenn sich die Scheibe weit genug gedreht hat. Das regelt dieselbe Schwelle wie vorher beim Durchziehen.
@@ -332,7 +333,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-74 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+75 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
 - **Echte Arbeitsumgebung**:
@@ -382,6 +383,11 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Über Norditalien steht in den Stationswerten „Italien · 44° N · 12° O“.
   - Acht bekannte Orte werden richtig benannt: Berlin, Kairo, Mittelmeer, Atlantik, Lesotho, Nordsee, Tokio und Sydney.
   - Ein Tipp südlich davon nennt das Mittelmeer, ein zweiter Tipp schließt, und über der Kante gibt es keine Erde.
+- **Bodenspur**:
+  - Die Karte ist 2 : 1, und der Punkt der Station liegt genau über dem Ort unter ihr.
+  - Die Spur reicht bis ±51,6 Grad.
+  - Um 14:30 UTC liegt Asien in der Nacht und der Atlantik unter der Sonne.
+  - Ohne echte Erde gibt es weder Karte noch „Unter uns“.
 - **Tempo**: 60 Bilder/s bei 0,8- bis 11-fachem Zoom und bei Nacht. Backzeit und Speicher sind unverändert.
 - **Nacht**:
   - Gewitter: 19 Blitze in 12 s am Abend, keiner bei Tag, gegengeprüft.

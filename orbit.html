@@ -927,6 +927,12 @@ body.sicht #blende-detail{
    und wie knapp die Bahn ueber der Oberflaeche liegt. */
 #tm-uhr{display:block; width:100%; aspect-ratio:420/200; height:auto;
   margin:2px 0 6px; border-radius:6px; background:rgba(255,255,255,.028);}
+/* Die Bodenspur: die Welt als Rechteck, darauf die Bahn, die Nacht und
+   die Station. Dasselbe Seitenverhaeltnis wie die Leinwand, sonst waere
+   die Erde gestaucht. */
+#tm-karte{display:block; width:100%; aspect-ratio:2/1; height:auto;
+  margin:0 0 8px; border-radius:6px; background:rgba(255,255,255,.028);}
+#tm-karte[hidden]{display:none;}
 .tm-wert.schlecht{color:var(--bad);}
 .tm-wert.warm{color:#e0a24e;}
 .tm-alarm{display:flex; align-items:center; gap:6px; margin:0 0 9px; padding:5px 7px;
@@ -1042,6 +1048,7 @@ body.sicht #blende-detail{
   <div id="telemetrie" class="glas" hidden>
     <div class="tm-kopf">STATIONSWERTE</div>
     <canvas id="tm-uhr" width="420" height="200"></canvas>
+    <canvas id="tm-karte" width="420" height="210" hidden></canvas>
     <canvas id="tm-puls" width="420" height="60"></canvas>
     <div id="tm-alarm"></div>
     <div id="tm-zeilen"></div>
@@ -17594,6 +17601,7 @@ function zeichneTelemetrie(t) {
 
   pulsZeichnen();
   uhrZeichnen(ph, tags);
+  spurZeichnen();
 
   /* Das Bordbuch darunter — die fuenf juengsten Eintraege */
   const buch = $("#tm-buch");
@@ -17632,6 +17640,101 @@ function umlaufWinkel(phase) {
   return phase < TAGANTEIL
     ? -halbTag + (phase / TAGANTEIL) * 2 * halbTag
     : halbTag + ((phase - TAGANTEIL) / (1 - TAGANTEIL)) * 2 * UHR.schattenHalb;
+}
+
+/* --- Die Bodenspur ---------------------------------------------------------
+   Eine Weltkarte mit der Spur der Bahn, der Grenze zwischen Tag und Nacht
+   und der Stelle, an der die Station gerade steht — das Bild, mit dem
+   jeder ISS-Verfolger im Netz anfaengt. Die Spur schlaengelt sich
+   zwischen 51,6 Grad Nord und Sued, weil die Bahn so geneigt ist. Die
+   Nacht kommt aus dem echten Sonnenstand: im Herbst reicht sie gerade
+   von Pol zu Pol, im Sommer liegt der Nordpol ganz im Licht.
+
+   Nur mit der echten Erde, denn nur dort ist der Punkt unter der Station
+   ein Ort. */
+const SPUR = { grund: null, nacht: null, nachtUm: 0 };
+
+function spurZeichnen() {
+  const cv = $("#tm-karte");
+  if (!cv) return;
+  const da = !!(ERDKARTE.bereit && ERDKARTE.bilder && ERDKARTE.bilder.tag);
+  cv.hidden = !da;
+  if (!da) return;
+  const w = cv.width, h = cv.height;
+  const c = cv.getContext("2d");
+  /* Die Karte selbst nur einmal, und gedaempft: sie ist der Grund */
+  if (!SPUR.grund) {
+    const g = document.createElement("canvas");
+    g.width = w; g.height = h;
+    const gc = g.getContext("2d");
+    gc.imageSmoothingQuality = "high";
+    gc.drawImage(ERDKARTE.bilder.tag, 0, 0, w, h);
+    gc.fillStyle = "rgba(6,10,20,.3)";
+    gc.fillRect(0, 0, w, h);
+    SPUR.grund = g;
+  }
+  /* Die Nacht jede Minute neu — schneller wandert sie nicht */
+  const jetzt = Date.now();
+  if (!SPUR.nacht || jetzt - SPUR.nachtUm > 60000) {
+    SPUR.nachtUm = jetzt;
+    const S = sonneErdfest(jetzt);
+    const n = SPUR.nacht || document.createElement("canvas");
+    n.width = w; n.height = h;
+    const nc = n.getContext("2d");
+    const bild = nc.createImageData(w, h);
+    for (let y = 0; y < h; y++) {
+      const br = (0.5 - (y + 0.5) / h) * Math.PI;
+      const cb = Math.cos(br), sb = Math.sin(br);
+      for (let x = 0; x < w; x++) {
+        const la = ((x + 0.5) / w - 0.5) * 2 * Math.PI;
+        const hell = cb * Math.cos(la) * S[0] + cb * Math.sin(la) * S[1] + sb * S[2];
+        /* Weich ueber gut sechs Grad: so breit ist die Daemmerung */
+        const i = (y * w + x) * 4;
+        bild.data[i] = 2; bild.data[i + 1] = 5; bild.data[i + 2] = 16;
+        bild.data[i + 3] = Math.round(klemm((0.05 - hell) / 0.1, 0, 1) * 0.64 * 255);
+      }
+    }
+    nc.putImageData(bild, 0, 0);
+    SPUR.nacht = n;
+  }
+  c.clearRect(0, 0, w, h);
+  c.drawImage(SPUR.grund, 0, 0);
+  c.drawImage(SPUR.nacht, 0, 0);
+
+  /* Die Spur: der letzte halbe Umlauf blass, der naechste hell. Wo sie
+     ueber den Kartenrand springt, wird abgesetzt statt quer ueber die
+     ganze Welt gezogen. */
+  const phi = ERDE.phiJetzt || 0;
+  const aufKarte = (bl) => {
+    const [b, l] = breiteLaenge([bl.m[3], bl.m[4], bl.m[5]]);
+    return [(l / 360 + 0.5) * w, (0.5 - b / 180) * h];
+  };
+  const spur = (von, bis, farbe) => {
+    c.beginPath();
+    let letzt = null;
+    for (let k = 0; k <= 90; k++) {
+      const q = aufKarte(erdBlick(phi + von + (bis - von) * k / 90, jetzt));
+      if (!letzt || Math.abs(q[0] - letzt[0]) > w / 2) c.moveTo(q[0], q[1]);
+      else c.lineTo(q[0], q[1]);
+      letzt = q;
+    }
+    c.strokeStyle = farbe;
+    c.stroke();
+  };
+  c.lineWidth = 1.5;
+  spur(-Math.PI, 0, "rgba(150,190,240,.34)");
+  spur(0, Math.PI, "rgba(205,228,255,.85)");
+
+  /* Die Station */
+  const [sx, sy] = aufKarte(erdBlick(phi, jetzt));
+  SPUR.punkt = [sx / w, sy / h];
+  const glanz = c.createRadialGradient(sx, sy, 0, sx, sy, 10);
+  glanz.addColorStop(0, "rgba(255,238,200,.9)");
+  glanz.addColorStop(1, "rgba(255,238,200,0)");
+  c.fillStyle = glanz;
+  c.beginPath(); c.arc(sx, sy, 10, 0, Math.PI * 2); c.fill();
+  c.fillStyle = "#fff";
+  c.beginPath(); c.arc(sx, sy, 2.8, 0, Math.PI * 2); c.fill();
 }
 
 function uhrZeichnen(phase, tags) {
@@ -17896,8 +17999,9 @@ const HILFE = [
       + "gegen den Äquator geneigt wie die der ISS, und die Sonne steht, wo sie gerade wirklich steht: "
       + "ist es in Europa Nacht, zieht Europa auf der Nachtseite vorbei. Wo die echte ISS gerade ist, "
       + "weiß ORBIT nicht, und die Wolken sind eine Aufnahme, kein Wetter von heute. Unter Stationswerte "
-      + "steht, worüber die Station gerade fliegt; tippst du auf die Erde, steht da, welches Land oder "
-      + "Meer an der Stelle liegt. Ohne WebGL oder ohne die Kartenbilder zeichnet ORBIT eine gerechnete Erde.",
+      + "steht, worüber die Station gerade fliegt, und eine kleine Weltkarte zeigt ihre Spur, die Nacht "
+      + "und wo sie gerade ist. Tippst du auf die Erde, steht da, welches Land oder Meer an der Stelle "
+      + "liegt. Ohne WebGL oder ohne die Kartenbilder zeichnet ORBIT eine gerechnete Erde.",
   },
   {
     titel: "Der Himmel",
