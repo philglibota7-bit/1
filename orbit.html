@@ -5766,6 +5766,12 @@ const TEILE = {
     lang: "Dicht über der Erdkante geht ihr Licht streifend durch die ganze Lufthülle: Blau wird herausgestreut, Rot bleibt — dasselbe Abendrot wie vom Boden aus, nur dauert es hier 43 Sekunden statt einer halben Stunde. Die Luft bricht dabei den unteren Rand stärker als den oberen, und die Scheibe steht gestaucht als Ellipse auf der Kante. Davor kommt die Wulst: die Luft über dem Horizont leuchtet genau dort auf, wo sie herauskommt, lange bevor man die Scheibe selbst sieht.",
     zahl: "Ein halbes Grad breit — winzig. Was sie groß erscheinen lässt, ist nicht ihre Scheibe, sondern der Schein darum herum. 59 Prozent des Umlaufs steht sie über dem Horizont.",
   },
+  erde: {
+    name: "Erde",
+    kurz: "",
+    lang: "Das ist die echte Erde, aus den Aufnahmen der NASA: Blue Marble für Land und Meeresboden, dieselbe Reihe für die Wolken, Black Marble für die Lichter der Städte. Die Station fliegt vierhundert Kilometer darüber, und von hier sieht man gut zweitausend Kilometer weit bis zur Kante. Was unten liegt, ist der Streifen neben der Bahn; zur Kante hin blickt man immer flacher darauf, bis die Luft alles in blauen Dunst taucht. Die Sonne steht, wo sie gerade wirklich steht — Tag und Nacht auf der Karte sind die von jetzt.",
+    zahl: "Die Tageskarte hat 4096 mal 2048 Punkte, knapp zehn Kilometer je Punkt; die Wolken die Hälfte. Die Namen kommen von Natural Earth, auf ein Viertelgrad genau. Wolken sind eine Aufnahme, kein Wetter von heute.",
+  },
   sternbild: {
     name: "Sternbild",
     kurz: "Derselbe Himmel wie von unten.",
@@ -11127,6 +11133,7 @@ function erdkarteAufbauen() {
     erdkarteZellen();
     ERDKARTE.bereit = true;
     GEWITTER.zellen = ERDKARTE.zellen;
+    orteLaden();
     /* Die gerechnete Scheibe ist schon zusammengesetzt; neu, damit die
        echte sofort erscheint. */
     if (typeof ERDE !== "undefined") ERDE.schubGebacken = null;
@@ -11270,6 +11277,192 @@ function erdkarteZellen() {
         if (nb) z.nachbarn.push(nb);
       }
   ERDKARTE.zellen = zellen;
+}
+
+/* --- Was liegt unter uns? ------------------------------------------------
+   Mit der echten Erde laesst sich sagen, worueber die Station gerade
+   fliegt. Die Grenzen sind die von Natural Earth, gemeinfrei: Laender im
+   Massstab 1:50 Millionen, dazu Ozeane, Meere, Golfe und Meeresstrassen,
+   mit ihren deutschen Namen. Gebacken zu einer Karte von 1440 mal 720
+   Punkten, ein Viertelgrad je Punkt, rund 28 Kilometer. In jedem Punkt
+   steckt die Nummer seines Namens, im Rot- und im Gruenkanal. Laender
+   liegen ueber den Meeren und kleine ueber grossen, damit Enklaven wie
+   Lesotho nicht im Land drumherum verschwinden. Winzige Staaten wie der
+   Vatikan fallen durch das Raster; wer darueber fliegt, fliegt dann
+   ueber Italien. */
+const ORTE_NAMEN = [
+  ["Pazifischer Ozean","m"],["Indischer Ozean","m"],["Pazifischer Ozean","m"],
+  ["Atlantischer Ozean","m"],["Arktischer Ozean","m"],["Atlantischer Ozean","m"],
+  ["Südlicher Ozean","m"],["Rossmeer","m"],["Philippinensee","m"],["Weddell-Meer","m"],
+  ["Barentssee","m"],["Grönlandsee","m"],["Tasmansee","m"],["Arabisches Meer","m"],
+  ["Korallenmeer","m"],["Europäisches Nordmeer","m"],["Beringmeer","m"],["Karasee","m"],
+  ["Sargassosee","m"],["Südchinesisches Meer","m"],["Karibisches Meer","m"],
+  ["Ochotskisches Meer","m"],["Mittelmeer","m"],["Laptewsee","m"],["Labradorsee","m"],
+  ["Beaufortsee","m"],["Japanisches Meer","m"],["Tschuktschensee","m"],["Nordsee","m"],
+  ["Ostchinesisches Meer","m"],["Lakkadivensee","m"],["Salomonensee","m"],["Bandasee","m"],
+  ["Arafurasee","m"],["Bellingshausen-See","m"],["Andamanensee","m"],["Schwarzes Meer","m"],
+  ["Javasee","m"],["Kaspisches Meer","m"],["Rotes Meer","m"],["Gelbes Meer","m"],
+  ["Celebessee","m"],["Timorsee","m"],["Ostsee","m"],["Amundsensee","m"],["Bismarcksee","m"],
+  ["Sulusee","m"],["Tyrrhenisches Meer","m"],["Weißes Meer","m"],["Molukkensee","m"],
+  ["Ionisches Meer","m"],["Adriatisches Meer","m"],["Ägäisches Meer","m"],["Seramsee","m"],
+  ["Balearen-Meer","m"],["Golf von Bohai","m"],["Hebridensee","m"],["Irische See","m"],
+  ["Seto-Inlandsee","m"],["Scotiasee","m"],["Golf von Bengalen","m"],["Baffin Bay","m"],
+  ["Golf von Mexiko","m"],["Große Australische Bucht","m"],["Hudson Bay","m"],
+  ["Golf von Alaska","m"],["Golf von Guinea","m"],["Sankt-Lorenz-Golf","m"],["Biskaya","m"],
+  ["Golf von Thailand","m"],["Golf von Carpentaria","m"],["Persischer Golf","m"],
+  ["Golf von Aden","m"],["Schelichow-Bucht","m"],["Bottnischer Meerbusen","m"],
+  ["Amundsen-Golf","m"],["Golf von Kalifornien","m"],["Bahía de Campeche","m"],
+  ["Golf von Tonkin","m"],["Golf von Oman","m"],["James Bay","m"],["Bristol Bay","m"],
+  ["Melville-Bucht","m"],["Golf von Maine","m"],["Ungava Bay","m"],["Finnischer Meerbusen","m"],
+  ["Río de la Plata","m"],["Cook Inlet","m"],["Golf San Jorge","m"],["Golf von Mannar","m"],
+  ["Golf von Panamá","m"],["Golfe du Lion","m"],["Bay of Fundy","m"],["Bay of Plenty","m"],
+  ["Golf von Honduras","m"],["Chesapeake Bay","m"],["Golf von Kachchh","m"],
+  ["Nordwestpassage","m"],["Davisstraße","m"],["Straße von Mosambik","m"],["Hudsonstraße","m"],
+  ["Straße von Malakka","m"],["Viscount-Melville-Sund","m"],["Straße von Makassar","m"],
+  ["Ärmelkanal","m"],["Koreastraße","m"],["Floridastraße","m"],["Formosastraße","m"],
+  ["Bristolkanal","m"],["Straße von Singapur","m"],["Straße von Gibraltar","m"],
+  ["Drakestraße","m"],["Luzonstraße","m"],["Antarktika","l"],["Russland","l"],["Kanada","l"],
+  ["Vereinigte Staaten","l"],["Volksrepublik China","l"],["Brasilien","l"],["Australien","l"],
+  ["Grönland","l"],["Kasachstan","l"],["Argentinien","l"],["Indien","l"],["Algerien","l"],
+  ["Demokratische Republik Kongo","l"],["Mongolei","l"],["Mexiko","l"],["Saudi-Arabien","l"],
+  ["Sudan","l"],["Iran","l"],["Indonesien","l"],["Libyen","l"],["Südafrika","l"],["Tschad","l"],
+  ["Mali","l"],["Peru","l"],["Angola","l"],["Niger","l"],["Äthiopien","l"],["Kolumbien","l"],
+  ["Bolivien","l"],["Ägypten","l"],["Mauretanien","l"],["Norwegen","l"],["Pakistan","l"],
+  ["Türkei","l"],["Schweden","l"],["Tansania","l"],["Chile","l"],["Nigeria","l"],
+  ["Venezuela","l"],["Namibia","l"],["Frankreich","l"],["Ukraine","l"],["Mosambik","l"],
+  ["Sambia","l"],["Afghanistan","l"],["Finnland","l"],["Myanmar","l"],["Marokko","l"],
+  ["Spanien","l"],["Madagaskar","l"],["Südsudan","l"],["Botswana","l"],
+  ["Zentralafrikanische Republik","l"],["Turkmenistan","l"],["Usbekistan","l"],["Kenia","l"],
+  ["Deutschland","l"],["Thailand","l"],["Irak","l"],["Polen","l"],["Somalia","l"],["Jemen","l"],
+  ["Kamerun","l"],["Japan","l"],["Papua-Neuguinea","l"],["Paraguay","l"],["Simbabwe","l"],
+  ["Italien","l"],["Vereinigtes Königreich","l"],["Neuseeland","l"],["Belarus","l"],
+  ["Republik Kongo","l"],["Vietnam","l"],["Rumänien","l"],["Oman","l"],["Malaysia","l"],
+  ["Elfenbeinküste","l"],["Philippinen","l"],["Burkina Faso","l"],["Kirgisistan","l"],
+  ["Gabun","l"],["Ecuador","l"],["Guinea","l"],["Uganda","l"],["Ghana","l"],["Laos","l"],
+  ["Island","l"],["Syrien","l"],["Guyana","l"],["Uruguay","l"],["Senegal","l"],["Tunesien","l"],
+  ["Kambodscha","l"],["Tadschikistan","l"],["Somaliland","l"],["Griechenland","l"],["Nepal","l"],
+  ["Nordkorea","l"],["Bulgarien","l"],["Bangladesch","l"],["Suriname","l"],["Ungarn","l"],
+  ["Nicaragua","l"],["Eritrea","l"],["Österreich","l"],["Malawi","l"],["Tschechien","l"],
+  ["Südkorea","l"],["Benin","l"],["Portugal","l"],["Kuba","l"],["Lettland","l"],["Honduras","l"],
+  ["Irland","l"],["Litauen","l"],["Aserbaidschan","l"],["Guatemala","l"],["Serbien","l"],
+  ["Jordanien","l"],["Westsahara","l"],["Liberia","l"],["Georgien","l"],["Estland","l"],
+  ["Vereinigte Arabische Emirate","l"],["Kroatien","l"],["Dänemark","l"],["Panama","l"],
+  ["Slowakei","l"],["Sierra Leone","l"],["Bosnien und Herzegowina","l"],["Sri Lanka","l"],
+  ["Niederlande","l"],["Schweiz","l"],["Togo","l"],["Costa Rica","l"],
+  ["Dominikanische Republik","l"],["Republik Moldau","l"],["Belgien","l"],["Bhutan","l"],
+  ["Republik China","l"],["Armenien","l"],["Albanien","l"],["Lesotho","l"],["Nordmazedonien","l"],
+  ["Guinea-Bissau","l"],["Slowenien","l"],["Haiti","l"],["Burundi","l"],["Äquatorialguinea","l"],
+  ["Salomonen","l"],["Israel","l"],["Ruanda","l"],["Belize","l"],["Dschibuti","l"],
+  ["El Salvador","l"],["Neukaledonien","l"],["Kuwait","l"],["Fidschi","l"],["Eswatini","l"],
+  ["Montenegro","l"],["Falklandinseln","l"],["Osttimor","l"],["Kosovo","l"],["Bahamas","l"],
+  ["Katar","l"],["Libanon","l"],["Vanuatu","l"],["Jamaika","l"],
+  ["Französische Süd- und Antarktisgebiete","l"],["Gambia","l"],["Puerto Rico","l"],
+  ["Palästina","l"],["Republik Zypern","l"],["Südgeorgien und die Südlichen Sandwichinseln","l"],
+  ["Brunei","l"],["Trinidad und Tobago","l"],["Türkische Republik Nordzypern","l"],
+  ["Luxemburg","l"],["Kap Verde","l"],["Samoa","l"],["Französisch-Polynesien","l"],
+  ["Siachen-Gletscher","l"],["Färöer","l"],["Mauritius","l"],["Komoren","l"],["Åland","l"],
+  ["Hongkong","l"],["São Tomé und Príncipe","l"],["Isle of Man","l"],["Kiribati","l"],
+  ["Dominica","l"],["Heard und McDonaldinseln","l"],["Bahrain","l"],["Andorra","l"],
+  ["St. Lucia","l"],["Föderierte Staaten von Mikronesien","l"],["Guam","l"],["Singapur","l"],
+  ["Tonga","l"],["Antigua und Barbuda","l"],["Curaçao","l"],["Nördliche Marianen","l"],
+  ["Barbados","l"],["Turks- und Caicosinseln","l"],["Palau","l"],["Malta","l"],
+  ["Amerikanische Jungferninseln","l"],["St. Vincent und die Grenadinen","l"],
+  ["Cayman Islands","l"],["Saint-Pierre und Miquelon","l"],["Grenada","l"],
+  ["St. Kitts und Nevis","l"],["Marshallinseln","l"],["Niue","l"],["Liechtenstein","l"],
+  ["Jersey","l"],["St. Helena","l"],["Seychellen","l"],["Aruba","l"],
+  ["Australische Territorien im Indischen Ozean","l"],["Britische Jungferninseln","l"],
+  ["Wallis und Futuna","l"],["Britisches Territorium im Indischen Ozean","l"],
+  ["Amerikanisch-Samoa","l"],["San Marino","l"],["Anguilla","l"],["Montserrat","l"],
+  ["Bermuda","l"],["Guernsey","l"],["Malediven","l"],["Cookinseln","l"],["Saint-Martin","l"],
+  ["Norfolkinsel","l"],["Sint Maarten","l"],["Pitcairninseln","l"],["Nauru","l"],
+  ["Saint-Barthélemy","l"],["Macau","l"],["Monaco","l"],["Tuvalu","l"],
+  ["Ashmore- und Cartierinseln","l"],["Vatikanstadt","l"]
+];
+const ORTE = { ids: null, b: 1440, h: 720, laedt: false };
+
+function orteLaden() {
+  if (ORTE.ids || ORTE.laedt) return;
+  ORTE.laedt = true;
+  const bild = new Image();
+  bild.onload = async () => {
+    try {
+      /* Ohne Farbumrechnung: eine Nummer, die um eins verrutscht,
+         ergaebe einen falschen Namen, keinen etwas anderen Farbton */
+      let quelle = bild;
+      if (window.createImageBitmap) {
+        try { quelle = await createImageBitmap(bild, { colorSpaceConversion: "none" }); }
+        catch { quelle = bild; }
+      }
+      const c = document.createElement("canvas");
+      c.width = ORTE.b; c.height = ORTE.h;
+      const g = c.getContext("2d");
+      g.drawImage(quelle, 0, 0, ORTE.b, ORTE.h);
+      const d = g.getImageData(0, 0, ORTE.b, ORTE.h).data;
+      const ids = new Uint16Array(ORTE.b * ORTE.h);
+      for (let i = 0, j = 0; i < ids.length; i++, j += 4) {
+        const n = d[j] + d[j + 1] * 256;
+        /* Eine Nummer, die es nicht gibt, heisst: die Karte kam
+           verfaelscht an. Dann lieber gar keine Namen als falsche. */
+        if (n > ORTE_NAMEN.length || d[j + 2] !== 0) return;
+        ids[i] = n;
+      }
+      ORTE.ids = ids;
+    } catch { /* ohne Namen geht es auch */ }
+  };
+  bild.src = "orbit-erde-orte.png";
+}
+
+/* Name an einer Stelle: { name, meer } oder null */
+function ortBei(breite, laenge) {
+  if (!ORTE.ids) return null;
+  const x = Math.min(ORTE.b - 1, Math.max(0, Math.floor((laenge / 360 + 0.5) * ORTE.b)));
+  const y = Math.min(ORTE.h - 1, Math.max(0, Math.floor((0.5 - breite / 180) * ORTE.h)));
+  const n = ORTE.ids[y * ORTE.b + x];
+  if (!n) return null;
+  const [name, art] = ORTE_NAMEN[n - 1];
+  return { name, meer: art === "m" };
+}
+
+/* Breite und Laenge, deutsch: Nord, Sued, Ost, West */
+function gradText(breite, laenge) {
+  return Math.round(Math.abs(breite)) + "° " + (breite >= 0 ? "N" : "S") + " · "
+    + Math.round(Math.abs(laenge)) + "° " + (laenge >= 0 ? "O" : "W");
+}
+
+/* Ein Punkt der Kugel im erdfesten System, zu Breite und Laenge */
+function breiteLaenge(p) {
+  return [Math.asin(Math.max(-1, Math.min(1, p[2]))) * 180 / Math.PI,
+          Math.atan2(p[1], p[0]) * 180 / Math.PI];
+}
+
+/* Worueber fliegt die Station? Der Punkt unter ihr liegt oben auf der
+   Kante der Scheibe — in der Blickmatrix ist das die zweite Spalte. */
+function unterUns() {
+  if (!ERDKARTE.bereit || !ERDKARTE.blick) return null;
+  const m = ERDKARTE.blick.m;
+  const [b, l] = breiteLaenge([m[3], m[4], m[5]]);
+  const ort = ortBei(b, l);
+  return { breite: b, laenge: l, name: ort ? ort.name : null, meer: ort ? ort.meer : false };
+}
+
+/* Getippt auf die Erde: welcher Ort liegt an dieser Stelle des Schirms?
+   Dieselbe Rechnung wie im Schattierer, nur rueckwaerts und fuer einen
+   einzigen Punkt. */
+function erdeBei(px, py) {
+  if (!ERDKARTE.bereit || !ERDKARTE.blick) return null;
+  const m = erdeMasse();
+  const qx = (px - m.cx - (ERDE.dx || 0)) / m.r, qy = (py - m.cy - (ERDE.dy || 0)) / m.r;
+  const r2 = qx * qx + qy * qy;
+  /* Ganz an der Kante liegt alles im Dunst, darueber ist Himmel */
+  if (r2 > 0.9985) return null;
+  const v = [qx, -qy, Math.sqrt(1 - r2)];
+  const M = ERDKARTE.blick.m;
+  const p = [M[0] * v[0] + M[3] * v[1] + M[6] * v[2],
+             M[1] * v[0] + M[4] * v[1] + M[7] * v[2],
+             M[2] * v[0] + M[5] * v[1] + M[8] * v[2]];
+  const [b, l] = breiteLaenge(p);
+  const ort = ortBei(b, l);
+  return { breite: b, laenge: l, name: ort ? ort.name : null, meer: ort ? ort.meer : false };
 }
 
 function erdeMasse() {
@@ -16827,6 +17020,7 @@ function blendeZu() {
   $$(".blende").forEach(b => b.classList.remove("offen"));
   $("#schleier").classList.remove("an");
   offeneDetailId = null;
+  teilOffen = null;
   zeichneCrewLeiste();
 }
 
@@ -17282,6 +17476,14 @@ function zeichneTelemetrie(t) {
       + simZeit(MISSION.simSek)],
     ["PHASE", Z.umlauf === false ? "aus"
       : (tags ? "Tag" : "Erdschatten") + " · " + zeitKurz(rest)],
+    /* Worueber wir gerade fliegen — nur mit der echten Erde, denn die
+       gerechnete hat keine Orte. Ohne Namenskarte stehen wenigstens
+       Breite und Laenge da. */
+    ...(() => {
+      const u = unterUns();
+      if (!u) return [];
+      return [["UNTER UNS", (u.name ? u.name + " · " : "") + gradText(u.breite, u.laenge)]];
+    })(),
     /* Mond und Polarlicht gehoeren hierher und nicht in einen eigenen
        Abschnitt: beide sagen, WO im Umlauf wir gerade stehen, genau wie
        die Phase darueber. Ein eigener Abschnitt haette sie ausserdem
@@ -17675,8 +17877,9 @@ const HILFE = [
       + "Aufnahmen der NASA, nachts die Lichter der Städte aus Black Marble. Die Bahn ist 51,6 Grad "
       + "gegen den Äquator geneigt wie die der ISS, und die Sonne steht, wo sie gerade wirklich steht: "
       + "ist es in Europa Nacht, zieht Europa auf der Nachtseite vorbei. Wo die echte ISS gerade ist, "
-      + "weiß ORBIT nicht, und die Wolken sind eine Aufnahme, kein Wetter von heute. Ohne WebGL oder "
-      + "ohne die drei Kartenbilder zeichnet ORBIT eine gerechnete Erde.",
+      + "weiß ORBIT nicht, und die Wolken sind eine Aufnahme, kein Wetter von heute. Unter Stationswerte "
+      + "steht, worüber die Station gerade fliegt; tippst du auf die Erde, steht da, welches Land oder "
+      + "Meer an der Stelle liegt. Ohne WebGL oder ohne die Kartenbilder zeichnet ORBIT eine gerechnete Erde.",
   },
   {
     titel: "Der Himmel",
@@ -17759,14 +17962,15 @@ if (hilfeKnopf) hilfeKnopf.onclick = () => { zeichneHilfe(); blendeAuf("blende-h
 
 /* Ein Bauteil erklaeren. Der Text steht in TEILE und ist bewusst in
    drei Stufen gebaut: ein Satz, ein Absatz, die Zahlen. */
-function teilZeigen(schluessel, name) {
+function teilZeigen(schluessel, name, kurz) {
   const d = TEILE[schluessel];
   if (!d) return;
   teilOffen = schluessel;
   /* Bei den Sternbildern steht in TEILE der gemeinsame Text, aber der
-     Name kommt von der Figur, die angetippt wurde. */
+     Name kommt von der Figur, die angetippt wurde. Bei der Erde auch die
+     erste Zeile: dort steht, wo genau man hingetippt hat. */
   $("#teil-name").textContent = name || d.name;
-  $("#teil-kurz").textContent = d.kurz;
+  $("#teil-kurz").textContent = kurz || d.kurz;
   $("#teil-lang").textContent = d.lang;
   $("#teil-zahl").textContent = d.zahl;
   blendeAuf("blende-teil");
@@ -18199,6 +18403,15 @@ function zeigerLoslassen(ev) {
 
     const oben = himmelBei(ev.clientX, ev.clientY);
     if (oben) { teilZeigen(oben.k, oben.name); return; }
+    /* Die Erde zuletzt. Ist gerade etwas offen, gilt ein Tipp auf sie
+       weiter als Tipp ins Leere und schliesst es — so wie vorher. */
+    const offen = !!document.querySelector(".blende.offen");
+    const unten = offen ? null : erdeBei(ev.clientX, ev.clientY);
+    if (unten) {
+      teilZeigen("erde", unten.name || (unten.meer ? "Meer" : "Erde"),
+        gradText(unten.breite, unten.laenge));
+      return;
+    }
     if (offeneDetailId || teilOffen) {
       /* Ins Leere getippt: das Detailfenster zu. Frueher uebernahm das
          der Schleier, aber der laesst jetzt Zeiger durch. */
@@ -18397,7 +18610,7 @@ window.__LOGPUSH = (e) => { Z.log.unshift(e); zeichneLog(); };
 window.__PHASE = (ph) => { PHASE_TEST = ph; };
 window.__ERDKARTE = () => ({ bereit: ERDKARTE.bereit, kaputt: ERDKARTE.kaputt,
   grund: ERDKARTE.grund, zellen: ERDKARTE.zellen ? ERDKARTE.zellen.length : 0,
-  phi: ERDKARTE.phi });
+  phi: ERDKARTE.phi, orte: !!ORTE.ids, unter: unterUns() });
 window.__GEWITTER = () => GEWITTER;
 window.__HAKEN = () => HAKEN;
 window.__HAKENBOX = () => HAKEN_LETZT;
