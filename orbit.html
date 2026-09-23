@@ -11321,7 +11321,8 @@ uniform sampler2D uOval;
 uniform sampler2D uSat, uSatGueltig;
 /* Das Relief zu den Kacheln, in einem Mosaik mit denselben Plaetzen, halb so
    fein: je Punkt die Steigung des Bodens nach Osten und nach Norden,
-   gestaucht (siehe reliefRechnen). uReliefStaerke 0 = aus. */
+   gestaucht, und die Hoehe in zwei Stufen (siehe reliefRechnen).
+   uReliefStaerke 0 = aus. */
 #ifdef RELIEF
 uniform sampler2D uSatRelief;
 uniform float uReliefStaerke;
@@ -11349,6 +11350,8 @@ const float PI = 3.14159265;
    den Punkt deckt, merkt sich satSchrift. */
 float satSchrift = 0.0;
 vec2 satHang = vec2(0.0);
+vec2 satXY = vec2(0.0);
+float satMeter = 1.0;
 vec4 satellit(vec3 p) {
   if (uSatFenster.w <= 0.0) return vec4(0.0);
   float b = asin(clamp(p.z, -1.0, 1.0));
@@ -11365,13 +11368,54 @@ vec4 satellit(vec3 p) {
   vec2 st = (platz + fract(vec2(X, Y))) / uSatRaster;
   vec4 c = texture2D(uSat, st);
 #ifdef RELIEF
-  satHang = (texture2D(uSatRelief, st).ra * 255.0 - 128.0) / 127.0;
+  satHang = (texture2D(uSatRelief, st).rg * 255.0 - 128.0) / 127.0;
+  satXY = vec2(X, Y);
+  satMeter = 40075016.7 * cos(b) / n;
 #endif
   float rand = min(min(dx, uSatRaster.x - dx), min(dy, uSatRaster.y - dy));
   float deck = smoothstep(0.0, 0.7, rand) * uSatFenster.w;
   satSchrift = (1.0 - c.a) * deck;
   return vec4(c.rgb, deck);
 }
+
+#ifdef RELIEF
+/* Die Hoehe in Metern an einer Stelle des Netzes (X, Y in Kacheln der
+   Stufe), oder -1, wo keine gueltige Kachel liegt. Grob mal 35 Meter plus
+   fein: Beide Teile lassen sich getrennt weich dazwischen rechnen, die
+   Summe bleibt richtig. */
+float reliefHoehe(vec2 q) {
+  float dx = mod(q.x - uSatFenster.x, uSatFenster.z);
+  float dy = q.y - uSatFenster.y;
+  if (dx >= uSatRaster.x || dy < 0.0 || dy >= uSatRaster.y) return -1.0;
+  vec2 platz = mod(floor(q), uSatRaster);
+  if (texture2D(uSatGueltig, (platz + 0.5) / uSatRaster).r < 0.5) return -1.0;
+  vec2 h = texture2D(uSatRelief, (platz + fract(q)) / uSatRaster).ba;
+  return (h.x * 255.0 + h.y) * 35.0;
+}
+/* Schlagschatten: Liegt zwischen dem Punkt und der Sonne ein Berg, der
+   hoeher ist als der Strahl dorthin? In 24 Schritten, die immer laenger
+   werden, von einem Punkt des Reliefs bis gut drei Kacheln weit. Der Rand
+   ist weich wie der Halbschatten der Sonne. Nur bei tiefer Sonne; hoch
+   am Himmel sind die Schatten kurz und stecken schon im Bild. */
+float reliefSchatten(vec3 sl) {
+  if (sl.z <= 0.0 || sl.z > 0.45) return 1.0;
+  float h0 = reliefHoehe(satXY);
+  if (h0 < 0.0) return 1.0;
+  float waag = length(sl.xy);
+  vec2 d = vec2(sl.x, -sl.y) / waag;
+  float steig = sl.z / waag;
+  float licht = 1.0, t = 1.2 / 128.0;
+  for (int i = 0; i < 24; i++) {
+    float hq = reliefHoehe(satXY + d * t);
+    if (hq < 0.0) break;
+    float weg = t * satMeter;
+    float ueber = hq - h0 - weg * steig;
+    licht = min(licht, 1.0 - clamp(ueber / max(weg * 0.02, 5.0), 0.0, 1.0));
+    t *= 1.28;
+  }
+  return licht;
+}
+#endif
 
 /* Wie stark leuchtet das Polarlicht ueber einem Punkt der Kugel, ohne
    Farbe und ohne Ruecksicht auf die Sonne? Fuer die Oberflaeche und fuer
@@ -11589,12 +11633,15 @@ void main() {
      damals, beides gemessen an flachem Boden: ein Drittel Himmelslicht von
      ueberall, der Rest direkt von der Sonne. Am Mittag aendert das wenig;
      morgens und abends liegen die abgewandten Haenge im Schatten, und die
-     zugewandten leuchten. Flacher Boden bleibt genau wie ohne Relief. */
+     zugewandten leuchten. Bei tiefer Sonne werfen die Berge Schatten ins
+     Tal dahinter; dort bleibt nur das Himmelslicht. Flacher Boden ohne
+     Berg davor bleibt genau wie ohne Relief. */
   vec2 hv = clamp(satHang, -0.995, 0.995);
   vec3 hn = normalize(vec3(-hv / (8.0 * (1.0 - abs(hv))), 1.0));
   vec3 sl = vec3(dot(uSonne, ost), dot(uSonne, nord), sonne);
   vec3 damals = vec3(0.413, -0.493 * clamp(p.z * 4.0, -1.0, 1.0), 0.766);
-  float jetzt = 0.35 + 0.65 * max(dot(hn, sl), 0.0) / max(sonne, 0.001);
+  float wurf = uReliefStaerke > 0.0 && sat.a > 0.0 ? reliefSchatten(sl) : 1.0;
+  float jetzt = 0.35 + 0.65 * max(dot(hn, sl), 0.0) * wurf / max(sonne, 0.001);
   float dann = 0.35 + 0.65 * max(dot(hn, damals), 0.0) / 0.766;
   satLicht *= clamp(pow(jetzt / dann, uReliefStaerke), 0.0, 4.0);
 #endif
@@ -11728,7 +11775,7 @@ function erdkarteAufbauen() {
       ERDKARTE.satTx = textur(5, { daten: new Uint8Array(4), b: 1, h: 1 }, gl.RGBA, false, false);
       ERDKARTE.satGueltigTx = textur(6, { daten: new Uint8Array(4), b: 1, h: 1 }, gl.LUMINANCE, false, false);
       ERDKARTE.reliefTx = ERDKARTE.reliefMoeglich
-        ? textur(8, { daten: new Uint8Array([128, 128, 128, 128]), b: 1, h: 1 }, gl.LUMINANCE_ALPHA, false, false) : null;
+        ? textur(8, { daten: new Uint8Array([128, 128, 0, 0]), b: 1, h: 1 }, gl.RGBA, false, false) : null;
       /* Die scharfen Nachtlichter: erst ein einzelner dunkler Punkt */
       ERDKARTE.nachtTx = textur(7, { daten: new Uint8Array(4), b: 1, h: 1 }, gl.LUMINANCE, false, false);
       const u = {};
@@ -13686,12 +13733,13 @@ function satAnlegen() {
   gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.satTx);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, S_.nx * 256, S_.ny * 256, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
   /* Das Relief daneben, halb so fein, anfangs ueberall flach (128 = keine
-     Neigung), damit auch der Rand eines leeren Nachbarplatzes flach ist */
+     Neigung, Hoehe 0), damit auch der Rand eines leeren Nachbarplatzes
+     flach ist */
   if (ERDKARTE.reliefTx) {
     gl.activeTexture(gl.TEXTURE8);
     gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.reliefTx);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE_ALPHA, S_.nx * 128, S_.ny * 128, 0, gl.LUMINANCE_ALPHA, gl.UNSIGNED_BYTE,
-      new Uint8Array(S_.nx * 128 * S_.ny * 128 * 2).fill(128));
+    const flach = new Uint32Array(S_.nx * 128 * S_.ny * 128).fill(new Uint32Array(RELIEF_FLACH.buffer, 0, 1)[0]);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, S_.nx * 128, S_.ny * 128, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(flach.buffer));
   }
   S_.platz = new Array(S_.nx * S_.ny).fill(null);
   S_.gueltig = new Uint8Array(S_.nx * S_.ny);
@@ -13855,7 +13903,7 @@ function satHochladen(platz, kachel) {
     gl.activeTexture(gl.TEXTURE8);
     gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.reliefTx);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, (platz % S_.nx) * 128, Math.floor(platz / S_.nx) * 128, 128, 128,
-      gl.LUMINANCE_ALPHA, gl.UNSIGNED_BYTE, kachel.relief && Z.relief ? reliefViertel(kachel.relief, kachel.x & 1, kachel.y & 1) : RELIEF_FLACH);
+      gl.RGBA, gl.UNSIGNED_BYTE, kachel.relief && Z.relief ? reliefViertel(kachel.relief, kachel.x & 1, kachel.y & 1) : RELIEF_FLACH);
   }
   S_.gueltig[platz] = 255;
   S_.gueltigNeu = true;
@@ -13907,10 +13955,13 @@ function schriftHolen(z, x, y, fertig) {
    durch 256, minus 32768 Meter. Daraus wird je Punkt die Steigung nach
    Osten und nach Norden (Meter je Meter), in zwei Bytes, gestaucht: v =
    8g / (1 + |8g|), 128 = flach. So bleiben flache Huegel fein genug
-   aufgeloest, und doch passt eine Wand hinein. Unter dem Meer zaehlt der
-   Meeresspiegel, sonst bekaeme das Wasser die Form des Meeresbodens und
-   jede Kueste eine Klippe. */
-const RELIEF_FLACH = new Uint8Array(128 * 128 * 2).fill(128);
+   aufgeloest, und doch passt eine Wand hinein. Dazu die Hoehe fuer die
+   Schlagschatten, in zwei Bytes: ganze 35 Meter und der Rest in 255steln
+   davon, bis 8925 Meter. Unter dem Meer zaehlt der Meeresspiegel, sonst
+   bekaeme das Wasser die Form des Meeresbodens und jede Kueste eine
+   Klippe. */
+const RELIEF_FLACH = new Uint8Array(128 * 128 * 4);
+for (let i = 0; i < RELIEF_FLACH.length; i += 4) { RELIEF_FLACH[i] = 128; RELIEF_FLACH[i + 1] = 128; }
 const RELIEF_STAERKE = 1.3;
 const RELIEFKACHELN = new Map();
 let reliefLeinwand = null;
@@ -13922,7 +13973,7 @@ function reliefRechnen(daten, z, y) {
   const h = new Float32Array(256 * 256);
   for (let i = 0, j = 0; i < h.length; i++, j += 4)
     h[i] = Math.max(0, daten[j] * 256 + daten[j + 1] + daten[j + 2] / 256 - 32768);
-  const aus = new Uint8Array(256 * 256 * 2);
+  const aus = new Uint8Array(256 * 256 * 4);
   for (let yy = 0; yy < 256; yy++) {
     const o = yy > 0 ? yy - 1 : 0, u = yy < 255 ? yy + 1 : 255, fy = (u - o) / 2;
     for (let xx = 0; xx < 256; xx++) {
@@ -13931,16 +13982,19 @@ function reliefRechnen(daten, z, y) {
       /* Steigung nach Osten und nach Norden (y zaehlt nach Sueden) */
       const gx = 8 * (h[yy * 256 + r] - h[yy * 256 + l]) * k / fx;
       const gy = 8 * (h[o * 256 + xx] - h[u * 256 + xx]) * k / fy;
-      aus[i * 2] = Math.round(128 + 127 * gx / (1 + Math.abs(gx)));
-      aus[i * 2 + 1] = Math.round(128 + 127 * gy / (1 + Math.abs(gy)));
+      aus[i * 4] = Math.round(128 + 127 * gx / (1 + Math.abs(gx)));
+      aus[i * 4 + 1] = Math.round(128 + 127 * gy / (1 + Math.abs(gy)));
+      const hh = Math.min(h[i], 8924.9) / 35, grob = Math.floor(hh);
+      aus[i * 4 + 2] = grob;
+      aus[i * 4 + 3] = Math.round((hh - grob) * 255);
     }
   }
   return aus;
 }
 function reliefViertel(relief, qx, qy) {
-  const aus = new Uint8Array(128 * 128 * 2);
+  const aus = new Uint8Array(128 * 128 * 4);
   for (let yy = 0; yy < 128; yy++)
-    aus.set(relief.subarray(((qy * 128 + yy) * 256 + qx * 128) * 2, ((qy * 128 + yy) * 256 + qx * 128 + 128) * 2), yy * 256);
+    aus.set(relief.subarray(((qy * 128 + yy) * 256 + qx * 128) * 4, ((qy * 128 + yy) * 256 + qx * 128 + 128) * 4), yy * 512);
   return aus;
 }
 function reliefHolen(z, x, y, fertig) {
