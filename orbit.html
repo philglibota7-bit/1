@@ -5891,6 +5891,12 @@ const TEILE = {
     lang: "Das ist die echte Erde, aus den Aufnahmen der NASA: Blue Marble für Land und Meeresboden, dieselbe Reihe für die Wolken, Black Marble für die Lichter der Städte. Die Station fliegt vierhundert Kilometer darüber, und von hier sieht man gut zweitausend Kilometer weit bis zur Kante. Was unten liegt, ist der Streifen neben der Bahn; zur Kante hin blickt man immer flacher darauf, bis die Luft alles in blauen Dunst taucht. Die Sonne steht, wo sie gerade wirklich steht — Tag und Nacht auf der Karte sind die von jetzt.",
     zahl: "Die Tageskarte hat 4096 mal 2048 Punkte, knapp zehn Kilometer je Punkt; die Wolken die Hälfte. Die Namen kommen von Natural Earth, auf ein Viertelgrad genau. Wolken sind eine Aufnahme, kein Wetter von heute.",
   },
+  ganzeErde: {
+    name: "Die ganze Erde",
+    kurz: "Zum Schluss von weiter weg: die Kugel mit Tag und Nacht, darum die Bahn in echter Höhe, oben die Station.",
+    lang: "Dieselbe Karte, dieselbe Sonne und dieselbe Bahn wie unter der Station, nur von weiter weg. Auf dem Meer liegt der Sonnenglanz, nachts leuchten die Städte, um den magnetischen Pol liegt das Polarlicht, und dahinter steht der echte Himmel.",
+    zahl: "Zieh an der Kugel, dann dreht sie sich. Hierher kommst du jederzeit, wenn du weiter herauszoomst, als der Zoom reicht.",
+  },
   sternbild: {
     name: "Sternbild",
     kurz: "Derselbe Himmel wie von unten.",
@@ -11777,7 +11783,7 @@ const ERDANSICHT = { an: false, blend: 0, drang: 1, drangUm: 0, blick: null, geo
                      neig: 50 * Math.PI / 180, az: 0 };
 const ERDANSICHT_NEIGUNG = 50 * Math.PI / 180;
 
-function erdansicht(an) {
+function erdansicht(an, vomRundgang) {
   if (an && !ERDKARTE.bereit) return;
   const vorher = ERDANSICHT.an;
   ERDANSICHT.an = !!an;
@@ -11785,9 +11791,15 @@ function erdansicht(an) {
   /* Jedes Mal wieder aus der gewohnten Richtung */
   if (ERDANSICHT.an && !vorher) { ERDANSICHT.neig = ERDANSICHT_NEIGUNG; ERDANSICHT.az = 0; }
   if (ERDANSICHT.an) {
-    /* Was sonst ueber der Szene liegt, gehoert zur Station */
-    if (RUNDGANG.laeuft) rundgangEnde();
+    /* Was sonst ueber der Szene liegt, gehoert zur Station — ausser dem
+       Rundgang, wenn er selbst die ganze Erde zeigt */
+    ERDANSICHT.vomRundgang = !!vomRundgang;
+    if (RUNDGANG.laeuft && !vomRundgang) rundgangEnde();
     blendeZu();
+  } else if (ERDANSICHT.vomRundgang) {
+    /* Wer die Erde verlaesst, die der Rundgang zeigt, beendet ihn */
+    ERDANSICHT.vomRundgang = false;
+    if (RUNDGANG.laeuft) rundgangEnde();
   }
   zeigeZoomLeiste();
 }
@@ -18198,7 +18210,9 @@ const RUNDGANG = {
   stopps: [],
 };
 function rundgangStopps() {
-  return RUNDGANG.weg.concat(ERDKARTE.bereit ? ["erde"] : []);
+  /* Mit der echten Erde zum Schluss erst sie unter der Station, dann
+     die ganze Kugel */
+  return RUNDGANG.weg.concat(ERDKARTE.bereit ? ["erde", "ganzeErde"] : []);
 }
 
 function rundgangStart() {
@@ -18217,6 +18231,8 @@ function rundgangEnde() {
   if (!RUNDGANG.laeuft) return;
   RUNDGANG.laeuft = false;
   $("#rundgang").classList.remove("an");
+  /* Hat der Rundgang die ganze Erde gezeigt, geht es mit ihm zurueck */
+  if (ERDANSICHT.an && ERDANSICHT.vomRundgang) { ERDANSICHT.vomRundgang = false; erdansicht(false); }
   kameraZurueck();
 }
 
@@ -18227,6 +18243,8 @@ function rundgangEnde() {
 function rundgangPeilen() {
   if (!RUNDGANG.laeuft || !STBILD) return;
   const schluessel = RUNDGANG.stopps[RUNDGANG.i];
+  /* Die ganze Erde hat ihre eigene Kamera */
+  if (schluessel === "ganzeErde") return;
   /* Der letzte Halt ist die Erde. Sie waechst beim Zoomen nicht mit,
      also zurueck auf die ganze Station, und die Station ein Stueck nach
      oben geschoben: dann liegt mehr von der Erde frei. */
@@ -18271,6 +18289,7 @@ function rundgangTakt(t) {
           + ".  Die Sonne steht, wo sie gerade wirklich steht."
         : teil.kurz + "  " + teil.zahl;
     }
+    if (schluessel === "ganzeErde") erdansicht(true, true);
     rundgangPeilen();
   }
   const u = klemm((t - RUNDGANG.von) / RUNDGANG.halt, 0, 1);
@@ -19178,8 +19197,11 @@ document.addEventListener("keydown", (e) => {
      ihn — und schloss dabei die Bruecke, in die man gerade schrieb. Und
      Befehlstaste+R ist Neuladen, kein Rundgang. */
   if (e.key === "r" || e.key === "R") {
+    /* Vorher merken: steht der Rundgang gerade bei der ganzen Erde, endet
+       er schon mit ihr — und darf dann nicht gleich neu anfangen */
+    const lief = RUNDGANG.laeuft;
     if (ERDANSICHT.an) erdansicht(false);
-    if (RUNDGANG.laeuft) rundgangEnde(); else rundgangStart();
+    if (lief) rundgangEnde(); else rundgangStart();
     return;
   }
   /* E: die ganze Erde, und wieder zurueck */

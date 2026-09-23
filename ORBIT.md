@@ -257,7 +257,8 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
   - Gebacken sind sie zu einer Karte von 1440 × 720 Punkten (47 KB), mit der Nummer des Namens in jedem Punkt. Enklaven wie Lesotho bleiben erhalten, Zwergstaaten wie der Vatikan fallen durchs Raster.
 - **Die Bodenspur.** Unter der Umlaufuhr zeigt eine kleine Weltkarte die Spur der Bahn: den letzten halben Umlauf blass, den nächsten hell. Dazu zeigt sie die Nacht aus dem echten Sonnenstand und einen Punkt, wo die Station gerade steht. So fangen die ISS-Verfolger im Netz an. Die Spur schlängelt sich zwischen 51,6 Grad Nord und Süd.
 - **Im Rundgang und im Bordbuch.**
-  - Mit der echten Erde endet der Rundgang mit dem Blick nach unten. Die ganze Station rückt ein Stück nach oben, und auf der Tafel steht, was gerade unter uns liegt.
+  - Mit der echten Erde kommt zum Schluss der Blick nach unten. Die ganze Station rückt ein Stück nach oben, und auf der Tafel steht, was gerade unter uns liegt.
+  - Der letzte Halt ist die ganze Erde. Die Kamera fährt zurück, bis die Kugel im Bild ist, und mit dem Ende des Rundgangs wieder zur Station. Wer vorher tippt, Esc oder E drückt, beendet beides. R mitten in diesem Halt beendet den Rundgang, statt ihn gleich neu zu beginnen.
   - Im Bordbuch steht bei Sonnenaufgang und Erdschatten der Ort: „Sonnenaufgang · Indischer Ozean“.
   - In der Hilfe standen „acht Halte“, es waren aber neun. Jetzt wird gezählt.
 - **Die ganze Erde.** Wer weiter herauszoomt, als der Zoom reicht, oder E drückt, fährt zurück, bis die ganze Kugel im Bild ist. Es sind dieselbe Karte, dieselbe Sonne und dieselbe Bahn, nur von weiter weg und schräg von oben: Die Kamera steht fünfzig Grad vom Punkt unter der Station entfernt.
@@ -483,7 +484,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 - **Crew-Liste**: Nur geänderte Karten werden neu gebaut, und ein langer Tipp über einen Neuaufbau kommt an, gegengeprüft. Das Missions-Log trägt die Uhrzeit, gegengeprüft. Die Stationswerte decken am Handy das Vorführungsband nicht.
 - **Öffnen und Sichern**: Öffnen über `vscode://file/…` ohne einen einzigen Befehl. Sichern geprüft mit Download, mit Ablehnung und ohne die Fähigkeit.
 - **Kopfzeile**: Geprüft bei 16 Breiten von 340 bis 1280 Punkten, jeweils ohne Wartende, mit 2 und mit 12 Wartenden und in der Vorführung. Sie läuft nie über, kein Knopf wird zusammengedrückt, und wer wartet, bleibt als Zahl sichtbar. Gegengeprüft: Vorher lief sie in 81 dieser Fälle über, um bis zu 215 Punkte.
-- **Rundgang**: Der Test wartet auf den Zähler „RUNDGANG n VON 10“ und nicht mehr auf die Uhr. Er fragte alle 9,2 Sekunden nach, ein Halt dauert aber 9,5. Bei langsamen Bildern kam er so beim zehnten Halt zu früh, mit 96 % auf dem neunten.
+- **Rundgang**: Elf Halte, der zehnte die Erde mit dem Ort darunter, der elfte die ganze Kugel; vorher ist sie nie an, danach wieder aus. Der Test wartet auf den Zähler „RUNDGANG n VON 11“ und nicht mehr auf die Uhr. Er fragte alle 9,2 Sekunden nach, ein Halt dauert aber 9,5. Bei langsamen Bildern kam er so beim zehnten Halt zu früh, mit 96 % auf dem neunten.
 - Kein waagerechtes Scrollen bei 320 bis 760 px, keine Konsolen- oder Seitenfehler.
 
 ## Offene Punkte
