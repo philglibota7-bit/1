@@ -11189,6 +11189,12 @@ uniform sampler2D uSat, uSatGueltig;
 uniform vec4 uSatFenster;
 uniform vec2 uSatRaster;
 uniform float uWolkenWeg;
+/* Scharfe Nachtlichter fuer den Ausschnitt: ein Bild in Laenge und Breite,
+   uNachtBox = (westliche Laenge, noerdliche Breite, Breite in Grad, Hoehe
+   in Grad), uNachtGewicht 0 = aus */
+uniform sampler2D uNacht;
+uniform vec4 uNachtBox;
+uniform float uNachtGewicht;
 const float PI = 3.14159265;
 
 /* Das Satellitenbild an einem Punkt der Kugel, mit Deckkraft: 0, wo es
@@ -11383,6 +11389,17 @@ void main() {
      die hellsten Kerne der Grossstaedte brennen fast weiss. Dicke
      Wolken verschlucken sie, duenne machen sie nur weich. */
   float l = texture2D(uLichter, uv).r;
+  /* Hineingezoomt: die Lichter aus Black Marble fuer den Ausschnitt, gut
+     einen halben Kilometer fein statt knapp zehn. Zum Rand des Bildes hin
+     weich in die Karte. */
+  if (uNachtGewicht > 0.0) {
+    vec2 nb = vec2(mod(degrees(atan(p.y, p.x)) - uNachtBox.x + 720.0, 360.0) / uNachtBox.z,
+                   (uNachtBox.y - degrees(asin(clamp(p.z, -1.0, 1.0)))) / uNachtBox.w);
+    if (nb.x >= 0.0 && nb.x <= 1.0 && nb.y >= 0.0 && nb.y <= 1.0) {
+      float saum = smoothstep(0.0, 0.04, min(min(nb.x, 1.0 - nb.x), min(nb.y, 1.0 - nb.y)));
+      l = mix(l, texture2D(uNacht, nb).r, uNachtGewicht * saum);
+    }
+  }
   vec3 stadt = mix(vec3(1.0, 0.6, 0.28), vec3(1.0, 0.9, 0.72), l) * l;
   stadt *= (1.0 - smoothstep(0.25, 0.85, w) * 0.88) * 1.25;
   if (uSchicht < 1.5) {
@@ -11522,14 +11539,20 @@ function erdkarteAufbauen() {
          Mosaik wird angelegt, wenn sie gewuenscht sind */
       ERDKARTE.satTx = textur(5, { daten: new Uint8Array(4), b: 1, h: 1 }, gl.RGBA, false, false);
       ERDKARTE.satGueltigTx = textur(6, { daten: new Uint8Array(4), b: 1, h: 1 }, gl.LUMINANCE, false, false);
+      /* Die scharfen Nachtlichter: erst ein einzelner dunkler Punkt */
+      ERDKARTE.nachtTx = textur(7, { daten: new Uint8Array(4), b: 1, h: 1 }, gl.LUMINANCE, false, false);
       const u = {};
       for (const n of ["uGroesse", "uMitte", "uRadius", "uBlick", "uSonne", "uMond", "uSchicht",
                        "uTag", "uWolken", "uLichter", "uKorn", "uPolar", "uOval",
-                       "uSat", "uSatGueltig", "uSatFenster", "uSatRaster", "uWolkenWeg"])
+                       "uSat", "uSatGueltig", "uSatFenster", "uSatRaster", "uWolkenWeg",
+                       "uNacht", "uNachtBox", "uNachtGewicht"])
         u[n] = gl.getUniformLocation(prog, n);
       gl.uniform1i(u.uTag, 0); gl.uniform1i(u.uWolken, 1);
       gl.uniform1i(u.uLichter, 2); gl.uniform1i(u.uKorn, 3);
       gl.uniform1i(u.uOval, 4); gl.uniform1i(u.uSat, 5); gl.uniform1i(u.uSatGueltig, 6);
+      gl.uniform1i(u.uNacht, 7);
+      gl.uniform4f(u.uNachtBox, 0, 0, 1, 1);
+      gl.uniform1f(u.uNachtGewicht, 0);
       gl.uniform4f(u.uPolar, 0, 1, 0, 0);
       gl.uniform4f(u.uSatFenster, 0, 0, 1, 0);
       gl.uniform2f(u.uSatRaster, 1, 1);
@@ -11705,6 +11728,9 @@ function erdkarteMalen(ziel, bw, bh, mx, my, rr, blick, schicht) {
   gl.uniform4f(u.uSatFenster, sat ? sat.x0 : 0, sat ? sat.y0 : 0, sat ? sat.n : 1, sat ? sat.gewicht : 0);
   gl.uniform2f(u.uSatRaster, sat ? sat.nx : 1, sat ? sat.ny : 1);
   gl.uniform1f(u.uWolkenWeg, sat ? sat.wolkenWeg : 0);
+  const na = schicht > 2.5 && blick.nacht ? blick.nacht : null;
+  gl.uniform4f(u.uNachtBox, na ? na.box.l0 : 0, na ? na.box.b1 : 0, na ? na.box.l1 - na.box.l0 : 1, na ? na.box.b1 - na.box.b0 : 1);
+  gl.uniform1f(u.uNachtGewicht, na ? na.gewicht : 0);
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -12269,6 +12295,8 @@ function zeichneErdansicht(t, dt) {
   /* Satellitenbilder: Stufe und Fenster zum Blick, Kacheln anstossen */
   const sat = satVorbereiten(g, blick);
   if (sat) blick.sat = sat;
+  const nacht = nachtVorbereiten(g, blick, uhr);
+  if (nacht) blick.nacht = nacht;
   /* Die Kugel selbst, mit Platz fuer den Luftsaum — aber nur der Teil,
      der auf dem Schirm liegt. Hineingezoomt ist die Kugel viel groesser
      als der Schirm; gerechnet wird trotzdem nur, was man sieht, hoechstens
@@ -12296,7 +12324,7 @@ function zeichneErdansicht(t, dt) {
   if (!alt || (!frei && Math.abs(phi - alt.phi) * g.r * fein > schwelle) || uhr - alt.um > 2000
       || alt.neig !== ERDANSICHT.neig || alt.az !== ERDANSICHT.az || alt.r !== g.r
       || alt.ax !== ax || alt.ay !== ay || alt.frei !== ERDANSICHT.freiVersion
-      || (alt.sat !== SATBILD.version && uhr - alt.um > 100)) {
+      || (alt.sat !== SATBILD.version && uhr - alt.um > 100) || alt.nacht !== NACHTLICHT.version) {
     const t0 = performance.now();
     const kg = q.c.getContext("2d");
     kg.clearRect(0, 0, bw, bh);
@@ -12304,7 +12332,7 @@ function zeichneErdansicht(t, dt) {
     const dauer = performance.now() - t0;
     ERDANSICHT.kosten = ERDANSICHT.kosten ? ERDANSICHT.kosten * 0.8 + dauer * 0.2 : dauer;
     q.stand = { phi, um: uhr, neig: ERDANSICHT.neig, az: ERDANSICHT.az, r: g.r, ax, ay,
-                frei: ERDANSICHT.freiVersion, sat: SATBILD.version };
+                frei: ERDANSICHT.freiVersion, sat: SATBILD.version, nacht: NACHTLICHT.version };
   }
 
   cx.save();
@@ -12316,9 +12344,11 @@ function zeichneErdansicht(t, dt) {
   cx.drawImage(q.c, 0, 0, bw, bh, Math.round(ax * DPR), Math.round(ay * DPR),
     Math.round(rw * DPR), Math.round(rh * DPR));
   erdansichtBlitze(g, blick, uhr);
-  /* Esri verlangt die Quellenangabe, sobald seine Bilder zu sehen sind */
+  /* Esri verlangt die Quellenangabe, sobald seine Bilder zu sehen sind; die
+     NASA bittet darum, sobald ihre Nachtlichter zu sehen sind */
   ERDANSICHT.quelle = sat && sat.gewicht > 0 ? SAT_QUELLE : null;
-  if (ERDANSICHT.quelle) {
+  ERDANSICHT.quelleNacht = NACHTLICHT.sichtbar ? NACHT_QUELLE : null;
+  if (ERDANSICHT.quelle || ERDANSICHT.quelleNacht) {
     const rb = bedienRand();
     cx.save();
     cx.font = `500 ${10 * DPR}px -apple-system, system-ui, sans-serif`;
@@ -12326,7 +12356,9 @@ function zeichneErdansicht(t, dt) {
     cx.lineWidth = 3 * DPR; cx.strokeStyle = "rgba(4,7,14,.75)";
     const qx = 12 * DPR, qy = ((rb.unten || H) - 6) * DPR;
     /* Auf dem Handy passt sie nicht in eine Zeile: dann in zwei, am Punkt */
-    const zeilen = cx.measureText(SAT_QUELLE).width > (W - 24) * DPR ? SAT_QUELLE.split(" · ") : [SAT_QUELLE];
+    const zeilen = [];
+    if (ERDANSICHT.quelle) zeilen.push(...(cx.measureText(SAT_QUELLE).width > (W - 24) * DPR ? SAT_QUELLE.split(" · ") : [SAT_QUELLE]));
+    if (ERDANSICHT.quelleNacht) zeilen.push(NACHT_QUELLE);
     cx.fillStyle = "rgba(220,230,245,.78)";
     zeilen.forEach((z, i) => {
       const y = qy - (zeilen.length - 1 - i) * 13 * DPR;
@@ -13471,6 +13503,7 @@ function satWeiter() {
 /* Ausgeschaltet: nichts mehr anfragen, das Mosaik vergessen */
 function satAus() {
   const S_ = SATBILD;
+  if (typeof nachtAus === "function") nachtAus();
   for (const b of S_.laden.values()) b.src = "";
   S_.laden.clear(); S_.warte = [];
   S_.z = -1; S_.gewicht = 0; S_.wolkenWeg = 0;
@@ -13480,13 +13513,150 @@ function satAus() {
   S_.version++;
 }
 
+/* --- Scharfe Nachtlichter ----------------------------------------------------
+   Die Karte der Stadtlichter hat knapp zehn Kilometer je Punkt. Hineingezoomt
+   wird eine Stadt darauf zu einem weichen orangen Fleck, bei tiefem Zoom ueber
+   den ganzen Schirm. Mit Satellitenbildern holt ORBIT deshalb fuer den
+   Ausschnitt ein Bild aus Black Marble 2016 vom Kartendienst der NASA (GIBS,
+   als WMS): gut einen halben Kilometer fein, ohne Schluessel, gemeinfrei.
+   Gefragt wird nur, wenn ein Teil des Ausschnitts auf der Nachtseite liegt,
+   und erst, wenn der Blick eine halbe Sekunde stillsteht. Das Bild liegt in
+   Laenge und Breite; ein aelteres bleibt dort richtig, wo es den Ausschnitt
+   noch deckt. */
+const NACHTLICHT = { box: null, gewicht: 0, laedt: null, stand: "", seit: 0, fehlerUm: -1e9,
+                     anfragen: 0, fehler: 0, sichtbar: false, version: 0 };
+const NACHT_ADRESSE = "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi";
+const NACHT_QUELLE = "Nachtlichter: NASA Black Marble (GIBS)";
+
+function nachtVorbereiten(g, blick, uhr) {
+  const N_ = NACHTLICHT;
+  N_.sichtbar = false;
+  if (!Z.satellit || !ERDANSICHT.frei || !ERDKARTE.gl || !ERDKARTE.nachtTx) { N_.gewicht = 0; return null; }
+  /* Ab einem Ausschnitt von 3000 Kilometern blendet die feine Karte ein, ab
+     1500 gilt sie ganz; darueber ist die grobe fein genug */
+  const breiteKm = W * 6371 / g.r;
+  const gewicht = klemm((3000 - breiteKm) / 1500, 0, 1);
+  N_.gewicht = gewicht;
+  if (gewicht <= 0) return null;
+  /* Was ist zu sehen, und liegt davon etwas in der Nacht? */
+  const M = blick.m, S = blick.S;
+  const lMitte = Math.atan2(M[7], M[6]) * 180 / Math.PI;
+  let bMin = 90, bMax = -90, lMin = 1e9, lMax = -1e9, nacht = false, pol = false;
+  const SX = 12, SY = 8;
+  for (let j = 0; j <= SY; j++) {
+    for (let i = 0; i <= SX; i++) {
+      const qx = (W * i / SX - g.cx) / g.r, qy = (H * j / SY - g.cy) / g.r, q2 = qx * qx + qy * qy;
+      if (q2 >= 1) { pol = true; continue; }
+      const qz = Math.sqrt(1 - q2);
+      const p = [M[0] * qx - M[3] * qy + M[6] * qz, M[1] * qx - M[4] * qy + M[7] * qz, M[2] * qx - M[5] * qy + M[8] * qz];
+      if (p[0] * S[0] + p[1] * S[1] + p[2] * S[2] < 0.12) nacht = true;
+      const [b, l] = breiteLaenge(p);
+      const lu = lMitte + ((((l - lMitte) % 360) + 540) % 360 - 180);
+      bMin = Math.min(bMin, b); bMax = Math.max(bMax, b);
+      lMin = Math.min(lMin, lu); lMax = Math.max(lMax, lu);
+    }
+  }
+  if (bMax < bMin) return null;
+  const hat = N_.box;
+  const deckt = hat && hat.l0 <= lMax && hat.l1 >= lMin && hat.b0 <= bMax && hat.b1 >= bMin;
+  N_.sichtbar = nacht && !!deckt;
+  const antwort = hat ? { box: hat, gewicht } : null;
+  if (!nacht) return antwort;
+  /* Ein Rand dazu, damit kleines Verschieben kein neues Bild braucht. Wer
+     ueber einem Pol oder ueber mehr als die halbe Erde schaut, bekommt alle
+     Laengen; ueber die Datumsgrenze reicht ein Bild nicht, dort endet es. */
+  const rb = (bMax - bMin) * 0.15 + 0.02, rl = (lMax - lMin) * 0.15 + 0.02;
+  const box = { l0: lMin - rl, l1: lMax + rl, b0: Math.max(-85, bMin - rb), b1: Math.min(85, bMax + rb) };
+  if (box.l1 - box.l0 > 180 || (pol && (bMax > 80 || bMin < -80))) { box.l0 = -180; box.l1 = 180; }
+  box.l0 = Math.max(-180, box.l0); box.l1 = Math.min(180, box.l1);
+  /* Fein genug: so fein wie der Schirm, aber nicht feiner als die Daten
+     (gut 0,004 Grad, ein halber Kilometer) */
+  const noetig = Math.max((box.l1 - box.l0) / (W * DPR), 0.004);
+  const genug = hat && hat.l0 <= Math.max(-180, lMin) && hat.l1 >= Math.min(180, lMax)
+    && hat.b0 <= Math.max(-85, bMin) && hat.b1 >= Math.min(85, bMax) && hat.gradProPunkt <= noetig * 2;
+  if (genug) return antwort;
+  /* Erst anfragen, wenn der Blick eine halbe Sekunde stillsteht, und nach
+     einem Fehler erst nach zehn Sekunden wieder */
+  const stand = ERDANSICHT.freiVersion + "|" + g.r;
+  if (stand !== N_.stand) { N_.stand = stand; N_.seit = uhr; }
+  if (!N_.laedt && uhr - N_.seit > 500 && uhr - N_.fehlerUm > 10000) nachtLaden(box, noetig);
+  return antwort;
+}
+
+function nachtLaden(box, noetig) {
+  const N_ = NACHTLICHT;
+  const breite = klemm(Math.round((box.l1 - box.l0) / noetig), 256, 2048);
+  const hoehe = klemm(Math.round((box.b1 - box.b0) / noetig), 128, 2048);
+  const url = NACHT_ADRESSE + "?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=VIIRS_Black_Marble&STYLES=&CRS=EPSG:4326"
+    + "&BBOX=" + [box.b0, box.l0, box.b1, box.l1].map(v => v.toFixed(4)).join(",")
+    + "&WIDTH=" + breite + "&HEIGHT=" + hoehe + "&FORMAT=image/png&TIME=2016-01-01";
+  const bild = new Image();
+  bild.crossOrigin = "anonymous";
+  N_.laedt = bild;
+  N_.anfragen++;
+  bild.onload = () => {
+    if (N_.laedt !== bild) return;
+    N_.laedt = null;
+    /* Nur die Lichter: warm und hell. Das Gelaende ist bei Black Marble
+       mondbeschienen blaugrau und der Schnee blaeulich, beides bleibt
+       dunkel. Dann leicht geglaettet (1-2-1 in beide Richtungen), sonst
+       werden einzelne Punkte beim Vergroessern zu Kreuzen und Treppen, und
+       weich gesaettigt: 1 - e^(-2,5 x). Linear verstaerkt, wie zuerst,
+       brannten Poebene und Ruhrgebiet weiss aus. */
+    const c = document.createElement("canvas");
+    c.width = breite; c.height = hoehe;
+    const k = c.getContext("2d", { willReadFrequently: true });
+    let d;
+    try { k.drawImage(bild, 0, 0, breite, hoehe); d = k.getImageData(0, 0, breite, hoehe).data; }
+    catch { N_.fehler++; N_.fehlerUm = performance.now(); return; }
+    const n = breite * hoehe, roh = new Float32Array(n), quer = new Float32Array(n);
+    for (let i = 0, j = 0; j < n; i += 4, j++) {
+      const r = d[i], gr = d[i + 1], b = d[i + 2];
+      roh[j] = Math.max(0, 0.3 * r + 0.55 * gr + 0.15 * b - 1.2 * Math.max(0, b - r) - 20) / 235;
+    }
+    for (let y = 0; y < hoehe; y++) {
+      for (let x = 0, j = y * breite; x < breite; x++, j++) {
+        const l = x > 0 ? roh[j - 1] : roh[j], rr = x < breite - 1 ? roh[j + 1] : roh[j];
+        quer[j] = (l + 2 * roh[j] + rr) / 4;
+      }
+    }
+    const aus = new Uint8Array(n);
+    for (let y = 0; y < hoehe; y++) {
+      for (let x = 0, j = y * breite; x < breite; x++, j++) {
+        const o = y > 0 ? quer[j - breite] : quer[j], u = y < hoehe - 1 ? quer[j + breite] : quer[j];
+        aus[j] = Math.round(255 * (1 - Math.exp(-2.5 * (o + 2 * quer[j] + u) / 4)));
+      }
+    }
+    const gl = ERDKARTE.gl;
+    if (!gl || !ERDKARTE.nachtTx) return;
+    gl.activeTexture(gl.TEXTURE7);
+    gl.bindTexture(gl.TEXTURE_2D, ERDKARTE.nachtTx);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, breite, hoehe, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, aus);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+    N_.box = { ...box, gradProPunkt: Math.max((box.l1 - box.l0) / breite, (box.b1 - box.b0) / hoehe) };
+    N_.version++;
+  };
+  bild.onerror = () => {
+    if (N_.laedt !== bild) return;
+    N_.laedt = null; N_.fehler++; N_.fehlerUm = performance.now();
+  };
+  bild.src = url;
+}
+
+function nachtAus() {
+  const N_ = NACHTLICHT;
+  if (N_.laedt) N_.laedt.src = "";
+  N_.laedt = null; N_.gewicht = 0; N_.sichtbar = false;
+}
+
 function satellitKnopf() {
   const k = document.getElementById("tm-sat");
   if (!k) return;
   k.textContent = Z.satellit ? "Satellitenbilder aus" : "Satellitenbilder";
   const klein = document.createElement("small");
-  klein.textContent = Z.satellit ? "von Esri; die ganze Erde lässt sich bis auf Straßen heranzoomen"
-                                 : "scharfe Bilder von Esri beim Hineinzoomen in die ganze Erde";
+  klein.textContent = Z.satellit ? "von Esri, nachts die Lichter der NASA; die ganze Erde lässt sich bis auf Straßen heranzoomen"
+                                 : "scharfe Bilder von Esri und nachts die Lichter der NASA beim Hineinzoomen in die ganze Erde";
   k.append(klein);
   const z = document.getElementById("zoom-sat");
   if (z) { z.classList.toggle("an", !!Z.satellit); z.title = Z.satellit ? "Satellitenbilder aus" : "Satellitenbilder von Esri"; }
@@ -20299,6 +20469,7 @@ const HILFE = [
       + "Zeiger, und Ziehen verschiebt. Die Bilder kommen von Esri, erst beim Hineinzoomen und nur für den "
       + "Ausschnitt, den du siehst; der Knopf mit dem Pfeil im Kreis bringt dich zur ganzen Kugel zurück. "
       + "Die Nadel oben in der Zoomleiste zeigt, wo Norden liegt; tippst du sie an, dreht sich Norden nach oben. "
+      + "Nachts kommen beim Hineinzoomen die Lichter der Städte scharf dazu, aus Black Marble der NASA. "
       + "Ohne WebGL oder ohne die Kartenbilder zeichnet ORBIT eine gerechnete Erde.",
   },
   {
