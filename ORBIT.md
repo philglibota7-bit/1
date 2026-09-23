@@ -262,6 +262,7 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
   - In der Hilfe standen „acht Halte“, es waren aber neun. Jetzt wird gezählt.
 - **Die ganze Erde.** Wer weiter herauszoomt, als der Zoom reicht, oder E drückt, fährt zurück, bis die ganze Kugel im Bild ist. Es sind dieselbe Karte, dieselbe Sonne und dieselbe Bahn, nur von weiter weg und schräg von oben: Die Kamera steht fünfzig Grad vom Punkt unter der Station entfernt.
   - Tag und Nacht rechnet hier jeder Bildpunkt selbst aus der echten Sonne. In der Dämmerung liegt ein schmaler roter Saum, vor allem auf den Wolken, denn der Boden darunter ist dort schon dunkel. Auf der Nachtseite leuchten nur die Städte.
+  - **Sonnenglanz.** Wo das Meer die Sonne zum Betrachter spiegelt, liegt ein heller, silbriger Fleck, wie auf jedem Foto der ganzen Erde. Er sitzt dort, wo die Oberfläche genau zwischen Sonne und Auge steht. Die Wellen verschmieren ihn: Nach Cox und Munk ist die Neigung der kleinen Wasserflächen etwa normalverteilt, bei fünf Metern Wind mit einem mittleren Quadrat um 0,03. Wasser erkennt der Schattierer an der Karte, denn Blue Marble malt nur Wasser blau. Gemessen ist Blau dort mindestens 2,3-mal so stark wie Rot, an Land höchstens gleich stark. Inseln und Wolken bleiben ohne Glanz.
   - Die Bahn läuft als Ellipse um die Kugel, in echter Höhe: 420 über 6371 Kilometern. Hinter der Kugel ist sie verdeckt, vor der Station heller als hinter ihr.
   - Oben auf der Bahn steht die Station als heller Punkt. Maßstäblich wäre sie von hier aus nicht einmal ein Bildpunkt. Darüber steht, wer an Bord ist und was unter ihr liegt, etwa „Unter uns: Atlantischer Ozean“. Die Namen kommen aus einer Liste ohne Artikel; „über Atlantischer Ozean“ wäre falsch gebeugt, deshalb der Doppelpunkt.
   - Ein Tipp auf die Kugel nennt Land oder Meer mit Sonnenzeit. Ein Tipp auf die Station, Esc oder Plus führen zurück. Esc schließt zuerst die Karte zum angetippten Ort.
@@ -423,6 +424,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Die Station steht auf weniger als einen Bildpunkt genau dort, wo die Bahn in 420 Kilometern Höhe sie hinstellt.
   - An 120 klaren Stellen der Tagseite weicht die gemalte Farbe im Mittel um 1,9 Stufen von der Karte am selben Ort ab, samt Sonnenlicht und Luftsaum. Gegengeprüft: Um zehn Grad verdreht sind es 44,5.
   - An 80 dunklen Stellen der Nachtseite ohne Städte ist keine heller als 10 von 255.
+  - Sonnenglanz: An klarem Wasser rund um die Stelle zwischen Sonne und Auge ist es im Mittel 92 Stufen heller als ohne Glanz. Weit davon entfernt sind es 0,6. Gegengeprüft: Ohne Glanz sind es auch in der Mitte −0,2, und der Farbvergleich weicht dann um 12 statt 2 Stufen ab.
   - Auf dem Schirm ist die Tagseite im Mittel 59 hell, die Nachtseite 4.
   - Ein Tipp nennt das Land samt Sonnenzeit, hier Namibia. Esc schließt zuerst die Karte, dann die Ansicht. E, Plus und ein Tipp auf die Station führen hinein und zurück.
   - Die Beschriftung beugt nicht falsch. Auf dem Handy passt die Kugel zwischen Kopf und Leiste.
