@@ -275,6 +275,7 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
   - **Zoomen zoomt die Kugel.** Mausrad, zwei Finger und Plus machen sie bis zu zweieinhalbmal so groß oder halb so klein. Wer darüber hinaus weiter hineinzoomt, kommt zur Station zurück. Hineingezoomt rechnet der Schattierer höchstens 2048 Punkte je Seite, den Rest zieht der Browser hoch.
   - Ein Tipp auf die Kugel nennt Land oder Meer mit Sonnenzeit. Ein Tipp auf die Station, Esc, Doppelklick und die Leertaste führen zurück, ebenso der Sprung zu einem Astronauten. Esc schließt zuerst die Karte zum angetippten Ort.
   - Die Überblendung läuft nach der Uhr und nicht nach Bildern. Eine Blende mit festem Schritt je Bild stand ohne Grafikchip nach Sekunden noch auf halbem Weg, und die Station schimmerte durch die Erde.
+  - **Behoben:** Bis Version 18 pendelte die Blende, sobald sie angekommen war: Bei 1 zog sie das nächste Bild wieder ein Stück zurück und das übernächste wieder hoch. Die Station schimmerte in jedem zweiten Bild durch, und das Einsparen der Szene griff nur jedes zweite Mal.
   - Liegt die Kugel ganz über allem, wird die Station nicht gezeichnet. Was an Bord läuft, läuft weiter. Die Kugel selbst wird nur neu gerechnet, wenn sie sich um einen halben Bildpunkt gedreht hat, und alle zwei Sekunden für die Sonne.
   - Auf dem Handy bestimmt die Breite die Größe: Die Bahn reicht links und rechts ein Fünfzehntel über die Kugel hinaus und passt noch ins Bild.
 - **Die echte ISS, auf Wunsch.** Die Station hier fliegt eine Bahn wie die ISS, aber nicht die echte an ihrer echten Stelle. Wer sehen will, wo die gerade ist, schaltet es unter Stationswerte ein.
@@ -445,6 +446,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Sonnenglanz: An klarem Wasser rund um die Stelle zwischen Sonne und Auge ist es im Mittel 92 Stufen heller als ohne Glanz. Weit davon entfernt sind es 0,6. Gegengeprüft: Ohne Glanz sind es auch in der Mitte −0,2, und der Farbvergleich weicht dann um 12 statt 2 Stufen ab.
   - Auf dem Schirm ist die Tagseite im Mittel 59 hell, die Nachtseite 4.
   - Ein Tipp nennt das Land samt Sonnenzeit, hier Namibia. Esc schließt zuerst die Karte, dann die Ansicht. E, Plus und ein Tipp auf die Station führen hinein und zurück.
+  - Angekommen bleibt die Blende 60 Bilder lang bei genau 1, und die Szene darunter wird in jedem dieser Bilder eingespart. Gegengeprüft: In Version 18 lagen 32 von 60 Bildern darunter, bis hinab auf 0,93.
   - Plus macht die Kugel 1,45-mal so groß und bleibt in der Erdansicht. Erst weitere Klicks über zweieinhalbfach hinaus führen zurück.
   - Ziehen um 150 Punkte zur Seite und 60 nach unten dreht die Kugel um genau 150 und 60 durch den Radius, im Bogenmaß. Die Station bleibt auf einen Punkt genau oben in der Mitte, in der Höhe, die zur neuen Neigung gehört. Die Kugel wird dafür neu gerechnet, und es öffnet sich nichts.
   - Die Beschriftung beugt nicht falsch. Auf dem Handy passt die Kugel zwischen Kopf und Leiste.
