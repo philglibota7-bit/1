@@ -17679,7 +17679,7 @@ function rahmen(jetzt) {
       const sp = inSicht(fx, fy + Rst * 0.55);
       if (sp.x > 0 && sp.x < W && sp.y > 0 && sp.y < H)
         schilder.push({ x: sp.x, y: sp.y, id: "fracht", name: "FRACHTER", unter: ladungText(FRACHT.fracht, false),
-                        zustand: "fertig", vorrat: 0 });
+                        zustand: "fertig", vorrat: 0, fest: true });
     }
   }
   /* Nach dem Namen sortiert, damit dieselbe Mannschaft immer dieselbe
@@ -18399,7 +18399,8 @@ function rahmen(jetzt) {
     schilder.push(...behalten);
   }
   const knapp = schilder.length > 7;
-  if (knapp) for (const q of schilder) q.unter = "";
+  /* Beim Frachter ist die Unterzeile die eigentliche Auskunft: was er bringt */
+  if (knapp) for (const q of schilder) if (!q.fest) q.unter = "";
 
   /* Jedes Schild wird gemessen. Vorher galt eine feste halbe Breite
      von 54 Punkten fuer alle: ein langer Name am Rand lief dann aus dem
@@ -18435,7 +18436,7 @@ function rahmen(jetzt) {
     const q = schilder[i];
     if (q.y < bedien.oben + 2 || q.y + (q.unter ? 24 : 13) > bedien.unten - 2) schilder.splice(i, 1);
   }
-  NAMEN_LETZT = schilder.map(q => ({ id: q.id, name: q.name, x: q.x, y: q.y,
+  NAMEN_LETZT = schilder.map(q => ({ id: q.id, name: q.name, unter: q.unter, x: q.x, y: q.y,
                                      links: q.links, rechts: q.rechts }));
   /* Die Schilder sind Hindernisse fuer die Blasen — eine Blase ueber
      einem Namen verdeckt genau das, womit man sie zuordnet. */
