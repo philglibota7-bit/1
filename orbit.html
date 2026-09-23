@@ -1897,10 +1897,16 @@ const KONFLIKT_FRIST = 30 * 60000;
 const KONFLIKT = { liste: [], gesehen: new Map(), bekannt: new Set(), gezeichnet: [] };
 
 /* Wann die Figur da war: ab ihrem Start, bis jetzt oder bis zu ihrem
-   Bericht */
+   Bericht. Eine Sitzung, die das Register nicht mehr fuehrt, obwohl es
+   andere fuehrt, hat keinen lebenden Prozess mehr: ihr Terminal ist zu,
+   und sie war da bis zu ihrer letzten Taetigkeit. Ist das Register leer,
+   laesst sich das nicht unterscheiden (aeltere Fassung von Claude Code,
+   oder gerade keine Sitzung offen), dann gilt sie bis jetzt. */
 function konfliktZeit(a, jetzt) {
   const von = a.seitStart || 0;
-  const bis = a.typ === "unteragent" && a.berichtet ? Math.max(von, a.seit || jetzt) : jetzt;
+  let bis = jetzt;
+  if (a.typ === "unteragent" && a.berichtet) bis = Math.max(von, a.seit || jetzt);
+  else if (a.typ === "session" && !a.status && Object.keys(SITZUNGSREGISTER).length) bis = Math.max(von, a.seit || jetzt);
   return [von, bis];
 }
 
