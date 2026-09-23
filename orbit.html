@@ -5474,6 +5474,34 @@ function konjunktion(t, dt, ccx, ccy, Rst) {
   }
 }
 
+/* Ein weicher Hauch: einmal als kleines Bild gebacken, danach nur noch
+   skaliert kopiert. Die Wolken aus Ventil und Triebwerk waren gefuellte
+   Kreise mit harter Kante. Aus der Weite fiel das nicht auf, aus der
+   Naehe standen dort graue Scheiben wie Seifenblasen neben dem Modul.
+   Gas hat keine Kante — und ein Bild zu kopieren kostet weniger, als
+   in jedem Bild einen neuen Verlauf anzulegen. */
+let HAUCH = null;
+function hauch(x, y, r, a) {
+  if (a < 0.004) return;
+  if (!HAUCH) {
+    const n = 64;
+    HAUCH = document.createElement("canvas");
+    HAUCH.width = HAUCH.height = n;
+    const g = HAUCH.getContext("2d");
+    const rg = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
+    rg.addColorStop(0, "rgba(226,240,255,1)");
+    rg.addColorStop(0.35, "rgba(226,240,255,.55)");
+    rg.addColorStop(0.7, "rgba(226,240,255,.16)");
+    rg.addColorStop(1, "rgba(226,240,255,0)");
+    g.fillStyle = rg;
+    g.fillRect(0, 0, n, n);
+  }
+  const vor = cx.globalAlpha;
+  cx.globalAlpha = vor * Math.min(1, a);
+  cx.drawImage(HAUCH, x - r, y - r, r * 2, r * 2);
+  cx.globalAlpha = vor;
+}
+
 function ereignisse(t, dt, ccx, ccy, Rst) {
   if (sparsam) return;
 
@@ -5499,10 +5527,10 @@ function ereignisse(t, dt, ccx, ccy, Rst) {
       const f = ((k / 14) + t * 0.0005) % 1;
       const weit = Rst * (0.9 + f * 2.6);
       const auf = (streu(k, 9, 21) - 0.5) * weit * 0.22;
-      cx.fillStyle = `rgba(214,232,255,${an * (1 - f) * 0.22 * TAGLICHT})`;
-      cx.beginPath();
-      cx.arc(-weit, auf, Rst * (0.04 + f * 0.14), 0, Math.PI * 2);
-      cx.fill();
+      /* Weich und anderthalbmal so gross: der Hauch hat nur ein Viertel
+         der Flaeche einer vollen Scheibe, so bleibt die Wolke gleich
+         deutlich, verliert aber ihre Kante. */
+      hauch(-weit, auf, Rst * (0.04 + f * 0.14) * 1.5, an * (1 - f) * 0.36 * TAGLICHT);
     }
     cx.restore();
   }
@@ -5541,10 +5569,7 @@ function ereignisse(t, dt, ccx, ccy, Rst) {
       const streuung = (streu(k, 5, 17) - 0.5) * weit * 0.4;
       const px = v.x + v.rx * weit - v.ry * streuung;
       const py = v.y + v.ry * weit + v.rx * streuung;
-      cx.fillStyle = `rgba(226,242,255,${stoss * Math.pow(1 - f, 2.2) * 0.46 * TAGLICHT})`;
-      cx.beginPath();
-      cx.arc(px, py, Rst * (0.015 + f * 0.075), 0, Math.PI * 2);
-      cx.fill();
+      hauch(px, py, Rst * (0.015 + f * 0.075) * 1.5, stoss * Math.pow(1 - f, 2.2) * 0.75 * TAGLICHT);
     }
 
     /* Die einzelnen Kristalle. Das ist der Unterschied zwischen einer
@@ -5560,6 +5585,11 @@ function ereignisse(t, dt, ccx, ccy, Rst) {
        spiegelt. Deshalb auch: nur bei Tag. Im Erdschatten blaest das
        Ventil genauso ab, und man sieht nichts davon. */
     if (TAGLICHT > 0.15) {
+      /* Ein Korn misst Millimeter. Es bleibt deshalb bei jedem Zoom ein
+         Lichtpunkt von ein, zwei Bildpunkten — vorher wuchs es mit der
+         Kamera und war aus der Naehe eine graue Scheibe. */
+      const mt = cx.getTransform();
+      const proPunkt = 1 / Math.max(0.01, Math.hypot(mt.a, mt.b));
       for (let k = 0; k < 76; k++) {
         const f = (streu(k, 11, 29) + u * 1.25) % 1;
         const weit = f * Rst * 1.5;
@@ -5577,7 +5607,7 @@ function ereignisse(t, dt, ccx, ccy, Rst) {
         if (a < 0.03) continue;
         cx.fillStyle = `rgba(255,255,255,${Math.min(0.95, a)})`;
         cx.beginPath();
-        cx.arc(px, py, Rst * (0.005 + streu(k, 13, 31) * 0.007), 0, Math.PI * 2);
+        cx.arc(px, py, (0.9 + streu(k, 13, 31) * 1.3) * proPunkt, 0, Math.PI * 2);
         cx.fill();
       }
     }
