@@ -16544,12 +16544,17 @@ const TASTEN = {
   b: "#btn-bruecke", t: "#btn-telemetrie", k: "#btn-kino",
   "?": "#btn-hilfe",
 };
+/* Hat das Element den Fokus sichtbar, also von der Tastatur? Aeltere
+   Browser kennen :focus-visible nicht — dann nein, wie bisher. */
+function fokusSichtbar(el) {
+  try { return el.matches(":focus-visible"); } catch { return false; }
+}
 
 document.addEventListener("keydown", (e) => {
-  if (e.key === "r" || e.key === "R") {
-    if (RUNDGANG.laeuft) rundgangEnde(); else rundgangStart();
-    return;
-  }
+  /* Was ein Element schon selbst erledigt hat — die Zeile des
+     Tagesbogens waehlt mit der Leertaste aus —, gehoert nicht noch
+     einmal der Station: sonst sprang dabei die Kamera zurueck. */
+  if (e.defaultPrevented) return;
   if (e.key === "Escape") {
     if (RUNDGANG.laeuft) rundgangEnde();
     else if (kinoAn) kino(false);
@@ -16558,7 +16563,21 @@ document.addEventListener("keydown", (e) => {
   }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const z = document.activeElement;
-  if (z && (z.tagName === "INPUT" || z.tagName === "TEXTAREA" || z.isContentEditable)) return;
+  if (z && (z.tagName === "INPUT" || z.tagName === "TEXTAREA" || z.tagName === "SELECT" || z.isContentEditable)) return;
+  /* Leertaste auf einem Knopf, zu dem man mit Tab gegangen ist, drueckt
+     den Knopf, wie ueberall. Nach einem Mausklick behaelt ein Knopf in
+     manchen Browsern unsichtbar den Fokus — dann bleibt sie bei der
+     Kamera, wie man es von hier kennt. */
+  if (e.key === " " && z && z !== document.body && fokusSichtbar(z)) return;
+
+  /* Der Rundgang erst hier, hinter den Textfeldern: stand er vorn, fing
+     jedes r beim Tippen eines Ordnerpfads den Rundgang an oder beendete
+     ihn — und schloss dabei die Bruecke, in die man gerade schrieb. Und
+     Befehlstaste+R ist Neuladen, kein Rundgang. */
+  if (e.key === "r" || e.key === "R") {
+    if (RUNDGANG.laeuft) rundgangEnde(); else rundgangStart();
+    return;
+  }
 
   const taste = e.key.toLowerCase();
   if (TASTEN[taste]) {
