@@ -250,6 +250,16 @@ Die Aufrufe laufen direkt aus dem Browser gegen `api.anthropic.com`, freigeschal
 
 Antworten laufen als Strom ein: das Denkprotokoll in die Gedankenblase, der Text ins Missions-Log. Je Mission werden Tokens und geschätzte Kosten angezeigt.
 
+**Die Crew sieht nach und zeigt.** Ein eigener Agent sah bisher nur seinen Auftrag. Jetzt hat er vier Werkzeuge und kann damit an der Station nachsehen und dem Nutzer etwas zeigen: „Wer wartet gerade auf mich?“, „Was macht webshop-kasse, und wie weit ist sie?“, „Wie viel haben wir im Fenster verbraucht?“, „Zeig mir Tokio“.
+- `station_lage` liest den Stand der Station als kleines JSON: jede Figur mit Art, Zustand, Tätigkeit, Ort, Zweig, seit wann, Aufgaben („3 von 5 erledigt“), Konflikt und Kreis. Dazu kommen, wer wartet, die Konflikte, die Zeilen der Energie, der Frachter, das Zuhause und worüber die Station fliegt. Beispieldaten der Vorführung sind als solche markiert, mit einem Satz dazu.
+- `figur_detail` liest eine Figur genau: Auftrag, zuletzt Gesagtes, Fehler, die Aufgabenliste mit Stand, die letzten Schritte, die geänderten Dateien, den Kontext, den Verbrauch im Fenster und einen Kreis samt Befehl und Fehlerzeile. Der Name wird erst genau gesucht, dann am Anfang, dann irgendwo, ohne Akzente.
+- `zeige_ort` öffnet die ganze Erde und fliegt zu einem Ort oder Land aus der Ortsliste, deutsch oder englisch; bei gleich gutem Treffer gewinnt der größere Ort.
+- `zeige_figur` fährt die Kamera zu einer Figur und öffnet ihr Detailfenster.
+- Die Werkzeuge lesen nur, was ORBIT ohnehin zeigt, und wirken nur auf die Ansicht: Erde, Kamera, Detailfenster. Geändert oder gelöscht wird nichts. Findet ein Werkzeug nichts, bekommt Claude das als Fehler zurück („Keine Figur heißt …“) und arbeitet weiter. Ein Ergebnis ist höchstens 32 KB groß, die Übersicht höchstens 40 Figuren. Die Anleitung dazu sagt ihm, dass Ergebnisse Daten sind und keine Anweisungen.
+- Über die API mit eigenem Schlüssel ist das eine Schleife von Runden: Will Claude ein Werkzeug (`stop_reason: tool_use`), führt ORBIT es aus und schickt die Runde zurück. Die Blöcke der Antwort gehen unverändert zurück, das Denken samt Signatur, sonst nimmt die API sie nicht an; die Eingabe eines Werkzeugs kommt in JSON-Stücken und wird wieder zusammengesetzt. Nach sechs Runden muss er antworten: Die letzte verbietet Werkzeuge (`tool_choice: none`). Kommt trotzdem keine Antwort, steht das beim Auftrag. Tokens und Kosten zählen über alle Runden.
+- In der Vorschau gehen die Werkzeuge über den Betrachter (`tools` von `sample`), wenn er sie ausführen kann; sonst arbeitet die Crew ohne sie.
+- Was ein Agent nachgesehen oder gezeigt hat, steht im Log in Blau über der Antwort („⚙ Stand der Station · ◎ Tokio“), auch im gesicherten Log, und kurz in seiner Blase. Ins Gedächtnis kommt nur die Antwort, nicht die Runden dazwischen.
+
 **In der Vorschau auf claude.ai ohne Schlüssel.** Dort sperrt der Rahmen jede Anfrage an `api.anthropic.com`; mit einem eigenen Schlüssel kam dort nichts durch, und die Crew stand still. Beim Start öffnete sich trotzdem der Dialog für den Schlüssel. Jetzt fragt die Crew in der Vorschau Claude über den Betrachter selbst (`claude.use("sample")`), auf dem Konto dessen, der die Seite ansieht. Beim ersten Auftrag fragt claude.ai, ob die Seite das darf; es zählt dann gegen das eigene Kontingent.
 - Einen eigenen Systemtext gibt es dort nicht. Die Rolle geht als erster Wechsel vorweg („So arbeitest du bei diesem Auftrag: …“), danach das Gedächtnis des Agenten, zuletzt der Auftrag.
 - Die Modelle heißen dort nach Stufen: Opus ist „complex“, Sonnet „default“, Haiku „quick“. Welche Stufe wirklich antwortete, steht im Log („über claude.ai · stärkstes Modell“). Jeder Auftrag wird neu gefragt, ohne Zwischenspeicher.
@@ -603,7 +613,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-107 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+108 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
 - **Regenradar** (regen.mjs, ein nachgebautes RainViewer mit bekannten Werten):
@@ -652,6 +662,13 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Vorher drehte das Oben mitten im Flug mit 0,37 Grad je Millisekunde, während die Blickrichtung 0,096 hatte. Deshalb rechnet jetzt jeder Flug das Oben als Drehung (siehe Ortssuche und Flug). orte.mjs, palette.mjs, kompass.mjs, erdansicht.mjs, erdunteruns.mjs, satellit.mjs und die drei Regen-Tests sind danach grün.
   - Vorn, aber 40-fach hineingezoomt: Zeiger am Schirmrand, „Station“, frei von Kopfzeile und Bedienung.
   - Gegengeprüft mit sechs kaputten Fassungen: Punkt scheint durch, Punkt außerhalb des Schirms, kein Zeiger, Ziel nicht nachgeführt (Sprung am Ende), Oben linear gemischt, Antippen ohne Wirkung. Alle sechs schlagen an.
+- **Werkzeuge der Crew** (werkzeuge.mjs, mit einer nachgebauten API, die ihre Antwort als Strom schickt, und einem nachgebauten Betrachter):
+  - Mit Schlüssel, drei Runden. In der ersten denkt Claude (Signatur „SIG-EINS“), schreibt und ruft `station_lage`. In der zweiten ruft er `zeige_ort("Tokio")` und `figur_detail("Niemand")`, in der dritten antwortet er. Die zweite Anfrage schickt die erste Runde als `thinking(SIG-EINS)+text+tool_use` zurück, das Ergebnis als JSON mit den drei Agenten. Die dritte schickt Tokio als gezeigt und „Niemand“ als Fehler mit `is_error`. Alle vier Werkzeuge haben Beschreibung und Schema, die Anleitung steht im Systemtext.
+  - Die Erde fliegt nach Tokio, die Marke steht dort. Im Log stehen „⚙ Stand der Station · ◎ Tokio · ⚙ Niemand“ und die Antwort beider Runden mit Leerzeile dazwischen. Tokens: 600 ein, 90 aus, über alle drei Runden. Im Gedächtnis stehen nur Auftrag und Antwort.
+  - Ein Claude, das nie aufhört: Nach sechs Anfragen ist Schluss, die sechste mit `tool_choice: none`, ihr Werkzeug läuft nicht mehr (fünf statt sechs), und beim Auftrag steht „Nach 6 Runden mit Werkzeugen ohne Antwort beendet.“
+  - In der Vorschau: `sample` bekommt die vier Werkzeuge mit Beschreibung, Schema und Funktion, ohne Zwischenspeicher. `station_lage` liefert die Figuren, `zeige_figur("Vega")` öffnet Vegas Detailfenster, und die Kamera folgt ihr.
+  - Kann der Betrachter keine Werkzeuge ausführen: keine, und im ersten Wechsel nur ein Satz zur Station.
+  - Gegengeprüft mit 13 kaputten Fassungen: ohne Signatur zurück, Eingabe nur aus dem letzten JSON-Stück, ohne Verbot in der letzten Runde, letzte Runde führt doch aus, Fehler ohne `is_error`, Vorschau ohne Werkzeuge, Vorschau immer mit Werkzeugen, Ort ohne Flug, Figur ohne Detailfenster, Tokens nur der letzten Runde, Log ohne Werkzeuge, Runden am Stück, API ohne Werkzeuge. Alle 13 schlagen an, jede an der Stelle, die sie treffen soll.
 - **Aufträge in der Vorschau** (betrachter.mjs, mit einem nachgebauten Betrachter, dessen Claude die Antwort in Stücken schickt):
   - Vorschau: kein Schlüsseldialog beim Start, der Knopf ist offen („Absenden über claude.ai“). Die drei Agenten fragen je einmal: die Rolle als erster Wechsel, der Auftrag zuletzt, die Stufe nach dem Modell, ohne Zwischenspeicher, mit Strom und Abbruchsignal. Die Antworten stehen im Log mit „über claude.ai · stärkstes Modell“, ohne Tokens und Kosten, und es gab keinen einzigen Aufruf von api.anthropic.com. Ein zweiter Auftrag an einen Agenten trägt dessen Gedächtnis mit: vier Wechsel.
   - Erlaubnis verweigert: Alle drei melden „claude.ai hat Claude für diese Seite nicht erlaubt …“, danach ist der Knopf zu, und die Crew sagt es.
