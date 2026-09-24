@@ -78,6 +78,7 @@ button{background:none; border:none; cursor:pointer;}
 /* Filmkorn — bricht die Farbverlaeufe, sonst bandet es auf dem Handy */
 #korn{position:fixed; inset:0; z-index:3; pointer-events:none; opacity:.15;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");}
+body.himmel-schwarz #korn{opacity:0;}
 /* Vignette — zieht den Blick zur Station */
 #vignette{position:fixed; inset:0; z-index:2; pointer-events:none;
   background:radial-gradient(ellipse 80% 70% at 50% 46%, transparent 46%, rgba(0,0,0,.40) 100%);}
@@ -897,7 +898,7 @@ body.kino #install{display:none;}
 /* ---------- Zoomleiste ---------- */
 #zoomleiste{
   position:fixed; z-index:6; right:14px; bottom:calc(150px + env(safe-area-inset-bottom));
-  display:flex; flex-direction:column; gap:6px;
+  display:flex; flex-direction:column; align-items:flex-end; gap:6px;
   opacity:0; pointer-events:none; transform:translateX(10px);
   transition:all .3s var(--ease);
 }
@@ -912,6 +913,12 @@ body.kino #zoomleiste{opacity:0 !important; pointer-events:none;}
   font-size:17px; transition:all .18s var(--ease);
 }
 #zoomleiste button:hover{color:var(--tx); border-color:var(--edge2);}
+/* Der Weg zur Erde und zurueck: breiter, mit Wort, damit man ihn findet */
+#zoomleiste #zoom-reise{width:auto; padding:0 13px 0 11px; gap:7px; font-size:12.5px; font-weight:600;
+  letter-spacing:.02em; color:var(--tx); border-color:rgba(157,198,255,.42);}
+#zoomleiste #zoom-reise:disabled{opacity:.45; cursor:default;}
+#zoom-reise .sym-station, body.erdansicht #zoom-reise .sym-erde{display:none;}
+body.erdansicht #zoom-reise .sym-station{display:block;}
 #zoomleiste button:active{transform:scale(.93);}
 /* Der Knopf fuer Satellitenbilder gehoert zur ganzen Erde */
 #zoomleiste #zoom-sat{display:none;}
@@ -1479,6 +1486,7 @@ body.sicht #blende-detail, body.sicht #blende-teil{
     <button id="tm-schrift" class="tm-knopf" type="button"></button>
     <button id="tm-relief" class="tm-knopf" type="button"></button>
     <div class="tm-abschnitt">ERDE</div>
+    <button id="tm-unten" class="tm-knopf" type="button"></button>
     <button id="tm-gestern" class="tm-knopf" type="button"></button>
     <button id="tm-wolken" class="tm-knopf" type="button"></button>
     <div class="tm-abschnitt">LIVE</div>
@@ -1542,7 +1550,12 @@ body.sicht #blende-detail, body.sicht #blende-teil{
   <button class="weg" id="install-weg" title="Nicht mehr anzeigen">✕</button>
 </div>
 
-<div id="zoomleiste">
+<div id="zoomleiste" class="da">
+  <button id="zoom-reise" type="button" title="Zur Erde fliegen (E)">
+    <svg class="sym-erde" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.8 2.5 2.8 14.5 0 17M12 3.5c-2.8 2.5-2.8 14.5 0 17"/></svg>
+    <svg class="sym-station" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M3 12h6.5M14.5 12H21M4.5 7.5v9M19.5 7.5v9"/></svg>
+    <span id="zoom-reise-text">Erde</span>
+  </button>
   <button id="zoom-nord" title="Norden nach oben" aria-label="Norden nach oben">
     <svg viewBox="0 0 24 24" width="22" height="22"><g id="zoom-nadel"><path d="M12 3.2 15 12h-6z" fill="#ff6b5e"/><path d="M12 20.8 9 12h6z" fill="currentColor" opacity=".55"/><circle cx="12" cy="12" r="1.3" fill="#0a0c14"/></g></svg>
   </button>
@@ -1854,7 +1867,9 @@ let Z = {
   key: "",
   maxTok: 8000,
   gewaehlt: null,     // ID des aktiven Agenten, null = ganze Crew
-  thema: "orion",
+  thema: "schwarz",
+  themaGewaehlt: false, // nur ein selbst gewaehlter Hintergrund bleibt; sonst gilt Schwarz
+  erdeUnten: false,   // die Erde unter der Station; sonst schwarzer Himmel — nur auf Wunsch
   umlauf: true,       // Tag-Nacht-Wechsel im Orbit
   melden: null,       // Mitteilungen; null = Voreinstellung: im Programm an, im Browser aus
   echteIss: false,    // wo die echte ISS ist, von wheretheiss.at — nur auf Wunsch
@@ -1893,7 +1908,10 @@ function laden() {
       Z.key     = typeof d.key === "string" ? d.key : "";
       Z.maxTok  = Number(d.maxTok) || 8000;
       Z.gewaehlt = d.gewaehlt ?? null;
-      if (typeof d.thema === "string") Z.thema = d.thema;
+      /* Bis Version 37 stand hier immer ein Hintergrund, auch der
+         voreingestellte Orionnebel. Gilt nur, wer ihn selbst gewaehlt hat */
+      if (typeof d.thema === "string" && d.themaGewaehlt === true) { Z.thema = d.thema; Z.themaGewaehlt = true; }
+      if (typeof d.erdeUnten === "boolean") Z.erdeUnten = d.erdeUnten;
       if (typeof d.umlauf === "boolean") Z.umlauf = d.umlauf;
       if (typeof d.melden === "boolean") Z.melden = d.melden;
       if (typeof d.echteIss === "boolean") Z.echteIss = d.echteIss;
@@ -1955,6 +1973,7 @@ function sichern() {
       thema: Z.thema, umlauf: Z.umlauf, melden: Z.melden, bruecke: Z.bruecke, rate: ZEIT.rate,
       echteIss: Z.echteIss, weltraumwetter: Z.weltraumwetter, wolkenHeute: Z.wolkenHeute, erdeGestern: Z.erdeGestern, beschriftung: Z.beschriftung, relief: Z.relief,
       satellit: Z.satellit, regen: Z.regen, zuhause: Z.zuhause, funkTon: Z.funkTon, crewSpricht: Z.crewSpricht,
+      themaGewaehlt: Z.themaGewaehlt, erdeUnten: Z.erdeUnten,
       notizen: Z.notizen, erinnerungen: Z.erinnerungen,
       wachen: Z.wachen.map(({ stand, ...w }) => w),
       schicht: Z.schicht,
@@ -6186,7 +6205,9 @@ function meteorStrom(ms) {
 }
 
 function zeichneSternschnuppe(t, dt) {
-  if (sparsam) return;
+  /* Sie verglueht ueber der Erde, weit unter der Station: ohne die Erde
+     unten gibt es sie nicht */
+  if (sparsam || !Z.erdeUnten) return;
   /* Einmal je Minute nachsehen, ob gerade ein Strom laeuft */
   if (!zeichneSternschnuppe.strom || t - zeichneSternschnuppe.strom.um > 60000) {
     zeichneSternschnuppe.strom = { um: t, ...meteorStrom(Date.now()) };
@@ -7564,6 +7585,11 @@ const LAGER_BEISPIEL = [
   { schluessel: "b5", repo: "webshop", kurz: "Push auf main", titel: "Checkout-Tests wieder grün", vor: 25, platz: 4 },
 ];
 let LAGER_LETZT = [];
+/* Nach jedem Ausladen sieht einer aus der Crew nach. bis: solange ist
+   der Gang offen (0: niemand soll gehen); ist bis dahin keiner frei
+   geworden, hat sich das erledigt. wo: die Plattform des neuesten
+   Behaelters (x in Vielfachen von R, und ob sie oben steht) */
+const LAGER_DIENST = { bis: 0, wo: null, wer: null };
 /* Was der Frachter in der Vorfuehrung bringt, steht nur, solange sie
    laeuft: es sind Beispieldaten und kommen nie in den Speicher */
 const LAGER_VORF = [];
@@ -7631,6 +7657,10 @@ function lagerEinlagern(liste) {
   }
   lagerPlatzVergeben(lagerListe());
   bordbuch("Außenlager: " + neu + " Behälter ausgeladen");
+  const pl = LAGER_PLATZ[ziel[ziel.length - 1].platz];
+  LAGER_DIENST.bis = jetzt + 600000;
+  LAGER_DIENST.wo = pl.p;
+  LAGER_DIENST.wer = null;
   if (!VORF.an) sichern();
   return true;
 }
@@ -7934,6 +7964,7 @@ function lieferungenVergessen() {
   LIEFER.gesehen = null; LIEFER.offen.clear(); LIEFER.geliefert.clear(); LIEFER.letzte = null;
   FRACHT.ladung = [];
   LAGER_VORF.length = 0;
+  LAGER_DIENST.bis = 0;
 }
 
 /* Ein kleiner Frachter: Druckkoerper in Folie, zwei Solarpaneele, vorn
@@ -12879,6 +12910,13 @@ function blaseZeichnen(b, farbe) {
    dunkler Grund, heller Akzent, kein Nebelton, in dem ein Astronaut
    verschwindet. */
 const THEMEN = [
+  /* Die Voreinstellung: nur Schwarz und Sterne, ohne Nebel und ohne Staub.
+     So sieht es aus dem Fenster der Kuppel wirklich aus — Nebel wie in den
+     anderen Hintergruenden zeigt erst eine lange Belichtung. */
+  { id: "schwarz", name: "Schwarz", objekt: "Sterne ohne Nebel, wie mit bloßem Auge",
+    stimmung: "tiefes Schwarz, klare Sterne",
+    raum: "#000000", nebel: [], staub: "#000000", sterne: "#f3f6ff", galaxie: "keine", galaxiearm: "keine",
+    akzent: "#9dc6ff", helligkeit: 0 },
   { id: "orion", name: "Orionnebel", objekt: "M42, Orionnebel",
     stimmung: "gluehender Wasserstoff, warm und koernig",
     raum: "#05070d", nebel: ["#d8402c", "#ffb59c", "#1ed4bc", "#4a6ee8"],
@@ -13093,7 +13131,9 @@ const THEMEN = [
 /* THEMEN-ENDE */
 
 /* Eine feste Saat je Thema, damit derselbe Himmel wiederkommt */
-THEMEN.forEach((t, i) => { t.saat = i * 7919 + 13; });
+/* Schwarz zaehlt nicht mit: es kam spaeter dazu, und alle anderen
+   Himmel sollen aussehen wie vorher */
+THEMEN.filter(t => t.id !== "schwarz").forEach((t, i) => { t.saat = i * 7919 + 13; });
 
 function aktivesThema() {
   return THEMEN.find(t => t.id === Z.thema) || THEMEN[0];
@@ -13109,6 +13149,9 @@ function themaAnwenden() {
   w.setProperty("--acc-tint", t.akzent + "29");
   const m = document.querySelector('meta[name="theme-color"]');
   if (m) m.setAttribute("content", t.raum);
+  /* Im reinen Schwarz hat das Filmkorn nichts zu brechen: es gibt keinen
+     Verlauf. Dort machte es das Schwarz nur grau. */
+  document.body.classList.toggle("himmel-schwarz", t.id === "schwarz");
 }
 
 /* ================================================================
@@ -14718,12 +14761,15 @@ function breiteLaenge(p) {
 /* Worueber fliegt die Station? Der Punkt unter ihr liegt oben auf der
    Kante der Scheibe — in der Blickmatrix ist das die zweite Spalte. */
 function unterUns() {
-  if (!ERDKARTE.bereit || !ERDKARTE.blick) return null;
+  /* Ohne die Scheibe unter der Station wird ihr Blick nicht nachgefuehrt;
+     dann wie bei der ganzen Erde aus der Bahn von jetzt */
+  const ausBahn = ERDANSICHT.an || !Z.erdeUnten;
+  if (!ERDKARTE.bereit || (!ausBahn && !ERDKARTE.blick)) return null;
   /* Ist die ganze Erde offen, wird die Szene darunter nicht gezeichnet, und
      ihr Blick bliebe stehen: nach ein paar Minuten stand dann ein Meer am
      Punkt der Station, das sie laengst hinter sich hatte. Dort also aus der
      Bahn von jetzt, wie der Punkt selbst. */
-  const m = ERDANSICHT.an ? erdBlick(umlaufWinkel(window.__PHASE_WERT || 0), Date.now()).m : ERDKARTE.blick.m;
+  const m = ausBahn ? erdBlick(umlaufWinkel(window.__PHASE_WERT || 0), Date.now()).m : ERDKARTE.blick.m;
   const [b, l] = breiteLaenge([m[3], m[4], m[5]]);
   const ort = ortBei(b, l);
   return { breite: b, laenge: l, name: ort ? ort.name : null, meer: ort ? ort.meer : false };
@@ -14733,7 +14779,7 @@ function unterUns() {
    Dieselbe Rechnung wie im Schattierer, nur rueckwaerts und fuer einen
    einzigen Punkt. */
 function erdeBei(px, py) {
-  if (!ERDKARTE.bereit || !ERDKARTE.blick) return null;
+  if (!Z.erdeUnten || !ERDKARTE.bereit || !ERDKARTE.blick) return null;
   const m = erdeMasse();
   const qx = (px - m.cx - (ERDE.dx || 0)) / m.r, qy = (py - m.cy - (ERDE.dy || 0)) / m.r;
   const r2 = qx * qx + qy * qy;
@@ -19241,6 +19287,10 @@ function heimKnopf() {
   k.setAttribute("aria-pressed", istEs ? "true" : "false");
 }
 
+function erdeUntenKnopf() {
+  tmSchalter("tm-unten", Z.erdeUnten, "Erde unter der Station",
+    Z.erdeUnten ? "mit Wolken, Gewittern und den Lichtern der Nacht" : "aus: schwarzer Himmel; die Erde hinter dem Knopf „Erde“", "gestern");
+}
 function regenKnopf() {
   tmSchalter("tm-regen", Z.regen, "Regenradar",
     Z.regen ? "auf der ganzen Erde, alle zehn Minuten neu" : "wo es gerade regnet, von RainViewer", "regen");
@@ -21389,6 +21439,13 @@ function ovalUmkreis(breite, laenge) {
 function zeichneErde(t) {
   if (sparsam) return;
   erdkarteLaden();
+  /* Unter der Station nur auf Wunsch. Geladen wird die Karte trotzdem:
+     die ganze Erde hinter dem Knopf braucht sie. Und die Bodenspur in den
+     Stationswerten liest den Stand im Umlauf von hier. */
+  if (!Z.erdeUnten) {
+    ERDE.phiJetzt = umlaufWinkel(window.__PHASE_WERT !== undefined ? window.__PHASE_WERT : 0);
+    return;
+  }
   if (!ERDE.bild && erdkarteLaedt()) return;
   /* Die Scheibe zu backen kostet gut vier Zehntelsekunden: fuer jeden
      Bildpunkt ein Dutzend Rauschabfragen, plus Wolkenschatten und
@@ -21873,8 +21930,11 @@ function zeichneSonne(t, phase) {
   HIMMELSKOERPER.sonne = { x: sx, y: sy, r: rs };
 
   /* Wie tief steht sie? Gemessen in eigenen Halbmessern ueber der
-     Kante — das ist auch das Mass, in dem die Lufthuelle dick wird. */
-  const tief = Math.max(0, Math.min(1, 1 - (rand - sy) / (rs * 22)));
+     Kante — das ist auch das Mass, in dem die Lufthuelle dick wird.
+     Ohne die Erde unten gibt es keine Kante und keine Luft davor: dann
+     steht sie weiss im Schwarz und blendet beim Aufgehen nur ein. */
+  const ohneErde = !Z.erdeUnten;
+  const tief = ohneErde ? 0 : Math.max(0, Math.min(1, 1 - (rand - sy) / (rs * 22)));
   const rot = Math.pow(tief, 1.6);
 
   const kern = [255, 250 - rot * 150, 238 - rot * 202];
@@ -21895,7 +21955,8 @@ function zeichneSonne(t, phase) {
      ueberlappen — dann faellt er weg. */
   const abstandMitte = Math.hypot(sx - mx, sy - my);
   const weitVoraus = rs * 46;
-  if (abstandMitte - m.r < weitVoraus) {
+  if (ohneErde) cx.globalAlpha = Math.min(1, st.hoch / 0.05);
+  else if (abstandMitte - m.r < weitVoraus) {
     cx.beginPath();
     cx.rect(0, 0, W * DPR, H * DPR);
     cx.arc(mx * DPR, my * DPR, m.r * DPR, 0, Math.PI * 2, true);
@@ -22234,7 +22295,8 @@ function himmelBacken() {
   HIMMEL.baut = true;
 
   const bW = W + HIMMEL_RAND * 2, bH = H + HIMMEL_RAND * 2;
-  const nebel = backeNebel(bW, bH, t);
+  /* Ohne Nebel gar nicht erst rechnen: das kostet sonst eine Viertelsekunde */
+  const nebel = (t.helligkeit ?? 0.55) > 0 ? backeNebel(bW, bH, t) : null;
   const galaxie = backeGalaxie(bW, bH, t);
   const fern = backeFerneSterne(bW, bH, t);
 
@@ -22254,10 +22316,12 @@ function himmelBacken() {
     c.restore();
   }
   c.drawImage(fern, 0, 0, bW, bH);
-  c.save();
-  c.globalCompositeOperation = "lighter";
-  c.drawImage(nebel, 0, 0, bW, bH);
-  c.restore();
+  if (nebel) {
+    c.save();
+    c.globalCompositeOperation = "lighter";
+    c.drawImage(nebel, 0, 0, bW, bH);
+    c.restore();
+  }
 
   HIMMEL.bild = bild;
   HIMMEL.breite = W; HIMMEL.hoehe = H; HIMMEL.thema = t.id;
@@ -22293,72 +22357,154 @@ function zeigerZuSzene(px, py) {
 
 function zoomeAuf(px, py, faktor) {
   FLUG = null;                            // wer selbst zoomt, fliegt nicht mehr
-  /* Ueber den kleinsten Zoom hinaus geht es weiter zurueck, bis zur
-     ganzen Erde — nach einem kurzen Widerstand, damit man nicht aus
-     Versehen hineinfaellt. Hineinzoomen bringt zur Station zurueck. */
-  if (ERDKARTE.bereit) {
-    const jetzt = performance.now();
-    if (jetzt - ERDANSICHT.drangUm > 1500) ERDANSICHT.drang = 1;
-    if (ERDANSICHT.an) {
-      /* Ueber der ganzen Erde zoomt man die Kugel selbst, bis sie
-         zweieinhalbmal so gross ist oder halb so klein. Wer darueber
-         hinaus weiter hineinzoomt, kommt zur Station zurueck. */
-      const alt = ERDANSICHT.zoom;
-      /* Mit Satellitenbildern weiter, bis auf Strassen, und immer auf den
-         Punkt unter dem Zeiger; mit denen der NASA so weit, wie sie reichen */
-      const maxZ = erdZoomMax();
-      const rAlt = ERDANSICHT.geo ? ERDANSICHT.geo.r : null;
-      if (Z.satellit && (ERDANSICHT.frei || alt * faktor > 1.0001)) freiAn();
-      ERDANSICHT.zoom = klemm(alt * faktor, 0.55, maxZ);
-      if (ERDANSICHT.frei && rAlt && ERDANSICHT.zoom !== alt) {
-        freiZoomAuf(px, py, rAlt, rAlt * ERDANSICHT.zoom / alt);
-        ERDANSICHT.geo = { ...ERDANSICHT.geo, r: rAlt * ERDANSICHT.zoom / alt };
-        /* Wer beim Ziehen zoomt, zieht danach vom neuen Stand aus weiter,
-           gegriffen dort, wo der Zeiger gerade ist */
-        if (zieh && zieh.frei) { zieh.frei = ERDANSICHT.frei; zieh.r = ERDANSICHT.geo.r; zieh.x0 = px; zieh.y0 = py; }
-      }
-      zoomLeisteAktualisieren();
-      if (faktor > 1.01 && alt >= maxZ * 0.999) {
-        /* An der Grenze der Bilder der NASA geht es nicht zur Station: dort
-           will man naeher heran, und das Schild sagt, warum es nicht geht */
-        if (Z.satellit && satQuelle() === "nasa") ERDANSICHT.grenzeUm = jetzt;
-        else {
-          ERDANSICHT.drangUm = jetzt;
-          ERDANSICHT.drang *= faktor;
-          if (ERDANSICHT.drang > 1.22) erdansicht(false);
-        }
-      }
-      return;
+  if (REISE.ziel) return;                 // auf dem Weg zur Erde oder zurueck nicht
+  if (ERDANSICHT.an && ERDKARTE.bereit) {
+    /* Ueber der ganzen Erde zoomt man die Kugel selbst, bis sie
+       zweieinhalbmal so gross ist oder halb so klein. Zurueck zur Station
+       geht es ueber den Knopf, nicht mehr durch Weiterzoomen. */
+    const alt = ERDANSICHT.zoom;
+    /* Mit Satellitenbildern weiter, bis auf Strassen, und immer auf den
+       Punkt unter dem Zeiger; mit denen der NASA so weit, wie sie reichen */
+    const maxZ = erdZoomMax();
+    const rAlt = ERDANSICHT.geo ? ERDANSICHT.geo.r : null;
+    if (Z.satellit && (ERDANSICHT.frei || alt * faktor > 1.0001)) freiAn();
+    ERDANSICHT.zoom = klemm(alt * faktor, 0.55, maxZ);
+    if (ERDANSICHT.frei && rAlt && ERDANSICHT.zoom !== alt) {
+      freiZoomAuf(px, py, rAlt, rAlt * ERDANSICHT.zoom / alt);
+      ERDANSICHT.geo = { ...ERDANSICHT.geo, r: rAlt * ERDANSICHT.zoom / alt };
+      /* Wer beim Ziehen zoomt, zieht danach vom neuen Stand aus weiter,
+         gegriffen dort, wo der Zeiger gerade ist */
+      if (zieh && zieh.frei) { zieh.frei = ERDANSICHT.frei; zieh.r = ERDANSICHT.geo.r; zieh.x0 = px; zieh.y0 = py; }
     }
-    if (faktor < 0.99 && KAM.zielZoom <= ZOOM_MIN * 1.001) {
-      ERDANSICHT.drangUm = jetzt;
-      ERDANSICHT.drang *= faktor;
-      if (ERDANSICHT.drang < 0.62) { erdansicht(true); return; }
-    }
+    zoomLeisteAktualisieren();
+    /* An der Grenze der Bilder der NASA sagt das Schild, warum es nicht
+       naeher geht */
+    if (faktor > 1.01 && alt >= maxZ * 0.999 && Z.satellit && satQuelle() === "nasa") ERDANSICHT.grenzeUm = performance.now();
+    return;
   }
-  const vor = zeigerZuSzene(px, py);
-  KAM.zielZoom = klemm(KAM.zielZoom * faktor, ZOOM_MIN, ZOOM_MAX);
-  /* Sofort anwenden, damit der Punkt unter dem Zeiger stehen bleibt */
-  const zAlt = KAM.zoom; KAM.zoom = KAM.zielZoom;
-  const nach = zeigerZuSzene(px, py);
-  KAM.zoom = zAlt;
-  KAM.zielX += (nach.x - vor.x) * KAM.zielZoom;
-  KAM.zielY += (nach.y - vor.y) * KAM.zielZoom;
+  /* An der Station um die Bildmitte, nicht um den Zeiger. Um den Zeiger zu
+     zoomen hiess: stand er neben der Station, rutschte sie beim
+     Hineinzoomen seitlich aus dem Bild. Was in der Mitte steht, bleibt in
+     der Mitte, und beim Herauszoomen kommt die Station von selbst zurueck,
+     weil der Versatz mit dem Zoom schrumpft. */
+  const alt = KAM.zielZoom;
+  KAM.zielZoom = klemm(alt * faktor, ZOOM_MIN, ZOOM_MAX);
+  KAM.zielX *= KAM.zielZoom / alt;
+  KAM.zielY *= KAM.zielZoom / alt;
   grenzenHalten();
   zeigeZoomLeiste();
 }
 
-/* Nicht ins Leere verschieben duerfen */
+/* Nicht ins Leere verschieben duerfen: die Mitte des Bildes bleibt ueber
+   der Station. Sie reicht mit Traeger und Fluegeln knapp sieben R zur
+   Seite und drei nach oben und unten; ihre Mitte steht etwas ueber der
+   des Bildes. So laesst sich jedes Bauteil in die Mitte holen, aber die
+   Station nie aus dem Bild schieben. */
 function grenzenHalten() {
-  const spiel = Math.max(W, H) * 0.75 * KAM.zielZoom;
-  KAM.zielX = klemm(KAM.zielX, -spiel, spiel);
-  KAM.zielY = klemm(KAM.zielY, -spiel, spiel);
+  const R = LETZTES_RST || 60, z = KAM.zielZoom;
+  const oy = (H / 2 - H * (H / W > 1.3 ? 0.46 : 0.43)) * z;
+  KAM.zielX = klemm(KAM.zielX, -7 * R * z, 7 * R * z);
+  KAM.zielY = klemm(KAM.zielY, oy - 3 * R * z, oy + 3 * R * z);
 }
 
 function kameraZurueck() {
   KAM.folgt = null;
   KAM.zielZoom = 1; KAM.zielX = 0; KAM.zielY = 0;
   zeigeZoomLeiste();
+}
+
+/* --- Zur Erde und zurueck ---------------------------------------------
+   Ein Knopf statt eines versteckten Weges: frueher kam man zur ganzen
+   Erde nur, wenn man ueber den kleinsten Zoom hinaus weiterzoomte, und
+   wer das nicht wusste, fand sie nie — wer es nicht wollte, fiel hinein.
+
+   Hin: die Station faellt zurueck, bis sie klein im Schwarz steht, dann
+   kommt die Kugel aus der Ferne heran. Zurueck: die Kugel waechst, dann
+   blendet sie weg, und die Station kommt klein aus der Ferne heran. Wer
+   unterwegs ins Bild greift, ist sofort am Ziel. */
+const REISE = { ziel: null, stufe: 0, t0: 0, z0: 1, x0: 0, y0: 0 };
+const REISE_WEG = 700, REISE_ANKUNFT = 1100;
+function reiseZurErde() {
+  if (ERDANSICHT.an || REISE.ziel) return false;
+  erdkarteLaden();
+  if (ERDKARTE.kaputt) return false;
+  if (RUNDGANG.laeuft) rundgangEnde();
+  KAM.folgt = null;
+  Object.assign(REISE, { ziel: "erde", stufe: ERDKARTE.bereit ? 1 : 0, t0: performance.now(),
+    z0: KAM.zoom, x0: KAM.x, y0: KAM.y });
+  zeigeZoomLeiste();
+  return true;
+}
+function reiseZurStation() {
+  if (!ERDANSICHT.an || REISE.ziel) return false;
+  FLUG = null;
+  Object.assign(REISE, { ziel: "station", stufe: 1, t0: performance.now(), z0: ERDANSICHT.zoom || 1 });
+  zeigeZoomLeiste();
+  return true;
+}
+function reiseUmschalten() {
+  return ERDANSICHT.an ? reiseZurStation() : reiseZurErde();
+}
+/* Sofort ans Ziel, wo immer die Reise gerade steht */
+function reiseEnde() {
+  const ziel = REISE.ziel;
+  REISE.ziel = null; REISE.stufe = 0;
+  if (ziel === "erde") {
+    if (ERDKARTE.bereit && !ERDANSICHT.an) erdansicht(true);
+    if (ERDANSICHT.an) ERDANSICHT.zoom = 1;
+    KAM.zoom = KAM.zielZoom = 1; KAM.x = KAM.zielX = 0; KAM.y = KAM.zielY = 0;
+  } else if (ziel === "station") {
+    if (ERDANSICHT.an) erdansicht(false);
+    KAM.zoom = KAM.zielZoom = 1; KAM.x = KAM.zielX = 0; KAM.y = KAM.zielY = 0;
+  }
+  zeigeZoomLeiste();
+}
+function reiseTakt(jetzt) {
+  if (!REISE.ziel) return;
+  const u = (jetzt - REISE.t0);
+  if (REISE.ziel === "erde") {
+    /* Laedt die Karte noch, wird gewartet — hoechstens acht Sekunden */
+    if (REISE.stufe === 0) {
+      if (ERDKARTE.bereit) Object.assign(REISE, { stufe: 1, t0: jetzt });
+      else if (ERDKARTE.kaputt || u > 8000) { REISE.ziel = null; zeigeZoomLeiste(); }
+      return;
+    }
+    if (REISE.stufe === 1) {
+      /* Die Station faellt zurueck: erst langsam, dann schneller, und
+         dabei in die Mitte */
+      const f = Math.min(1, u / REISE_WEG), e = f * f;
+      KAM.zoom = KAM.zielZoom = REISE.z0 * (1 - 0.72 * e);
+      KAM.x = KAM.zielX = REISE.x0 * (1 - e);
+      KAM.y = KAM.zielY = REISE.y0 * (1 - e);
+      if (f >= 1) {
+        erdansicht(true);
+        /* Die Kugel beginnt klein und kommt heran */
+        ERDANSICHT.zoom = 0.5;
+        Object.assign(REISE, { stufe: 2, t0: jetzt });
+      }
+      return;
+    }
+    const f = Math.min(1, u / REISE_ANKUNFT), e = 1 - Math.pow(1 - f, 3);
+    ERDANSICHT.zoom = 0.5 + 0.5 * e;
+    /* Solange die Station noch durchscheint, faellt sie weiter zurueck */
+    KAM.zoom = KAM.zielZoom = REISE.z0 * 0.28 * (1 - 0.5 * Math.min(1, u / 550));
+    if (f >= 1) reiseEnde();
+    return;
+  }
+  /* Zurueck: die Kugel waechst ein Stueck, dann kommt die Station.
+     Ganz nah an der Erde (Satellitenbilder) waechst sie nicht mehr mit. */
+  if (REISE.stufe === 1) {
+    const f = Math.min(1, u / 450), e = f * f;
+    if (REISE.z0 <= 3) ERDANSICHT.zoom = REISE.z0 * (1 + 0.9 * e);
+    if (f >= 1) {
+      erdansicht(false);
+      KAM.zoom = 0.3; KAM.zielZoom = 1;
+      KAM.x = KAM.zielX = 0; KAM.y = KAM.zielY = 0;
+      Object.assign(REISE, { stufe: 2, t0: jetzt });
+    }
+    return;
+  }
+  if (u >= 900) { REISE.ziel = null; REISE.stufe = 0; zeigeZoomLeiste(); }
 }
 
 /* Sanft auf einen Astronauten zufahren */
@@ -22716,6 +22862,7 @@ function rahmen(jetzt) {
   cx.clearRect(0, 0, W, H);
 
   /* Kamera nachziehen — gleitet statt zu springen */
+  reiseTakt(performance.now());
   kinofahrt(t);
   rundgangTakt(t);
   kameraNachfuehren();
@@ -23141,6 +23288,32 @@ function rahmen(jetzt) {
       } else {
         /* Steht schon an der Luke oder es gibt keine: dann sofort rein */
         v.fertigHeim = true;
+      }
+    }
+
+    /* Nach einer Lieferung sieht einer aus der Crew im Aussenlager nach:
+       der erste eigene Agent, der frei ist und gerade steht, hangelt zum
+       Arbeitsplatz neben dem neuen Behaelter. Einer je Lieferung; wer
+       denkt, sendet oder einen Fehler hat, bleibt bei seiner Arbeit.
+       Den Platz darf er sich teilen: dann stehen zwei nebeneinander. */
+    if (Date.now() < LAGER_DIENST.bis && a.typ === "agent" && (a.zustand === "ruht" || a.zustand === "fertig")
+        && v.ziel === null && !sparsam) {
+      const k = lagerArbeitsplatz(plaetze, LAGER_DIENST.wo);
+      LAGER_DIENST.bis = 0;
+      if (k >= 0) {
+        LAGER_DIENST.wer = a.id;
+        bordbuch(a.name + " sieht im Außenlager nach");
+        if (k !== v.platz) {
+          const hier = plaetze[v.platz];
+          v.ziel = k;
+          const d = Math.hypot(plaetze[k].x - hier.x, plaetze[k].y - hier.y);
+          v.griffe = Math.max(2, Math.round(d / 0.071));
+          v.losUm = t;
+          v.dauer = v.griffe * 2200;
+        } else {
+          /* Steht schon dort: dann bleibt er eine Weile, wie nach der Ankunft */
+          v.wechselUm = t + 20000 + streu(i, 41, 7) * 50000;
+        }
       }
     }
 
@@ -27387,6 +27560,7 @@ function vorschauenNachliefern(offen) {
 function themaWaehlen(id) {
   if (Z.thema === id) return;
   Z.thema = id;
+  Z.themaGewaehlt = true;
   sichern();
   themaAnwenden();
   himmelBacken();
@@ -27568,6 +27742,12 @@ $("#tm-wetter").onclick = () => {
   if (!Z.weltraumwetter) Object.assign(W_, { kp: null, oval: null, kpFehler: null, ovalFehler: null });
   sichern();
   weltraumwetterKnopf();
+  tmUhr = 0;
+};
+$("#tm-unten").onclick = () => {
+  Z.erdeUnten = !Z.erdeUnten;
+  sichern();
+  erdeUntenKnopf();
   tmUhr = 0;
 };
 $("#tm-gestern").onclick = () => {
@@ -27916,6 +28096,20 @@ function linkKnopf() {
   if (k.hidden) return;
   k.textContent = (/\/pull\//.test(x.url) ? "Pull Request" : "Commit") + " auf GitHub öffnen ↗";
   k.onclick = () => externOeffnen(x.url);
+}
+
+/* Der Arbeitsplatz am Traeger, der dem Lager am naechsten liegt, und
+   zwar auf seiner Seite: oben steht man aufrecht (der Winkel zeigt nach
+   rechts), unten kopfueber. Quer ueber den Traeger kommt man nicht an
+   die Kisten. -1, wenn es keinen gibt. */
+function lagerArbeitsplatz(plaetze, wo) {
+  let best = -1, bestD = Infinity;
+  plaetze.forEach((q, k) => {
+    if (q.art !== "traeger" || (Math.cos(q.winkel) > 0) !== wo.oben) return;
+    const d = Math.abs(q.x - wo.x);
+    if (d < bestD) { bestD = d; best = k; }
+  });
+  return best;
 }
 
 /* Aus der Befehlspalette: hin zum Aussenlager, und die Liste dazu */
@@ -28649,10 +28843,10 @@ const HILFE = [
       + "ISS von wheretheiss.at, die Wolken von heute, alle drei Stunden neu aus Satellitendaten von "
       + "EUMETSAT, und die Erde von gestern: das Echtfarbenbild des Satelliten Suomi NPP von der NASA, "
       + "mit Land und Wolken, wie sie gestern wirklich waren. Tippst du auf die Erde, steht da, welches "
-      + "Land oder Meer an der Stelle liegt. Zoomst "
-      + "du weiter heraus, als es geht, oder drückst E, siehst du die ganze Erde: die Kugel mit Tag, "
+      + "Land oder Meer an der Stelle liegt; unter der Station zeigt sie sich nur, wenn du unter Stationswerte "
+      + "„Erde unter der Station“ einschaltest. Mit dem Knopf „Erde“ rechts oder der Taste E fliegst du zur ganzen Erde: die Kugel mit Tag, "
       + "Dämmerung und den Lichtern der Nacht, darum die Bahn in echter Höhe und oben die Station. "
-      + "Ziehen dreht die Kugel, Zoomen macht sie größer, ein Tipp auf die Station bringt dich zurück. "
+      + "Ziehen dreht die Kugel, Zoomen macht sie größer; der Knopf „Station“ oder ein Tipp auf die Station bringt dich zurück. "
       + "Liegt sie gerade hinter der Erde oder außerhalb des Bilds, zeigt ein kleiner Pfeil am Rand zu ihr; "
       + "tippst du ihn an, fliegt die Kugel zu ihr zurück. "
       + "Mit dem Knopf Satellitenbilder unten in der Zoomleiste (oder unter Stationswerte) wird die Kugel "
@@ -28718,8 +28912,10 @@ const HILFE = [
   },
   {
     titel: "Bedienung",
-    text: "Mausrad oder zwei Finger zoomen, Ziehen verschiebt, Doppelklick fährt heran. "
-      + "Tasten: L Log, C Crew, H Hintergrund, B Brücke, T Stationswerte, K Kinomodus, R Rundgang, E ganze Erde. "
+    text: "Mausrad, zwei Finger auf dem Trackpad oder Zusammenziehen zoomen, immer um die Mitte des Bildes. "
+      + "Ziehen verschiebt, aber nur so weit, dass die Station im Bild bleibt; Doppelklick fährt heran, auf "
+      + "leerem Himmel zurück in die Mitte. Der Knopf „Erde“ rechts fliegt zur ganzen Erde, dort bringt „Station“ zurück. "
+      + "Tasten: L Log, C Crew, H Hintergrund, B Brücke, T Stationswerte, K Kinomodus, R Rundgang, E zur Erde und zurück. "
       + "Pfeiltasten schieben das Bild (mit Umschalt weiter), Plus und Minus zoomen, "
       + "N und P springen von Astronaut zu Astronaut (Tab auch, solange kein Knopf "
       + "den Fokus hat), W zum Nächsten, der auf dich wartet, Leertaste stellt die Kamera zurück, "
@@ -29150,8 +29346,8 @@ document.addEventListener("keydown", (e) => {
     return;
   }
   /* E: die ganze Erde, und wieder zurueck */
-  if ((e.key === "e" || e.key === "E") && ERDKARTE.bereit) {
-    erdansicht(!ERDANSICHT.an);
+  if (e.key === "e" || e.key === "E") {
+    reiseUmschalten();
     return;
   }
 
@@ -29267,8 +29463,8 @@ function paletteQuellen() {
       "konflikt datei gleiche warnung " + k.pfad, "", hin(k.b.id));
   aktion(RUNDGANG.laeuft ? "Rundgang beenden" : "Rundgang", "Einmal um die Station", "tour fuehrung", "R",
     () => { if (ERDANSICHT.an) erdansicht(false); RUNDGANG.laeuft ? rundgangEnde() : rundgangStart(); });
-  if (ERDKARTE.bereit) aktion(ERDANSICHT.an ? "Zurück zur Station" : "Ganze Erde", "Hinauszoomen bis zur Kugel", "globus kugel welt erde",
-    "E", () => erdansicht(!ERDANSICHT.an));
+  if (!ERDKARTE.kaputt) aktion(ERDANSICHT.an ? "Zurück zur Station" : "Zur Erde fliegen", ERDANSICHT.an ? "Die Station aus der Nähe" : "Die ganze Kugel mit Tag und Nacht",
+    "globus kugel welt erde station zurueck", "E", () => reiseUmschalten());
   if (Z.regen && ERDKARTE.regenTx)
     aktion(REGEN.film || REGEN.filmWunsch ? "Regenfilm anhalten" : "Regenfilm", "Die letzten zwei Stunden Regen im Zeitraffer",
       "regen radar zeitraffer film animation", "", () => { if (!ERDANSICHT.an) erdansicht(true); regenFilmUmschalten(); });
@@ -29608,9 +29804,14 @@ function zoomLeisteAktualisieren() {
 function zeigeZoomLeiste() {
   document.body.classList.toggle("erdansicht", !!ERDANSICHT.an);
   zoomLeisteAktualisieren();
-  const noetig = ERDANSICHT.an || Math.abs(KAM.zielZoom - 1) > 0.02
-    || Math.abs(KAM.zielX) > 4 || Math.abs(KAM.zielY) > 4;
-  $("#zoomleiste").classList.toggle("da", noetig);
+  /* Immer da: wer die Knoepfe erst nach dem ersten Zoomen sieht, findet
+     sie nie */
+  $("#zoomleiste").classList.add("da");
+  const k = $("#zoom-reise");
+  const zurueck = ERDANSICHT.an || REISE.ziel === "erde";
+  $("#zoom-reise-text").textContent = zurueck ? "Station" : "Erde";
+  k.title = zurueck ? "Zurück zur Station (E)" : "Zur Erde fliegen (E)";
+  k.disabled = !!ERDKARTE.kaputt || !!REISE.ziel;
 }
 
 /* --- Was steht hier oben? --------------------------------------------
@@ -29662,6 +29863,7 @@ function astronautBei(px, py) {
 
 cv.addEventListener("pointerdown", (ev) => {
   if (kinoAn) { kino(false); return; }
+  if (REISE.ziel) reiseEnde();            // wer greift, ist sofort da
   FLUG = null;                            // wer greift, haelt den Flug an
   cv.setPointerCapture(ev.pointerId);
   ZEIGER.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
@@ -29747,7 +29949,7 @@ function zeigerLoslassen(ev) {
       if (sr && Math.hypot(ev.clientX - sr.x, ev.clientY - sr.y) < 30) { fliegeZurStation(); return; }
       /* Die Station selbst angetippt: zurueck zu ihr */
       const st = ERDANSICHT.station;
-      if (st && Math.hypot(ev.clientX - st.x, ev.clientY - st.y) < 26) { erdansicht(false); return; }
+      if (st && Math.hypot(ev.clientX - st.x, ev.clientY - st.y) < 26) { reiseZurStation(); return; }
       const e = erdansichtBei(ev.clientX, ev.clientY);
       if (e) {
         const sz = sonnenzeit(e.breite, e.laenge);
@@ -29758,7 +29960,9 @@ function zeigerLoslassen(ev) {
         erdOrtZeigen(e.name || (e.meer ? "Meer" : "Erde"),
           gradText(e.breite, e.laenge) + " · " + sz.uhr + " Sonnenzeit · " + sz.licht
           + (ov !== null && ov >= 3 ? " · Polarlicht " + Math.round(ov) + " %" : ""), e.breite, e.laenge);
-      } else erdansicht(false);
+      } else if (offeneDetailId || teilOffen) blendeZu();
+      /* Daneben getippt: bisher ging es dann zurueck zur Station, oft aus
+         Versehen. Dafuer gibt es jetzt den Knopf. */
       return;
     }
     /* Ein Astronaut gewinnt immer gegen ein Bauteil: er steht davor,
@@ -29812,19 +30016,41 @@ cv.addEventListener("pointercancel", zeigerLoslassen);
 cv.addEventListener("wheel", (ev) => {
   if (kinoAn) return;
   ev.preventDefault();
-  /* Trackpads liefern kleine Schritte, Maeuse grosse — beides daempfen */
-  const schritt = Math.exp(-ev.deltaY * 0.0018);
+  /* Mausrad und zwei Finger auf dem Trackpad zoomen beide. Firefox zaehlt
+     manchmal in Zeilen statt Punkten. Zieht man auf dem Trackpad die Finger
+     zusammen, meldet Chrome ein Rad mit Strg und sehr kleinen Schritten —
+     die zaehlen deshalb staerker. Trackpads liefern kleine Schritte,
+     Maeuse grosse: beides daempfen. */
+  const dy = ev.deltaY * (ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? H : 1);
+  const schritt = Math.exp(-dy * (ev.ctrlKey ? 0.01 : 0.0018));
   zoomeAuf(ev.clientX, ev.clientY, klemm(schritt, 0.7, 1.4));
 }, { passive: false });
 
+/* Safari und das Mac-Programm (WebKit) melden das Zusammenziehen auf dem
+   Trackpad nicht als Rad, sondern als eigene Geste mit einem Massstab.
+   Die gab es hier bisher nicht — auf dem Mac zoomte die Geste deshalb gar
+   nicht. Abgefangen wird sie auch fuer die ganze Seite, sonst vergroessert
+   WebKit die Oberflaeche statt der Station. */
+let gesteVorher = 1;
+for (const art of ["gesturestart", "gesturechange", "gestureend"])
+  document.addEventListener(art, (ev) => {
+    ev.preventDefault();
+    if (art === "gesturestart") { gesteVorher = 1; return; }
+    if (art !== "gesturechange" || kinoAn || blendeOffen || !(ev.scale > 0)) return;
+    const f = ev.scale / gesteVorher;
+    gesteVorher = ev.scale;
+    zoomeAuf(ev.clientX ?? W / 2, ev.clientY ?? H / 2, klemm(f, 0.7, 1.4));
+  }, { passive: false });
+
 cv.addEventListener("dblclick", (ev) => {
   /* Ueber der ganzen Erde: heran heisst zurueck zur Station */
-  if (ERDANSICHT.an) { erdansicht(false); return; }
+  if (ERDANSICHT.an) { reiseZurStation(); return; }
   const treffer = astronautBei(ev.clientX, ev.clientY);
   if (treffer) fahreZu(treffer.id, 3.4);
   else kameraZurueck();
 });
 
+$("#zoom-reise").onclick = () => reiseUmschalten();
 $("#zoom-rein").onclick = () => zoomeAuf(W / 2, H / 2, 1.45);
 $("#zoom-raus").onclick = () => zoomeAuf(W / 2, H / 2, 1 / 1.45);
 $("#zoom-weg").onclick = () => {
@@ -29923,6 +30149,8 @@ funkKnopf();
 sprachKnopf();
 schichtKnopf();
 satellitKnopf();
+zeigeZoomLeiste();
+erdeUntenKnopf();
 erdeGesternKnopf();
 schriftKnopf();
 reliefKnopf();
@@ -30119,7 +30347,9 @@ window.__SCHICHT = {
   takt: (ms) => schichtTakt(ms),
   merk: () => SCHICHT_MERK.length,
 };
+window.__REISE = () => ({ ...REISE });
 window.__LAGER = {
+  dienst: () => ({ ...LAGER_DIENST, offen: Date.now() < LAGER_DIENST.bis }),
   zeigen: (k) => behaelterZeigen(k),
   liste: () => JSON.parse(JSON.stringify(lagerListe())),
   einlagern: (l) => lagerEinlagern(l),
@@ -30163,7 +30393,7 @@ window.__BLITZ = () => {
 window.__LICHT = () => ({ tag: TAGLICHT, abend: ABENDLICHT });
 window.__ASTRO = (...a) => zeichneAstronaut(...a);
 window.__STERNZAHL = () => sterne.length;
-window.__THEMA = (id) => { Z.thema = id; themaAnwenden(); himmelBacken(); sichern(); };
+window.__THEMA = (id) => { Z.thema = id; Z.themaGewaehlt = true; themaAnwenden(); himmelBacken(); sichern(); };
 window.__SET_GED = (id, an) => { const a = agentNach(id); if (a) { a.gedaechtnis = an; sichern(); } };
 
 /* Beim allerersten Besuch direkt zum Schluessel fuehren — sonst steht
