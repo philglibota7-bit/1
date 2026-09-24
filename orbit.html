@@ -1360,6 +1360,9 @@ body.sicht #blende-detail, body.sicht #blende-teil{
    und der zeigt alle vierzig Eintraege statt der fuenf juengsten. */
 @media (max-width:620px){
   .tm-knopf small, .tm-titel{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  /* Nur der Schichtbericht bricht um: seine Zeile sagt, was er kostet und
+     wann er kommt, und das darf nicht hinter "…" verschwinden */
+  #tm-schicht small{white-space:normal;}
   .tm-knopf{padding:6px 7px 6px 6px; gap:7px;}
   .tm-sym{flex-basis:24px; height:24px;}
   #telemetrie{left:10px; top:calc(64px + env(safe-area-inset-top)); width:226px; font-size:11px;
@@ -11938,6 +11941,11 @@ function zeichneAstronaut(x, y, s, kipp, farbe, zustand, t, phase, hervor, haltu
     cx.fillStyle = g;
     cx.beginPath(); cx.arc(lx, ly, r, 0, Math.PI * 2); cx.fill();
     const rk = Math.max(H * 0.028, 2.2 * pb);
+    if (typeof signal === "string") {
+      const m = cx.getTransform();
+      SIGNAL_LETZT.set(signal, { x: m.a * lx + m.c * ly + m.e, y: m.b * lx + m.d * ly + m.f,
+        r: rk * Math.hypot(m.a, m.b), an, zeit: performance.now() });
+    }
     cx.fillStyle = "rgba(60,40,20,.55)";
     cx.beginPath(); cx.arc(lx, ly, rk * 1.35, 0, Math.PI * 2); cx.fill();
     cx.fillStyle = `rgb(${Math.round(150 + 105 * an)},${Math.round(90 + 90 * an)},${Math.round(30 + 26 * an)})`;
@@ -12378,6 +12386,10 @@ function bedienRand() {
   return RAND;
 }
 let NAMEN_LETZT = [], BLASEN_LETZT = [], HAKEN_LETZT = [];
+/* Wo die Leuchte einer Figur zuletzt gezeichnet wurde, in Bildpunkten
+   des Canvas: damit ein Test sie an ihrer Stelle misst, statt in einem
+   Ausschnitt zu zaehlen (das streute zu stark, siehe ORBIT.md) */
+const SIGNAL_LETZT = new Map();
 
 /* Drei Zeilen passen in eine Blase. Bei einem Gedanken, der gerade
    einlaeuft, sind es die letzten — dort steht das Neueste. Bei einer
@@ -23153,7 +23165,7 @@ function rahmen(jetzt) {
                 && mitte.y > -rSchirm && mitte.y < H + rSchirm;
     if (imBild)
       zeichneAstronaut(x, y, groesse * v.wuchs, kipp, a.farbe, l.zustand, t, v.phase,
-        hervor, haltung, blick, anzugStand(a), werk, !!erinnerungFuer(a.id));
+        hervor, haltung, blick, anzugStand(a), werk, erinnerungFuer(a.id) ? a.id : false);
     funkPunkte.set(a.id, { x: mitte.x, y: mitte.y, r: rSchirm,
       zustand: l.zustand, eltern: a.elternId, hervor });
 
@@ -24956,10 +24968,10 @@ async function schichtBericht(jetzt = Date.now()) {
     s.fehler = 0;
     bordbuch("Schichtbericht von " + agent.name);
     if (selbst) schichtZustand(agent.id, "sendet");
-    if (!crewSpricht(agent, eintrag.antwort)) {
-      funkKlang("anfang", agent.id);
-      setTimeout(() => funkKlang("ende", agent.id), 900);
-    }
+    /* Der Ton vom Ende nur, wenn der vom Anfang wirklich klang: sonst kaeme
+       er allein, wenn man den Funk in dieser Sekunde einschaltet */
+    if (!crewSpricht(agent, eintrag.antwort) && funkKlang("anfang", agent.id))
+      setTimeout(() => funkKlang("ende", agent.id, true), 900);
     melden("Schichtbericht von " + agent.name, sprechText(eintrag.antwort), agent.id, "bericht");
   } else if (eintrag.fehler === "Abgebrochen.") {
     if (selbst) schichtZustand(agent.id, "ruht");
@@ -24988,14 +25000,16 @@ function schichtTakt(jetzt = Date.now()) {
 function schichtKnopf() {
   const s = Z.schicht, jetzt = Date.now(), heute = schichtHeute(jetzt);
   let klein, ruht = false;
-  if (inVorschau()) { klein = "nur mit eigenem Schlüssel: im Mac-Programm oder Browser"; ruht = s.an; }
-  else if (!s.an) klein = "stündlich, was passiert ist · je etwa 1 Cent";
-  else if (!Z.key) { klein = "wartet auf einen API-Schlüssel"; ruht = true; }
-  else if (heute >= SCHICHT_TAG_MAX) klein = "heute alle " + SCHICHT_TAG_MAX + " gesendet · morgen wieder";
+  /* Kurz: auf dem Handy ist die Zeile gut dreissig Zeichen breit, der Rest
+     faellt hinter "…" weg. Was er kostet und wann er kommt, steht vorn. */
+  if (inVorschau()) { klein = "nur mit eigenem API-Schlüssel"; ruht = s.an; }
+  else if (!s.an) klein = "stündlich · je etwa 1 Cent";
+  else if (!Z.key) { klein = "braucht einen API-Schlüssel"; ruht = true; }
+  else if (heute >= SCHICHT_TAG_MAX) klein = "heute " + heute + "/" + SCHICHT_TAG_MAX + " · morgen wieder";
   else {
     const n = new Date(jetzt);
     n.setHours(n.getHours() + 1, 0, 0, 0);
-    klein = "heute " + heute + " von " + SCHICHT_TAG_MAX + " · wieder " + uhr(+n) + ", falls etwas war";
+    klein = "wenn Neues: " + uhr(+n) + " · heute " + heute + "/" + SCHICHT_TAG_MAX;
   }
   const schl = s.an + "|" + ruht + "|" + klein;
   if (schl === SCHICHT.knopf) return;
@@ -29636,6 +29650,7 @@ window.__SCHICHT = {
   merk: () => SCHICHT_MERK.length,
 };
 window.__NAMEN = () => NAMEN_LETZT;
+window.__SIGNALE = () => [...SIGNAL_LETZT].map(([id, q]) => ({ id, ...q }));
 window.__BLASEN = () => BLASEN_LETZT;
 window.__MELDUNGEN = () => MELDUNGEN;
 window.__ORTE = () => LETZTE_ORTE;
