@@ -11,8 +11,6 @@ cp ../info-hub.html resources/index.html
 for f in fussball.html jarvis.html bodyscan.html ip-rechner.html primus-ot.html; do
   [ -f "../$f" ] && cp "../$f" resources/ || true
 done
-# index.html heisst hier schon so (das ist PULSE selbst) — daher umbenennen
-[ -f ../index.html ] && cp ../index.html resources/marwa.html || true
 
 echo "2/4  Desktop-Start einbauen…"
 python3 - <<'PY'
