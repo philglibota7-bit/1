@@ -2255,7 +2255,10 @@ $('#wxSearch').addEventListener('input', e => wxSearchGo(e.target.value.trim()))
 document.addEventListener('click', e => { if (!e.target.closest('#wxSug') && e.target.id !== 'wxSearch') $('#wxSug').classList.remove('show'); });
 $('#wxGeo').onclick = geoLocate;
 let wxLoaded = false;
-function wxEnsure(){ if (!wxLoaded) { wxLoaded = true; loadWeather(); } }
+/* Beim Oeffnen neu zeichnen: Die Temperaturkurve misst ihre Breite am Bildschirm.
+   Wurde gezeichnet, waehrend die Seite verborgen war (Aktualisierung im
+   Hintergrund, Wechsel des Aussehens), ist die Zeichenflaeche 0 px breit. */
+function wxEnsure(){ if (!wxLoaded) { wxLoaded = true; loadWeather(); } else if (cache.weather) renderWeather(); }
 
 /* ================================================================
    KRYPTO  (CoinGecko + alternative.me)
