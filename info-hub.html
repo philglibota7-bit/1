@@ -648,9 +648,9 @@ html.desktop-app #installCard{display:none !important;}
     <div class="pillrow" id="leaguePills"></div>
     <div class="favstrip" id="favStrip"></div>
     <div class="mdnav">
-      <button class="icon-btn" id="mdPrev">‹</button>
+      <button class="icon-btn" id="mdPrev" disabled>‹</button>
       <div class="lbl" id="mdLabel">Spieltag</div>
-      <button class="icon-btn" id="mdNext">›</button>
+      <button class="icon-btn" id="mdNext" disabled>›</button>
     </div>
     <div style="display:flex; justify-content:center; margin-bottom:14px;">
       <div class="seg" id="segFb">
@@ -1053,7 +1053,7 @@ function showPage(p){
   $$('.tabbtn').forEach(b => b.classList.toggle('active', b.dataset.page === p));
   window.scrollTo({top:0, behavior:'smooth'});
   if (p === 'fussball') fbEnsure();
-  if (p === 'wetter')   wxEnsure();
+  if (p === 'wetter') { wxEnsure(); nachzeichnenWetter(); }
   if (p === 'krypto')   cryEnsure();
   if (p === 'news')     newsEnsure();
   if (p === 'fun')      funEnsure();
@@ -1223,7 +1223,11 @@ async function loadFb(){
 }
 
 function renderFb(){
-  const lg = fbView.league, L = LEAGUES.find(x => x.k === lg);
+  let lg = fbView.league, L = LEAGUES.find(x => x.k === lg);
+  /* Die Liga steckt im localStorage. Faellt ein Schluessel spaeter weg oder
+     wird umbenannt, gaebe es hier ein undefined und die Seite bliebe
+     kommentarlos leer — mit der ersten Liga weiterarbeiten. */
+  if (!L) { L = LEAGUES[0]; lg = fbView.league = L.k; }
   const md = cache.matchday[lg];
   if (!md) return;
   $('#mdLabel').textContent = (md.matches[0]?.group?.groupName || `Spieltag ${md.group}`);
@@ -1376,7 +1380,7 @@ async function ensureLeagueId(lg){
 /* Nächstes Spiel eines Teams suchen (erst eigene Liga, dann Fallbacks) */
 async function loadFavNext(t){
   const id = t.id ?? t;
-  if (cache.favNext[id]) return cache.favNext[id];
+  if (id in cache.favNext) return cache.favNext[id];
   const order = [...new Set([t.lg, 'bl1', 'bl2', 'pl', 'la1'].filter(Boolean))];
   for (const lg of order) {
     const lid = await ensureLeagueId(lg);
@@ -1386,6 +1390,10 @@ async function loadFavNext(t){
       if (m && m.matchID) { cache.favNext[id] = m; return m; }
     } catch(e){}
   }
+  /* Auch das Nichtfinden merken. Sonst fragt jedes Neuzeichnen der
+     Favoritenleiste alle Ligen erneut ab — bei einem Team in der
+     Winterpause endlos vergeblich. */
+  cache.favNext[id] = null;
   return null;
 }
 
@@ -1429,7 +1437,16 @@ function sigOf(m){
   const started = Date.now() >= Date.parse(m.matchDateTimeUTC);
   return `${(m.goals || []).length}|${s[0]}:${s[1]}|${m.matchIsFinished ? 1 : 0}|${started ? 1 : 0}`;
 }
+let pollLaeuft = false;
 async function pollLive(){
+  /* Der Knopf und der Minutentakt koennen sich ueberholen. Zwei Durchlaeufe
+     vergleichen dann beide gegen denselben alten Stand — und jedes Tor
+     kaeme doppelt: zwei Meldungen, zwei Fanfaren, zweimal Konfetti. */
+  if (pollLaeuft) return;
+  pollLaeuft = true;
+  try { return await pollLiveIntern(); } finally { pollLaeuft = false; }
+}
+async function pollLiveIntern(){
   const snap = {};
   let changedUI = false;
   for (const lg of ['bl1','bl2','ucl','uel2026']) {
@@ -1558,6 +1575,12 @@ function renderWeather(){
 function drawTempChart(cv, temps){
   if (!cv || !temps.length) return;
   const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  /* Ist die Wetterseite ausgeblendet, hat das Canvas 0x0. Jetzt zu zeichnen
+     wuerde die vorhandene Kurve durch ein leeres Bild ersetzen, das nie
+     wieder erneuert wird — die Kurve bliebe bis zum Neustart weg. Also
+     vormerken und beim naechsten Anzeigen nachholen. */
+  if (!W || !H) { cv._offen = temps; return; }
+  cv._offen = null;
   cv.width = W * dpr; cv.height = H * dpr;
   const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
   const min = Math.min(...temps), max = Math.max(...temps), r = Math.max(1, max - min);
@@ -1616,6 +1639,12 @@ document.addEventListener('click', e => { if (!e.target.closest('#wxSug') && e.t
 $('#wxGeo').onclick = geoLocate;
 let wxLoaded = false;
 function wxEnsure(){ if (!wxLoaded) { wxLoaded = true; loadWeather(); } }
+/* Eine im Hintergrund vorgemerkte Kurve nachholen. Ein Bild spaeter, damit
+   das Layout die neue Breite schon kennt. */
+function nachzeichnenWetter(){
+  const cv = $('#wxChart');
+  if (cv && cv._offen) requestAnimationFrame(() => drawTempChart(cv, cv._offen));
+}
 
 /* ================================================================
    KRYPTO  (CoinGecko + alternative.me)
@@ -2017,9 +2046,9 @@ function briefing(){
   const parts = [];
   if (cache.weather) {
     const c = cache.weather.current;
-    parts.push(`In ${state.place.name} sind es gerade <b>${Math.round(c.temperature_2m)}°</b> (${wmo(c.weather_code, c.is_day).label.toLowerCase()})`);
+    parts.push(`In ${esc(state.place.name)} sind es gerade <b>${Math.round(c.temperature_2m)}°</b> (${wmo(c.weather_code, c.is_day).label.toLowerCase()})`);
   }
-  const favM = Object.values(cache.favNext)[0];
+  const favM = Object.values(cache.favNext).find(Boolean);
   if (favM) parts.push(`<b>${esc(favM.team1.shortName || favM.team1.teamName)} – ${esc(favM.team2.shortName || favM.team2.teamName)}</b> steigt ${countdown(favM.matchDateTimeUTC)}`);
   const btc = cache.coins.find(c => c.id === 'bitcoin');
   if (btc) parts.push(`Bitcoin steht bei <b>${fmtEUR(btc.current_price)}</b> (${fmtPct(btc.price_change_percentage_24h)})`);
@@ -2073,7 +2102,7 @@ function renderHome(){
     g.appendChild(miniCard('🌍', 'Wetter', '–', 'Standort festlegen für deine Vorhersage', 'wetter', 'tall'));
   }
 
-  const favM = Object.values(cache.favNext)[0];
+  const favM = Object.values(cache.favNext).find(Boolean);
   const liveFav = Object.values(cache.matchday).flatMap(x => x?.matches || []).find(m => isFavMatch(m) && matchStatus(m).live);
   if (liveFav) {
     const sc = scoreOf(liveFav) || ['-','-'];

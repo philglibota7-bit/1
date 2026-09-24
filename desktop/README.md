@@ -7,13 +7,17 @@ kein Terminal, keine Installation von Node oder sonstigem.
 
 1. **[download/PULSE-mac.zip](../download/PULSE-mac.zip)** herunterladen und entpacken
 2. `PULSE.app` in den Ordner **Programme** ziehen
-3. Beim **allerersten Start**: Rechtsklick auf `PULSE.app` → **Öffnen** → im Dialog
-   nochmal **Öffnen** klicken
+3. Beim **allerersten Start**:
+   - `PULSE.app` doppelklicken. macOS meldet „PULSE“ wurde nicht geöffnet.
+     Auf **Fertig** klicken, **nicht** auf „In den Papierkorb legen“.
+   - **Systemeinstellungen → Datenschutz & Sicherheit** öffnen und ganz nach unten
+     scrollen. Beim Hinweis auf PULSE auf **Dennoch öffnen** klicken und bestätigen.
 
 Der dritte Schritt ist einmalig nötig, weil die App nicht bei Apple registriert ist
-(das kostet 99 $ im Jahr). Danach startet sie ganz normal per Doppelklick.
+(das kostet 99 $ im Jahr). Danach startet sie ganz normal per Doppelklick. Den
+früheren Weg „Rechtsklick → Öffnen“ gibt es seit macOS 15 nicht mehr.
 
-Falls macOS trotzdem blockt, hilft ein Befehl im Terminal:
+Schneller geht es mit einem Befehl im Terminal:
 
 ```bash
 xattr -cr /Applications/PULSE.app
@@ -37,6 +41,8 @@ Wenn `info-hub.html` geändert wurde, erzeugt ein Befehl die App neu:
 npm i -g @neutralinojs/neu    # einmalig
 ./desktop/build-app.sh
 ```
+
+Gebraucht werden außerdem `python3` und `zip` — auf macOS beides ab Werk dabei.
 
 Ergebnis liegt danach in `desktop/dist/PULSE.app` und als ZIP daneben.
 

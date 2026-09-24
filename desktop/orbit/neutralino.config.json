@@ -1,5 +1,5 @@
 {
-  "applicationId": "app.pulse.infohub",
+  "applicationId": "app.orbit.leitstand",
   "version": "1.0.0",
   "defaultMode": "window",
   "port": 0,
@@ -13,16 +13,24 @@
     "writeToLogFile": false
   },
   "nativeAllowList": [
-    "app.*",
+    "app.exit",
+    "os.execCommand",
+    "os.getPath",
     "os.open",
+    "os.showNotification",
+    "os.showFolderDialog",
+    "clipboard.writeText",
+    "filesystem.readDirectory",
+    "filesystem.readFile",
+    "filesystem.getStats",
     "window.*",
     "events.*"
   ],
   "modes": {
     "window": {
-      "title": "PULSE",
-      "width": 1180,
-      "height": 860,
+      "title": "ORBIT",
+      "width": 1280,
+      "height": 880,
       "minWidth": 420,
       "minHeight": 560,
       "center": true,
@@ -37,7 +45,7 @@
     }
   },
   "cli": {
-    "binaryName": "pulse",
+    "binaryName": "orbit",
     "resourcesPath": "/resources/",
     "extensionsPath": "/extensions/",
     "clientLibrary": "/resources/js/neutralino.js",

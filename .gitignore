@@ -2,3 +2,8 @@ desktop/bin/
 desktop/dist/
 desktop/resources/
 node_modules/
+desktop/orbit/bin/
+desktop/orbit/dist/
+desktop/orbit/resources/
+.pruefe.sh
+orbit-nasa/
