@@ -1605,6 +1605,7 @@ body.sicht #blende-detail, body.sicht #blende-teil{
     <p id="teil-zahl" style="font-size:12px; line-height:1.6; color:var(--tx3); margin:0;
       padding-top:12px; border-top:1px solid var(--edge)"></p>
     <button id="teil-zuhause" class="knopf leer" type="button" hidden style="margin-top:12px"></button>
+    <button id="teil-link" class="knopf leer" type="button" hidden style="margin-top:12px"></button>
   </div>
 </div>
 
@@ -1871,7 +1872,7 @@ let Z = {
   erinnerungen: [],   // { id, um, text, figur, name, von, vonId, gesetzt, gemeldet, art }
   wachen: [],         // { id, figur, name, typ, wenn, von, vonId, gesetzt, stand }: melden bei fertig/wartet/fehler
   schicht: { an: false, zuletzt: 0, tag: "", heute: 0, reihe: 0, fehler: 0 }, // Schichtbericht der Crew — nur auf Wunsch
-  lager: [],         // { schluessel, repo, kurz, titel, zeit, an, platz }: was der Frachter brachte, im Aussenlager
+  lager: [],         // { schluessel, repo, kurz, titel, zeit, an, platz, url }: was der Frachter brachte, im Aussenlager
   bruecke: {
     typen: { session: true, ordner: true, prozess: true, github: true },
     ordner: [],                 // beobachtete Projektordner
@@ -7576,7 +7577,7 @@ function lagerLesen(roh) {
     aus.push({ schluessel: x.schluessel.slice(0, 200), repo: typeof x.repo === "string" ? x.repo.slice(0, 80) : "",
       kurz: typeof x.kurz === "string" ? x.kurz.slice(0, 60) : "", titel: typeof x.titel === "string" ? x.titel.slice(0, 160) : "",
       zeit: Number.isFinite(x.zeit) ? x.zeit : 0, an: Number.isFinite(x.an) ? x.an : 0,
-      platz: Number.isInteger(x.platz) && x.platz >= 0 && x.platz < LAGER_MAX ? x.platz : null });
+      platz: Number.isInteger(x.platz) && x.platz >= 0 && x.platz < LAGER_MAX ? x.platz : null, url: lagerUrl(x.url) });
   }
   const bleibt = aus.slice(-LAGER_MAX);
   /* Zwei auf einem Platz: der zweite bekommt einen neuen */
@@ -7587,6 +7588,9 @@ function lagerLesen(roh) {
   }
   lagerPlatzVergeben(bleibt);
   return bleibt;
+}
+function lagerUrl(u) {
+  return typeof u === "string" && u.length <= 300 && /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/(pull\/\d+|commit\/[0-9a-f]{7,40})$/.test(u) ? u : "";
 }
 function lagerListe() {
   if (!VORF.an) return Z.lager;
@@ -7617,7 +7621,7 @@ function lagerEinlagern(liste) {
   for (const x of liste || []) {
     if (!x || !x.schluessel || lagerListe().some(y => y.schluessel === x.schluessel)) continue;
     ziel.push({ schluessel: x.schluessel, repo: x.repo || "", kurz: x.kurz || "", titel: x.titel || "",
-      zeit: x.zeit || jetzt, an: jetzt, platz: null });
+      zeit: x.zeit || jetzt, an: jetzt, platz: null, url: VORF.an ? "" : lagerUrl(x.url) });
     neu++;
   }
   if (!neu) return false;
@@ -7874,6 +7878,13 @@ function zeichneLager(c, R, t) {
   c.restore();
 }
 
+/* Wohin eine Lieferung auf GitHub fuehrt: zum PR oder zum Commit, aus
+   "besitzer/repo" und Nummer oder Pruefsumme. Geprueft wird beim
+   Einlagern (lagerUrl): dort kommt auch an, was gespeichert war */
+function lieferungUrl(ort, art, wert) {
+  return "https://github.com/" + ort + (art === "pr" ? "/pull/" : "/commit/") + wert;
+}
+
 function lieferungenPruefen() {
   const repos = Z.bruecke.typen.github ? bruecke_github : [];
   FRACHT.echt = repos.length > 0;
@@ -7896,9 +7907,11 @@ function lieferungenPruefen() {
         if (LIEFER.geliefert.has(pk)) continue;
         LIEFER.geliefert.add(pk);
         const pr = LIEFER.offen.get(pk);
-        lieferungDazu({ schluessel: pk, repo: g.name, kurz: "PR #" + nr, titel: pr ? pr.titel : l.titel.replace(/\s*\(#\d+\)\s*$/, ""), zeit: jetzt });
+        lieferungDazu({ schluessel: pk, repo: g.name, kurz: "PR #" + nr, titel: pr ? pr.titel : l.titel.replace(/\s*\(#\d+\)\s*$/, ""), zeit: jetzt,
+          url: lieferungUrl(g.ort, "pr", nr) });
       } else {
-        lieferungDazu({ schluessel: k, repo: g.name, kurz: "Push auf " + g.branch, titel: l.titel, zeit: jetzt });
+        lieferungDazu({ schluessel: k, repo: g.name, kurz: "Push auf " + g.branch, titel: l.titel, zeit: jetzt,
+          url: lieferungUrl(g.ort, "commit", l.sha) });
       }
     }
     const jetztOffen = new Set((g.prs || []).map(p => g.ort + "#" + p.nr));
@@ -7909,7 +7922,8 @@ function lieferungenPruefen() {
       gh(`/repos/${g.ort}/pulls/${p.nr}`).then((x) => {
         if (!x || !x.merged_at || LIEFER.geliefert.has(pk)) return;
         LIEFER.geliefert.add(pk);
-        lieferungDazu({ schluessel: pk, repo: g.name, kurz: "PR #" + p.nr, titel: p.titel, zeit: Date.parse(x.merged_at) || Date.now() });
+        lieferungDazu({ schluessel: pk, repo: g.name, kurz: "PR #" + p.nr, titel: p.titel, zeit: Date.parse(x.merged_at) || Date.now(),
+          url: lieferungUrl(g.ort, "pr", p.nr) });
       }).catch(() => {});
     }
     for (const p of g.prs || []) LIEFER.offen.set(g.ort + "#" + p.nr, { nr: p.nr, titel: p.titel });
@@ -8172,6 +8186,23 @@ const TEILE = {
     kurz: "Hier docken Schiffe an.",
     lang: "Ein Ring mit Haken, der ein ankommendes Schiff festhält und dichtet. Dahinter liegt eine Luke, durch die Fracht und Besatzung umsteigen. Angedockt wird immer genau von vorn — seitlich geht es nicht, weil die Ringe ineinandergreifen müssen.",
     zahl: "Der Ring misst 1,8 Meter, die Luke dahinter ist quadratisch mit 1,27 Meter Kante.",
+  },
+  behaelter: {
+    name: "Behälter",
+    kurz: "",
+    get lang() {
+      const x = BEHAELTER_OFFEN;
+      if (!x) return "";
+      return [/^Push/.test(x.kurz || "") ? "Ein Tank: ein Push auf den Hauptzweig." : "Eine Kiste: ein gemergter Pull Request.",
+        x.an ? "Ausgeladen " + lagerWann(x.an) + "." : "",
+        behaelterWo(x) ? "Platz: " + behaelterWo(x) + "." : "",
+        VORF.an ? "Ein Beispiel der Vorführung, ohne Link." : ""].filter(Boolean).join("\n");
+    },
+    get zahl() {
+      const l = lagerListe();
+      if (l.length < LAGER_MAX) return "Im Außenlager stehen " + l.length + " von " + LAGER_MAX + " Behältern. Ist es voll, holt die Crew den ältesten hinein.";
+      return "Das Lager ist voll: Mit der nächsten Lieferung holt die Crew " + lagerZeile(l[0]) + " hinein.";
+    },
   },
   lager: {
     name: "Außenlager",
@@ -27861,6 +27892,32 @@ function kameraAufStelle(ort, zoom) {
   grenzenHalten();
 }
 
+/* Ein einzelner Behaelter angetippt: seine Lieferung, wo er steht, und
+   wohin er auf GitHub fuehrt */
+let BEHAELTER_OFFEN = null;
+function behaelterZeigen(schluessel) {
+  const x = lagerListe().find(y => y.schluessel === schluessel);
+  if (!x) return false;
+  BEHAELTER_OFFEN = x;
+  teilZeigen("behaelter", x.kurz + " · " + x.repo, x.titel || "Ohne Titel");
+  return true;
+}
+function behaelterWo(x) {
+  const pl = LAGER_PLATZ[x.platz];
+  if (!pl) return "";
+  return (pl.p.x > 0 ? "Steuerbord" : "Backbord") + (pl.p.oben ? (pl.r ? " oben, hinten" : " oben, vorn") : " unten")
+    + ", " + (pl.i + 1) + ". von links";
+}
+function linkKnopf() {
+  const k = document.getElementById("teil-link");
+  if (!k) return;
+  const x = teilOffen === "behaelter" ? BEHAELTER_OFFEN : null;
+  k.hidden = !(x && x.url);
+  if (k.hidden) return;
+  k.textContent = (/\/pull\//.test(x.url) ? "Pull Request" : "Commit") + " auf GitHub öffnen ↗";
+  k.onclick = () => externOeffnen(x.url);
+}
+
 /* Aus der Befehlspalette: hin zum Aussenlager, und die Liste dazu */
 function lagerZeigen() {
   const ort = STBILD && STBILD.teile.find(q => q.schluessel === "lager");
@@ -28868,7 +28925,8 @@ function teilZeigen(schluessel, name, kurz) {
   $("#teil-name").textContent = name || d.name;
   $("#teil-kurz").textContent = kurz || d.kurz;
   $("#teil-lang").textContent = d.lang;
-  $("#teil-lang").style.whiteSpace = schluessel === "lager" ? "pre-line" : "";
+  $("#teil-lang").style.whiteSpace = schluessel === "lager" || schluessel === "behaelter" ? "pre-line" : "";
+  linkKnopf();
   $("#teil-zahl").textContent = d.zahl;
   blendeAuf("blende-teil");
 }
@@ -29711,6 +29769,14 @@ function zeigerLoslassen(ev) {
       if (KAM.zielZoom < 1.6) fahreZu(treffer.id, 2.4);
       return;
     }
+    /* Ein einzelner Behaelter im Aussenlager, sobald er gross genug ist,
+       um ihn zu treffen; sonst meint der Finger das Lager */
+    for (let i = LAGER_LETZT.length - 1; i >= 0; i--) {
+      const b = LAGER_LETZT[i];
+      if (b.w >= 10 && ev.clientX >= b.x - 3 && ev.clientX <= b.x + b.w + 3 && ev.clientY >= b.y - 3 && ev.clientY <= b.y + b.h + 3) {
+        if (behaelterZeigen(b.schluessel)) return;
+      }
+    }
     /* Dann das naechstgelegene Bauteil. Das naechste, nicht das
        erste: ohne Schilder ueberlappen sich die Felder, und wer
        zwischen Kuppel und Modul tippt, meint das, was naeher liegt. */
@@ -30054,6 +30120,7 @@ window.__SCHICHT = {
   merk: () => SCHICHT_MERK.length,
 };
 window.__LAGER = {
+  zeigen: (k) => behaelterZeigen(k),
   liste: () => JSON.parse(JSON.stringify(lagerListe())),
   einlagern: (l) => lagerEinlagern(l),
   boxen: () => LAGER_LETZT.slice(),
