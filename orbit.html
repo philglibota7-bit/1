@@ -23041,7 +23041,8 @@ function stationLage() {
   if (KONFLIKT.liste.length) o.konflikte = KONFLIKT.liste.slice(0, 12).map(k => ({ datei: k.pfad, figuren: [k.a.name, k.b.name] }));
   const en = energieZeilen(jetzt).filter(z => z[0] !== "~");
   if (en.length) o.energie = Object.fromEntries(en.map(z => [z[0].toLowerCase(), z[1]]));
-  if (FRACHT.echt || FRACHT.lage) o.frachter = { lage: FRACHT.lage, fracht: (FRACHT.fracht || []).map(x => x.text || x.titel || String(x)).slice(0, 6) };
+  if (FRACHT.echt || FRACHT.lage) o.frachter = { lage: FRACHT.lage, echt: !!FRACHT.echt,
+    fracht: (FRACHT.fracht || []).slice(0, 6).map(x => ladungText([x], true)) };
   const heim = typeof heimText === "function" ? heimText() : "";
   if (heim) o.zuhause = heim;
   const u = typeof unterUns === "function" ? unterUns() : null;
