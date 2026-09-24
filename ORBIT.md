@@ -328,6 +328,8 @@ Antworten laufen als Strom ein: das Denkprotokoll in die Gedankenblase, der Text
 
 ## Die Station
 
+**Der Himmel ist schwarz.** Voreingestellt sind nur noch Sterne, ohne Nebel, ohne Staubschleier und ohne das Filmkorn, das jedes Schwarz grau machte. So sieht es mit bloßem Auge aus; Nebel wie in den anderen Hintergründen zeigt erst eine lange Belichtung. Die 42 Hintergründe gibt es weiter unter H. Wer vor Version 38 nichts gewählt hatte, bekommt Schwarz, auch wenn im Speicher der alte voreingestellte Orionnebel stand. Wer selbst einen gewählt hat, behält ihn.
+
 Nach echten Maßen gebaut, und die Maße sind der Grund, warum sie aussieht, wie sie aussieht.
 
 | Bauteil | Maß | In Modulradien |
@@ -362,6 +364,8 @@ Daraus folgt: die Druckmodule sind ein kleiner Klumpen in der Mitte eines langen
 - **24 passen hinein.** Ist alles voll, holt die Crew den ältesten hinein, und das Bordbuch sagt, welchen.
 - **Ausgeladen wird beim Andocken,** nicht schon, wenn GitHub die Lieferung meldet; was dazukommt, während er angedockt ist, gleich. Gespeichert wird auf diesem Gerät, wie die Notizen.
 - **Die Crew weiß es:** `station_lage` sagt, wie voll das Lager ist, und nennt die sechs neuesten Behälter mit Zeit. Ist der Frachter wieder fort und kam heute etwas, steht „Was wurde heute geliefert?“ über dem leeren Auftragsfeld, und die Crew beantwortet es daraus.
+- **Ein Behälter für sich.** Wer eine Kiste oder einen Tank antippt, bekommt dessen eigene Karte: „PR #12 · webshop“, der Titel, ob Kiste oder Tank, wann ausgeladen und wo er steht („Platz: Steuerbord oben, vorn, 2. von links“). Darunter „Pull Request auf GitHub öffnen ↗“ oder „Commit auf GitHub öffnen ↗“, im Mac-Programm im Browser. Die Adresse baut ORBIT aus „besitzer/repo“ und der Nummer oder Prüfsumme und nimmt nur `https://github.com/…/pull/…` oder `…/commit/…` an, auch aus dem Speicher. In der Vorführung gibt es keinen Link, denn dort hieße „du/webshop“ ein fremdes, echtes Repo. Stehen zwei hintereinander, gewinnt der vordere. Ist das Lager voll, sagt die Karte, welcher Behälter als nächster hineingeholt wird.
+- **Nach jeder Lieferung sieht einer nach.** Hat der Frachter ausgeladen, hangelt der erste freie eigene Agent, einer, der ruht oder fertig ist, zum Arbeitsplatz am Träger neben dem neuen Behälter, und zwar auf dessen Seite: oben steht man aufrecht, unten kopfüber, und quer über den Träger kommt man nicht an die Kisten. Im Bordbuch steht dann etwa „Kepler sieht im Außenlager nach“. Einer je Lieferung. Wer denkt oder sendet, bleibt bei der Arbeit, und Sitzungen oder Prozesse gehen nicht, sie gehören nicht zur Crew. Wer schon dort steht, bleibt eine Weile. Wird zehn Minuten lang keiner frei, hat sich der Gang erledigt, und nach der Vorführung geht niemand zu ihren Beispielen. Mit reduzierter Bewegung (Systemeinstellung) hangelt niemand los.
 - **In der Vorführung** stehen fünf Beispielbehälter da, und ihr PR #12 kommt nach dem Andocken dazu. Nichts davon wird gespeichert; nach der Vorführung stehen wieder die eigenen da.
 
 **Der Träger trägt Leitungen.** Ein Baugerüst hat Streben, eine Station hat Leitungen: zwei dick isolierte Ammoniakleitungen über die ganze Länge, eine warme hin und eine kalte zurück, daneben der Kabelstrang der Flügel — mit Schellen an jedem zweiten Feldknoten, denn eine Leitung, die nirgends befestigt ist, sieht aufgemalt aus.
@@ -384,6 +388,8 @@ Dazu: Handläufe höchstens 61 cm auseinander, Steppmuster der Schutzdecken in M
 **Keine Namensschilder an den Bauteilen.** Sie standen früher ab Zoom 1,5 über der halben Station und haben genau das verdeckt, was man sich ansehen wollte. Die Namen gibt es weiter — beim Antippen, und zwar bei jedem Zoom. Es gewinnt das nächstgelegene Bauteil, nicht das erste in der Liste.
 
 ## Die Erde
+
+**Seit Version 38 auf Wunsch.** Voreingestellt ist unter der Station schwarzer Himmel mit Sternen; die ganze Erde liegt hinter dem Knopf „Erde“. Unter Stationswerte → Erde schaltet „Erde unten“ sie wieder ein, mit allem, was hier steht. Ohne sie gibt es keine Sternschnuppen, denn die verglühen über der Erde, weit unter der Station. Die Sonne steht dann weiß im Schwarz und blendet beim Aufgehen nur ein, statt über einer Kante aufzusteigen, die man nicht sieht. Der Überflug („Unter uns: …“) und die Bodenspur laufen aus der Bahn weiter.
 
 Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Meer und Wolken aus Rauschen, zu einer endlosen Bahn gebacken, die unter einer runden Maske durchzog. Das sah nach einem Planeten aus, aber nach keinem bestimmten.
 
@@ -430,7 +436,7 @@ Unter der Station liegt die echte Erde. Bis hierher war sie gerechnet: Land, Mee
   - Der letzte Halt ist die ganze Erde. Die Kamera fährt zurück, bis die Kugel im Bild ist, und mit dem Ende des Rundgangs wieder zur Station. Wer vorher tippt, Esc oder E drückt, beendet beides. R mitten in diesem Halt beendet den Rundgang, statt ihn gleich neu zu beginnen.
   - Im Bordbuch steht bei Sonnenaufgang und Erdschatten der Ort: „Sonnenaufgang · Indischer Ozean“.
   - In der Hilfe standen „acht Halte“, es waren aber neun. Jetzt wird gezählt.
-- **Die ganze Erde.** Wer weiter herauszoomt, als der Zoom reicht, oder E drückt, fährt zurück, bis die ganze Kugel im Bild ist. Es sind dieselbe Karte, dieselbe Sonne und dieselbe Bahn, nur von weiter weg und schräg von oben: Die Kamera steht fünfzig Grad vom Punkt unter der Station entfernt.
+- **Die ganze Erde.** Der Knopf „Erde“ rechts (oder E) fliegt hinüber: Die Station fällt zurück, dann kommt die ganze Kugel heran; „Station“ bringt dich zurück. Es sind dieselbe Karte, dieselbe Sonne und dieselbe Bahn, nur von weiter weg und schräg von oben: Die Kamera steht fünfzig Grad vom Punkt unter der Station entfernt.
   - Tag und Nacht rechnet hier jeder Bildpunkt selbst aus der echten Sonne. In der Dämmerung liegt ein schmaler roter Saum, vor allem auf den Wolken, denn der Boden darunter ist dort schon dunkel. Auf der Nachtseite leuchten nur die Städte.
   - **Sonnenglanz.** Wo das Meer die Sonne zum Betrachter spiegelt, liegt ein heller, silbriger Fleck, wie auf jedem Foto der ganzen Erde. Er sitzt dort, wo die Oberfläche genau zwischen Sonne und Auge steht. Die Wellen verschmieren ihn: Nach Cox und Munk ist die Neigung der kleinen Wasserflächen etwa normalverteilt, bei fünf Metern Wind mit einem mittleren Quadrat um 0,03. Wasser erkennt der Schattierer an der Karte, denn Blue Marble malt nur Wasser blau. Gemessen ist Blau dort mindestens 2,3-mal so stark wie Rot, an Land höchstens gleich stark. Inseln und Wolken bleiben ohne Glanz.
   - **Polarlicht.** Auf der Nachtseite liegt das Oval um den magnetischen Pol, derselbe Dipol wie in der Szene. Es sitzt um Mitternacht bei gut 67 Grad magnetischer Breite, zur Mittagsseite hin näher am Pol, bei 75 Grad, und ist um Mitternacht am hellsten. Von oben gesehen liegt es in Bögen längs des Ovals, zwei oder drei nebeneinander, mit Falten und hellen Knoten, wie auf den Nachtbildern der Wettersatelliten. Es leuchtet in hundert Kilometern Höhe, über den Wolken.
@@ -586,15 +592,21 @@ Das **Bordbuch** — Frachter, Erdschatten, Einschläge, Ausweichschübe, Aus- u
 
 ## Bedienung
 
-Ziehen und Zoomen mit Maus, Rad und Fingern; weiter heraus, als der Zoom reicht, kommt die ganze Erde. Auf der Tastatur: L Log, C Crew, H Hintergrund, B Brücke, T Stationswerte, K Kinomodus, R Rundgang, E ganze Erde. **Pfeiltasten schieben** (ein Achtel der Bildbreite, mit Umschalt ein Viertel), Plus und Minus zoomen, **N und P springen von Astronaut zu Astronaut**, **W zum Nächsten, der auf dich wartet**, Leertaste stellt die Kamera zurück, Escape schließt. Tab springt ebenfalls durch die Crew, aber nur solange nichts anderes den Fokus hat — Tab ist die Taste, mit der man überhaupt erst zu den Knöpfen kommt.
+**Zoomen** mit dem Mausrad, zwei Fingern auf dem Trackpad oder durch Zusammenziehen, auch im Mac-Programm. Gezoomt wird immer um die Mitte des Bildes. Früher zoomte das Rad zum Zeiger hin: Stand er neben der Station, rutschte sie beim Hineinzoomen zur Seite weg. Das Zusammenziehen meldet WebKit (Safari, Mac-Programm) nicht als Rad, sondern als eigene Geste, und die wertete ORBIT gar nicht aus. Auf dem Mac zoomte es damit überhaupt nicht.
+
+**Ziehen** verschiebt, aber nur so weit, dass die Mitte des Bildes über der Station bleibt: bis sieben Modulradien zur Seite und drei nach oben und unten, mal Zoom. So lässt sich jedes Bauteil in die Mitte holen, aber die Station nie aus dem Bild schieben. Beim Herauszoomen kommt sie von selbst zurück in die Mitte. Doppelklick fährt zu einem Astronauten heran, auf leerem Himmel zurück in die Ausgangslage.
+
+**Zur Erde und zurück.** Rechts steht immer die Leiste mit „Erde“, Plus, Minus und Zurücksetzen. „Erde“ (oder E) fliegt hinüber: Die Station fällt zurück, bis sie klein im Schwarz steht, dann kommt die Kugel aus der Ferne heran. Dort heißt der Knopf „Station“ und bringt dich zurück. Wer unterwegs ins Bild greift, ist sofort am Ziel. Früher kam man zur Erde nur, wenn man über den kleinsten Zoom hinaus weiterzoomte, und wer weit hineinzoomte oder neben die Kugel tippte, landete ungefragt wieder an der Station. Beides ist weg.
+
+Auf der Tastatur: L Log, C Crew, H Hintergrund, B Brücke, T Stationswerte, K Kinomodus, R Rundgang, E zur Erde und zurück. **Pfeiltasten schieben** (ein Achtel der Bildbreite, mit Umschalt ein Viertel), Plus und Minus zoomen, **N und P springen von Astronaut zu Astronaut**, **W zum Nächsten, der auf dich wartet**, Leertaste stellt die Kamera zurück, Escape schließt. Tab springt ebenfalls durch die Crew, aber nur solange nichts anderes den Fokus hat — Tab ist die Taste, mit der man überhaupt erst zu den Knöpfen kommt.
 
 **Die Befehlspalette.** ⌘K (Strg+K) öffnet sie, auch aus einem Textfeld heraus; außerhalb von Textfeldern auch der Schrägstrich. Sie ist eine Suche über alles, was sonst hinter Knöpfen liegt:
 - die Crew; Enter fährt zur Figur und öffnet sie,
-- Aktionen: zum Nächsten, der wartet, Rundgang, ganze Erde, Kamera zurück, Vorführung,
+- Aktionen: zum Nächsten, der wartet, Rundgang, zur Erde fliegen und zurück, Kamera zurück, Vorführung,
 - die Blenden oben, mit ihrer Taste daneben,
 - die Schalter unter Stationswerte, mit ihrem Zustand,
 - Orte: 1822 Städte und 242 Länder, deutsch und englisch („Munich“ findet München), die größere zuerst, höchstens zwölf,
-- die 42 Hintergründe, aber erst, wenn man nach ihnen sucht.
+- die 43 Hintergründe (Schwarz und 42 Nebel), aber erst, wenn man nach ihnen sucht.
 
 **Ortssuche und Flug.** Enter auf einen Ort fliegt die ganze Erde dorthin, wie bei Google Earth:
 - über den Großkreis, weich an- und auslaufend, 1,2 bis 3 Sekunden je nach Weite;
@@ -688,7 +700,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Geprüft
 
-119 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
+122 Tests mit Playwright, ohne echte API-Kosten. Die ganze Reihe läuft gegen einen eingefrorenen Stand. Wo „gegengeprüft“ steht, schlägt der Test gegen die alte oder eine absichtlich kaputte Fassung an.
 
 **Daten und Brücke**
 - **Regenradar** (regen.mjs, ein nachgebautes RainViewer mit bekannten Werten):
@@ -700,6 +712,8 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Ein neues Bild: Dazwischen zeigt München das alte, danach das neue. Die Palette kennt den Schalter, nach dem Neuladen ist er noch an. Aus: Speicher leer, keine Anfrage, München wie ohne. Eine fremde Adresse im Index wird abgelehnt, keine Anfrage dorthin.
   - Das bunte Bild als Rückfall: dieselben Worte für München und Oslo, „kein Regen gemessen“ für Paris und den Atlantik. Eine Kachel ganz im Regen wird trotzdem richtig erkannt: bunt ganz blau ergibt 24 dBZ, roh ganz 40 dBZ bleibt roh. Die erste Erkennung stützte sich nur auf durchsichtige Punkte und hätte die blaue Kachel für Messwerte gehalten; jetzt zählt auch der Blaukanal, der in den Messwerten nur 0, 191 oder 255 ist. An 54 echten rohen und 16 echten bunten Kacheln nachgeprüft: keine falsch.
   - Gegengeprüft mit 17 kaputten Fassungen: Erkennung nur am Alpha, Breite ohne Mercator, ohne Schnee, ohne Radarfläche, fremde Adresse erlaubt, nur grob, ohne Nachziehen, ohne Quelle, Aus räumt nicht auf, Tafel falsch, ohne Zeile, neues Bild übersehen, fragt auch bei geschlossener Erde, Loch beim neuen Bild, Blitze nur aus Wolken, um 3,6 Grad nach Osten verschoben, malt ausgeschaltet weiter. Alle 17 schlagen an.
+- **Version 38 (mit 36 und 37) gegen den eingefrorenen Stand f72e3ca: 119 von 122 grün.** Alle drei roten fanden etwas: erdansicht.mjs drückte Plus, während die Kugel nach dem Flug noch heranflog, und der Druck verpuffte. Jetzt beendet Zoomen unterwegs die Reise sofort und wirkt (58f40b1). menue.mjs kannte den neuen Schalter nicht und fand danach, dass sein Name „Erde unter der Station“ im Menü umbrach; er heißt jetzt „Erde unten“. tasten.mjs schob bei Zoom 1 mit Umschalt über die neue Grenze, die die Station im Bild hält; der Test zoomt jetzt erst heran. Gegen 58f40b1 sind alle drei grün, dazu steuerung.mjs. Neu darin: steuerung.mjs und einraeumen.mjs. Zehn bestehende Tests schalten jetzt die Erde unten ein, weil sie Gewitter, Kobolde, Sternschnuppen, Polarlicht, Mondlicht auf Wolken, Nähte am Rand und das Antippen der Erde prüfen; erdansicht.mjs öffnet die Erde über den Knopf.
+- **Version 36 gegen den eingefrorenen Stand 99d578b: 120 von 120 grün.** Neu darin: behaelter.mjs, mit 19 kaputten Fassungen gegengeprüft; alle schlagen an.
 - **Version 35 gegen den eingefrorenen Stand 4b26736: 118 von 119 grün.** kobold.mjs war wie bekannt unter Last rot und allein grün. Neu darin: lager.mjs. Die bestehenden Tests liefen mit dem Außenlager unverändert grün, darunter lieferung.mjs (Frachter und Lieferungen), teiletippen.mjs (tippt jede Stelle an, jetzt samt den vier des Lagers) und crewfragen.mjs.
 - **Version 34 gegen den eingefrorenen Stand ff3f3ae: 115 von 118 grün.** kobold.mjs und echteiss.mjs waren wie bekannt unter Last rot und allein grün. schicht.mjs fiel im Fall „zweimal 401“: Er las die obersten zwei Einträge des Bordbuchs, und dazwischen hatte die Station von selbst „Ventil abgeblasen“ geschrieben. Die App hatte richtig abgeschaltet. Der Test liest jetzt nur, was der Schichtbericht schreibt, und ist so gegen ff3f3ae grün. Neu darin: schicht.mjs, dazu misst wache.mjs die Leuchte jetzt genau an ihrer Stelle.
 - **Version 33 gegen den eingefrorenen Stand 47706d1: 114 von 117 grün.** kobold.mjs war wie bekannt unter Last rot und allein grün. crewfragen.mjs: Nach dem Verlassen des Felds stand die Fragenreihe nach 300 ms noch da; allein grün, der Test wartet jetzt bis zu zwei Sekunden. detailtausch.mjs: Der lange Klick auf das zweite Unterfenster ging verloren. Mit Notiz, Erinnern und Melden ist das Detailfenster länger geworden, das Unterfenster lag unter seiner Unterkante, und der Test drückte auf das Auftragsfeld darunter. Er scrollt es jetzt erst ins Bild, wie man es selbst täte; so grün gegen 47706d1, gegen Version 32 weiter grün. Neu darin: wache.mjs und rueckblick.mjs, beide danach in strengerer Fassung gegen 47706d1 grün.
@@ -750,6 +764,28 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Ein Ring allein, gemalt wie in der Station: 18 Bolzen. Die zehn im Licht sind 0,74- bis 0,92-mal so hell wie der Ring daneben, die drei im Schatten höchstens 76 von 255.
   - Im Nahbild sind die Köpfe im dunklen Gurt höchstens 88 hell (30 gemessen).
   - Gegengeprüft mit acht kaputten Fassungen: Bolzen nach dem Verlauf der Röhre, Bolzen immer hell, Köpfe immer hell, keine Köpfe, der alte Fleck, keine Vergilbung je Decke, Bolzen nie, Köpfe bei jeder Größe. Alle acht schlagen an.
+- **Steuerung und Himmel** (steuerung.mjs):
+  - Start mit leerem Speicher: Hintergrund Schwarz, kein Filmkorn, Grundfarbe `#000000`, keine Erde unten. Das Band unten, wo sie lag, ist am Mittag des Umlaufs schwarz (Median der Helligkeit höchstens 6 von 255). Die Leiste mit „Erde“ steht von Anfang an da.
+  - Mausrad, sechsmal hinein, mit dem Zeiger am linken Rand: 3,7-fach, und die Mitte bleibt, wo sie war (Versatz unter einem halben Punkt). Vierzigmal heraus: beim kleinsten Zoom Schluss, keine Erde, keine Reise.
+  - Strg+Rad zählt mit 0,01 je Punkt statt 0,0018, Zeilen werden mal 16 gerechnet. Die Geste von WebKit zoomt relativ zum letzten Maßstab (1,3 und dann 1,69 heißt zweimal 1,3), wird abgefangen, und mit offener Blende zoomt sie nicht.
+  - Ziehen um 1320 Punkte nach links und 480 nach unten endet genau an der Grenze: 7 R zur Seite, 3 R um die Mitte der Station.
+  - Der Knopf: nach 0,28 s fällt die Station zurück (Knopf „Station“, gesperrt), nach 2,9 s ist die ganze Erde da. Vierzigmal hinein und ein Tipp neben die Kugel: sie bleibt. „Station“: die Kugel wächst, dann ist nach 2,4 s die Station wieder da, Zoom über 0,95. E hin und zurück ebenso. Wer unterwegs greift, ist sofort am Ziel.
+  - Der Schalter „Erde unten“: an, gespeichert, nach dem Neuladen noch an, unten wieder Erde (Band heller als 12), ein Tipp trifft sie. Aus: schwarz, der Tipp trifft nichts, keine Ortskarte.
+  - Die Sonne beim Aufgehen: ohne Erde kein Beschnitt am Erdrand, mit Erde wie bisher. Ohne Erde entsteht keine Sternschnuppe, auch wenn der Zufall sie verlangt; mit Erde schon. Überflug und Bodenspur laufen ohne Erde aus der Bahn weiter.
+  - Ein alter Speicher mit dem Orionnebel ohne eigene Wahl wird Schwarz. Wer Trifid wählt, behält ihn nach dem Neuladen, mit Filmkorn; ein selbst gewählter Orionnebel bleibt.
+  - Die 45 kaputten Fassungen laufen gegen 58f40b1; das Ergebnis steht hier, sobald sie durch sind.
+- **Einer sieht nach** (einraeumen.mjs; GitHub nachgebaut, die drei Agenten der Start-Crew an festen Plätzen, damit keiner zufällig wandert):
+  - PR #12 dockt an und steht Steuerbord oben: genau einer hangelt los, zum Platz oben neben dem Lager und nicht zu dem unten, der näher läge. Griffe, Dauer und Start passen zur Strecke, im Bordbuch steht genau eine Zeile.
+  - Alle denken, eine Sitzung ist fertig: niemand geht, auch die Sitzung nicht, und der Gang bleibt zehn Minuten offen. Wird Vega fertig, geht Vega los.
+  - Backbord oben: der Weg führt dorthin, und wer gerade hangelt, wird übergangen. Wer schon dort steht, übernimmt und bleibt stehen. Backbord unten: zum Platz unten.
+  - Nach dem Ende der Vorführung, nach Ablauf der Frist, ohne Plätze am Träger und mit reduzierter Bewegung geht niemand, und nichts bricht.
+  - Die 24 kaputten Fassungen laufen gegen 58f40b1; das Ergebnis steht hier, sobald sie durch sind.
+- **Ein Behälter für sich** (behaelter.mjs; GitHub nachgebaut, `window.open` abgefangen):
+  - Die Lieferungen tragen ihre Adresse: PR #12 aus dem Merge-Lauf, PR #13 aus der Nachfrage bei GitHub, ein Push mit Prüfsumme. Ein Push ohne gültige Prüfsumme bekommt keine. Nach dem Neuladen noch da; aus dem Speicher fallen `javascript:`, eine fremde Domain, die sich als github.com ausgibt, und eine kaputte Nummer heraus.
+  - Nah heran, die Kiste PR #12 echt angeklickt: Name, Titel, „Eine Kiste“, Zeit, Platz, der Knopf „Pull Request auf GitHub öffnen ↗“, Zeilen umgebrochen, kein leerer Knopf. Der Knopf öffnet genau `https://github.com/du/webshop/pull/12`. Ein Tipp auf ihre Oberkante, hinter der ein anderer steht, öffnet sie und nicht den hinteren.
+  - Der Tank: „Ein Tank“ und „Commit auf GitHub öffnen ↗“. Danach der Träger: kein Knopf. Im vollen Lager sagt die Karte, wen die Crew als Nächsten hineinholt.
+  - Vorführung: ihr PR #12 kommt ohne Link, und die Karte sagt es. Handy: Karte und Knopf passen.
+  - 19 kaputte Fassungen schlagen an: ohne Adresse bei PR, Push oder Nachfrage, eine ungeprüfte oder nicht geladene Adresse, ein Link in der Vorführung, kein Tipp, der hintere gewinnt, ein fehlender, bleibender oder falsch zielender Knopf, eine falsche Aufschrift oder Art, ohne Platz oder Zeit, eine stumme Vorführung, der falsche Nächste im vollen Lager, eine Zeile statt vieler und der Titel statt des Namens.
 - **Das Außenlager** (lager.mjs; GitHub nachgebaut wie in lieferung.mjs, die Flugzeiten kurz):
   - Leer: keine Behälter, die Karte sagt „Noch leer“, die Crew liest nichts davon.
   - PR #12 gemergt: Im Anflug steht noch nichts im Lager. Angedockt steht ein Behälter da, im Bordbuch „Außenlager: 1 Behälter ausgeladen“, gespeichert. Angedockt kommen ein Push und PR #15 dazu: gleich im Lager, einmal „2 Behälter“. Nach dem Ablegen liefert derselbe Stand nichts mehr, und die erste vorgeschlagene Frage ist „Was wurde heute geliefert?“ (bei leerem Lager keine).
@@ -951,7 +987,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
   - Mondlicht auf den Wolken ist mit beiden Erden geprüft.
   - Magnetische Breite: Churchill in Kanada liegt bei 67,2 Grad, Berlin bei 52,1, und südlich von Australien kommt die Station auf −60.
 - **Die ganze Erde**:
-  - Am Mausrad über den kleinsten Zoom hinaus kommt die Kugel, die Überblendung läuft durch, und die Zoomanzeige sagt „Erde“.
+  - Mit dem Knopf „Erde“ kommt die Kugel, die Überblendung läuft durch, und die Zoomanzeige sagt „Erde“. Plus zoomt sie bis 2,4-fach und bleibt dort; zurück geht es mit Esc, dem Knopf „Station“ und einem Tipp auf die Station (bis Version 37 über das Mausrad, siehe Bedienung).
   - Die Station steht auf weniger als einen Bildpunkt genau dort, wo die Bahn in 420 Kilometern Höhe sie hinstellt.
   - An 120 klaren Stellen der Tagseite weicht die gemalte Farbe im Mittel um 1,9 Stufen von der Karte am selben Ort ab, samt Sonnenlicht und Luftsaum. Gegengeprüft: Um zehn Grad verdreht sind es 44,5.
   - An 80 dunklen Stellen der Nachtseite ohne Städte ist keine heller als 10 von 255.
@@ -1098,6 +1134,7 @@ Meine Syntaxprüfung vor jedem Commit verweigert jetzt doppelte Funktionsnamen. 
 
 ## Offene Punkte
 
+- **Die Trackpad-Geste ist nicht auf einem Mac ausprobiert.** Hier gibt es nur Chromium, kein WebKit. Geprüft ist sie mit nachgebauten Ereignissen `gesturestart`/`gesturechange` mit Maßstab, wie Safari sie nach seiner Beschreibung schickt, und Strg+Rad, wie Chrome das Zusammenziehen meldet. Ob das Mac-Programm (WKWebView in Neutralino) die Geste an die Seite weitergibt oder selbst vergrößert, habe ich nicht gesehen. Mausrad und zwei Finger zum Scrollen kommen dort als gewöhnliches Rad an und zoomen in jedem Fall.
 - **Erinnerungen sind nur mit nachgebauter Zeit geprüft.** Der Takt bekam im Test die Uhrzeit danach; eine echte Viertelstunde habe ich nicht abgewartet. Ob macOS die Mitteilung einer Erinnerung zeigt, wenn ORBIT im Hintergrund läuft, ist auf keinem Mac ausprobiert. Im Browser drosseln Tabs im Hintergrund ihre Zeitgeber; dann kommt eine Erinnerung bis zu einer Minute später.
 - **kobold.mjs wackelt unter Last.** In den Reihen für Version 26, 27 und 29 war er je einmal rot, ohne ein einziges gezeichnetes Bild in den 40 Schritten der angehaltenen Uhr. Allein lief er danach grün, unter voller Prozessorlast sechsmal grün, mit zwei weiteren Browser-Tests daneben aber in 1 bis 2 von 4 Läufen rot, und zwar bei Version 25 genauso (2 von 4). Er liegt also nicht an den neuen Funktionen. Ausgeschlossen: eine offene Blende, die Erdansicht, ein Austausch der Gewitterzellen und Seitenfehler. Warum Playwrights angehaltene Uhr unter dieser Last manchmal keine Bilder liefert, habe ich nicht gefunden. Drei Versuche statt einem halfen nicht, weil er dann in allen dreien hängen blieb; die Fehlermeldung nennt jetzt die Zahl der gezeichneten Bilder.
 - **Gehört habe ich keinen einzigen Ton.** Tonerzeugung und Stimme des Browsers sind in den Tests nachgebaut. Geprüft sind Frequenzen, Wellenformen, Lautstärken, Ein- und Ausblenden, Reihenfolge und Zeitpunkte, nicht der Klang selbst. Ob die Vorschau auf claude.ai und das Mac-Programm (WebKit) Ton und Stimme zulassen, ist nicht ausprobiert. Welche deutsche Stimme es gibt und wie gut sie klingt, liegt am Gerät.
