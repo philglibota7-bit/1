@@ -13667,6 +13667,9 @@ uniform float uReliefStaerke;
 uniform vec4 uSatFenster;
 uniform vec2 uSatRaster;
 uniform float uWolkenWeg;
+/* Wie nah heran: 0 bei der ganzen Erde, 1 ab sechzehnfachem Zoom. Die Luft
+   wird dann duenner, denn man schaut wie aus geringerer Hoehe. */
+uniform float uNah;
 /* 1 bei den Bildern der NASA: dann steht im Alphakanal der Kachel nicht die
    Beschriftung, sondern das Licht der Nacht aus Black Marble */
 uniform float uSatLichter;
@@ -13930,15 +13933,20 @@ void main() {
   float s2 = fract(s + 0.5) - 0.5;
   if (fwidth(s2) < fwidth(s) - 0.0001) uv.x = s2;
 ` : "") + `
-  /* Die Wolkenkarte ist gut acht Kilometer je Bildpunkt fein, auf dem
-     Schirm liegen an der Kante zwei Kilometer auf einem. Ohne Zutat
-     wuerde sie dort weich. Also bekommt die Kante jeder Wolke feines
-     Rauschen dazu — nur die Kante, denn ein dichtes Feld ist auch aus
-     der Naehe dicht, und klarer Himmel bleibt klar. */
+  /* Die Wolkenkarte hat seit Version 39 gut zehn Kilometer je Bildpunkt,
+     vorher zwanzig, weichgezeichnet. Auf der Scheibe unter der Station
+     liegen an der Kante zwei Kilometer auf einem Bildpunkt; dort bekommt
+     die Kante jeder Wolke feines Rauschen dazu — nur die Kante, denn ein
+     dichtes Feld ist auch aus der Naehe dicht, und klarer Himmel bleibt
+     klar. Auf der ganzen Erde nicht mehr: Dort lag das Rauschen als Korn
+     auf jeder Wolke, und die Karte ist jetzt fein genug. */
   float w = texture2D(uWolken, uv).r;
-  float n1 = texture2D(uKorn, uv * vec2(24.0, 12.0)).r;
-  float n2 = texture2D(uKorn, uv * vec2(67.0, 33.5) + 0.37).r;
-  float fein = (n1 - 0.5) * 0.6 + (n2 - 0.5) * 0.4;
+  float fein = 0.0;
+  if (uSchicht < 2.5) {
+    float n1 = texture2D(uKorn, uv * vec2(24.0, 12.0)).r;
+    float n2 = texture2D(uKorn, uv * vec2(67.0, 33.5) + 0.37).r;
+    fein = ((n1 - 0.5) * 0.6 + (n2 - 0.5) * 0.4) * 0.7;
+  }
   float wolke = smoothstep(0.14, 0.88, w + fein * w * (1.0 - w) * 1.1);
   /* Hineingezoomt sind die Wolken acht Kilometer grobe Flecken ueber
      einem scharfen Boden; wie jede Satellitenkarte zeigt die Kugel dann
@@ -13969,22 +13977,48 @@ void main() {
        zweiten darueber und keine Schatten von ihnen */
     float wolkeTag = wolke * (1.0 - uGestern * tagKarte.a);
     boden = mix(boden, sat.rgb, sat.a);
-    /* Blue Marble ist fuer Karten gemacht, hell und satt. Aus dem Orbit
-       liegt ueber allem ein Hauch Luft: etwas weniger Saettigung, etwas
-       tiefere Schatten. */
-    float grau = dot(boden, vec3(0.3, 0.55, 0.15));
-    vec3 getoent = pow(mix(vec3(grau), boden, 0.86), vec3(1.12)) * 0.95;
-    /* Nah herangezoomt schaut man durch weniger Luft: dann bleibt von
-       dieser Toenung nur ein Zehntel, und das Satellitenbild behaelt
-       seine Farben. Ohne Zoom ist es genau die Toenung wie immer. */
-    /* Das Echtfarbenbild von gestern ist nicht fuer Karten aufgehuebscht,
-       sondern so, wie der Satellit es sah: dort nur ein Drittel davon */
-    boden = mix(boden, getoent, (1.0 - 0.9 * uWolkenWeg) * (1.0 - 0.65 * uGestern * tagKarte.a));
     float schatten = smoothstep(0.2, 0.9, texture2D(uWolken, uv - schritt).r) * (1.0 - uWolkenWeg)
                    * (1.0 - uGestern * tagKarte.a);
-    boden *= 1.0 - schatten * 0.42 * (1.0 - wolkeTag);
-    vec3 weiss = vec3(0.82, 0.84, 0.87) + kamm * 0.16;
-    farbe = mix(boden, weiss, min(1.0, wolkeTag * 1.15));
+    if (uSchicht > 2.5) {
+      /* Die ganze Erde. Blue Marble mit Meeresboden zeigt die Ruecken und
+         Graeben der Tiefsee in hellem Blau; aus dem Orbit sieht man davon
+         nichts, das tiefe Meer ist gleichmaessig dunkel. Flache Schelfe
+         bleiben etwas heller, wie auf echten Bildern. Wasser erkennt der
+         Schattierer an der Farbe (wie beim Sonnenglanz), die Tiefe an der
+         Helligkeit, denn die Karte malt den Meeresboden mit der Tiefe
+         dunkler. Das Blau des Meeres kommt dann von der Luft darueber
+         (weiter unten), wie in Wirklichkeit. */
+      vec3 k = tagKarte.rgb;
+      float nass = smoothstep(1.25, 1.7, k.b / (k.r + 0.03)) * smoothstep(0.9, 1.1, k.b / (k.g + 0.03))
+                 * (1.0 - uGestern * tagKarte.a) * (1.0 - sat.a);
+      float tief = 1.0 - smoothstep(0.10, 0.26, dot(k, vec3(0.3, 0.5, 0.2)));
+      boden = mix(boden, vec3(0.010, 0.032, 0.090), nass * mix(0.5, 0.9, tief));
+      /* Satt: Die Toenung fuer den Blick aus dem Orbit, die bis Version 38
+         hier lag (weniger Farbe, dunkler), macht jetzt die Luft, und die
+         nimmt Farbe; also hier gut die Haelfte mehr. Die Satellitenbilder
+         von Esri sind schon satt, sie bekommen nur ein Zehntel davon. */
+      float grau3 = dot(boden, vec3(0.3, 0.55, 0.15));
+      boden = max(mix(vec3(grau3), boden, 1.0 + 0.55 * (1.0 - 0.8 * sat.a)), 0.0);
+      /* und an Land ein wenig tiefer, wie ein gutes Foto: Wueste, Savanne und
+         Wald bekommen Tiefe statt Pastell */
+      boden = mix(boden, pow(boden, vec3(1.12)) * 1.06, (1.0 - nass) * (1.0 - sat.a));
+      /* Wolkenschatten etwas tiefer, Wolken weisser */
+      boden *= 1.0 - schatten * 0.5 * (1.0 - wolkeTag);
+      vec3 weiss = vec3(0.9, 0.92, 0.94) + kamm * 0.1;
+      farbe = mix(boden, weiss, min(1.0, wolkeTag * 1.15));
+    } else {
+      /* Blue Marble ist fuer Karten gemacht, hell und satt. Aus dem Orbit
+         liegt ueber allem ein Hauch Luft: etwas weniger Saettigung, etwas
+         tiefere Schatten. */
+      float grau = dot(boden, vec3(0.3, 0.55, 0.15));
+      vec3 getoent = pow(mix(vec3(grau), boden, 0.86), vec3(1.12)) * 0.95;
+      /* Das Echtfarbenbild von gestern ist nicht fuer Karten aufgehuebscht,
+         sondern so, wie der Satellit es sah: dort nur ein Drittel davon */
+      boden = mix(boden, getoent, 1.0 - 0.65 * uGestern * tagKarte.a);
+      boden *= 1.0 - schatten * 0.42 * (1.0 - wolkeTag);
+      vec3 weiss = vec3(0.82, 0.84, 0.87) + kamm * 0.16;
+      farbe = mix(boden, weiss, min(1.0, wolkeTag * 1.15));
+    }
   }
   /* Ein Hauch Korn gegen Streifen in den weichen Verlaeufen */
   float korn = (texture2D(uKorn, gl_FragCoord.xy / 128.0).r - 0.5) * 0.012;
@@ -14030,7 +14064,13 @@ void main() {
      Staedte. Zur Kante hin legt sich die Luft blau darueber, auf der
      Nachtseite kaum. */
   float sonne = dot(p, uSonne);
-  float licht = clamp(sonne * 1.15 + 0.1, 0.0, 1.0);
+  /* Der Blick: 1 in der Mitte der Kugel, 0 an ihrem Rand */
+  vec3 zumAuge = normalize(uBlick * vec3(0.0, 0.0, 1.0));
+  float mu = clamp(dot(p, zumAuge), 0.0, 1.0);
+  /* Das Licht faellt ab, wie die Sonne sinkt, bis zum Tagesrand. Bis
+     Version 38 war schon bei halbhoher Sonne alles voll hell; dann sah die
+     Kugel aus wie eine Scheibe. */
+  float licht = pow(clamp(sonne, 0.0, 1.0), 0.8) * 1.08;
   /* Die Satellitenbilder tragen schon das Licht ihres Aufnahmetags, meist
      vormittags bei hoher Sonne. Beleuchtet man sie noch einmal, werden sie
      doppelt dunkel. Also zaehlt fuer sie das Licht im Verhaeltnis zu dem
@@ -14060,12 +14100,34 @@ void main() {
 #endif
   licht = mix(licht, satLicht, sat.a * uWolkenWeg);
   float nacht = smoothstep(0.06, -0.14, sonne);
+  /* Die Luft. Sie streut Blau aus dem Sonnenlicht heraus und in den Blick
+     hinein, um so mehr, je laenger der Weg durch sie ist: senkrecht ein
+     Luftweg, zum Rand der Kugel hin bis gut dreissig. In der Mitte bleibt
+     der Boden klar, zum Rand hin legt sich ein blauer Schleier darueber,
+     und das macht die Kugel rund. Die Sonne scheint durch dieselbe Luft:
+     Steht sie tief, kommt weniger Blau an, ihr Licht wird gelb und am
+     Tagesrand rot. Wolken liegen ueber dem dichtesten Teil der Luft, sie
+     bekommen weniger davon ab. Hineingezoomt auf die Satellitenbilder
+     schaut man wie aus geringerer Hoehe, dann bleibt ein Fuenftel. */
+  const vec3 LUFT = vec3(0.030, 0.066, 0.155);
+  float dicke = (1.0 - 0.5 * wolke) * (1.0 - 0.8 * max(uWolkenWeg, uNah));
+  vec3 durch = exp(-LUFT * dicke / (mu + 0.034));
+  /* Fuer die Sonne nur gut die Haelfte: sonst lag ein breiter, schmutzig
+     brauner Guertel vor dem Tagesrand */
+  vec3 sonnenFarbe = exp(-LUFT * 0.55 * dicke * min(1.0 / (max(sonne, 0.0) + 0.034), 29.4));
   /* Das Abendrot faellt vor allem auf Wolken: der Boden liegt dort
      schon im Schatten, die Oberkanten fangen das letzte Licht. Ein
      breiter brauner Guertel, wie er zuerst hier stand, sieht auf keinem
      Foto aus dem Orbit so aus. */
   float daemmer = exp(-pow((sonne + 0.012) / 0.034, 2.0)) * (0.3 + 0.7 * wolke);
-  vec3 f = farbe * (0.05 + 0.95 * licht) + vec3(1.0, 0.3, 0.08) * daemmer * 0.1 + stadt * nacht * 1.1;
+  vec3 f = farbe * (0.035 + licht * sonnenFarbe) * durch + vec3(1.0, 0.3, 0.08) * daemmer * 0.1
+         + stadt * nacht * 1.1 * durch;
+  /* Das Streulicht: blau, wo die Luft in der Sonne liegt, in der
+     Daemmerung noch ein Stueck ueber den Tagesrand hinaus, dort warm. Nach
+     vorn und hinten streut Luft doppelt so stark wie zur Seite. */
+  float cw = dot(uSonne, zumAuge);
+  vec3 streuFarbe = mix(vec3(1.0, 0.55, 0.3), vec3(1.0), smoothstep(-0.02, 0.12, sonne));
+  f += (1.0 - durch) * smoothstep(-0.12, 0.28, sonne) * streuFarbe * 0.75 * (1.0 + cw * cw) * 1.05;
   /* Mondlicht: auf der Nachtseite liegen die Wolken grau-blau im Licht
      des echten Mondes, dort, wo er ueber dem Horizont steht — bei
      Vollmond deutlich, bei Halbmond kaum, bei Neumond gar nicht. */
@@ -14080,18 +14142,22 @@ void main() {
      Schattierer an der Karte: Blue Marble malt nur Wasser blau (blau
      mehr als doppelt so stark wie rot, an Land hoechstens gleich).
      Wolken decken den Glanz zu. */
-  vec3 zumAuge = normalize(uBlick * vec3(0.0, 0.0, 1.0));
   vec3 halb = normalize(uSonne + zumAuge);
   float nh = max(dot(p, halb), 0.2);
-  float glanz = exp(-(1.0 - nh * nh) / (nh * nh) / 0.03) * step(0.0, sonne);
+  /* Etwas enger und schwaecher als bis Version 38: Dort lag der Glanz als
+     milchiger Hof um die halbe Kugel. Das Licht dafuer ist das der Sonne
+     nach ihrem Weg durch die Luft, bei tiefer Sonne also golden. */
+  float glanz = exp(-(1.0 - nh * nh) / (nh * nh) / 0.024) * smoothstep(0.0, 0.1, sonne);
   vec3 karte = texture2D(uTag, uv).rgb;
   float wasser = smoothstep(1.25, 1.7, karte.b / (karte.r + 0.03))
                * smoothstep(0.9, 1.1, karte.b / (karte.g + 0.03));
-  f += vec3(0.9, 0.92, 0.95) * glanz * wasser * (1.0 - wolke) * 0.55;
+  f += sonnenFarbe * durch * glanz * wasser * (1.0 - wolke) * 0.36;
   float polar = polarlicht(p) * smoothstep(0.02, -0.18, sonne);
-  f += mix(vec3(0.25, 1.0, 0.5), vec3(0.95, 0.3, 0.42), uPolar.w * 0.4) * polar * 0.32;
+  f += mix(vec3(0.25, 1.0, 0.5), vec3(0.95, 0.3, 0.42), uPolar.w * 0.4) * polar * 0.2;
   float rand = pow(1.0 - sqrt(1.0 - r2), 3.0);
-  f = mix(f, vec3(0.42, 0.62, 1.0) * (0.12 + 0.88 * licht), rand * 0.6);
+  /* Hell wie auf Film: ueber 0,8 laeuft es weich in die Saettigung, statt
+     hart abzuschneiden. So bleiben Wolken in der Mittagssonne rund. */
+  f = mix(f, 1.0 - 0.2 * exp(-(f - 0.8) / 0.2), step(0.8, f));
   /* Die Beschriftung leuchtet wie bei Google Earth aus sich selbst: bei
      Nacht und in der Daemmerung so lesbar wie am Mittag, ueber Wolken
      und Luft. Nur wo sie den Punkt fast ganz deckt; an ihren weichen
@@ -14246,6 +14312,8 @@ function erdkarteAufbauen() {
       gl = lw.getContext("webgl", opt) || lw.getContext("experimental-webgl", opt);
       if (!gl) throw new Error("kein WebGL");
       ableitung = !!gl.getExtension("OES_standard_derivatives");
+      const vp = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
+      ERDKARTE.maxSeite = Math.min(4096, vp ? vp[0] : 2048, gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 2048);
       aniso = gl.getExtension("EXT_texture_filter_anisotropic")
            || gl.getExtension("WEBKIT_EXT_texture_filter_anisotropic");
       const schatt = (art, text) => {
@@ -14306,7 +14374,7 @@ function erdkarteAufbauen() {
                        "uTag", "uWolken", "uLichter", "uKorn", "uPolar", "uOval",
                        "uSat", "uSatGueltig", "uSatFenster", "uSatRaster", "uWolkenWeg", "uSatLichter",
                        "uNacht", "uNachtBox", "uNachtGewicht", "uGestern", "uSatRelief", "uReliefStaerke",
-                       "uRegen", "uRegenFenster", "uRegenHoehe", "uRegenSchritte"])
+                       "uRegen", "uRegenFenster", "uRegenHoehe", "uRegenSchritte", "uNah"])
         u[n] = gl.getUniformLocation(prog, n);
       gl.uniform1i(u.uTag, 0); gl.uniform1i(u.uWolken, 1);
       gl.uniform1i(u.uLichter, 2); gl.uniform1i(u.uKorn, 3);
@@ -14495,6 +14563,7 @@ function erdkarteMalen(ziel, bw, bh, mx, my, rr, blick, schicht) {
   gl.uniform2f(u.uSatRaster, sat ? sat.nx : 1, sat ? sat.ny : 1);
   gl.uniform1f(u.uWolkenWeg, sat ? sat.wolkenWeg : 0);
   gl.uniform1f(u.uSatLichter, sat && sat.lichter ? 1 : 0);
+  gl.uniform1f(u.uNah, schicht > 2.5 ? klemm(Math.log2(Math.max(1, ERDANSICHT.zoom || 1)) / 4, 0, 1) : 0);
   /* Etwas kraeftiger als die reine Rechnung, damit das Relief auch bei
      halbhoher Sonne zu sehen ist */
   if (ERDKARTE.reliefMoeglich) gl.uniform1f(u.uReliefStaerke, sat && Z.relief ? RELIEF_STAERKE : 0);
@@ -15046,6 +15115,13 @@ function erdansichtMasse() {
 }
 
 const ERDANSICHT_BILD = { c: null, stand: null };
+/* Wie fein die Kugel gerechnet wird, fuer ein Stueck von rw mal rh Punkten
+   des Schirms (siehe zeichneErdansicht) */
+function erdansichtFein(rw, rh, bewegt) {
+  const grob = Math.min(DPR, 1.5, 2048 / Math.max(rw, rh));
+  const moeglich = Math.sqrt((bewegt ? 16 : 60) / (ERDANSICHT.kostenMP || 4) / Math.max(rw * rh / 1e6, 0.01));
+  return Math.max(grob, Math.min(DPR, moeglich, (ERDKARTE.maxSeite || 4096) / Math.max(rw, rh)));
+}
 function zeichneErdansicht(t, dt) {
   const ziel = ERDANSICHT.an && ERDKARTE.bereit ? 1 : 0;
   if (ziel === 0 && ERDANSICHT.blend === 0) { ERDANSICHT.geo = null; ERDANSICHT.uhr = 0; return; }
@@ -15097,7 +15173,18 @@ function zeichneErdansicht(t, dt) {
   const ax = Math.max(0, Math.floor(g.cx - kante)), ay = Math.max(0, Math.floor(g.cy - kante));
   const bx = Math.min(W, Math.ceil(g.cx + kante)), by = Math.min(H, Math.ceil(g.cy + kante));
   const rw = Math.max(1, bx - ax), rh = Math.max(1, by - ay);
-  const fein = Math.min(DPR, 1.5, 2048 / Math.max(rw, rh));
+  /* Wie fein: so fein wie der Schirm, wenn der Grafikchip das schafft.
+     Bis Version 38 hoechstens 1,5-fach und hoechstens 2048 Punkte breit;
+     auf einem Retina-Schirm (2-fach) wurde die Kugel dann um ein Drittel
+     bis auf das 1,65-Fache hochgezogen und sah weich und milchig aus.
+     Jetzt zaehlt, was ein Bild gekostet hat, in Millisekunden je Million
+     Punkte: in Bewegung darf es gut 16 ms kosten, im Stand 60, dann wird
+     einmal scharf nachgerechnet. Wer langsamer rechnet (ohne Grafikchip),
+     bleibt bei der alten Grenze. */
+  const vorher = q.stand;
+  if (vorher && (vorher.r !== g.r || vorher.ax !== ax || vorher.ay !== ay || vorher.frei !== ERDANSICHT.freiVersion
+      || vorher.neig !== ERDANSICHT.neig || vorher.az !== ERDANSICHT.az)) ERDANSICHT.bewegtUm = uhr;
+  const fein = erdansichtFein(rw, rh, uhr - (ERDANSICHT.bewegtUm || -1e9) < 300);
   const bw = Math.max(8, Math.round(rw * fein)), bh = Math.max(8, Math.round(rh * fein));
   if (!q.c) q.c = document.createElement("canvas");
   if (q.c.width !== bw || q.c.height !== bh) { q.c.width = bw; q.c.height = bh; q.stand = null; }
@@ -15124,6 +15211,8 @@ function zeichneErdansicht(t, dt) {
     erdkarteMalen((lw) => kg.drawImage(lw, 0, 0), bw, bh, (g.cx - ax) * fein, (g.cy - ay) * fein, g.r * fein, blick, 3);
     const dauer = performance.now() - t0;
     ERDANSICHT.kosten = ERDANSICHT.kosten ? ERDANSICHT.kosten * 0.8 + dauer * 0.2 : dauer;
+    const proMP = dauer / Math.max(0.01, bw * bh / 1e6);
+    ERDANSICHT.kostenMP = ERDANSICHT.kostenMP ? ERDANSICHT.kostenMP * 0.8 + proMP * 0.2 : proMP;
     q.stand = { phi, um: uhr, neig: ERDANSICHT.neig, az: ERDANSICHT.az, r: g.r, ax, ay,
                 frei: ERDANSICHT.freiVersion, sat: SATBILD.version, nacht: NACHTLICHT.version, regen: REGEN.version };
   }
@@ -15268,6 +15357,9 @@ function zeichneErdansicht(t, dt) {
   const drin = st.x >= 0 && st.x <= W * DPR && st.y >= 0 && st.y <= H * DPR;
   ERDANSICHT.station = !st.verdeckt && drin ? { x: st.x / DPR, y: st.y / DPR } : null;
   ERDANSICHT.stationRand = null;
+  /* Die Namen: ueber Kugel und Bahn, unter der Station, und erst jetzt, wo
+     feststeht, wo die Station steht (ihr Platz bleibt frei) */
+  erdNamenZeichnen(g, blick, sat, uhr);
   /* Die echte ISS, wenn gewuenscht: ein zweiter, kleiner Punkt in ihrer
      echten Hoehe, anders gefaerbt, damit man die beiden nicht verwechselt */
   ERDANSICHT.echteIss = null;
@@ -17909,6 +18001,387 @@ function flugTakt(uhr) {
 }
 
 /* Der Ring am Ziel, mit dem Namen darueber, in Bildpunkten */
+/* --- Namen auf der Kugel -----------------------------------------------------
+   Wie bei Google Earth stehen auf der ganzen Erde die Namen: Ozeane und
+   Meere, Laender und Staedte, deutsch, aufrecht und scharf, bei Tag und bei
+   Nacht. Bis Version 38 gab es Namen nur in den Kacheln von Esri, also nur
+   mit Satellitenbildern und erst ab Stufe 5; auf der ganzen Kugel stand kein
+   einziger.
+
+   Welche, haengt am Zoom: ganz weit weg die Ozeane, die grossen Laender und
+   die groessten Staedte, naeher heran immer kleinere. Ein Land bekommt seinen
+   Namen, sobald es gut 50 Bildpunkte breit ist, und verliert ihn wieder, wenn
+   es viel groesser als der Schirm wird. Keiner verdeckt einen anderen, und
+   wer schon stand, behaelt seinen Platz vor einem Neuen: Beim Zoomen springt
+   nichts hin und her. Neue kommen weich dazu.
+
+   Die Namen der Staedte und Laender sind die der Ortssuche (Natural Earth),
+   die der Meere die aus der Karte fuer „Unter uns“, jedes an dem Punkt, der
+   am weitesten von seinen Kuesten liegt (gerechnet auf der Karte, ein
+   Viertelgrad fein). Name|Breite|Laenge|Groesse in Grad.
+
+   Mit den Satellitenbildern von Esri stehen deren Namen, Grenzen und Orte ab
+   Stufe 5 in den Kacheln; dann treten diese hier zurueck, damit nichts
+   doppelt steht. Ohne Esri, in der Vorschau auf claude.ai und mit den Bildern
+   der NASA bleiben sie. Der Schalter Beschriftung schaltet beide. */
+const MEERE_TEXT = `Pazifischer Ozean|-21.4|-93.1|77.6
+Pazifischer Ozean|25.9|178.1|71.9
+Indischer Ozean|-29.1|82.1|69.7
+Atlantischer Ozean|-31.1|-20.6|57.1
+Atlantischer Ozean|24.9|-33.9|49.8
+Südlicher Ozean|-66.1|-179.9|36.5
+Philippinensee|18.4|133.9|21.1
+Arktischer Ozean|89.9|-177.4|20.3
+Arabisches Meer|14.1|62.9|18.1
+Korallenmeer|-18.1|153.6|17.8
+Tasmansee|-38.9|157.6|16.3
+Sargassosee|27.6|-57.6|15.8
+Südchinesisches Meer|15.9|114.1|15.6
+Karibisches Meer|13.1|-77.4|14.6
+Beringmeer|56.9|176.6|13.2
+Golf von Bengalen|12.6|86.4|12.7
+Rossmeer|-78.1|-175.9|11.6
+Europäisches Nordmeer|67.1|2.1|11.0
+Mittelmeer|33.6|28.9|10.8
+Ochotskisches Meer|53.4|149.6|10.6
+Golf von Mexiko|25.1|-93.1|10.3
+Straße von Mosambik|-20.6|39.9|10.3
+Weddell-Meer|-76.9|-56.6|10.2
+Barentssee|74.1|46.6|10.2
+Große Australische Bucht|-35.4|130.6|9.9
+Grönlandsee|72.1|-14.1|9.5
+Japanisches Meer|39.6|135.1|8.4
+Labradorsee|55.1|-52.4|8.3
+Lakkadivensee|5.6|75.9|8.2
+Karasee|76.9|73.1|7.8
+Hudson Bay|59.6|-86.1|7.6
+Ostchinesisches Meer|28.9|125.6|7.5
+Salomonensee|-9.4|155.1|7.4
+Arafurasee|-9.1|135.4|7.3
+Bandasee|-5.6|129.4|7.2
+Golf von Guinea|2.4|5.6|7.2
+Davisstraße|65.1|-57.9|7.1
+Andamanensee|9.6|95.4|6.7
+Javasee|-4.6|108.9|6.4
+Nordsee|56.1|2.9|6.2
+Laptewsee|74.1|131.4|5.8
+Beaufortsee|72.1|-133.6|5.8
+Celebessee|3.9|122.6|5.8
+Baffin Bay|75.1|-73.6|5.8
+Schwarzes Meer|43.6|31.1|5.6
+Rotes Meer|17.4|40.4|5.6
+Timorsee|-10.9|127.6|5.6
+Golf von Alaska|57.9|-149.6|5.5
+Nordwestpassage|71.6|-91.4|5.5
+Kaspisches Meer|38.6|51.1|5.2
+Gelbes Meer|34.9|123.4|5.2
+Tschuktschensee|68.6|-169.4|5.0
+Bismarcksee|-3.9|148.1|4.9
+Sulusee|7.6|119.6|4.8
+Golf von Carpentaria|-14.1|139.1|4.7
+Golf von Thailand|8.9|102.4|4.6
+Golf von Aden|13.1|49.9|4.4
+Bellingshausen-See|-71.6|-78.6|4.1
+Tyrrhenisches Meer|39.9|11.9|4.0
+Molukkensee|-0.1|125.6|4.0
+Biskaya|45.6|-4.9|4.0
+Persischer Golf|25.4|52.9|4.0
+Sankt-Lorenz-Golf|48.4|-60.6|3.9
+Ostsee|56.1|19.4|3.7
+Straße von Malakka|5.6|98.6|3.6
+Straße von Makassar|-0.4|118.6|3.6
+Ionisches Meer|38.1|18.1|3.5
+Bahía de Campeche|19.6|-94.4|3.5
+Seramsee|-2.4|131.1|3.4
+Hudsonstraße|61.1|-67.4|3.3
+Golf von Kalifornien|24.4|-108.9|3.2
+Schelichow-Bucht|59.9|157.9|3.0
+Adriatisches Meer|41.4|18.4|2.9
+Bottnischer Meerbusen|61.4|19.1|2.8
+Golf von Tonkin|19.1|106.9|2.8
+Golf von Oman|24.1|59.6|2.8
+Ärmelkanal|49.1|-5.6|2.6
+Floridastraße|25.1|-79.4|2.6
+Amundsensee|-73.9|-107.4|2.5
+Weißes Meer|67.6|41.9|2.4
+Balearen-Meer|39.4|0.6|2.4
+Koreastraße|33.4|127.9|2.4
+Amundsen-Golf|70.6|-126.1|2.3
+Golf von Maine|42.6|-69.6|2.3
+Ägäisches Meer|38.4|25.1|2.2
+Golf von Bohai|38.6|119.9|2.2
+James Bay|53.9|-80.6|2.0
+Bristol Bay|57.4|-160.9|2.0
+Viscount-Melville-Sund|73.9|-109.1|2.0
+Formosastraße|24.1|119.4|1.8
+Irische See|52.4|-5.6|1.7
+Ungava Bay|59.4|-67.9|1.7
+Golf von Mannar|8.4|78.9|1.5
+Golf von Panamá|7.9|-79.6|1.5
+Hebridensee|56.1|-7.4|1.4
+Melville-Bucht|75.1|-59.9|1.4
+Río de la Plata|-34.9|-57.1|1.4
+Golf San Jorge|-46.1|-66.6|1.4
+Finnischer Meerbusen|59.9|26.9|1.3
+Golfe du Lion|42.6|3.9|1.1
+Bristolkanal|50.9|-5.4|1.1
+Golf von Honduras|16.4|-87.9|1.0
+Cook Inlet|59.4|-152.9|0.9
+Bay of Plenty|-37.1|176.4|0.9
+Seto-Inlandsee|34.6|134.6|0.7
+Bay of Fundy|45.4|-65.1|0.7
+Golf von Kachchh|22.9|68.9|0.6
+Chesapeake Bay|38.1|-76.1|0.5
+Scotiasee|-61.4|-54.4|0.2
+Straße von Singapur|1.1|103.6|0.2
+Drakestraße|-66.6|-68.1|0.2`;
+const ERDNAMEN = { liste: null, stehen: new Map(), breiten: new Map(), gezeigt: [], deck: 0 };
+/* Auf der Karte kurz, wie in jedem Atlas; gesucht wird weiter mit den
+   langen. Ueberseegebiete ohne eigenes Land bleiben ohne Namen. */
+const ERDNAMEN_KURZ = {
+  "Volksrepublik China": "China", "Republik China": "Taiwan", "Vereinigtes Königreich": "Großbritannien",
+  "Demokratische Republik Kongo": "DR Kongo", "Republik Kongo": "Kongo", "Zentralafrikanische Republik": "Zentralafrika",
+  "Vereinigte Arabische Emirate": "VAE", "Bosnien und Herzegowina": "Bosnien-Herzeg.", "Dominikanische Republik": "Dominikan. Rep.",
+  "Republik Moldau": "Moldau", "Republik Zypern": "Zypern", "Türkische Republik Nordzypern": null,
+  "Französische Süd- und Antarktisgebiete": null, "Südgeorgien und die Südlichen Sandwichinseln": null,
+  "Heard und McDonaldinseln": null, "Siachen-Gletscher": null, "Ashmore- und Cartierinseln": null,
+  "Australische Territorien im Indischen Ozean": null, "Britisches Territorium im Indischen Ozean": null,
+  "Föderierte Staaten von Mikronesien": "Mikronesien", "St. Vincent und die Grenadinen": "St. Vincent",
+};
+function erdNamenListe() {
+  if (ERDNAMEN.liste) return ERDNAMEN.liste;
+  const L = ortsliste(), liste = [];
+  for (const z of MEERE_TEXT.split("\n")) {
+    const [name, b, l, g] = z.split("|");
+    liste.push({ art: +g >= 30 ? "ozean" : "meer", name, breite: +b, laenge: +l, p: erdVektor(+b, +l), spanne: +g });
+  }
+  for (const la of L.laender) {
+    const kurz = la.name in ERDNAMEN_KURZ ? ERDNAMEN_KURZ[la.name] : la.name;
+    if (la.spanne > 0 && kurz)
+      liste.push({ art: "land", name: kurz, breite: la.breite, laenge: la.laenge, p: erdVektor(la.breite, la.laenge), spanne: la.spanne });
+  }
+  /* Die groesste Stadt jedes Landes kommt vor die anderen: meist die
+     Hauptstadt, und der Name des Landes soll sie nicht verdecken */
+  const groesste = new Map();
+  for (const o of L.orte) {
+    const e = { art: "ort", name: o.name, breite: o.breite, laenge: o.laenge, p: erdVektor(o.breite, o.laenge), rang: o.rang, land: o.land };
+    liste.push(e);
+    const g = groesste.get(o.land);
+    if (!g || o.rang > g.rang) groesste.set(o.land, e);
+  }
+  for (const e of groesste.values()) e.haupt = true;
+  liste.forEach((e, i) => { e.nr = i; });
+  return (ERDNAMEN.liste = liste);
+}
+/* Schrift je Art, in Punkten des Schirms (mal DPR) */
+const ERDNAMEN_STIL = {
+  ozean: { schrift: "italic 500 13.5px", farbe: "rgba(168,206,255,.92)", abstand: 2.2, gross: false },
+  meer: { schrift: "italic 500 11px", farbe: "rgba(160,200,250,.88)", abstand: 0.8, gross: false },
+  land: { schrift: "620 11px", farbe: "rgba(255,243,222,.93)", abstand: 1.6, gross: true },
+  ort: { schrift: "550 11.5px", farbe: "rgba(255,255,255,.96)", abstand: 0.1, gross: false },
+};
+function erdNamenBreite(text, stil) {
+  const k = stil.schrift + "|" + text;
+  let b = ERDNAMEN.breiten.get(k);
+  if (b === undefined) {
+    b = cx.measureText(text).width;
+    if (ERDNAMEN.breiten.size > 6000) ERDNAMEN.breiten.clear();
+    ERDNAMEN.breiten.set(k, b);
+  }
+  return b;
+}
+/* Wie viel von den eigenen Namen zu sehen ist: alles, ausser die Namen von
+   Esri stehen schon in den Kacheln */
+function erdNamenDeck(sat) {
+  if (!Z.beschriftung) return 0;
+  const esri = Z.satellit && SATBILD.quelle === "esri" && SATBILD.geladen > 0 && sat && sat.gewicht > 0;
+  return esri ? 1 - sat.gewicht : 1;
+}
+function erdNamenZeichnen(g, blick, sat, uhr) {
+  const N_ = ERDNAMEN;
+  const deck = erdNamenDeck(sat) * ERDANSICHT.blend;
+  N_.deck = deck;
+  N_.gezeigt = [];
+  erdMeerMitte(g, uhr);
+  if (deck < 0.02 || !g || !blick) { N_.stehen.clear(); return; }
+  const M = blick.m, rand = bedienRand();
+  const oben = ((rand.oben || 60) + 6) * DPR, unten = ((rand.unten || H) - 6) * DPR;
+  /* Bildpunkte je Grad in der Mitte der Kugel */
+  const ppg = g.r * Math.PI / 180;
+  const gross = Math.max(W, H);
+  /* Ab welcher Einwohnerzahl (Tausend) eine Stadt ihren Namen bekommt */
+  const minEinw = 0.6e6 / Math.pow(Math.max(ppg, 0.5), 2.4);
+  const kandidaten = [];
+  for (const e of erdNamenListe()) {
+    if (e.art === "ozean") { if (ppg > 40) continue; }
+    else if (e.art === "meer" || e.art === "land") {
+      const px = e.spanne * ppg;
+      if (px < (e.art === "land" ? 52 : 70) || px > gross * 1.8) continue;
+    } else if (e.rang < minEinw) continue;
+    const v = e.p;
+    const z = v[0] * M[6] + v[1] * M[7] + v[2] * M[8];
+    /* Nur vorn, und nicht ganz am Rand, wo die Namen uebereinanderliefen */
+    if (z < 0.22) continue;
+    const x = (g.cx + g.r * (v[0] * M[0] + v[1] * M[1] + v[2] * M[2])) * DPR;
+    const y = (g.cy - g.r * (v[0] * M[3] + v[1] * M[4] + v[2] * M[5])) * DPR;
+    if (x < -200 * DPR || x > (W + 200) * DPR || y < oben - 40 * DPR || y > unten + 40 * DPR) continue;
+    kandidaten.push({ e, x, y, z });
+  }
+  /* Wer zuerst Platz bekommt: die Ozeane, dann nach Gewicht. Ein Land wiegt
+     nach seiner Groesse auf dem Schirm, eine Stadt nach ihren Einwohnern,
+     gemessen an der Grenze dieses Zooms; die groesste Stadt eines Landes
+     (meist die Hauptstadt) wiegt mehr, sonst verdeckte der Name des Landes
+     sie. Was in der Mitte liegt, zaehlt mehr als was am Rand der Kugel, und
+     wer schon stand, bleibt vor einem Neuen: Beim Zoomen springt nichts. */
+  for (const k of kandidaten) {
+    const e = k.e;
+    const roh = e.art === "ozean" ? 1e6
+      : e.art === "land" ? 300 + Math.min(e.spanne * ppg, 600)
+      : e.art === "meer" ? 100 + Math.min(e.spanne * ppg, 600) * 0.3
+      : 150 + 120 * Math.log2(Math.max(1, e.rang / minEinw)) + (e.haupt ? 150 : 0);
+    /* Das Land, auf das man schaut, bekommt seinen Namen vor den Staedten
+       ringsum */
+    const mitte = e.art === "land" && Math.hypot(k.x / DPR - W / 2, k.y / DPR - (oben + unten) / 2 / DPR) < Math.min(W, H) * 0.22 ? 2 : 1;
+    k.wert = roh * mitte * (0.15 + 0.85 * Math.pow(k.z, 4)) * (N_.stehen.has(e.nr) ? 1.12 : 1);
+  }
+  kandidaten.sort((a, b) => b.wert - a.wert);
+  N_.kandidaten = kandidaten;
+  /* Frei halten: die Station mit ihren Zeilen, die Marke eines Orts */
+  const belegt = [];
+  if (ERDANSICHT.station) {
+    const sx = ERDANSICHT.station.x * DPR, sy = ERDANSICHT.station.y * DPR;
+    belegt.push([sx - 150 * DPR, sy - 62 * DPR, sx + 150 * DPR, sy + 12 * DPR]);
+  }
+  if (ORTSMARKE && ORTSMARKE.x !== undefined)
+    belegt.push([(ORTSMARKE.x - 90) * DPR, (ORTSMARKE.y - 30) * DPR, (ORTSMARKE.x + 90) * DPR, (ORTSMARKE.y + 30) * DPR]);
+  /* Die Nachweise unten links und ein Schild */
+  const nq = (ERDANSICHT.quellZeilen || []).length;
+  if (nq) belegt.push([0, unten - (nq * 13 + 14) * DPR, 520 * DPR, unten + 10 * DPR]);
+  const hb = ERDANSICHT.hinweisBox;
+  if (hb) belegt.push([hb.x * DPR, hb.y * DPR, (hb.x + hb.b) * DPR, (hb.y + hb.h) * DPR]);
+  const frei = (b) => {
+    if (b[1] < oben || b[3] > unten || b[2] < 0 || b[0] > W * DPR) return false;
+    for (const o of belegt) if (b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]) return false;
+    return true;
+  };
+  const neu = new Map();
+  const schriften = "OrbitInter, -apple-system, system-ui, sans-serif";
+  cx.save();
+  cx.textBaseline = "middle";
+  cx.lineJoin = "round";
+  const platz = [];
+  for (const k of kandidaten) {
+    if (platz.length >= 60) break;
+    const stil = ERDNAMEN_STIL[k.e.art];
+    const text = stil.gross ? k.e.name.toLocaleUpperCase("de-DE") : k.e.name;
+    const groesse = parseFloat(stil.schrift.match(/([\d.]+)px/)[1]);
+    cx.font = stil.schrift.replace(/[\d.]+px/, (groesse * DPR).toFixed(1) + "px") + " " + schriften;
+    if ("letterSpacing" in cx) cx.letterSpacing = (stil.abstand * DPR).toFixed(1) + "px";
+    const b = erdNamenBreite(text, stil) ;
+    const h = groesse * DPR * 1.25;
+    let box = null, tx, ty = k.y, links = false;
+    if (k.e.art === "ort") {
+      /* Rechts vom Punkt; ist dort kein Platz (oder der rechte Rand nah),
+         links, darueber, darunter */
+      const lagen = [[6, 0], [-6, 0], [-0.5, -1], [-0.5, 1]];
+      if (k.x + 6 * DPR + b > W * DPR - 70 * DPR) lagen.push(lagen.shift());
+      for (const [lx, ly] of lagen) {
+        const x0 = lx > 0 ? k.x + lx * DPR : lx < -1 ? k.x + lx * DPR - b : k.x - b / 2;
+        const y = k.y + ly * (h * 0.85);
+        const probe = ly === 0
+          ? [Math.min(k.x - 4 * DPR, x0) - 3 * DPR, y - h / 2 - 2 * DPR, Math.max(k.x + 4 * DPR, x0 + b) + 3 * DPR, y + h / 2 + 2 * DPR]
+          : [Math.min(k.x - 4 * DPR, x0) - 3 * DPR, Math.min(y, k.y) - h / 2 - 2 * DPR, Math.max(k.x + 4 * DPR, x0 + b) + 3 * DPR, Math.max(y, k.y) + h / 2 + 2 * DPR];
+        if (frei(probe)) { box = probe; tx = x0; ty = y; links = lx < 0; break; }
+      }
+      if (!box) continue;
+    } else {
+      /* Liegt dort schon etwas (etwa die Hauptstadt), ein Stueck darueber
+         oder darunter; Namen von Flaechen haben Platz */
+      tx = k.x - b / 2;
+      for (const dy of k.e.art === "land" ? [0, -1.5, 1.5] : [0]) {
+        const y = k.y + dy * h;
+        const probe = [tx - 4 * DPR, y - h / 2 - 3 * DPR, tx + b + 4 * DPR, y + h / 2 + 3 * DPR];
+        if (frei(probe)) { box = probe; ty = y; break; }
+      }
+      if (!box) continue;
+    }
+    belegt.push(box);
+    k.gesetzt = true;
+    const seit = N_.stehen.get(k.e.nr) || uhr;
+    neu.set(k.e.nr, seit);
+    platz.push({ k, stil, text, tx, ty, links, box, font: cx.font, abstand: cx.letterSpacing,
+                 a: deck * Math.min(1, (uhr - seit) / 260 + (seit === uhr ? 0.001 : 0)) * klemm((k.z - 0.22) / 0.12, 0, 1) });
+  }
+  N_.stehen = neu;
+  /* Erst alle Raender, dann alle Schriften: so schneidet kein dunkler Rand
+     in einen Namen daneben */
+  for (const q of platz) {
+    if (q.a <= 0) continue;
+    cx.font = q.font;
+    if ("letterSpacing" in cx) cx.letterSpacing = q.abstand;
+    cx.globalAlpha = q.a * 0.75;
+    cx.lineWidth = 3.2 * DPR;
+    cx.strokeStyle = "rgba(2,5,12,.85)";
+    cx.textAlign = "left";
+    cx.strokeText(q.text, q.tx, q.ty);
+    if (q.k.e.art === "ort") {
+      cx.fillStyle = "rgba(2,5,12,.8)";
+      cx.beginPath(); cx.arc(q.k.x, q.k.y, 3.4 * DPR, 0, Math.PI * 2); cx.fill();
+    }
+  }
+  for (const q of platz) {
+    if (q.a <= 0) continue;
+    cx.font = q.font;
+    if ("letterSpacing" in cx) cx.letterSpacing = q.abstand;
+    cx.globalAlpha = q.a;
+    cx.fillStyle = q.stil.farbe;
+    cx.textAlign = "left";
+    cx.fillText(q.text, q.tx, q.ty);
+    if (q.k.e.art === "ort") {
+      cx.fillStyle = "rgba(255,255,255,.95)";
+      cx.beginPath(); cx.arc(q.k.x, q.k.y, 2.1 * DPR, 0, Math.PI * 2); cx.fill();
+    }
+    N_.gezeigt.push({ name: q.k.e.name, art: q.k.e.art, x: q.k.x / DPR, y: q.k.y / DPR, a: q.a,
+                      breite: q.k.e.breite, laenge: q.k.e.laenge, box: q.box.map(v => v / DPR) });
+  }
+  cx.restore();
+}
+/* Weit hineingezoomt ueber offenem Meer steht nirgends ein Name, auch bei
+   Esri nicht: dann unten in der Mitte, ueber welchem Meer man ist, klein und
+   blass, wie auf einer Seekarte. Erst ab Stufe 10 (gut 150 Meter je Punkt),
+   darueber stehen die Meere ohnehin auf der Karte. */
+function erdMeerMitte(g, uhr) {
+  const N_ = ERDNAMEN;
+  N_.meerMitte = null;
+  if (!Z.beschriftung || !g || !ERDANSICHT.frei || ERDANSICHT.blend < 1) return;
+  if (g.r * Math.PI / 180 < 250) return;
+  const fr = ERDANSICHT.frei, v = fr.ez;
+  const [breite, laenge] = breiteLaenge(v);
+  const o = ortBei(breite, laenge);
+  if (!o || !o.meer) return;
+  const rand = bedienRand();
+  const y = ((rand.unten || H) - 34) * DPR, x = W / 2 * DPR;
+  cx.save();
+  cx.font = `italic 500 ${12.5 * DPR}px OrbitInter, -apple-system, system-ui, sans-serif`;
+  if ("letterSpacing" in cx) cx.letterSpacing = (1.6 * DPR).toFixed(1) + "px";
+  cx.textAlign = "center"; cx.textBaseline = "middle"; cx.lineJoin = "round";
+  cx.lineWidth = 3 * DPR; cx.strokeStyle = "rgba(2,5,12,.6)";
+  cx.globalAlpha = 0.9;
+  cx.strokeText(o.name, x, y);
+  cx.fillStyle = "rgba(168,206,255,.9)";
+  cx.fillText(o.name, x, y);
+  cx.restore();
+  N_.meerMitte = o.name;
+}
+/* Angetippt: welcher Name liegt unter dem Finger? */
+function erdNameBei(px, py) {
+  for (const n of ERDNAMEN.gezeigt) {
+    if (n.a < 0.3) continue;
+    if (Math.abs(px - n.x) < 60 && Math.abs(py - n.y) < 9) return n;
+  }
+  return null;
+}
+
 function ortsmarkeZeichnen(g, blick, uhr) {
   const m = ORTSMARKE;
   if (!m || !g || !blick) return;
@@ -19430,6 +19903,15 @@ function erdeGesternKnopf() {
    eine Kachel, wird nur die neue Reihe nachgeladen. Ein Platz, dessen
    Kachel noch fehlt, ist durchsichtig; dort bleibt die Karte der NASA.
 
+   Nicht ueberall gibt es jede Stufe. Ueber dem offenen Meer endet Esri
+   meist bei Stufe 13, in manchen Gegenden an Land bei 15; darunter schickt
+   der Dienst ein graues Bild mit „Map data not yet available“, und das
+   stand bis Version 38 auf der Kugel. Jetzt fragt ORBIT mit blankTile=false:
+   Dann kommt fuer eine fehlende Kachel eine Absage, und ORBIT nimmt die
+   naechste groebere, die es gibt, und vergroessert ihren Ausschnitt, wie
+   Google Earth. Was fehlt, merkt es sich; die feineren Kacheln darunter
+   fragt es dann gar nicht erst an.
+
    Ausgeschaltet geht keine Anfrage hinaus. Eingeschaltet erfaehrt Esri,
    welchen Ausschnitt man sich ansieht, so wie bei jeder Online-Karte. */
 const SATBILD = { nx: 16, ny: 10, z: -1, x0: 0, y0: 0, platz: [], angelegt: false,
@@ -19442,6 +19924,12 @@ const SAT_ADRESSE = "https://services.arcgisonline.com/ArcGIS/rest/services/Worl
 /* So verlangt es Esri: "Powered by Esri" und die Quellen des Dienstes */
 const SAT_QUELLE = "Powered by Esri · Bilder: Esri, Maxar, Earthstar Geographics, GIS User Community";
 const SAT_MAXZ = 16, SAT_MINZ = 5, SAT_GLEICHZEITIG = 8, SAT_CACHE = 400;
+/* Kacheln, die es bei Esri nicht gibt: Schluessel "z/x/y" und wann das
+   feststand. Nach zehn Minuten wird wieder gefragt, falls es doch nur ein
+   Aussetzer im Netz war. Dazu die groeberen Kacheln, aus denen dann ein
+   Ausschnitt vergroessert wird. */
+const SAT_LEER = new Map(), SAT_VORFAHREN = new Map();
+const SAT_LEER_DAUER = 600000;
 /* Die Beschriftung: Laender, Grenzen und Orte als durchsichtige Kacheln im
    selben Netz, von Esri aus Daten von HERE, Garmin und OpenStreetMap */
 const SAT_SCHRIFT = "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/";
@@ -19708,6 +20196,23 @@ function satHochladen(platz, kachel) {
   const S_ = SATBILD, gl = ERDKARTE.gl;
   if (!gl || !S_.angelegt || !kachel) return;
   let quelle = kachel.bild;
+  /* Das Bild selbst, oder bei einer fehlenden Kachel der Ausschnitt der
+     groeberen, auf volle Groesse gezogen */
+  const bildMalen = (g) => {
+    const t = kachel.teil;
+    if (!t) { g.drawImage(kachel.bild, 0, 0, 256, 256); return; }
+    const seite = 256 / (1 << t.d);
+    g.drawImage(kachel.bild, t.qx * seite, t.qy * seite, seite, seite, 0, 0, 256, 256);
+  };
+  if (kachel.teil) {
+    if (!satLeinwand) { satLeinwand = document.createElement("canvas"); satLeinwand.width = satLeinwand.height = 256; }
+    const g = satLeinwand.getContext("2d", { willReadFrequently: true });
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = "high";
+    g.clearRect(0, 0, 256, 256);
+    bildMalen(g);
+    quelle = g.getImageData(0, 0, 256, 256);
+  }
   /* Mit Beschriftung: die Schrift ueber das Bild gemalt, und in den
      Alphakanal, wie viel sie deckt (255 = nichts), damit der Schattierer
      sie nachts nicht mit abdunkelt. Als ImageData, denn eine Leinwand
@@ -19721,7 +20226,7 @@ function satHochladen(platz, kachel) {
     g.drawImage(kachel.schrift, (kachel.x & m) * teil, (kachel.y & m) * teil, teil, teil, 0, 0, 256, 256);
     const deck = g.getImageData(0, 0, 256, 256).data;
     g.globalCompositeOperation = "destination-over";
-    g.drawImage(kachel.bild, 0, 0, 256, 256);
+    bildMalen(g);
     g.globalCompositeOperation = "source-over";
     const bild = g.getImageData(0, 0, 256, 256), d = bild.data;
     for (let i = 3; i < d.length; i += 4) d[i] = 255 - deck[i];
@@ -19925,7 +20430,7 @@ function satWeiter() {
       if (S_.laden.get(w.schluessel) !== e || --e.offen > 0) return;
       S_.laden.delete(w.schluessel);
       if (e.ok && Z.satellit) {
-        const kachel = { bild: e.bild, schrift: e.schrift, relief: e.relief, stufe: sk, x: +x, y: +y };
+        const kachel = { bild: e.bild, teil: e.teil || null, schrift: e.schrift, relief: e.relief, stufe: sk, x: +x, y: +y };
         S_.cache.set(w.schluessel, kachel);
         /* Kacheln der NASA sind ausgepackte Punkte (ImageData), die der
            Browser nicht selbst vergessen kann: davon weniger im Speicher */
@@ -19947,11 +20452,109 @@ function satWeiter() {
       });
       continue;
     }
+    /* Fehlt die Kachel bei Esri, nimmt ORBIT die naechste groebere */
+    const vorfahr = () => satVorfahr(+z, +x, +y, (v) => {
+      if (S_.laden.get(w.schluessel) !== e) return;
+      /* Eine groebere kam an: Esri ist da, also gibt es diese Kachel nicht */
+      if (v) { satLeerMerken(w.schluessel); e.ok = true; e.bild = v.bild; e.teil = v.teil; }
+      fertig();
+      if (!v && esriGesperrt()) satellitKnopf();
+    });
     b.onload = () => { e.ok = true; S_.geladen++; fertig(); };
-    b.onerror = () => { fertig(); if (esriGesperrt()) satellitKnopf(); };
+    b.onerror = () => {
+      /* Abgebrochen (src geleert): nichts merken */
+      if (S_.laden.get(w.schluessel) !== e) return;
+      /* Eine Absage heisst: Diese Kachel gibt es nicht, oder Esri ist nicht
+         zu erreichen. Das entscheidet die groebere: kommt sie, fehlt nur
+         diese. Ist Esri schon als gesperrt erkannt, gar nicht erst fragen. */
+      if (esriGesperrt()) { fertig(); satellitKnopf(); return; }
+      vorfahr();
+    };
     if (mitSchrift) schriftHolen(z - sk, x >> sk, y >> sk, (bild) => { e.schrift = bild; fertig(); });
     if (mitRelief) reliefHolen(z - 1, x >> 1, y >> 1, (relief) => { e.relief = relief; fertig(); });
-    b.src = SAT_ADRESSE + z + "/" + y + "/" + x;
+    /* Liegt schon eine groebere Kachel darueber, die es nicht gibt, gibt es
+       diese auch nicht: gar nicht erst fragen */
+    if (satLeerDarueber(+z, +x, +y)) vorfahr();
+    else b.src = SAT_ADRESSE + z + "/" + y + "/" + x + "?blankTile=false";
+  }
+}
+
+/* Fehlende Kacheln merken und nachsehen. Fehlt eine, fehlen auch alle
+   feineren darunter. */
+function satLeerMerken(schluessel) {
+  SAT_LEER.set(schluessel, performance.now());
+  if (SAT_LEER.size > 4000) SAT_LEER.delete(SAT_LEER.keys().next().value);
+}
+function satLeer(z, x, y) {
+  const um = SAT_LEER.get(z + "/" + x + "/" + y);
+  if (um === undefined) return false;
+  if (performance.now() - um > SAT_LEER_DAUER) { SAT_LEER.delete(z + "/" + x + "/" + y); return false; }
+  return true;
+}
+function satLeerDarueber(z, x, y) {
+  for (let d = 0; d <= 12 && z - d >= 0; d++) if (satLeer(z - d, x >> d, y >> d)) return true;
+  return false;
+}
+/* Die naechste groebere Kachel, die es gibt, fuer eine fehlende: aus dem
+   Speicher der Kacheln, sonst von Esri. Hoechstens acht Stufen hinauf,
+   dann ist ein Kachelpunkt 256 Punkte breit; bis Stufe 3 gibt es ueberall
+   ein Bild. Gibt { bild, teil } oder null. */
+function satVorfahr(z, x, y, fertig) {
+  const S_ = SATBILD;
+  /* Was unterwegs abgesagt hat, gilt erst als leer, wenn weiter oben eine
+     ankam: sonst war Esri vielleicht nur nicht zu erreichen */
+  const abgesagt = [];
+  const stufe = (d) => {
+    if (d > 8 || z - d < 0) { fertig(null); return; }
+    const zz = z - d, xx = x >> d, yy = y >> d, k = zz + "/" + xx + "/" + yy;
+    const teil = { d, qx: x & ((1 << d) - 1), qy: y & ((1 << d) - 1) };
+    if (satLeer(zz, xx, yy)) { stufe(d + 1); return; }
+    const da = S_.cache.get(k);
+    if (da && !da.teil && da.bild) { abgesagt.forEach(satLeerMerken); fertig({ bild: da.bild, teil }); return; }
+    satVorfahrHolen(zz, xx, yy, (bild) => {
+      if (bild) { abgesagt.forEach(satLeerMerken); fertig({ bild, teil }); }
+      else { abgesagt.push(k); stufe(d + 1); }
+    });
+  };
+  /* Immer erst nach dem laufenden Schritt, wie bei der NASA: sonst riefe
+     eine Kachel aus dem Speicher den Lader wieder auf, bevor er fertig ist.
+     Kam von Esri noch gar nichts an, erst eine grobe Kachel der Stufe 4, die
+     es ueberall gibt: Kommt auch sie nicht, ist Esri nicht zu erreichen, und
+     es bleibt bei einer Anfrage statt einer ganzen Kette je Kachel. */
+  queueMicrotask(() => {
+    if (S_.geladen > 0) { stufe(1); return; }
+    const d0 = Math.max(1, z - 4);
+    satVorfahrHolen(z - d0, x >> d0, y >> d0, (bild) => { if (bild) stufe(1); else fertig(null); });
+  });
+}
+function satVorfahrHolen(z, x, y, fertig) {
+  const k = z + "/" + x + "/" + y;
+  let e = SAT_VORFAHREN.get(k);
+  if (e) {
+    SAT_VORFAHREN.delete(k); SAT_VORFAHREN.set(k, e);
+    if (e.warten) e.warten.push(fertig); else queueMicrotask(() => fertig(e.bild));
+    return;
+  }
+  const b = new Image();
+  b.crossOrigin = "anonymous";
+  e = { bild: null, warten: [fertig] };
+  SAT_VORFAHREN.set(k, e);
+  const ende = (ok) => {
+    e.bild = ok ? b : null;
+    /* Eine Absage bleibt nicht im Speicher: ob die Kachel fehlt oder Esri
+       nur nicht zu erreichen war, entscheidet satVorfahr */
+    if (ok) SATBILD.geladen++; else SAT_VORFAHREN.delete(k);
+    const w = e.warten;
+    e.warten = null;
+    for (const f of w) f(e.bild);
+  };
+  b.onload = () => ende(true);
+  b.onerror = () => ende(false);
+  SATBILD.anfragen++;
+  b.src = SAT_ADRESSE + z + "/" + y + "/" + x + "?blankTile=false";
+  for (const [kk, v] of SAT_VORFAHREN) {
+    if (SAT_VORFAHREN.size <= 48) break;
+    if (!v.warten) SAT_VORFAHREN.delete(kk);
   }
 }
 
@@ -30103,9 +30706,12 @@ function reliefKnopf() {
     ruht || "Berge und Täler nach der echten Sonne", "relief", !!ruht);
 }
 function schriftKnopf() {
-  const ruht = kartenZusatzRuht(Z.beschriftung);
+  /* Seit Version 39 wirkt sie immer: die eigenen Namen auf der ganzen Erde,
+     mit Satellitenbildern von Esri nah heran deren Namen und Grenzen */
   tmSchalter("tm-schrift", Z.beschriftung, "Beschriftung",
-    ruht || "Länder, Orte und Grenzen darüber", "schrift", !!ruht);
+    !Z.beschriftung ? "Meere, Länder und Städte auf der Erde"
+      : Z.satellit && satQuelle() !== "nasa" && !satGesperrt() ? "Meere, Länder, Städte; nah heran Orte und Grenzen"
+      : "Meere, Länder und Städte, deutsch", "schrift", false);
 }
 function satellitUmschalten() {
   Z.satellit = !Z.satellit;
@@ -30354,6 +30960,7 @@ window.__SCHICHT = {
   merk: () => SCHICHT_MERK.length,
 };
 window.__REISE = () => ({ ...REISE });
+window.__ERDNAMEN = () => ({ deck: ERDNAMEN.deck, gezeigt: ERDNAMEN.gezeigt.slice(), meerMitte: ERDNAMEN.meerMitte || null });
 window.__LAGER = {
   dienst: () => ({ ...LAGER_DIENST, offen: Date.now() < LAGER_DIENST.bis }),
   zeigen: (k) => behaelterZeigen(k),
