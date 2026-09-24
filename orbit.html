@@ -324,6 +324,28 @@ footer{
 #senden:disabled{opacity:.3; cursor:default; box-shadow:none;}
 #senden svg{width:19px; height:19px;}
 
+/* Fragen an die Crew: ueber dem leeren Auftragsfeld, solange es den
+   Fokus hat. Der Punkt davor traegt die Farbe der Lage, aus der die
+   Frage kommt: Bernstein wartet, Orange im Kreis, Rot Konflikt. */
+#crew-fragen{display:flex; gap:7px; overflow-x:auto; padding:0 2px 2px;
+  scrollbar-width:none; -ms-overflow-style:none;}
+#crew-fragen::-webkit-scrollbar{display:none;}
+#crew-fragen[hidden]{display:none;}
+.crew-frage{flex:0 0 auto; display:flex; align-items:center; gap:7px; height:32px; padding:0 13px 0 11px;
+  max-width:min(380px, 80vw); border-radius:99px; font-size:12.5px; color:var(--tx2);
+  background:linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03)), rgba(10,12,20,.66);
+  border:1px solid var(--edge); box-shadow:0 6px 18px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.07);
+  transition:border-color .2s var(--ease), color .2s var(--ease);}
+.crew-frage:hover, .crew-frage:focus-visible{border-color:var(--edge2); color:var(--tx); outline:none;}
+.crew-frage .text{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+/* Nicht der Akzent: der wechselt mit dem Himmel und ist bei manchen
+   orange, dann saehe jede Frage aus wie eine Warnung */
+.crew-frage .punkt{width:6px; height:6px; border-radius:50%; flex:0 0 auto; background:var(--tx3);}
+.crew-frage.fracht .punkt{background:var(--lauf);}
+.crew-frage.wartet .punkt{background:var(--warn);}
+.crew-frage.kreis .punkt{background:rgb(245,150,60);}
+.crew-frage.konflikt .punkt{background:var(--bad);}
+
 /* ---------- Befehlspalette (⌘K) ----------
    Eine Suche ueber alles, was sonst hinter Knoepfen liegt. Echtes Glas
    wie die Blenden, oben in der Mitte, und nur solange sie offen ist. */
@@ -1345,12 +1367,16 @@ body.sicht #blende-detail, body.sicht #blende-teil{
     <button id="tm-iss" class="tm-knopf" type="button"></button>
     <button id="tm-wetter" class="tm-knopf" type="button"></button>
     <button id="tm-regen" class="tm-knopf" type="button"></button>
+    <div class="tm-abschnitt">FUNK</div>
+    <button id="tm-funk" class="tm-knopf" type="button"></button>
+    <button id="tm-sprache" class="tm-knopf" type="button"></button>
     <div class="tm-kopf" id="tm-buchkopf" style="margin:12px 0 7px">BORDBUCH</div>
     <div id="tm-buch"></div>
   </div>
 
   <footer>
     <div id="crew-leiste"></div>
+    <div id="crew-fragen" hidden></div>
     <div class="scheibe" id="missionsfeld">
       <textarea id="auftrag" rows="1" placeholder="Auftrag an die Crew…"></textarea>
       <button id="senden" disabled title="Absenden (⌘/Strg + Enter)">
@@ -1693,6 +1719,8 @@ let Z = {
   satellit: false,    // Satellitenbilder von Esri fuer die ganze Erde — nur auf Wunsch
   regen: false,       // Regenradar von RainViewer auf der ganzen Erde — nur auf Wunsch
   zuhause: null,      // { name, breite, laenge }: das Wetter dort behaelt die Station im Blick
+  funkTon: false,     // Funk zum Hoeren: Quindar-Toene und Rufe — nur auf Wunsch
+  crewSpricht: false, // die eigenen Agenten lesen den Anfang ihrer Antwort vor — nur auf Wunsch
   bruecke: {
     typen: { session: true, ordner: true, prozess: true, github: true },
     ordner: [],                 // beobachtete Projektordner
@@ -1724,6 +1752,8 @@ function laden() {
       if (typeof d.relief === "boolean") Z.relief = d.relief;
       if (typeof d.satellit === "boolean") Z.satellit = d.satellit;
       if (typeof d.regen === "boolean") Z.regen = d.regen;
+      if (typeof d.funkTon === "boolean") Z.funkTon = d.funkTon;
+      if (typeof d.crewSpricht === "boolean") Z.crewSpricht = d.crewSpricht;
       if (d.zuhause && typeof d.zuhause.name === "string" && isFinite(d.zuhause.breite) && isFinite(d.zuhause.laenge)
           && Math.abs(d.zuhause.breite) <= 85 && Math.abs(d.zuhause.laenge) <= 180)
         Z.zuhause = { name: d.zuhause.name.slice(0, 60), breite: +d.zuhause.breite, laenge: +d.zuhause.laenge };
@@ -1767,7 +1797,7 @@ function sichern() {
       key: Z.key, maxTok: Z.maxTok, gewaehlt: Z.gewaehlt,
       thema: Z.thema, umlauf: Z.umlauf, melden: Z.melden, bruecke: Z.bruecke, rate: ZEIT.rate,
       echteIss: Z.echteIss, weltraumwetter: Z.weltraumwetter, wolkenHeute: Z.wolkenHeute, erdeGestern: Z.erdeGestern, beschriftung: Z.beschriftung, relief: Z.relief,
-      satellit: Z.satellit, regen: Z.regen, zuhause: Z.zuhause,
+      satellit: Z.satellit, regen: Z.regen, zuhause: Z.zuhause, funkTon: Z.funkTon, crewSpricht: Z.crewSpricht,
     }));
   } catch (e) {
     /* Speicher voll oder privater Modus — die App laeuft trotzdem weiter */
@@ -1865,7 +1895,207 @@ function anfang(t, n) {
   return s.length <= n ? s : s.slice(0, n - 1).trimEnd() + "…";
 }
 
+/* ---------- Funk zum Hoeren ----------
+   Wer hinsieht, aber gerade woanders tippt, hoert auf Wunsch, was an der
+   Station passiert. Vier Klaenge, nicht mehr — ein Leitstand, der fuer
+   alles einen eigenen Ton hat, wird abgeschaltet:
+
+   - Antwortet ein eigener Agent, beginnt und endet sein Funkspruch mit
+     den Quindar-Toenen der Apollo-Fluege: 2525 Hz am Anfang, 2475 Hz am
+     Ende, je eine Viertelsekunde, reiner Sinus. Mit ihnen schaltete die
+     Bodenkontrolle die fernen Sender ein und aus, und so klingt Raumfahrt
+     fuer jeden, der einmal eine Aufnahme davon gehoert hat. Den Ton am
+     Ende bekommt auch eine Sitzung, die mit ihrem Zug fertig ist.
+   - Ruf, zwei weiche Toene aufwaerts: jemand braucht dich (wartet auf
+     eine Freigabe, ein Lauf wartet, ein PR soll geaendert werden).
+   - Achtung, zwei tiefere abwaerts: ein Konflikt, ein Kreis, ein
+     Fehler.
+   - Gut, eine Quinte aufwaerts: ein PR ist freigegeben, der Frachter hat
+     geliefert.
+
+   Aus als Vorgabe. Ein Browser spielt ohnehin erst nach einem Klick
+   einen Ton; nach dem Neuladen wartet der Funk deshalb auf den ersten
+   Klick irgendwo und spielt bis dahin nichts nach — ein Stapel alter
+   Toene auf einen Schlag waere schlimmer als keiner. */
+const FUNKTON = { ctx: null, zuletzt: new Map(), gespielt: [] };
+const FUNK_KLANG = {
+  anfang: [[2525, 0, 0.25, 0.045, "sine"]],
+  ende: [[2475, 0, 0.25, 0.045, "sine"]],
+  ruf: [[880, 0, 0.14, 0.085, "triangle"], [1175, 0.17, 0.2, 0.085, "triangle"]],
+  achtung: [[523, 0, 0.16, 0.1, "triangle"], [392, 0.19, 0.24, 0.1, "triangle"]],
+  gut: [[659, 0, 0.12, 0.07, "sine"], [988, 0.14, 0.22, 0.07, "sine"]],
+};
+function funkKontext(wecken) {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  if (!FUNKTON.ctx) {
+    if (!wecken) return null;
+    try { FUNKTON.ctx = new AC(); } catch { return null; }
+  }
+  if (wecken && FUNKTON.ctx.state === "suspended") FUNKTON.ctx.resume().catch(() => {});
+  return FUNKTON.ctx;
+}
+function funkKlang(art, schluessel, immer) {
+  if (!Z.funkTon || !FUNK_KLANG[art]) return false;
+  const ac = funkKontext(false);
+  if (!ac || ac.state !== "running") return false;
+  const jetzt = performance.now();
+  /* Quindar: einer je Art in anderthalb Sekunden, also bei der ganzen
+     Crew ein Piepsen und nicht drei. Die anderen: einer je Figur und
+     Anlass in der Minute, wie bei den Mitteilungen, und kurz
+     hintereinander nur einer. */
+  const quindar = art === "anfang" || art === "ende";
+  const kArt = "*" + art, kSch = art + ":" + (schluessel || "");
+  /* Ein gesprochener Funkspruch bekommt seine Toene immer: er ist einer
+     fuer sich, auch wenn der vorige eben erst endete */
+  if (!immer && jetzt - (FUNKTON.zuletzt.get(kArt) || -1e9) < (quindar ? 1500 : 1200)) return false;
+  if (!quindar && jetzt - (FUNKTON.zuletzt.get(kSch) || -1e9) < 60000) return false;
+  FUNKTON.zuletzt.set(kArt, jetzt);
+  if (!quindar) FUNKTON.zuletzt.set(kSch, jetzt);
+  const t0 = ac.currentTime + 0.03;
+  for (const [f, ab, dauer, laut, form] of FUNK_KLANG[art]) {
+    try {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = form; o.frequency.value = f;
+      /* Weich ein und aus: ein harter Beginn knackt im Lautsprecher */
+      g.gain.setValueAtTime(0, t0 + ab);
+      g.gain.linearRampToValueAtTime(laut, t0 + ab + 0.008);
+      g.gain.setValueAtTime(laut, t0 + ab + dauer - 0.012);
+      g.gain.linearRampToValueAtTime(0, t0 + ab + dauer);
+      o.connect(g); g.connect(ac.destination);
+      o.start(t0 + ab); o.stop(t0 + ab + dauer + 0.02);
+    } catch {}
+  }
+  FUNKTON.gespielt.push({ art, schluessel: schluessel || "", um: Date.now() });
+  if (FUNKTON.gespielt.length > 40) FUNKTON.gespielt.shift();
+  return true;
+}
+/* Welcher Klang zu welcher Meldung gehoert. Die eigenen Agenten klingen
+   ueber ihren Funkspruch, nicht hier. */
+function funkMeldung(art, id) {
+  if (!Z.funkTon || agentNach(id)) return;
+  const a = String(art || "");
+  const klang = a === "wartet" || a === "winkt" || a.startsWith("aenderungen#") ? "ruf"
+    : a === "schleife" || a.startsWith("konflikt:") || a === "fehler" ? "achtung"
+    : a === "fertig" ? "ende"
+    : a.startsWith("frei#") || a === "lieferung" ? "gut" : null;
+  if (klang) funkKlang(klang, id + "|" + a);
+}
+/* Nach dem Neuladen: der erste Klick oder Tastendruck irgendwo weckt den Funk */
+function funkWecken() { if (Z.funkTon) funkKontext(true); }
+window.addEventListener("pointerdown", funkWecken, true);
+window.addEventListener("keydown", funkWecken, true);
+
+/* ---------- Die Crew spricht ----------
+   Auf Wunsch liest ein eigener Agent den Anfang seiner Antwort vor, wie
+   einen Funkspruch: bei hoerbarem Funk erst der Quindar-Ton, dann "Hier
+   Kepler." und der erste Satz, dann der Ton vom Ende. Den Rest liest man
+   im Log — eine ganze Antwort vorzulesen dauert Minuten, und genau das
+   schaltet man dann wieder ab.
+
+   Nur mit einer deutschen Stimme des Geraets. Eine englische, die
+   deutsche Saetze vorliest, versteht niemand; dann bleibt es still, und
+   der Schalter sagt warum. Gesprochen wird der Reihe nach, hoechstens
+   drei warten, und jeder Agent klingt etwas anders: gleiche Stimme,
+   andere Tonhoehe, wie drei Leute am selben Funkgeraet. */
+const SPRECHEN = { stimme: null, warte: [], spricht: false, gesprochen: [] };
+function deutscheStimme() {
+  const ss = window.speechSynthesis;
+  if (!ss || typeof ss.getVoices !== "function") return null;
+  let alle = [];
+  try { alle = ss.getVoices() || []; } catch {}
+  const de = alle.filter(v => /^de([-_]|$)/i.test(v.lang || ""));
+  /* Lieber eine Stimme des Geraets (die Netzstimmen brechen ohne Netz
+     mitten im Satz ab), lieber Deutschland als die Schweiz */
+  de.sort((a, b) => (b.localService === true) - (a.localService === true)
+    || /^de[-_]DE/i.test(b.lang) - /^de[-_]DE/i.test(a.lang));
+  return de[0] || null;
+}
+function sprechenMoeglich() {
+  if (!Z.crewSpricht || !window.speechSynthesis || typeof SpeechSynthesisUtterance !== "function") return false;
+  if (!SPRECHEN.stimme) SPRECHEN.stimme = deutscheStimme();
+  return !!SPRECHEN.stimme;
+}
+/* Was vorgelesen wird: ohne Code, Adressen und Auszeichnungen, der erste
+   Satz, oder die ersten, bis etwas gesagt ist, hoechstens 200 Zeichen */
+function sprechText(antwort) {
+  const t = String(antwort || "")
+    .replace(/```[\s\S]*?```/g, " ").replace(/`([^`]*)`/g, "$1")
+    .replace(/https?:\/\/\S+/g, " ").replace(/^\s*(?:[-•*]|\d+[.)])\s+/gm, "")
+    .replace(/\*\*|__|[*_#>|]/g, "").replace(/\s+/g, " ").trim();
+  /* Getrennt wird nur, wo nach dem Punkt Platz ist: "preis.ts" und
+     "3.5" bleiben ganz. Ohne Rueckwaertsblick im Muster, den kennen
+     aeltere Safari nicht, und dann liefe gar nichts. */
+  const saetze = [], re = /[.!?…]+\s+/g;
+  let m, von = 0;
+  while ((m = re.exec(t))) { saetze.push(t.slice(von, m.index + m[0].length)); von = m.index + m[0].length; }
+  if (von < t.length) saetze.push(t.slice(von));
+  let raus = "";
+  for (const s0 of saetze) {
+    const x = s0.trim();
+    if (!x) continue;
+    if (raus && (raus + " " + x).length > 200) break;
+    raus = raus ? raus + " " + x : x;
+    if (raus.length >= 60) break;
+  }
+  if (raus.length > 200) raus = raus.slice(0, 196).replace(/\s+\S*$/, "") + " …";
+  return raus;
+}
+function crewSpricht(agent, antwort) {
+  if (!sprechenMoeglich()) return false;
+  const text = sprechText(antwort);
+  if (!text || SPRECHEN.warte.length >= 3) return false;
+  SPRECHEN.warte.push({ agent, text: "Hier " + agent.name + ". " + text });
+  sprechenWeiter();
+  return true;
+}
+function sprechenWeiter() {
+  if (SPRECHEN.spricht || !SPRECHEN.warte.length) return;
+  const ss = window.speechSynthesis;
+  const { agent, text } = SPRECHEN.warte.shift();
+  SPRECHEN.spricht = true;
+  funkKlang("anfang", agent.id, true);
+  const u = new SpeechSynthesisUtterance(text);
+  u.voice = SPRECHEN.stimme;
+  u.lang = (SPRECHEN.stimme && SPRECHEN.stimme.lang) || "de-DE";
+  const i = Math.max(0, Z.agenten.indexOf(agent));
+  u.pitch = [0.9, 1.12, 1, 0.82, 1.22][i % 5];
+  u.rate = 1.04;
+  let fertig = false;
+  const ende = () => {
+    if (fertig) return;
+    fertig = true;
+    SPRECHEN.spricht = false;
+    funkKlang("ende", agent.id, true);
+    setTimeout(sprechenWeiter, 450);
+  };
+  u.onend = ende; u.onerror = ende;
+  SPRECHEN.gesprochen.push({ name: agent.name, text, pitch: u.pitch, stimme: u.voice ? u.voice.name : "", um: Date.now() });
+  if (SPRECHEN.gesprochen.length > 20) SPRECHEN.gesprochen.shift();
+  /* Der Ton zuerst, dann die Stimme: nicht uebereinander */
+  setTimeout(() => {
+    if (!Z.crewSpricht) { ende(); return; }
+    try { ss.speak(u); } catch { ende(); }
+    /* Manche Browser melden das Ende nie; nach der Zeit, die der Text
+       braucht, geht es trotzdem weiter */
+    setTimeout(ende, 2500 + text.length * 110);
+  }, Z.funkTon ? 330 : 0);
+}
+function sprechenAus() {
+  SPRECHEN.warte = [];
+  try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch {}
+  SPRECHEN.spricht = false;
+}
+try {
+  if (window.speechSynthesis && typeof window.speechSynthesis.addEventListener === "function")
+    window.speechSynthesis.addEventListener("voiceschanged", () => {
+      SPRECHEN.stimme = deutscheStimme();
+      if (typeof sprachKnopf === "function") sprachKnopf();
+    });
+} catch {}
+
 function melden(titel, text, id, art) {
+  funkMeldung(art, id);
   if (!meldenAn()) return;
   if (!document.hidden && document.hasFocus()) return;
   /* Hoechstens eine je Figur, Art und Minute: eine Sitzung, die
@@ -7273,6 +7503,16 @@ let TEILSCHILDER = [];
    nutzlos; man vergleicht mit runden Zahlen, nicht mit krummen. */
 const MASSSTUFEN = [0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500];
 
+let MASSSTAB_LETZT = null;
+/* Die Leiste steht ueber der Fussleiste, nicht an einer festen Stelle:
+   die waechst, wenn ueber dem Auftragsfeld die Fragen an die Crew
+   erscheinen, und dann lag der Balken auf dem ersten Knopf. */
+let FUSS_HOEHE = 132;
+try {
+  const fu = document.querySelector("footer");
+  if (fu && typeof ResizeObserver === "function")
+    new ResizeObserver(() => { FUSS_HOEHE = fu.getBoundingClientRect().height || FUSS_HOEHE; }).observe(fu);
+} catch {}
 function massstabsleiste(Rpx) {
   if (kinoAn || sparsam || !Rpx) return;
   /* Meter je Bildpunkt: R sind 8,6 Meter. */
@@ -7287,7 +7527,8 @@ function massstabsleiste(Rpx) {
   if (bestAb === Infinity) return;
   const laenge = beste / mProPx;
 
-  const x = 18, y = H - (W < 620 ? 150 : 166);
+  const x = 18, y = H - FUSS_HOEHE - (W < 620 ? 18 : 34);
+  MASSSTAB_LETZT = { x, y, laenge };
   cx.save();
   cx.setTransform(DPR, 0, 0, DPR, 0, 0);
   cx.globalAlpha = 0.72;
@@ -10181,6 +10422,118 @@ function zeichneFunk(punkte, t) {
   FUNK_LETZT = gezeichnet;
 }
 
+/* --- Die Crew sieht nach ---------------------------------------------
+   Liest ein eigener Agent mit einem Werkzeug eine Figur, laeuft von ihm
+   eine Funkstrecke in seiner Farbe zu ihr: erst laufen die Punkte hin,
+   solange er fragt, dann mit der Antwort zurueck. Wo die Frage ankommt,
+   geht ein Ring auf. Liest er die ganze Station, gehen die Strecken
+   nacheinander hinaus, die naechste Figur zuerst, wie ein Rundruf.
+
+   Vorher sah man davon nur den Text in der Blase. Jetzt sieht man, WEN
+   die Crew gerade ansieht, und das ist die eigentliche Auskunft: nach
+   einer Frage wie "wer wartet auf mich?" laeuft die Strecke genau zu
+   den Figuren, die in der Antwort vorkommen werden.
+
+   Wie die Funkstrecke zum Unteragenten gehoert sie zur Bedienung, nicht
+   zur Szene: Funk sieht man im All so wenig wie einen Lichtstrahl. */
+const CREWBLICK = { liste: [], gezeichnet: [] };
+const CREWBLICK_DAUER = { abfrage: 2600, zeigen: 3000, rundruf: 2200 };
+function crewBlick(vonId, ziele, art) {
+  const jetzt = performance.now() - T0;
+  const v0 = SICHT.get(vonId);
+  /* Die naechste Figur zuerst: gemessen, wo die Figuren gerade stehen */
+  const abstand = (id) => {
+    const v = SICHT.get(id);
+    return v && v0 ? Math.hypot(v.sx - v0.sx, v.sy - v0.sy) : 1e9;
+  };
+  const reihe = ziele.filter(id => id && id !== vonId)
+    .sort((x, y) => abstand(x) - abstand(y)).slice(0, 40);
+  /* Dieselbe Strecke laeuft nicht zweimal nebeneinander */
+  CREWBLICK.liste = CREWBLICK.liste.filter(b => !(b.von === vonId && reihe.includes(b.zu)));
+  reihe.forEach((zu, i) => CREWBLICK.liste.push({
+    von: vonId, zu, art, start: jetzt + (art === "rundruf" ? i * 110 : 0), dauer: CREWBLICK_DAUER[art] || 2600,
+  }));
+}
+/* Nach einem Werkzeug: wen hat es angesehen? */
+function crewBlickNach(name, eingabe, agentId) {
+  if (!agentId) return;
+  if (name === "station_lage") {
+    crewBlick(agentId, alleAstronauten().map(a => a.id), "rundruf");
+  } else if (name === "figur_detail" || name === "zeige_figur") {
+    const a = figurNachName(String(eingabe && eingabe.name || ""));
+    if (a) crewBlick(agentId, [a.id], name === "zeige_figur" ? "zeigen" : "abfrage");
+  }
+}
+function zeichneCrewBlick(punkte, t) {
+  const gezeichnet = [];
+  CREWBLICK.liste = CREWBLICK.liste.filter(b => t < b.start + b.dauer);
+  if (CREWBLICK.liste.length) {
+    cx.save(); cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    for (const b of CREWBLICK.liste) {
+      const u = (t - b.start) / b.dauer;
+      if (u < 0) continue;
+      const p = punkte.get(b.von), k = punkte.get(b.zu);
+      const ag = agentNach(b.von);
+      if (!p || !k || !ag) continue;
+      const dx = k.x - p.x, dy = k.y - p.y, d = Math.hypot(dx, dy);
+      if (d < p.r + k.r + 8) continue;
+      const ux = dx / d, uy = dy / d;
+      const ax = p.x + ux * p.r, ay = p.y + uy * p.r;
+      const ex = k.x - ux * k.r, ey = k.y - uy * k.r;
+      const l = Math.hypot(ex - ax, ey - ay);
+      let nx = -uy, ny = ux;
+      if (ny > 0) { nx = -nx; ny = -ny; }
+      const bx = (ax + ex) / 2 + nx * l * 0.16, by = (ay + ey) / 2 + ny * l * 0.16;
+      /* Ein-, dann ausblenden: die Strecke steht nur, solange gefragt wird */
+      const deck = Math.min(1, u / 0.08) * Math.min(1, (1 - u) / 0.25);
+      const [fr, fg, fb] = farbeRgb(ag.farbe);
+      const bogen = () => { cx.beginPath(); cx.moveTo(ax, ay); cx.quadraticCurveTo(bx, by, ex, ey); };
+      cx.setLineDash([]);
+      cx.strokeStyle = `rgba(6,9,16,${0.55 * deck})`;
+      cx.lineWidth = 3.2;
+      bogen(); cx.stroke();
+      cx.strokeStyle = `rgba(${fr},${fg},${fb},${0.8 * deck})`;
+      cx.lineWidth = 1.3;
+      cx.setLineDash([4, 4]);
+      bogen(); cx.stroke();
+      cx.setLineDash([]);
+      /* Die Frage laeuft in der ersten Haelfte hin, die Antwort in der
+         zweiten zurueck */
+      const hin = u < 0.5;
+      if (!sparsam) {
+        const w = hin ? u / 0.5 : (u - 0.5) / 0.5;
+        for (let j = 0; j < 3; j++) {
+          let s = w - j * 0.12;
+          if (s < 0 || s > 1) continue;
+          if (!hin) s = 1 - s;
+          const q = 1 - s;
+          const px = q * q * ax + 2 * q * s * bx + s * s * ex;
+          const py = q * q * ay + 2 * q * s * by + s * s * ey;
+          cx.beginPath();
+          cx.arc(px, py, 2.3 - j * 0.4, 0, Math.PI * 2);
+          cx.fillStyle = `rgba(${Math.min(255, fr + 70)},${Math.min(255, fg + 70)},${Math.min(255, fb + 70)},${deck})`;
+          cx.fill();
+          cx.strokeStyle = `rgba(6,9,16,${0.5 * deck})`;
+          cx.lineWidth = 1;
+          cx.stroke();
+        }
+      }
+      /* Wo die Frage ankommt, geht ein Ring auf */
+      if (u >= 0.45 && u < 0.85) {
+        const r2 = (u - 0.45) / 0.4;
+        cx.beginPath();
+        cx.arc(k.x, k.y, k.r + 3 + r2 * 14, 0, Math.PI * 2);
+        cx.strokeStyle = `rgba(${fr},${fg},${fb},${(1 - r2) * 0.75})`;
+        cx.lineWidth = 1.6;
+        cx.stroke();
+      }
+      gezeichnet.push({ von: b.von, zu: b.zu, art: b.art, richtung: hin ? "hin" : "zurueck", bogen: [ax, ay, bx, by, ex, ey] });
+    }
+    cx.restore();
+  }
+  CREWBLICK.gezeichnet = gezeichnet;
+}
+
 /* --- Ein Astronaut ---------------------------------------------------
    Nachempfunden dem EMU-Anzug. Entscheidend ist nicht die Menge an
    Details, sondern der Umriss: ein Raumanzug ist kein Mensch in weisser
@@ -11251,6 +11604,16 @@ function mischen(a, b, t) {
   const [r1, g1, b1] = p(a), [r2, g2, b2] = p(b);
   const z = (v) => Math.round(v).toString(16).padStart(2, "0");
   return "#" + z(lerp(r1, r2, t)) + z(lerp(g1, g2, t)) + z(lerp(b1, b2, t));
+}
+/* Eine Farbe als drei Zahlen. Was kein #rgb oder #rrggbb ist, wird das
+   Hellblau der Bedienung. */
+function farbeRgb(h) {
+  const s = String(h || "").trim();
+  let m = /^#([0-9a-f]{6})$/i.exec(s);
+  if (m) return [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16));
+  m = /^#([0-9a-f]{3})$/i.exec(s);
+  if (m) return [0, 1, 2].map(i => parseInt(m[1][i] + m[1][i], 16));
+  return [123, 164, 216];
 }
 
 /* --- Halteleine mit Lichtimpulsen --- */
@@ -16813,6 +17176,8 @@ const TM_SYMBOLE = {
   wolken: '<svg viewBox="0 0 24 24"><path d="M7 18h10.5a3.8 3.8 0 0 0 .4-7.6A6 6 0 0 0 6.3 11a3.5 3.5 0 0 0 .7 7z"/></svg>',
   iss: '<svg viewBox="0 0 24 24"><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M3 12h6.5M14.5 12H21M4.5 7.5v9M19.5 7.5v9"/></svg>',
   regen: '<svg viewBox="0 0 24 24"><path d="M7 14.5h10.5a3.6 3.6 0 0 0 .4-7.2A5.8 5.8 0 0 0 6.6 8a3.3 3.3 0 0 0 .4 6.5z"/><path d="M8.5 17.5l-1 2.5M12.5 17.5l-1 2.5M16.5 17.5l-1 2.5"/></svg>',
+  funk: '<svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9.2a4 4 0 0 1 0 5.6M18.2 6.6a7.8 7.8 0 0 1 0 10.8"/></svg>',
+  sprache: '<svg viewBox="0 0 24 24"><path d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5h-7l-4.5 3.5v-3.5H5A1.5 1.5 0 0 1 3.5 15V7A1.5 1.5 0 0 1 5 5.5z"/><path d="M8 10h8M8 13h5"/></svg>',
   wetter: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.6"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M5.6 18.4l1.6-1.6M16.8 7.2l1.6-1.6"/></svg>',
 };
 function tmSchalter(id, an, titel, klein, symbol, ruht) {
@@ -18078,6 +18443,19 @@ function heimKnopf() {
 function regenKnopf() {
   tmSchalter("tm-regen", Z.regen, "Regenradar",
     Z.regen ? "auf der ganzen Erde, alle zehn Minuten neu" : "wo es gerade regnet, von RainViewer", "regen");
+}
+function funkKnopf() {
+  tmSchalter("tm-funk", Z.funkTon, "Funk hörbar",
+    Z.funkTon ? "Quindar-Töne der Crew, Ruf und Achtung" : "Töne bei Antworten, Warten, Konflikt und Kreis", "funk");
+}
+function sprachKnopf() {
+  const kann = !!window.speechSynthesis && typeof SpeechSynthesisUtterance === "function";
+  const st = kann ? (SPRECHEN.stimme || (SPRECHEN.stimme = deutscheStimme())) : null;
+  tmSchalter("tm-sprache", Z.crewSpricht, "Crew spricht",
+    !kann ? "dieser Browser kann nicht vorlesen"
+    : !st ? "keine deutsche Stimme auf diesem Gerät"
+    : Z.crewSpricht ? "den ersten Satz jeder Antwort · " + st.name
+    : "liest den Anfang jeder Antwort vor", "sprache", Z.crewSpricht && !st);
 }
 
 /* --- Die Erde von gestern, auf Wunsch -----------------------------------------
@@ -22466,6 +22844,7 @@ function rahmen(jetzt) {
      sollen in jeder Zoomstufe gleich gross und gleich scharf sein. */
   cx.restore();
   zeichneFunk(funkPunkte, t);
+  zeichneCrewBlick(funkPunkte, t);
   zeichneKonflikte(funkPunkte, t);
   zeichneSchleifen(funkPunkte, t);
   for (const b of blasen) {
@@ -23128,6 +23507,7 @@ function werkzeugAusfuehren(name, eingabe, bei) {
   if (bei && bei.werkzeug) bei.werkzeug(w.zeichen + " " + werkzeugText(w.text(e), 40));
   try {
     const t = JSON.stringify(w.tun(e));
+    if (bei && bei.agentId) crewBlickNach(w.name, e, bei.agentId);
     return { text: t.length > 32000 ? t.slice(0, 32000) : t, fehler: false };
   } catch (f) {
     return { text: "Fehler: " + (f && f.message ? f.message : String(f)), fehler: true };
@@ -23199,13 +23579,14 @@ async function fuehreAus(agent, auftrag) {
   if (betrachter) eintrag.ueber = "claude.ai";
   try {
     const { nutzung, stoppGrund, stufe } = await (betrachter ? frageBetrachter : frageClaude)(agent, auftrag, ac.signal, {
+      agentId: agent.id,
       denken(s) {
         eintrag.denken += s;
         l.gedanke = kuerzen(eintrag.denken, 150);
         logAktualisieren(eintrag);
       },
       text(s) {
-        if (l.zustand !== "sendet") setzeZustand(agent.id, "sendet");
+        if (l.zustand !== "sendet") { setzeZustand(agent.id, "sendet"); if (!sprechenMoeglich()) funkKlang("anfang", agent.id); }
         eintrag.antwort += s;
         l.gedanke = kuerzen(eintrag.antwort, 150);
         logAktualisieren(eintrag);
@@ -23257,6 +23638,8 @@ async function fuehreAus(agent, auftrag) {
       ]);
     }
     setzeZustand(agent.id, eintrag.fehler ? "fehler" : "fertig");
+    if (eintrag.fehler) funkKlang("achtung", agent.id + "|fehler");
+    else if (eintrag.antwort.trim() && !crewSpricht(agent, eintrag.antwort)) funkKlang("ende", agent.id);
 
   } catch (e) {
     if (e.name === "AbortError") {
@@ -23267,6 +23650,7 @@ async function fuehreAus(agent, auftrag) {
       /* Hat Claude abgelehnt, ist auch das schon Geschriebene zurueckgezogen */
       if (e.zurueck) eintrag.antwort = "";
       setzeZustand(agent.id, "fehler");
+      funkKlang("achtung", agent.id + "|fehler");
       console.error(e);
     }
   } finally {
@@ -23424,6 +23808,8 @@ function zeichneCrewLeiste() {
   const regt = laufend > 0 || BR.live.some(x =>
     x.zustand === "sendet" || x.zustand === "denkt" || x.zustand === "winkt");
   document.querySelector(".marke .sat").classList.toggle("aktiv", regt);
+  /* Die Fragen ueber dem Feld folgen der Lage, solange sie offen sind */
+  crewFragenZeichnen();
 }
 
 function zeitText(ms) {
@@ -25472,6 +25858,24 @@ $("#tm-regen").onclick = () => {
   regenKnopf();
   tmUhr = 0;
 };
+$("#tm-funk").onclick = () => {
+  Z.funkTon = !Z.funkTon;
+  if (Z.funkTon) {
+    /* Zur Probe der Ton vom Ende eines Funkspruchs: so klingt es */
+    const ac = funkKontext(true);
+    if (ac) Promise.resolve(ac.state === "running" ? null : ac.resume())
+      .then(() => funkKlang("ende", "probe")).catch(() => {});
+  } else if (FUNKTON.ctx) FUNKTON.ctx.suspend().catch(() => {});
+  sichern();
+  funkKnopf();
+};
+$("#tm-sprache").onclick = () => {
+  Z.crewSpricht = !Z.crewSpricht;
+  if (!Z.crewSpricht) sprechenAus();
+  else SPRECHEN.stimme = deutscheStimme();
+  sichern();
+  sprachKnopf();
+};
 $("#btn-vorf").onclick = () => vorfuehrungBeenden();
 $("#vorf-band").onclick = () => vorfuehrungBeenden();
 
@@ -26528,7 +26932,28 @@ const HILFE = [
       + "oder eine Figur genau, mit Aufgaben, letzten Schritten und geänderten Dateien. Oder sie fliegen "
       + "die Erde zu einem Ort und fahren die Kamera zu einer Figur. Was sie nachgesehen oder gezeigt "
       + "haben, steht im Log über der Antwort. Sie lesen nur, was ORBIT ohnehin zeigt, und ändern nichts. "
-      + "Jedes Nachsehen ist eine weitere Anfrage an Claude, nach sechs Runden müssen sie antworten.",
+      + "Jedes Nachsehen ist eine weitere Anfrage an Claude, nach sechs Runden müssen sie antworten. "
+      + "In der Szene läuft dabei eine Funkstrecke in der Farbe des Agenten zu jeder Figur, die er "
+      + "gerade liest: die Punkte laufen hin, solange er fragt, und mit der Antwort zurück.",
+  },
+  {
+    titel: "Was fragen?",
+    text: "Tippst du ins leere Auftragsfeld, stehen darüber bis zu drei Fragen, die zur Lage passen: "
+      + "wer gerade auf dich wartet, wer sich im Kreis dreht, wo zwei an derselben Datei sind, was der "
+      + "Frachter gebracht hat. Ein Tipp setzt die Frage ins Feld. Abgeschickt wird erst mit dem Knopf, "
+      + "denn jede Antwort kostet, und an die ganze Crew sind es drei.",
+  },
+  {
+    titel: "Funk zum Hören",
+    text: "Unter Stationswerte → FUNK. Dann beginnt und endet jede Antwort der Crew mit den Quindar-Tönen "
+      + "der Apollo-Flüge, 2525 Hz am Anfang, 2475 Hz am Ende. Ein Ruf aus zwei Tönen aufwärts heißt: "
+      + "jemand wartet auf dich. Zwei tiefere abwärts: ein Konflikt, ein Kreis, ein Fehler. Eine Quinte: "
+      + "ein PR ist freigegeben oder der Frachter hat geliefert. Eine Sitzung, die fertig ist, bekommt "
+      + "den Ton vom Ende. Aus als Vorgabe; nach dem Neuladen klingt es erst nach dem ersten Klick, "
+      + "denn vorher lässt der Browser keinen Ton zu. Mit „Crew spricht“ darunter liest jeder eigene "
+      + "Agent den Anfang seiner Antwort vor, wie einen Funkspruch: „Hier Kepler.“ und der erste Satz, "
+      + "zwischen den beiden Tönen, der Reihe nach und jeder etwas anders in der Tonhöhe. Das geht nur "
+      + "mit einer deutschen Stimme des Geräts; fehlt die, sagt es der Schalter.",
   },
   {
     titel: "Was es kostet",
@@ -27208,6 +27633,79 @@ function absenden() {
   feld.value = ""; hoeheAnpassen(); pruefeSendeKnopf();
 }
 
+/* --- Fragen an die Crew ------------------------------------------------
+   Seit die Crew nachsehen kann, fehlte nur noch, dass man weiss, was man
+   sie fragen kann. Ist das Auftragsfeld leer und hat es den Fokus, stehen
+   darueber bis zu drei Fragen, die zur Lage passen: wer gerade wartet,
+   wer sich im Kreis dreht, wo zwei an derselben Datei sind, was der
+   Frachter gebracht hat. Danach allgemeine.
+
+   Ein Tipp setzt die Frage ins Feld. Abgeschickt wird erst mit dem
+   Knopf: jede Antwort kostet, und an die ganze Crew sind es drei. */
+function crewFragen() {
+  const f = [];
+  const warten = (BR.live || []).filter(a => a.zustand === "winkt");
+  if (warten.length === 1) f.push({ text: "Worauf wartet " + warten[0].name + "?", grund: "wartet" });
+  else if (warten.length > 1) f.push({ text: "Wer wartet auf mich, und worauf?", grund: "wartet" });
+  const k = SCHLEIFE.liste[0];
+  if (k) f.push({ text: "Warum scheitert " + k.a.name + " immer wieder?", grund: "kreis" });
+  const c = KONFLIKT.liste[0];
+  /* Kurz: die Namen der beiden stehen in der Antwort, und mit ihnen
+     war die Frage auf dem Handy abgeschnitten, bevor sie fragte */
+  if (c) f.push({ text: "Zwei ändern " + c.name + " – was tun?", grund: "konflikt" });
+  if (FRACHT.echt && (FRACHT.fracht || []).length) f.push({ text: "Was hat der Frachter gebracht?", grund: "fracht" });
+  f.push({ text: "Was ist gerade los an der Station?", grund: "allgemein" });
+  if (energieZeilen(Date.now()).some(z => z[0] !== "~")) f.push({ text: "Wie viel haben wir im Fenster verbraucht?", grund: "allgemein" });
+  f.push({ text: "Zeig mir Tokio.", grund: "allgemein" });
+  return f.slice(0, 3);
+}
+function crewFragenZeichnen() {
+  const box = document.getElementById("crew-fragen"), fe = document.getElementById("auftrag");
+  if (!box || !fe) return;
+  const zeigen = (document.activeElement === fe && !fe.value.trim())
+    || box.contains(document.activeElement) || box.dataset.drueck === "1";
+  box.hidden = !zeigen;
+  if (!zeigen) return;
+  const fragen = crewFragen();
+  /* Nur neu bauen, was sich geaendert hat: ein Neubau unter dem Finger
+     verschluckt den Tipp */
+  const schl = fragen.map(x => x.grund + ":" + x.text).join("|");
+  if (box.dataset.schl === schl && box.childElementCount) return;
+  box.dataset.schl = schl;
+  box.textContent = "";
+  for (const x of fragen) {
+    const k = document.createElement("button");
+    k.type = "button";
+    k.className = "crew-frage " + x.grund;
+    k.title = "Ins Auftragsfeld setzen";
+    const pk = document.createElement("span"); pk.className = "punkt";
+    const tx = document.createElement("span"); tx.className = "text"; tx.textContent = x.text;
+    k.append(pk, tx);
+    /* Der Fokus bleibt im Feld: sonst schliesst sich die Reihe, bevor
+       der Tipp ankommt, und am Handy klappt die Tastatur zu */
+    const halten = (e) => { e.preventDefault(); box.dataset.drueck = "1"; };
+    k.addEventListener("pointerdown", halten);
+    k.addEventListener("mousedown", halten);
+    k.onclick = () => {
+      box.dataset.drueck = "";
+      fe.value = x.text;
+      hoeheAnpassen(); pruefeSendeKnopf();
+      fe.focus();
+      try { fe.setSelectionRange(fe.value.length, fe.value.length); } catch {}
+      crewFragenZeichnen();
+    };
+    box.appendChild(k);
+  }
+}
+feld.addEventListener("focus", crewFragenZeichnen);
+feld.addEventListener("input", crewFragenZeichnen);
+feld.addEventListener("blur", () => setTimeout(() => {
+  const box = document.getElementById("crew-fragen");
+  /* Ein Druck, der nicht zum Tipp wurde (weggezogen), gibt die Reihe frei */
+  if (box && box.dataset.drueck === "1" && document.activeElement !== feld) box.dataset.drueck = "";
+  crewFragenZeichnen();
+}, 150));
+
 /* --- Zeiger: tippen, ziehen, zoomen --- */
 const ZEIGER = new Map();
 let zieh = null;
@@ -27530,6 +28028,8 @@ echteIssKnopf();
 weltraumwetterKnopf();
 wolkenHeuteKnopf();
 regenKnopf();
+funkKnopf();
+sprachKnopf();
 satellitKnopf();
 erdeGesternKnopf();
 schriftKnopf();
@@ -27684,6 +28184,10 @@ window.__QUELLE = (liste) => { bruecke_sessions = liste || []; liveNeuBauen(); }
 window.__FRACHT = () => FRACHT;
 window.__SCHILDER = () => TEILSCHILDER;
 window.__FUNK = () => FUNK_LETZT;
+window.__FUNKTON = () => ({ an: Z.funkTon, zustand: FUNKTON.ctx ? FUNKTON.ctx.state : null, gespielt: FUNKTON.gespielt.slice() });
+window.__SPRECHEN = () => ({ an: Z.crewSpricht, stimme: SPRECHEN.stimme ? SPRECHEN.stimme.name : null, warte: SPRECHEN.warte.length, spricht: SPRECHEN.spricht, gesprochen: SPRECHEN.gesprochen.slice() });
+window.__MASSSTAB = () => MASSSTAB_LETZT;
+window.__CREWBLICK = () => ({ liste: CREWBLICK.liste.slice(), gezeichnet: CREWBLICK.gezeichnet.slice() });
 window.__NAMEN = () => NAMEN_LETZT;
 window.__BLASEN = () => BLASEN_LETZT;
 window.__MELDUNGEN = () => MELDUNGEN;
