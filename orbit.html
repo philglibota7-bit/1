@@ -1868,6 +1868,7 @@ let Z = {
   erinnerungen: [],   // { id, um, text, figur, name, von, vonId, gesetzt, gemeldet, art }
   wachen: [],         // { id, figur, name, typ, wenn, von, vonId, gesetzt, stand }: melden bei fertig/wartet/fehler
   schicht: { an: false, zuletzt: 0, tag: "", heute: 0, reihe: 0, fehler: 0 }, // Schichtbericht der Crew — nur auf Wunsch
+  lager: [],         // { schluessel, repo, kurz, titel, zeit, an, platz }: was der Frachter brachte, im Aussenlager
   bruecke: {
     typen: { session: true, ordner: true, prozess: true, github: true },
     ordner: [],                 // beobachtete Projektordner
@@ -1905,6 +1906,7 @@ function laden() {
       Z.erinnerungen = erinnerungenLesen(d.erinnerungen);
       Z.wachen = wachenLesen(d.wachen);
       Z.schicht = schichtLesen(d.schicht);
+      Z.lager = lagerLesen(d.lager);
       if (d.zuhause && typeof d.zuhause.name === "string" && isFinite(d.zuhause.breite) && isFinite(d.zuhause.laenge)
           && Math.abs(d.zuhause.breite) <= 85 && Math.abs(d.zuhause.laenge) <= 180)
         Z.zuhause = { name: d.zuhause.name.slice(0, 60), breite: +d.zuhause.breite, laenge: +d.zuhause.laenge };
@@ -1952,6 +1954,7 @@ function sichern() {
       notizen: Z.notizen, erinnerungen: Z.erinnerungen,
       wachen: Z.wachen.map(({ stand, ...w }) => w),
       schicht: Z.schicht,
+      lager: Z.lager,
     }));
   } catch (e) {
     /* Speicher voll oder privater Modus — die App laeuft trotzdem weiter */
@@ -7447,12 +7450,16 @@ function frachtTakt(t, hafen) {
        Ablegen kommt, wartet auf den naechsten Flug. */
     if (FRACHT.ladung.length && (FRACHT.lage === "anflug" || FRACHT.lage === "gedockt")) {
       FRACHT.fracht.push(...FRACHT.ladung.splice(0));
-      if (FRACHT.lage === "gedockt") FRACHT.bis = Math.max(FRACHT.bis, t + Math.min(60000, d.gedockt));
+      if (FRACHT.lage === "gedockt") {
+        FRACHT.bis = Math.max(FRACHT.bis, t + Math.min(60000, d.gedockt));
+        lagerEinlagern(FRACHT.fracht);
+      }
     }
     if (t < FRACHT.bis) return;
     if (FRACHT.lage === "anflug") {
       FRACHT.lage = "gedockt"; FRACHT.von = t; FRACHT.bis = t + d.gedockt;
       bordbuch("Frachter angedockt · " + ladungText(FRACHT.fracht, false));
+      lagerEinlagern(FRACHT.fracht);
     } else if (FRACHT.lage === "gedockt") {
       FRACHT.lage = "abflug"; FRACHT.von = t; FRACHT.bis = t + d.abflug;
       bordbuch("Frachter legt ab");
@@ -7519,6 +7526,265 @@ function lieferungDazu(x) {
   melden(x.repo + ": " + x.kurz + " geliefert", x.titel || "", "fracht:" + x.schluessel, "lieferung");
 }
 
+/* ---------- Das Aussenlager ----------
+   Was der Frachter bringt, bleibt da. An der echten Station stehen
+   Ersatzteile auf Plattformen aussen am Traeger, neben den grossen
+   Drehgelenken der Solarfluegel: Pumpen, Batterien, Steuergeraete,
+   jedes in einem Behaelter mit Griffen, damit es jemand im Anzug tragen
+   kann. Hier ist jede Lieferung einer: ein gemergter Pull Request oder
+   ein Push auf den Hauptzweig, das Repo als farbiges Band, aus der Naehe
+   die Nummer auf der Stirnseite. Ausgeladen wird, wenn der Frachter
+   andockt, nicht schon, wenn GitHub die Lieferung meldet.
+
+   Vier Plattformen, zwei je Seite, oben und unten am Traeger. Oben
+   stehen zwei Reihen zu vier, unten haengt eine Reihe zu vier: die
+   hintere Reihe unten laege hinter dem Traeger. Sind alle 24 belegt,
+   holt die Crew den aeltesten hinein. Gespeichert wird auf diesem Geraet.
+   In der Vorfuehrung stehen Beispielbehaelter da, die nirgends
+   gespeichert werden. */
+const LAGER_MAX = 24;
+const LAGER_PLATTFORMEN = [
+  { x: 1.93, oben: true, reihen: 2 },    // Steuerbord, oben
+  { x: -2.49, oben: true, reihen: 2 },   // Backbord, oben
+  { x: 1.93, oben: false, reihen: 1 },   // Steuerbord, unten
+  { x: -2.49, oben: false, reihen: 1 },  // Backbord, unten
+];
+/* Die Beispiele der Vorfuehrung, passend zu ihrer Welt (dort wurde PR #8
+   gestern gemergt), vor so vielen Stunden ausgeladen. Keins ist von heute:
+   "Was wurde heute geliefert?" kommt erst mit ihrem PR #12. */
+const LAGER_BEISPIEL = [
+  { schluessel: "b1", repo: "orbit", kurz: "Push auf main", titel: "Gewitter über der echten Wolkendecke", vor: 73, platz: 0 },
+  { schluessel: "b2", repo: "webshop", kurz: "PR #7", titel: "Mengenrabatt ab drei Stück", vor: 50, platz: 1 },
+  { schluessel: "b3", repo: "blog", kurz: "PR #31", titel: "Herbstartikel", vor: 49, platz: 2 },
+  { schluessel: "b4", repo: "webshop", kurz: "PR #8", titel: "Warenkorb: Mengen prüfen", vor: 26, platz: 3 },
+  { schluessel: "b5", repo: "webshop", kurz: "Push auf main", titel: "Checkout-Tests wieder grün", vor: 25, platz: 4 },
+];
+let LAGER_LETZT = [];
+/* Was der Frachter in der Vorfuehrung bringt, steht nur, solange sie
+   laeuft: es sind Beispieldaten und kommen nie in den Speicher */
+const LAGER_VORF = [];
+
+function lagerLesen(roh) {
+  if (!Array.isArray(roh)) return [];
+  const aus = [], gesehen = new Set();
+  for (const x of roh) {
+    if (!x || typeof x.schluessel !== "string" || gesehen.has(x.schluessel)) continue;
+    gesehen.add(x.schluessel);
+    aus.push({ schluessel: x.schluessel.slice(0, 200), repo: typeof x.repo === "string" ? x.repo.slice(0, 80) : "",
+      kurz: typeof x.kurz === "string" ? x.kurz.slice(0, 60) : "", titel: typeof x.titel === "string" ? x.titel.slice(0, 160) : "",
+      zeit: Number.isFinite(x.zeit) ? x.zeit : 0, an: Number.isFinite(x.an) ? x.an : 0,
+      platz: Number.isInteger(x.platz) && x.platz >= 0 && x.platz < LAGER_MAX ? x.platz : null });
+  }
+  const bleibt = aus.slice(-LAGER_MAX);
+  /* Zwei auf einem Platz: der zweite bekommt einen neuen */
+  const belegt = new Set();
+  for (const x of bleibt) {
+    if (x.platz !== null && belegt.has(x.platz)) x.platz = null;
+    if (x.platz !== null) belegt.add(x.platz);
+  }
+  lagerPlatzVergeben(bleibt);
+  return bleibt;
+}
+function lagerListe() {
+  if (!VORF.an) return Z.lager;
+  return LAGER_BEISPIEL.map(x => ({ schluessel: x.schluessel, repo: x.repo, kurz: x.kurz, titel: x.titel,
+    zeit: VORF.t0 - x.vor * 3600000, an: VORF.t0 - x.vor * 3600000, platz: x.platz })).concat(LAGER_VORF);
+}
+/* Wer keinen Platz hat, bekommt den ersten freien: oben vorn an
+   Steuerbord zuerst. Wer steht, bleibt stehen, bis er hineingeholt wird,
+   und ein neuer nimmt dann dessen Platz. Sonst rueckte bei jeder
+   Lieferung das ganze Lager um einen weiter. */
+function lagerPlatzVergeben(liste) {
+  const belegt = new Set(liste.filter(x => Number.isInteger(x.platz)).map(x => x.platz));
+  let frei = 0;
+  for (const x of liste) {
+    if (Number.isInteger(x.platz)) continue;
+    while (belegt.has(frei)) frei++;
+    if (frei >= LAGER_MAX) break;
+    x.platz = frei;
+    belegt.add(frei);
+  }
+}
+/* Beim Andocken: was noch nicht im Lager steht, kommt dazu. true, wenn
+   etwas dazukam */
+function lagerEinlagern(liste) {
+  const ziel = VORF.an ? LAGER_VORF : Z.lager;
+  const jetzt = Date.now();
+  let neu = 0;
+  for (const x of liste || []) {
+    if (!x || !x.schluessel || lagerListe().some(y => y.schluessel === x.schluessel)) continue;
+    ziel.push({ schluessel: x.schluessel, repo: x.repo || "", kurz: x.kurz || "", titel: x.titel || "",
+      zeit: x.zeit || jetzt, an: jetzt, platz: null });
+    neu++;
+  }
+  if (!neu) return false;
+  while (lagerListe().length > LAGER_MAX && ziel.length) {
+    const alt = ziel.shift();
+    bordbuch("Außenlager voll: " + alt.kurz + " · " + alt.repo + " hineingeholt");
+  }
+  lagerPlatzVergeben(lagerListe());
+  bordbuch("Außenlager: " + neu + " Behälter ausgeladen");
+  if (!VORF.an) sichern();
+  return true;
+}
+/* Wann: "heute 14:02", "gestern 09:10", sonst das Datum */
+function lagerWann(ms) {
+  if (!ms) return "";
+  const d = new Date(ms), heute = new Date();
+  const tag = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const tage = Math.round((tag(heute) - tag(d)) / 86400000);
+  const hm = d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  return tage === 0 ? "heute " + hm : tage === 1 ? "gestern " + hm
+    : d.toLocaleDateString("de-DE", { day: "numeric", month: "numeric" }) + " " + hm;
+}
+function lagerZeile(x) {
+  return x.kurz + " · " + x.repo + (x.titel ? " — " + x.titel : "");
+}
+/* Die 24 Plaetze: Plattform, Reihe (0 vorn) und Stelle von links.
+   Steuerbord oben zuerst, dort vorn; dann die Reihe dahinter. */
+function lagerPlaetze() {
+  const plaetze = [];
+  for (const p of LAGER_PLATTFORMEN)
+    for (let r = 0; r < p.reihen; r++)
+      for (let i = 0; i < 4; i++) plaetze.push({ p, r, i });
+  return plaetze;
+}
+const LAGER_PLATZ = lagerPlaetze();
+
+/* Gezeichnet in Stationskoordinaten, auf dem Traeger, der um -0,045
+   gedreht liegt. Traegerhoehe 0,24 R; seine Oberseite reicht 0,1 R
+   nach rechts und 0,149 R nach oben in die Tiefe, wie im Fachwerk
+   (gittertraeger). In dieser Schraegsicht sieht man von einem Kasten
+   die Stirn, die Oberseite und die rechte Wand; die linke verdeckt
+   die Stirn. Gezeichnet wird von hinten nach vorn und von links nach
+   rechts, dann verdeckt jeder, was hinter ihm steht. */
+function zeichneLager(c, R, t) {
+  LAGER_LETZT = [];
+  const liste = lagerListe();
+  const bw = R * 0.115, bh = R * 0.08, tx = R * 0.1, ty = -R * 0.149;
+  const dx = tx * 0.3, dy = ty * 0.3;          // Tiefe eines Behaelters
+  const trh = R * 0.24;
+  const jetzt = Date.now();
+  c.save();
+  c.rotate(-0.045);
+  /* Erst die Plattformen, auch leer: an der echten Station stehen sie da.
+     Oben ein Deck mit vier Fassungen je Reihe, unten eine Platte. */
+  for (const p of LAGER_PLATTFORMEN) {
+    const x0 = p.x * R, lang = R * 0.56;
+    if (p.oben) {
+      const y0 = -trh / 2;
+      c.fillStyle = dunkeln("rgba(96,103,112,.96)");
+      c.beginPath();
+      c.moveTo(x0, y0); c.lineTo(x0 + lang, y0);
+      c.lineTo(x0 + lang + tx * 0.9, y0 + ty * 0.9); c.lineTo(x0 + tx * 0.9, y0 + ty * 0.9);
+      c.closePath(); c.fill();
+      /* Die Fassungen: Querlinien auf dem Deck zwischen den Plaetzen */
+      c.strokeStyle = dunkeln("rgba(40,44,50,.55)");
+      c.lineWidth = Math.max(0.3, R * 0.004);
+      c.beginPath();
+      for (let i = 1; i < 4; i++) {
+        const xx = x0 + R * 0.0075 + i * R * 0.135;
+        c.moveTo(xx, y0); c.lineTo(xx + tx * 0.9, y0 + ty * 0.9);
+      }
+      c.stroke();
+      /* Die Stirnkante des Decks, hell von oben */
+      c.fillStyle = dunkeln("#aab2bb");
+      c.fillRect(x0, y0 - R * 0.012, lang, R * 0.012);
+    } else {
+      const y0 = trh / 2;
+      c.fillStyle = dunkeln("#6b727a");
+      c.fillRect(x0, y0, lang, R * 0.014);
+      c.fillStyle = `rgba(${ERDSCHEIN},.35)`;
+      c.fillRect(x0, y0 + R * 0.01, lang, R * 0.004);
+    }
+  }
+  /* Dann die Behaelter: hintere Reihe zuerst, sie liegt dahinter, und
+     in jeder Reihe von links nach rechts */
+  const belegt = liste.filter(x => Number.isInteger(x.platz) && LAGER_PLATZ[x.platz])
+    .map(x => ({ x, k: x.platz, platz: LAGER_PLATZ[x.platz] }));
+  belegt.sort((a, b) => b.platz.r - a.platz.r || a.k - b.k);
+  const m0 = c.getTransform();
+  for (const { x, k, platz } of belegt) {
+    const { p, r, i } = platz;
+    const tief = r ? 0.55 : 0.12;
+    const bx = p.x * R + R * 0.015 + i * R * 0.135 + tx * tief;
+    const farbe = farbeAusName(x.repo || "?");
+    let oy, hoch;
+    if (p.oben) { oy = -trh / 2 - R * 0.012 + ty * tief; hoch = -bh; }
+    else { oy = trh / 2 + R * 0.014; hoch = bh; }
+    const yo = Math.min(oy, oy + hoch), yu = Math.max(oy, oy + hoch);
+    /* Der Fuss auf dem Deck, oder die Aufhaengung unter der Platte */
+    beruehrung(c, bx + bw / 2 + dx * 0.5, oy + dy * 0.5, bw * 0.62, R * 0.028, 0.45);
+    /* Rechte Wand: im Schatten, zur Kante hin Erdschein */
+    const gw = c.createLinearGradient(bx + bw, yo, bx + bw + dx, yo);
+    gw.addColorStop(0, dunkeln("#7d848c")); gw.addColorStop(1, dunkeln("#4f555c"));
+    c.fillStyle = gw;
+    c.beginPath();
+    c.moveTo(bx + bw, yo); c.lineTo(bx + bw + dx, yo + dy);
+    c.lineTo(bx + bw + dx, yu + dy); c.lineTo(bx + bw, yu);
+    c.closePath(); c.fill();
+    /* Oberseite, nur oben zu sehen: sie faengt das Licht flach */
+    if (p.oben) {
+      c.fillStyle = dunkeln("#eef0f2");
+      c.beginPath();
+      c.moveTo(bx, yo); c.lineTo(bx + bw, yo);
+      c.lineTo(bx + bw + dx, yo + dy); c.lineTo(bx + dx, yo + dy);
+      c.closePath(); c.fill();
+    }
+    /* Stirnseite: weisse Schutzdecke, schattiert wie die Kisten am Traeger */
+    c.fillStyle = sonnenlauf(c, bx, yo, bw, yu - yo, dunkeln("#f4f2ea"), dunkeln("#c4c3bb"), dunkeln("#6d6f72"));
+    c.fillRect(bx, yo, bw, yu - yo);
+    /* Das Band in der Farbe des Repos, oben an der Stirn und um die Ecke */
+    const b0 = yo + (yu - yo) * 0.12, b1 = (yu - yo) * 0.22;
+    c.fillStyle = dunkeln(farbe);
+    c.fillRect(bx, b0, bw, b1);
+    c.globalAlpha = 0.7;
+    c.beginPath();
+    c.moveTo(bx + bw, b0); c.lineTo(bx + bw + dx, b0 + dy);
+    c.lineTo(bx + bw + dx, b0 + b1 + dy); c.lineTo(bx + bw, b0 + b1);
+    c.closePath(); c.fill();
+    c.globalAlpha = 1;
+    /* Kanten und Griffe, wie an jedem Behaelter, den man im Anzug traegt */
+    c.strokeStyle = dunkeln("rgba(40,44,50,.7)");
+    c.lineWidth = Math.max(0.3, R * 0.004);
+    c.strokeRect(bx, yo, bw, yu - yo);
+    c.strokeStyle = dunkeln("#d8b64a");
+    c.lineWidth = Math.max(0.35, R * 0.006);
+    c.beginPath();
+    c.moveTo(bx + bw * 0.08, yo + (yu - yo) * 0.5); c.lineTo(bx + bw * 0.08, yo + (yu - yo) * 0.84);
+    c.moveTo(bx + bw * 0.92, yo + (yu - yo) * 0.5); c.lineTo(bx + bw * 0.92, yo + (yu - yo) * 0.84);
+    c.stroke();
+    /* Aus der Naehe die Nummer: "#12", sonst der Zweig */
+    const px = bw * Math.hypot(m0.a, m0.b);
+    let aufschrift = "";
+    if (px > 26) {
+      const nr = /#(\d+)/.exec(x.kurz || "");
+      const text = nr ? "#" + nr[1] : (x.kurz || "").replace(/^Push auf /, "");
+      c.fillStyle = dunkeln("rgba(24,28,34,.85)");
+      c.font = "600 " + (R * 0.026).toFixed(2) + "px Inter, system-ui, sans-serif";
+      c.textAlign = "center"; c.textBaseline = "middle";
+      c.fillText(text.slice(0, 9), bx + bw / 2, yo + (yu - yo) * 0.66);
+      aufschrift = text.slice(0, 9);
+    }
+    /* Frisch ausgeladen: zehn Minuten ein sanfter Schein in der Farbe */
+    const frisch = !!x.an && jetzt - x.an < 600000;
+    if (frisch) {
+      const pul = 0.5 + 0.5 * Math.sin(t * 0.004);
+      c.strokeStyle = dunkeln(farbe);
+      c.globalAlpha = 0.35 + 0.4 * pul;
+      c.lineWidth = Math.max(0.6, R * 0.01);
+      c.strokeRect(bx - R * 0.006, yo - R * 0.006, bw + R * 0.012, yu - yo + R * 0.012);
+      c.globalAlpha = 1;
+    }
+    const m = c.getTransform();
+    const a = new DOMPoint(bx, yo).matrixTransform(m), b = new DOMPoint(bx + bw, yu).matrixTransform(m);
+    /* In Bildpunkten der Seite, wie die Schilder */
+    LAGER_LETZT.push({ schluessel: x.schluessel, x: Math.min(a.x, b.x) / DPR, y: Math.min(a.y, b.y) / DPR,
+      w: Math.abs(b.x - a.x) / DPR, h: Math.abs(b.y - a.y) / DPR, farbe, reihe: r, oben: p.oben, platz: k, aufschrift, frisch });
+  }
+  c.restore();
+}
+
 function lieferungenPruefen() {
   const repos = Z.bruecke.typen.github ? bruecke_github : [];
   FRACHT.echt = repos.length > 0;
@@ -7564,6 +7830,7 @@ function lieferungenPruefen() {
 function lieferungenVergessen() {
   LIEFER.gesehen = null; LIEFER.offen.clear(); LIEFER.geliefert.clear(); LIEFER.letzte = null;
   FRACHT.ladung = [];
+  LAGER_VORF.length = 0;
 }
 
 /* Ein kleiner Frachter: Druckkoerper in Folie, zwei Solarpaneele, vorn
@@ -7816,6 +8083,22 @@ const TEILE = {
     kurz: "Hier docken Schiffe an.",
     lang: "Ein Ring mit Haken, der ein ankommendes Schiff festhält und dichtet. Dahinter liegt eine Luke, durch die Fracht und Besatzung umsteigen. Angedockt wird immer genau von vorn — seitlich geht es nicht, weil die Ringe ineinandergreifen müssen.",
     zahl: "Der Ring misst 1,8 Meter, die Luke dahinter ist quadratisch mit 1,27 Meter Kante.",
+  },
+  lager: {
+    name: "Außenlager",
+    get kurz() {
+      const l = lagerListe();
+      if (!l.length) return "Noch leer: hier bleibt, was der Frachter bringt.";
+      return (VORF.an ? "Beispieldaten der Vorführung · " : "") + l.length + (l.length === 1 ? " Lieferung" : " Lieferungen")
+        + ", die neueste: " + lagerZeile(l[l.length - 1]);
+    },
+    get lang() {
+      const l = lagerListe();
+      if (!l.length) return "Jede echte Lieferung, ein gemergter Pull Request oder ein Push auf den Hauptzweig, wird ein Behälter auf einer der vier Plattformen am Träger, sobald der Frachter angedockt hat. Dafür muss GitHub unter Brücke angeschlossen sein.";
+      return l.slice(-8).reverse().map(x => (x.an || x.zeit ? lagerWann(x.an || x.zeit) + " · " : "") + lagerZeile(x)).join("\n")
+        + (l.length > 8 ? "\n… und " + (l.length - 8) + " ältere" : "");
+    },
+    zahl: "Auf der echten Station stehen Ersatzteile auf Plattformen außen am Träger, neben den Drehgelenken der Solarflügel: Pumpen, Batterien, Steuergeräte, die Frachter gebracht haben und die dort warten, bis sie gebraucht werden. Hier fassen die vier Plattformen 24 Behälter; ist alles voll, holt die Crew den ältesten hinein.",
   },
 };
 
@@ -8969,6 +9252,11 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler, ohneSch
   c.rotate(-0.045);                          // leicht schraeg, nie exakt waagerecht
   gittertraeger(c, -tr, tr, 0, trh, saat, plaetze);
   merkeTeil(c, teile, -tr * 0.28, -trh * 0.6, "traeger");
+  /* Das Aussenlager: je Plattform eine Stelle zum Antippen, Steuerbord oben zuerst */
+  merkeTeil(c, teile, R * 2.21, -trh * 0.5 - R * 0.16, "lager");
+  merkeTeil(c, teile, -R * 2.21, -trh * 0.5 - R * 0.16, "lager");
+  merkeTeil(c, teile, R * 2.21, trh * 0.5 + R * 0.06, "lager");
+  merkeTeil(c, teile, -R * 2.21, trh * 0.5 + R * 0.06, "lager");
 
   /* ---------- Solarfluegel und Radiatoren: LEBEND ----------
      Bis hierher waren beide mit ins Bild gebacken und standen damit
@@ -10427,6 +10715,7 @@ function zeichneStation(t, cxp, cyp, R) {
   c.save();
   c.translate(cxp, cyp);
   zeichneNarben(c, R);
+  zeichneLager(c, R, t);
   zeichneAntenne(c, R, t);
   /* ---------- Roboterarm: sitzt auf dem Traeger, greift zum Modul ---------- */
   c.save();
@@ -23843,6 +24132,11 @@ function stationLage() {
     von: w.von !== "du" ? w.von : undefined }));
   if (Z.schicht.an) o.schichtbericht = "an: zur vollen Stunde, wenn etwas war; heute "
     + schichtHeute(jetzt) + " von " + SCHICHT_TAG_MAX;
+  /* Das Aussenlager: wie voll, und die sechs neuesten Behaelter */
+  const lg = lagerListe();
+  if (lg.length) o.aussenlager = { behaelter: lg.length, platz: LAGER_MAX, beispiel: VORF.an || undefined,
+    neueste: lg.slice(-6).reverse().map(x => ({ was: x.kurz + " · " + x.repo,
+      titel: x.titel || undefined, ausgeladen: x.an || x.zeit ? lagerWann(x.an || x.zeit) : undefined })) };
   /* Was zuletzt an der Station geschah, neueste zuerst: damit beantwortet
      die Crew "Was ist passiert, waehrend ich weg war?" */
   if (BORDBUCH.length) o.bordbuch = BORDBUCH.slice(0, 15).map(e => uhr(e.zeit) + " " + werkzeugText(e.text, 140));
@@ -24563,7 +24857,7 @@ window.addEventListener("focus", () => { if (!document.hidden) rueckblickZurueck
    der Agent gerade tut. */
 const WERKZEUGE = [
   { name: "station_lage",
-    description: "Liest den Stand der Station ORBIT: alle Figuren (Claude-Code-Sitzungen, Unteragenten, Projektordner, Befehle, GitHub-Repos, eigene Agenten) mit Zustand und Tätigkeit, wer auf den Nutzer wartet, Konflikte (zwei ändern dieselbe Datei), Kreise (derselbe Fehler immer wieder), den Verbrauch von Claude Code im Fenster von fünf Stunden, den Frachter, das Wetter am Zuhause und worüber die Station fliegt. Gibt JSON zurück.",
+    description: "Liest den Stand der Station ORBIT: alle Figuren (Claude-Code-Sitzungen, Unteragenten, Projektordner, Befehle, GitHub-Repos, eigene Agenten) mit Zustand und Tätigkeit, wer auf den Nutzer wartet, Konflikte (zwei ändern dieselbe Datei), Kreise (derselbe Fehler immer wieder), den Verbrauch von Claude Code im Fenster von fünf Stunden, den Frachter und was er ins Außenlager gebracht hat, das Wetter am Zuhause und worüber die Station fliegt. Gibt JSON zurück.",
     inputSchema: { type: "object", properties: {} },
     zeichen: "⚙", text: () => "Stand der Station", tun: () => stationLage() },
   { name: "figur_detail",
@@ -27463,13 +27757,26 @@ function rundgangPeilen() {
   /* Die Fluegelspitzen liegen weit draussen; dort lohnt weniger
      Zoom, sonst sieht man nur Teppich. Die Module vertragen mehr. */
   const weit = Math.hypot(ort.x, ort.y);
-  KAM.zielZoom = klemm(weit > 3 ? 1.9 : 3.4, ZOOM_MIN, ZOOM_MAX);
+  kameraAufStelle(ort, weit > 3 ? 1.9 : 3.4);
+}
+
+/* Die Kamera auf eine Stelle der Station richten, gegeben in
+   Vielfachen des Stationsradius wie die Bauteile in STBILD */
+function kameraAufStelle(ort, zoom) {
+  KAM.zielZoom = klemm(zoom, ZOOM_MIN, ZOOM_MAX);
   const Rst = LETZTES_RST || 100;
   const sx = W / 2 + ort.x * Rst;
   const sy = H * (H / W > 1.3 ? 0.46 : 0.43) + ort.y * Rst;
   KAM.zielX = (W / 2 - sx) * KAM.zielZoom;
   KAM.zielY = (H / 2 - sy) * KAM.zielZoom;
   grenzenHalten();
+}
+
+/* Aus der Befehlspalette: hin zum Aussenlager, und die Liste dazu */
+function lagerZeigen() {
+  const ort = STBILD && STBILD.teile.find(q => q.schluessel === "lager");
+  if (ort) { KAM.folgt = null; kameraAufStelle(ort, 3.2); }
+  teilZeigen("lager");
 }
 
 function rundgangTakt(t) {
@@ -28166,7 +28473,8 @@ const HILFE = [
       + "hinterlässt dort einen kurzen Einsatzbericht: wie lange er draußen war und wie weit seine "
       + "Aufgabenliste gekommen ist. Ist GitHub angeschlossen, bringt der Frachter, was wirklich "
       + "geliefert wurde: einen gemergten Pull Request oder einen Push auf den Hauptzweig. Ein Schild "
-      + "sagt, was er an Bord hat; ohne Lieferung kommt er nicht.",
+      + "sagt, was er an Bord hat; ohne Lieferung kommt er nicht. Was er bringt, bleibt als Behälter "
+      + "im Außenlager am Träger stehen, mit dem Repo als Farbe; ein Tipp darauf zeigt die Liste.",
   },
   {
     titel: "Die Station",
@@ -28470,6 +28778,7 @@ function teilZeigen(schluessel, name, kurz) {
   $("#teil-name").textContent = name || d.name;
   $("#teil-kurz").textContent = kurz || d.kurz;
   $("#teil-lang").textContent = d.lang;
+  $("#teil-lang").style.whiteSpace = schluessel === "lager" ? "pre-line" : "";
   $("#teil-zahl").textContent = d.zahl;
   blendeAuf("blende-teil");
 }
@@ -28816,6 +29125,9 @@ function paletteQuellen() {
     aktion(REGEN.film || REGEN.filmWunsch ? "Regenfilm anhalten" : "Regenfilm", "Die letzten zwei Stunden Regen im Zeitraffer",
       "regen radar zeitraffer film animation", "", () => { if (!ERDANSICHT.an) erdansicht(true); regenFilmUmschalten(); });
   aktion("Kamera zurück", "Die ganze Station im Bild", "zuruecksetzen ansicht", "Leertaste", () => { if (ERDANSICHT.an) erdansicht(false); kameraZurueck(); });
+  const lg = lagerListe();
+  if (lg.length) aktion("Außenlager", lg.length + " Behälter, zuletzt " + lg[lg.length - 1].kurz + " · " + lg[lg.length - 1].repo,
+    "lager lieferung geliefert fracht behaelter", "", () => { if (ERDANSICHT.an) erdansicht(false); lagerZeigen(); });
   aktion(VORF.an ? "Vorführung beenden" : "Vorführung", "Beispieldaten statt echter Arbeit", "demo beispiel", "",
     () => { VORF.an ? vorfuehrungBeenden() : vorfuehrungStarten(); });
   const BLENDEN = [
@@ -29073,6 +29385,8 @@ function crewFragen() {
      war die Frage auf dem Handy abgeschnitten, bevor sie fragte */
   if (c) f.push({ text: "Zwei ändern " + c.name + " – was tun?", grund: "konflikt" });
   if (FRACHT.echt && (FRACHT.fracht || []).length) f.push({ text: "Was hat der Frachter gebracht?", grund: "fracht" });
+  /* Ist er wieder fort, steht es im Aussenlager */
+  else if (lagerListe().some(x => x.an && lagerWann(x.an).startsWith("heute "))) f.push({ text: "Was wurde heute geliefert?", grund: "fracht" });
   if (RUECKBLICK.karte) f.push({ text: "Was ist passiert, während ich weg war?", grund: "allgemein" });
   f.push({ text: "Was ist gerade los an der Station?", grund: "allgemein" });
   if (HEUTE.some(p => p.segmente && p.segmente.length)) f.push({ text: "Woran habe ich heute gearbeitet?", grund: "allgemein" });
@@ -29648,6 +29962,11 @@ window.__SCHICHT = {
   neues: (ms) => schichtNeues(ms).map(e => e.text),
   takt: (ms) => schichtTakt(ms),
   merk: () => SCHICHT_MERK.length,
+};
+window.__LAGER = {
+  liste: () => JSON.parse(JSON.stringify(lagerListe())),
+  einlagern: (l) => lagerEinlagern(l),
+  boxen: () => LAGER_LETZT.slice(),
 };
 window.__NAMEN = () => NAMEN_LETZT;
 window.__SIGNALE = () => [...SIGNAL_LETZT].map(([id, q]) => ({ id, ...q }));
