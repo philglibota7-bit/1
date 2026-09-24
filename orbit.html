@@ -796,6 +796,10 @@ select.eingabe{appearance:none; cursor:pointer;
 /* Was ein Agent nachgesehen oder gezeigt hat, klein ueber der Antwort */
 .log-werkzeuge{padding:0 13px 8px; font-size:11px; line-height:1.5; color:#9fc3ea; letter-spacing:.01em;}
 .log-eintrag.zu .log-werkzeuge{display:none;}
+/* Ein Schichtbericht kam von selbst: kuehl markiert, wie die Karte
+   "Waehrend du weg warst" — er berichtet, er ruft nicht */
+.log-eintrag.schicht{border-left:2px solid rgba(123,164,216,.55);}
+.log-eintrag.schicht .was{color:#9fc3ea;}
 .log-fuss{display:flex; gap:10px; align-items:center; padding:0 13px 11px; font-size:10.5px; color:var(--tx3);}
 .log-fuss button{font-size:10.5px; color:var(--tx3); letter-spacing:.04em;}
 .log-fuss button:hover{color:var(--acc);}
@@ -1478,6 +1482,7 @@ body.sicht #blende-detail, body.sicht #blende-teil{
     <div class="tm-abschnitt">FUNK</div>
     <button id="tm-funk" class="tm-knopf" type="button"></button>
     <button id="tm-sprache" class="tm-knopf" type="button"></button>
+    <button id="tm-schicht" class="tm-knopf" type="button"></button>
     <div class="tm-abschnitt" id="tm-erinnerkopf" hidden>ERINNERUNGEN</div>
     <div id="tm-erinnern" hidden></div>
     <div class="tm-kopf" id="tm-buchkopf" style="margin:12px 0 7px">BORDBUCH</div>
@@ -1859,6 +1864,7 @@ let Z = {
   notizen: {},        // Figur-ID -> { text, von, zeit }: Notizen an Figuren, nur auf diesem Geraet
   erinnerungen: [],   // { id, um, text, figur, name, von, vonId, gesetzt, gemeldet, art }
   wachen: [],         // { id, figur, name, typ, wenn, von, vonId, gesetzt, stand }: melden bei fertig/wartet/fehler
+  schicht: { an: false, zuletzt: 0, tag: "", heute: 0, reihe: 0, fehler: 0 }, // Schichtbericht der Crew — nur auf Wunsch
   bruecke: {
     typen: { session: true, ordner: true, prozess: true, github: true },
     ordner: [],                 // beobachtete Projektordner
@@ -1895,6 +1901,7 @@ function laden() {
       Z.notizen = notizenLesen(d.notizen);
       Z.erinnerungen = erinnerungenLesen(d.erinnerungen);
       Z.wachen = wachenLesen(d.wachen);
+      Z.schicht = schichtLesen(d.schicht);
       if (d.zuhause && typeof d.zuhause.name === "string" && isFinite(d.zuhause.breite) && isFinite(d.zuhause.laenge)
           && Math.abs(d.zuhause.breite) <= 85 && Math.abs(d.zuhause.laenge) <= 180)
         Z.zuhause = { name: d.zuhause.name.slice(0, 60), breite: +d.zuhause.breite, laenge: +d.zuhause.laenge };
@@ -1941,6 +1948,7 @@ function sichern() {
       satellit: Z.satellit, regen: Z.regen, zuhause: Z.zuhause, funkTon: Z.funkTon, crewSpricht: Z.crewSpricht,
       notizen: Z.notizen, erinnerungen: Z.erinnerungen,
       wachen: Z.wachen.map(({ stand, ...w }) => w),
+      schicht: Z.schicht,
     }));
   } catch (e) {
     /* Speicher voll oder privater Modus — die App laeuft trotzdem weiter */
@@ -7936,6 +7944,9 @@ const BORDBUCH = [];
    fuer die Karte "Waehrend du weg warst". In ein paar Stunden fuellen
    Sonnenaufgaenge, Ventile und Funk die vierzig allein. */
 const ABWESEND = { seit: null, merk: [] };
+/* Dasselbe fuer den Schichtbericht: was seit dem letzten geschah, auch
+   wenn das Bordbuch es in einer vollen Stunde schon vergessen hat */
+const SCHICHT_MERK = [];
 
 function bordbuch(text) {
   const letzter = BORDBUCH[0];
@@ -7946,6 +7957,10 @@ function bordbuch(text) {
   if (ABWESEND.seit !== null) {
     ABWESEND.merk.push(eintrag);
     if (ABWESEND.merk.length > 300) ABWESEND.merk.shift();
+  }
+  if (Z.schicht && Z.schicht.an) {
+    SCHICHT_MERK.push(eintrag);
+    if (SCHICHT_MERK.length > 300) SCHICHT_MERK.shift();
   }
   if (BORDBUCH.length > 40) BORDBUCH.length = 40;
   /* Steht der Reiter offen, soll der Eintrag sofort dort stehen und
@@ -17542,6 +17557,7 @@ const TM_SYMBOLE = {
   regen: '<svg viewBox="0 0 24 24"><path d="M7 14.5h10.5a3.6 3.6 0 0 0 .4-7.2A5.8 5.8 0 0 0 6.6 8a3.3 3.3 0 0 0 .4 6.5z"/><path d="M8.5 17.5l-1 2.5M12.5 17.5l-1 2.5M16.5 17.5l-1 2.5"/></svg>',
   funk: '<svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9.2a4 4 0 0 1 0 5.6M18.2 6.6a7.8 7.8 0 0 1 0 10.8"/></svg>',
   sprache: '<svg viewBox="0 0 24 24"><path d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5h-7l-4.5 3.5v-3.5H5A1.5 1.5 0 0 1 3.5 15V7A1.5 1.5 0 0 1 5 5.5z"/><path d="M8 10h8M8 13h5"/></svg>',
+  schicht: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12.5" r="7.5"/><path d="M12 8.5v4l2.6 1.6M9.5 3h5M12 3v2"/></svg>',
   wetter: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.6"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M5.6 18.4l1.6-1.6M16.8 7.2l1.6-1.6"/></svg>',
 };
 function tmSchalter(id, an, titel, klein, symbol, ruht) {
@@ -23813,6 +23829,8 @@ function stationLage() {
     faellig: e.gemeldet ? true : undefined, von: e.von !== "du" ? e.von : undefined }));
   if (Z.wachen.length) o.wachen = Z.wachen.map(w => ({ figur: w.name, meldet_sich: wacheWennText(w.wenn, w.typ),
     von: w.von !== "du" ? w.von : undefined }));
+  if (Z.schicht.an) o.schichtbericht = "an: zur vollen Stunde, wenn etwas war; heute "
+    + schichtHeute(jetzt) + " von " + SCHICHT_TAG_MAX;
   /* Was zuletzt an der Station geschah, neueste zuerst: damit beantwortet
      die Crew "Was ist passiert, waehrend ich weg war?" */
   if (BORDBUCH.length) o.bordbuch = BORDBUCH.slice(0, 15).map(e => uhr(e.zeit) + " " + werkzeugText(e.text, 140));
@@ -24364,8 +24382,9 @@ function wachenPruefen(jetzt = Date.now()) {
     if (!trifft || vorher === null) continue;
     Z.wachen.splice(Z.wachen.indexOf(w), 1);
     const typ = w.typ;
+    /* Ein Befehl ist nie "fertig", nur weg (siehe wachStand) */
     const text = w.name + (s_ === "weg" ? " ist beendet"
-      : s_ === "fertig" ? (typ === "unteragent" ? " hat berichtet" : typ === "prozess" ? " ist beendet"
+      : s_ === "fertig" ? (typ === "unteragent" ? " hat berichtet"
                            : typ === "github" ? ": alle Läufe durch" : " ist fertig")
       : s_ === "wartet" ? (typ === "github" ? ": eine Freigabe wartet auf dich" : " wartet auf dich")
       : typ === "github" ? " ist rot" : " meldet einen Fehler");
@@ -24621,6 +24640,7 @@ function kannSenden() {
 }
 /* Knopf, Hinweis in der Crew und die Blende des Schluessels nachziehen */
 function schluesselLage() {
+  schichtKnopf();
   if (typeof pruefeSendeKnopf === "function") pruefeSendeKnopf();
   if (typeof zeichneCrewListe === "function") zeichneCrewListe();
   const v = document.getElementById("s-vorschau");
@@ -24758,6 +24778,229 @@ async function fuehreAus(agent, auftrag) {
 function abbrechen(agentId) {
   const l = lauf(agentId);
   if (l.abbruch) l.abbruch.abort();
+}
+
+/* ---------- Der Schichtbericht ----------
+   Auf Wunsch meldet sich die Crew zur vollen Stunde mit dem, was seit
+   dem letzten Bericht an der Station geschah und die Arbeit betrifft:
+   wer fertig ist, wer wartet, was rot ist, was geliefert wurde.
+   Hoechstens drei Saetze: im Log, zu hoeren, wenn die Crew spricht, und
+   als Mitteilung, wenn ORBIT nicht vorne ist. Reihum, jede Stunde ein
+   anderer aus der Crew. War nichts, schweigt sie.
+
+   Das kostet Geld, darum nur auf Wunsch (aus als Vorgabe), nur mit
+   eigenem Schluessel — in der Vorschau auf claude.ai zahlte der
+   Betrachter, und der hat nicht darum gebeten —, nicht in der
+   Vorfuehrung, hoechstens achtmal am Tag, ohne Werkzeuge, mit wenig
+   Aufwand und kurzer Antwort. Scheitert er zweimal hintereinander
+   (Schluessel falsch, kein Netz), schaltet er sich ab und sagt es im
+   Bordbuch.
+
+   Der Bericht ist keine Mission: Er kommt nicht ins Gedaechtnis des
+   Agenten (das bleibt fuer das, was man ihn fragt), und er schreibt
+   nicht "Kepler ist fertig" ins Bordbuch. Sonst waere jeder Bericht
+   das Ereignis, ueber das der naechste berichtet. */
+const SCHICHT_TAG_MAX = 8;
+const SCHICHT_ABSTAND = 30 * 60000;   // mindestens so lange nach dem letzten
+const SCHICHT_FENSTER = 10;           // Minuten nach der vollen Stunde
+const SCHICHT_TOKENS = 1000;          // Obergrenze; drei Saetze brauchen um die hundert
+const SCHICHT = { ac: null, knopf: "" };
+const SCHICHT_ANLEITUNG = "Du gibst den Schichtbericht der Raumstation ORBIT. Die Figuren der Station sind die "
+  + "Arbeit des Nutzers: Sitzungen von Claude Code, ihre Unteragenten, laufende Befehle, GitHub-Repos und die "
+  + "eigene Crew. Sag in höchstens drei kurzen Sätzen, was seit dem letzten Bericht geschah und was jetzt für "
+  + "den Nutzer zählt: wer auf ihn wartet, was rot ist, was fertig oder geliefert ist. Wichtiges zuerst; der "
+  + "erste Satz wird vorgelesen und muss allein reichen. Gesprochen wie ein Funkspruch: keine Überschrift, "
+  + "keine Aufzählung, kein Markdown, keine Begrüßung. Erfinde nichts: Was nicht in den Daten steht, gibt es nicht.";
+
+function schichtLesen(roh) {
+  const s = { an: false, zuletzt: 0, tag: "", heute: 0, reihe: 0, fehler: 0 };
+  if (!roh || typeof roh !== "object") return s;
+  if (typeof roh.an === "boolean") s.an = roh.an;
+  if (Number.isFinite(roh.zuletzt) && roh.zuletzt > 0) s.zuletzt = roh.zuletzt;
+  if (typeof roh.tag === "string") s.tag = roh.tag.slice(0, 12);
+  if (Number.isInteger(roh.heute) && roh.heute > 0) s.heute = Math.min(roh.heute, SCHICHT_TAG_MAX);
+  if (Number.isInteger(roh.reihe) && roh.reihe > 0) s.reihe = roh.reihe;
+  if (Number.isInteger(roh.fehler) && roh.fehler > 0) s.fehler = Math.min(roh.fehler, 2);
+  return s;
+}
+/* Der Tag in der Zeit dieses Geraets: um Mitternacht beginnen die acht neu */
+function schichtTag(ms) {
+  const d = new Date(ms);
+  return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+}
+function schichtHeute(jetzt) {
+  return Z.schicht.tag === schichtTag(jetzt) ? Z.schicht.heute : 0;
+}
+/* Was seit dem letzten Bericht geschah und die Arbeit betrifft, der
+   Reihe nach; aus dem Gemerkten und dem Bordbuch, jeder Eintrag einmal */
+function schichtNeues(jetzt = Date.now()) {
+  const seit = Z.schicht.zuletzt;
+  const alle = new Set(SCHICHT_MERK);
+  for (const e of BORDBUCH) alle.add(e);
+  return [...alle].filter(e => e.zeit > seit && e.zeit <= jetzt && rueckblickArt(e.text) !== null)
+    .sort((x, y) => x.zeit - y.zeit).slice(-30);
+}
+/* Wer dran ist: reihum; wer gerade einen Auftrag hat, wird uebersprungen */
+function schichtSprecher() {
+  const n = Z.agenten.length;
+  for (let i = 0; i < n; i++) {
+    const a = Z.agenten[(Z.schicht.reihe + i) % n];
+    if (!lauf(a.id).abbruch) return a;
+  }
+  return null;
+}
+/* Warum jetzt kein Bericht kommt; "" heisst, er ist faellig */
+function schichtGrund(jetzt = Date.now()) {
+  const s = Z.schicht;
+  if (!s.an) return "aus";
+  if (inVorschau()) return "vorschau";
+  if (!Z.key) return "schluessel";
+  if (VORF.an) return "vorfuehrung";
+  if (SCHICHT.ac) return "laeuft";
+  if (schichtHeute(jetzt) >= SCHICHT_TAG_MAX) return "genug";
+  if (new Date(jetzt).getMinutes() >= SCHICHT_FENSTER) return "stunde";
+  if (jetzt - s.zuletzt < SCHICHT_ABSTAND) return "frisch";
+  /* Kommen und Gehen allein ist kein Grund: etwas muss fertig, rot,
+     wartend oder geliefert sein */
+  if (!schichtNeues(jetzt).some(e => rueckblickArt(e.text))) return "ruhig";
+  if (!schichtSprecher()) return "beschaeftigt";
+  return "";
+}
+/* Was der Agent bekommt: die Ereignisse und wie es jetzt steht, knapp */
+function schichtAuftrag(neu, jetzt, seit) {
+  const alle = alleAstronauten().filter(a => a.typ !== "agent");
+  const o = {
+    uhrzeit: uhr(jetzt),
+    seit: seit ? erinnerungZeit(seit) : undefined,
+    ereignisse: neu.map(e => uhr(e.zeit) + " " + werkzeugText(e.text, 160)),
+    warten_jetzt_auf_dich: alle.filter(a => a.zustand === "winkt").map(a => a.name),
+    arbeiten_jetzt: alle.filter(a => a.zustand === "sendet" || a.zustand === "denkt").map(a => a.name).slice(0, 12),
+  };
+  if (KONFLIKT.liste.length) o.konflikte = KONFLIKT.liste.slice(0, 6).map(k => k.pfad + ": " + k.a.name + " und " + k.b.name);
+  const f = erinnerungenFaellig();
+  if (f.length) o.faellige_erinnerungen = f.slice(0, 5).map(e => e.text);
+  return "Schichtbericht um " + uhr(jetzt) + ". Die Daten der Station:\n" + JSON.stringify(o);
+}
+/* Die Figur zeigt, dass sie funkt, ohne Eintrag im Bordbuch und ohne
+   Meldung "ist fertig" (siehe oben) */
+function schichtZustand(id, zustand) {
+  const l = lauf(id);
+  if (l.zustand === zustand) return;
+  l.zustand = zustand; l.seit = performance.now();
+  zeichneCrewLeiste();
+}
+async function schichtBericht(jetzt = Date.now()) {
+  const agent = schichtSprecher();
+  if (!agent) return null;
+  const s = Z.schicht, neu = schichtNeues(jetzt), seit = s.zuletzt;
+  s.heute = schichtHeute(jetzt) + 1;
+  s.tag = schichtTag(jetzt);
+  s.zuletzt = jetzt;
+  s.reihe = (Z.agenten.indexOf(agent) + 1) % Z.agenten.length;
+  /* Was jetzt berichtet wird, braucht der Puffer nicht mehr */
+  for (let i = SCHICHT_MERK.length - 1; i >= 0; i--) if (SCHICHT_MERK[i].zeit <= jetzt) SCHICHT_MERK.splice(i, 1);
+  const ac = new AbortController();
+  SCHICHT.ac = ac;
+  const l = lauf(agent.id);
+  const frei = !l.abbruch && (l.zustand || "ruht") === "ruht";
+  if (frei) schichtZustand(agent.id, "denkt");
+  const modell = agent.modell || "claude-opus-5";
+  const eintrag = {
+    id: "m" + Date.now() + Math.random().toString(36).slice(2, 6),
+    agentId: agent.id, name: agent.name, farbe: agent.farbe, modell,
+    auftrag: "Schichtbericht " + uhr(jetzt) + " · von selbst", antwort: "", denken: "",
+    zeit: Date.now(), zu: false, schicht: true,
+  };
+  Z.log.unshift(eintrag);
+  if (Z.log.length > 60) Z.log.length = 60;
+  sichern(); zeichneLog(); schichtKnopf();
+  /* Man sieht, wie er die Station abfragt: ein Rundruf wie bei station_lage */
+  crewBlickNach("station_lage", {}, agent.id);
+  /* Wie eine Mission, aber ohne Werkzeuge, ohne Gedaechtnis und mit
+     wenig Aufwand; ohne Strom, denn drei Saetze kommen auf einmal */
+  const k = {
+    model: modell, max_tokens: SCHICHT_TOKENS,
+    system: (agent.rolle || "Du bist ein hilfreicher Agent.") + "\n\n" + SCHICHT_ANLEITUNG,
+    messages: [{ role: "user", content: schichtAuftrag(neu, jetzt, seit) }],
+  };
+  if (KANN_DENKEN(modell)) {
+    k.thinking = { type: "adaptive", display: "summarized" };
+    k.output_config = { effort: "low" };
+  }
+  let gut = false;
+  try {
+    const antwort = await fetch(ENDPUNKT, { method: "POST", signal: ac.signal, headers: baueKopf(false), body: JSON.stringify(k) });
+    if (!antwort.ok) throw new FehlerVomDienst(antwort.status, await antwort.text());
+    const d = await antwort.json();
+    const text = (d.content || []).filter(b => b && b.type === "text").map(b => b.text || "").join("").trim();
+    const ein = (d.usage && d.usage.input_tokens) || 0, aus = (d.usage && d.usage.output_tokens) || 0;
+    eintrag.antwort = text;
+    eintrag.ein = ein; eintrag.aus = aus;
+    eintrag.kosten = kostenSchaetzen(modell, ein, aus);
+    agent.laeufe = (agent.laeufe || 0) + 1;
+    agent.tokens = (agent.tokens || 0) + ein + aus;
+    if (eintrag.kosten != null) agent.kosten = (agent.kosten || 0) + eintrag.kosten;
+    if (d.stop_reason === "refusal") eintrag.fehler = "Die Anfrage wurde abgelehnt (Sicherheitsfilter).";
+    else if (!text) eintrag.fehler = "Leere Antwort zurückgekommen.";
+    else {
+      if (d.stop_reason === "max_tokens") eintrag.hinweis = "Bei der Längengrenze abgeschnitten.";
+      gut = true;
+    }
+  } catch (e) {
+    eintrag.fehler = e.name === "AbortError" ? "Abgebrochen." : (e.message || String(e));
+  }
+  SCHICHT.ac = null;
+  /* Kam derweil ein Auftrag an denselben Agenten, gehoert die Figur ihm */
+  const selbst = frei && !lauf(agent.id).abbruch && lauf(agent.id).zustand === "denkt";
+  if (gut) {
+    s.fehler = 0;
+    bordbuch("Schichtbericht von " + agent.name);
+    if (selbst) schichtZustand(agent.id, "sendet");
+    if (!crewSpricht(agent, eintrag.antwort)) {
+      funkKlang("anfang", agent.id);
+      setTimeout(() => funkKlang("ende", agent.id), 900);
+    }
+    melden("Schichtbericht von " + agent.name, sprechText(eintrag.antwort), agent.id, "bericht");
+  } else if (eintrag.fehler === "Abgebrochen.") {
+    if (selbst) schichtZustand(agent.id, "ruht");
+  } else {
+    s.fehler++;
+    bordbuch("Schichtbericht von " + agent.name + " kam nicht an: " + eintrag.fehler);
+    if (selbst) schichtZustand(agent.id, "fehler");
+    if (s.fehler >= 2) {
+      s.an = false;
+      bordbuch("Schichtbericht aus: zweimal hintereinander kein Bericht");
+    }
+  }
+  sichern(); zeichneLog(); zeichneCrewLeiste(); schichtKnopf();
+  if (selbst) setTimeout(() => {
+    const x = lauf(agent.id);
+    if (!x.abbruch && (x.zustand === "sendet" || x.zustand === "fehler")) schichtZustand(agent.id, "ruht");
+  }, 6000);
+  return eintrag;
+}
+/* Jede halbe Minute: ist einer faellig, kommt er */
+function schichtTakt(jetzt = Date.now()) {
+  schichtKnopf();
+  if (schichtGrund(jetzt)) return null;
+  return schichtBericht(jetzt);
+}
+function schichtKnopf() {
+  const s = Z.schicht, jetzt = Date.now(), heute = schichtHeute(jetzt);
+  let klein, ruht = false;
+  if (inVorschau()) { klein = "nur mit eigenem Schlüssel: im Mac-Programm oder Browser"; ruht = s.an; }
+  else if (!s.an) klein = "stündlich, was passiert ist · je etwa 1 Cent";
+  else if (!Z.key) { klein = "wartet auf einen API-Schlüssel"; ruht = true; }
+  else if (heute >= SCHICHT_TAG_MAX) klein = "heute alle " + SCHICHT_TAG_MAX + " gesendet · morgen wieder";
+  else {
+    const n = new Date(jetzt);
+    n.setHours(n.getHours() + 1, 0, 0, 0);
+    klein = "heute " + heute + " von " + SCHICHT_TAG_MAX + " · wieder " + uhr(+n) + ", falls etwas war";
+  }
+  const schl = s.an + "|" + ruht + "|" + klein;
+  if (schl === SCHICHT.knopf) return;
+  SCHICHT.knopf = schl;
+  tmSchalter("tm-schicht", s.an, "Schichtbericht", klein, "schicht", ruht);
 }
 
 /* ================================================================
@@ -24944,7 +25187,7 @@ function zeichneLog() {
   }
   for (const e of Z.log) {
     const k = document.createElement("div");
-    k.className = "log-eintrag" + (e.zu ? " zu" : "");
+    k.className = "log-eintrag" + (e.zu ? " zu" : "") + (e.schicht ? " schicht" : "");
     k.dataset.log = e.id;
 
     const kopf = document.createElement("div");
@@ -26968,6 +27211,20 @@ $("#tm-sprache").onclick = () => {
   sichern();
   sprachKnopf();
 };
+$("#tm-schicht").onclick = () => {
+  const s = Z.schicht;
+  s.an = !s.an;
+  if (s.an) {
+    /* Berichtet wird, was ab jetzt geschieht */
+    s.zuletzt = Date.now(); s.fehler = 0; SCHICHT_MERK.length = 0;
+    bordbuch("Schichtbericht an: zur vollen Stunde, wenn etwas war");
+  } else {
+    if (SCHICHT.ac) SCHICHT.ac.abort();
+    bordbuch("Schichtbericht aus");
+  }
+  sichern();
+  schichtKnopf();
+};
 $("#btn-vorf").onclick = () => vorfuehrungBeenden();
 $("#vorf-band").onclick = () => vorfuehrungBeenden();
 
@@ -28088,10 +28345,22 @@ const HILFE = [
       + "mit einer deutschen Stimme des Geräts; fehlt die, sagt es der Schalter.",
   },
   {
+    titel: "Der Schichtbericht",
+    text: "Ebenfalls unter FUNK, aus als Vorgabe. Eingeschaltet meldet sich zur vollen Stunde einer aus "
+      + "der Crew, reihum, mit dem, was seit dem letzten Bericht an der Station geschah: wer fertig ist, wer "
+      + "wartet, was rot ist, was geliefert wurde. Höchstens drei Sätze, im Log als „Schichtbericht · von "
+      + "selbst“, mit „Crew spricht“ auch zu hören, und als Mitteilung, wenn ORBIT nicht vorne ist. War "
+      + "nichts, schweigt die Crew. Jeder Bericht ist eine Anfrage mit deinem Schlüssel, etwa ein Cent mit "
+      + "Opus, weniger mit Sonnet oder Haiku, höchstens acht am Tag. Nicht in der Vorschau auf claude.ai "
+      + "und nicht in der Vorführung. Kommt zweimal hintereinander keiner an, etwa weil der Schlüssel "
+      + "nicht mehr gilt, schaltet er sich ab.",
+  },
+  {
     titel: "Was es kostet",
     text: "Die Agenten rufen Claude direkt von hier aus auf, mit deinem eigenen Schlüssel. Er bleibt im "
       + "Browser und geht nirgends sonst hin. Je Mission siehst du Tokens und geschätzte Kosten, unter "
-      + "Stationswerte die Summe des Tages. Von selbst läuft nichts — nur was du abschickst. In der "
+      + "Stationswerte die Summe des Tages. Von selbst läuft nur der Schichtbericht, und nur, wenn du ihn "
+      + "einschaltest; sonst nur, was du abschickst. In der "
       + "Vorschau auf claude.ai braucht es keinen Schlüssel: Dort fragt die Crew über dein Konto bei "
       + "claude.ai, nachdem du es erlaubt hast, und es zählt gegen dein Kontingent dort.",
   },
@@ -29168,6 +29437,7 @@ wolkenHeuteKnopf();
 regenKnopf();
 funkKnopf();
 sprachKnopf();
+schichtKnopf();
 satellitKnopf();
 erdeGesternKnopf();
 schriftKnopf();
@@ -29188,6 +29458,10 @@ brueckeStarten();
    gleich wieder da. */
 erinnerungenZeichnen();
 setInterval(() => erinnerungenTakt(), 1000);
+/* Der Schichtbericht: jede halbe Minute nachsehen, ob einer faellig ist.
+   Im Hintergrund drosselt der Browser das auf einmal je Minute; die
+   zehn Minuten nach der vollen Stunde reichen dafuer. */
+setInterval(() => schichtTakt(), 30000);
 /* Im Hintergrund geladen: ab jetzt zaehlt es als weg */
 if (document.hidden || !document.hasFocus()) rueckblickWeg();
 
@@ -29353,6 +29627,13 @@ window.__WACHEN = {
   stand: (id) => wachStand(id),
   pruefen: (ms) => wachenPruefen(ms),
   setzen: (id, wenn, von) => wacheSetzen(id, wenn, von),
+};
+window.__SCHICHT = {
+  stand: () => JSON.parse(JSON.stringify(Z.schicht)),
+  grund: (ms) => schichtGrund(ms),
+  neues: (ms) => schichtNeues(ms).map(e => e.text),
+  takt: (ms) => schichtTakt(ms),
+  merk: () => SCHICHT_MERK.length,
 };
 window.__NAMEN = () => NAMEN_LETZT;
 window.__BLASEN = () => BLASEN_LETZT;
