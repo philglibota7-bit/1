@@ -6225,6 +6225,118 @@ function haarlinie(basis) {
   return BACK_R < 400 ? basis : Math.max(1, Math.min(2, basis * BACK_R / 400));
 }
 
+/* Ein Kopplungsknoten aus der Naehe. Er ist ein kurzer, dicker Ring
+   zwischen zwei Modulen — der Anlegemechanismus, mit dem sie
+   zusammengeschraubt wurden. Gezeichnet war er als helle Tablette mit
+   fuenf grauen Kreisen, gleichmaessig verteilt; bei starkem Zoom
+   wirkte er wie ein Aufkleber.
+
+   Jetzt: zwei Flansche, an denen die Ringe der Module anliegen, jeder
+   mit Lichtkante und Schattenkante. Die Bolzen sitzen in Wirklichkeit
+   gleichmaessig um den Umfang; seitlich gesehen ruecken sie deshalb zu
+   den Raendern hin zusammen (Sinus des Umfangswinkels, dieselbe
+   Rechnung wie bei den Schutzdecken). Jeder Bolzen ist ein Kopf mit
+   Glanz zur Sonne und Schatten auf der abgewandten Seite. Dazwischen
+   eine Fuge, die das Licht schluckt. Unter vierzehn Bildpunkten Breite
+   bleibt alles wie vorher: dort waeren es nur Striche. */
+/* Wie hell eine liegende Roehre an einer Stelle ihres Querschnitts ist,
+   0 oben bis 1 unten: dieselben Stufen wie der Verlauf in modul(),
+   als Zahl von 0 (dunkel) bis 1 (Glanzband). Fuer alles, was auf der
+   Roehre sitzt und mit ihr hell und dunkel werden muss. */
+const ROEHRE_STUFEN = [[0, 0.8], [0.08, 0.96], [0.17, 1], [0.3, 0.92], [0.48, 0.68], [0.66, 0.36], [0.8, 0.14], [0.9, 0.08], [1, 0.3]];
+function roehrenLicht(t) {
+  const q = Math.max(0, Math.min(1, t));
+  for (let i = 1; i < ROEHRE_STUFEN.length; i++) {
+    const [t1, v1] = ROEHRE_STUFEN[i];
+    if (q <= t1) {
+      const [t0, v0] = ROEHRE_STUFEN[i - 1];
+      return v0 + (v1 - v0) * ((q - t0) / Math.max(1e-6, t1 - t0));
+    }
+  }
+  return ROEHRE_STUFEN[ROEHRE_STUFEN.length - 1][1];
+}
+
+/* Wie hell sonnenlauf() an einer Stelle malt, als Zahl von 0 bis 1:
+   dieselbe Achse und dieselben Stufen (hell, Mitte, dunkel, Erdschein) */
+function sonnenlaufLicht(px, py, x, y, w, h) {
+  const x0 = x + w / 2 - SONNE.x * w * 0.6, y0 = y + h / 2 - SONNE.y * h * 0.6;
+  const vx = SONNE.x * w * 1.2, vy = SONNE.y * h * 1.2;
+  const t = Math.max(0, Math.min(1, ((px - x0) * vx + (py - y0) * vy) / Math.max(1e-9, vx * vx + vy * vy)));
+  return t < 0.5 ? 1 - t * 0.9 : t < 0.86 ? 0.55 - (t - 0.5) / 0.36 * 0.47 : 0.08 + (t - 0.86) / 0.14 * 0.22;
+}
+
+/* Was die Nahdetails in einem Backvorgang gezeichnet haben, je Radius.
+   Fuer die Pruefung: wo die Bolzen im Bild liegen, wie hell die
+   Schraubenkoepfe sein sollten. Kostet nichts, wenn niemand hinsieht. */
+const NAHDETAIL = { jetzt: null };
+function nahZaehler(c, R) {
+  NAHDETAIL.jetzt = NAHDETAIL[R] = { R, koepfe: 0, dunkel: [], bolzen: [], gelb: 0, fleck: 0 };
+}
+function nahMerken(liste, c, x, y, extra) {
+  if (!NAHDETAIL.jetzt || liste.length >= 80) return;
+  try {
+    const q = c.getTransform().transformPoint(new DOMPoint(x, y));
+    liste.push({ x: q.x, y: q.y, ...extra });
+  } catch {}
+}
+
+function knotenNah(c, pos, md, haar) {
+  const bw = md * 0.3, oben = -md * 0.62, hoch = md * 1.24;
+  const px = Math.abs(bw) * (c.getTransform ? Math.hypot(c.getTransform().a, c.getTransform().b) : 1);
+  /* Der Ring ist mit sonnenlauf() gemalt, schraeg nach der Sonne; seine
+     Bolzen sind genau dort hell, wo er es ist */
+  const bolzen = (x, y, r) => {
+    const L = sonnenlaufLicht(x, y, pos, oben, bw, hoch);
+    const tn = (v) => Math.round(v * (0.25 + 0.75 * L));
+    c.fillStyle = `rgba(24,24,22,${0.3 + 0.25 * L})`;
+    c.beginPath(); c.arc(x - SONNE.x * r * 0.35, y - SONNE.y * r * 0.35, r * 1.08, 0, Math.PI * 2); c.fill();
+    const g = c.createRadialGradient(x + SONNE.x * r * 0.4, y + SONNE.y * r * 0.4, r * 0.1, x, y, r);
+    g.addColorStop(0, `rgb(${tn(244)},${tn(242)},${tn(234)})`);
+    g.addColorStop(0.55, `rgb(${tn(161)},${tn(159)},${tn(150)})`);
+    g.addColorStop(1, `rgb(${tn(74)},${tn(73)},${tn(68)})`);
+    c.fillStyle = g;
+    c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+    if (NAHDETAIL.jetzt) {
+      /* Dazu ein Punkt auf dem Ring daneben, zwischen den Bolzen: dort
+         ist er so hell wie hier ohne Bolzen */
+      nahMerken(NAHDETAIL.jetzt.bolzen, c, x, y, { L,
+        rx: (() => { const q = c.getTransform().transformPoint(new DOMPoint(pos + bw * 0.5 + (x < pos + bw * 0.5 ? -1 : 1) * bw * 0.13, y)); return q.x; })(),
+        ry: (() => { const q = c.getTransform().transformPoint(new DOMPoint(pos + bw * 0.5 + (x < pos + bw * 0.5 ? -1 : 1) * bw * 0.13, y)); return q.y; })(),
+        r: r * Math.hypot(c.getTransform().a, c.getTransform().b) });
+    }
+  };
+  if (px < 14) {
+    c.fillStyle = "rgba(60,58,50,.55)";
+    for (let k = 0; k < 5; k++) {
+      c.beginPath();
+      c.arc(pos + md * 0.15, -md * 0.5 + k * md * 0.25, md * 0.035, 0, Math.PI * 2);
+      c.fill();
+    }
+    return;
+  }
+  /* Die Flansche an beiden Seiten */
+  for (const [x0, links] of [[pos + bw * 0.1, true], [pos + bw * 0.9, false]]) {
+    c.fillStyle = "rgba(20,22,26,.28)";
+    c.fillRect(x0 - bw * 0.035, oben + hoch * 0.04, bw * 0.07, hoch * 0.92);
+    c.fillStyle = links ? "rgba(255,255,250,.55)" : "rgba(255,255,250,.3)";
+    c.fillRect(x0 - bw * 0.035, oben + hoch * 0.04, Math.max(haar, bw * 0.018), hoch * 0.92);
+  }
+  /* Die Fuge in der Mitte */
+  c.fillStyle = "rgba(10,12,16,.45)";
+  c.fillRect(pos + bw * 0.5 - Math.max(haar, bw * 0.012), oben + hoch * 0.03, Math.max(haar * 2, bw * 0.024), hoch * 0.94);
+  /* Sechzehn Bolzen um den Umfang, die vordere Haelfte ist zu sehen.
+     Seitlich gesehen ruecken sie zu den Raendern zusammen. */
+  /* Echte Bolzenkoepfe messen wenige Zentimeter; zwei Prozent des
+     Moduldurchmessers sind etwas mehr, damit sie bei mittlerem Zoom
+     nicht verschwinden */
+  const r = Math.max(0.45, md * 0.012);
+  for (let k = 0; k < 9; k++) {
+    const w = -Math.PI / 2 + (k + 0.5) * (Math.PI / 9);
+    const y = Math.sin(w) * hoch * 0.44;
+    for (const xb of [pos + bw * 0.27, pos + bw * 0.73]) bolzen(xb, y, r * (0.75 + 0.25 * Math.cos(w)));
+  }
+}
+
 function modul(c, x, y, w, h, saat, opt) {
   const o = opt || {};
   /* Zwei Lichtquellen, nicht eine. Oben die harte Sonne, unten die
@@ -6339,6 +6451,18 @@ function modul(c, x, y, w, h, saat, opt) {
             : `rgba(64,62,56,${-t2 * 0.095})`;
         }
         c.fillRect(xx + 0.15, reihe[zl] + 0.15, bw2, bh2);
+        /* Alterung je Decke: das Beta-Tuch vergilbt, aber jede Decke fuer
+           sich, je nachdem, wie lange sie schon draussen ist. Frueher lag
+           dafuer ein einziger gelblicher Fleck mit runden Ecken quer ueber
+           den Platten; aus der Naehe sah er aus wie ein Aufkleber. */
+        if (o.alt && v <= 0.955) {
+          const gelb = streu(sp, zl, saat + 31);
+          if (gelb > 0.3) {
+            if (NAHDETAIL.jetzt) NAHDETAIL.jetzt.gelb++;
+            c.fillStyle = `rgba(188,150,96,${(0.04 + (gelb - 0.3) * 0.2).toFixed(3)})`;
+            c.fillRect(xx + 0.15, reihe[zl] + 0.15, bw2, bh2);
+          }
+        }
         /* Eine Decke ist kein Aufdruck, sie hat Dicke. Ein feiner
            heller Strich an der Oberkante und ein dunkler an der
            Unterkante — mehr braucht es nicht, damit sie aufliegt
@@ -6349,6 +6473,54 @@ function modul(c, x, y, w, h, saat, opt) {
           c.fillRect(xx + 0.15, reihe[zl] + 0.15, bw2, kd);
           c.fillStyle = "rgba(40,40,36,.22)";
           c.fillRect(xx + 0.15, reihe[zl] + bh2 + 0.15 - kd, bw2, kd);
+        }
+        /* Aus der Naehe: womit die Platten festsitzen. Die Schutzschilde
+           gegen Mikrometeoriten sind Aluminiumplatten, die mit Schrauben
+           entlang ihrer Kanten auf Abstandshaltern sitzen; die Decken
+           darueber sind an denselben Stellen festgezurrt. Auf jedem
+           Nahfoto einer Station sind es diese Reihen kleiner Koepfe an
+           den Plattenkanten, an denen man sieht, dass da gebaut und
+           nicht gegossen wurde. Jeder Kopf wirft zur sonnenabgewandten
+           Seite einen Hauch Schatten und hat zur Sonne einen Glanzpunkt.
+           Nicht ganz regelmaessig: jede Platte ist einzeln montiert.
+           Erst ab etwa zwanzig Bildpunkten je Platte; darunter waere es
+           nur Rauschen. */
+        if (bw2 > 20 && bh2 > 12) {
+          const schritt = Math.max(9, h * 0.06);
+          const pr = Math.max(0.45, h * 0.0036);
+          /* Ein Kopf ist so hell wie die Roehre an seiner Stelle: im
+             dunklen Gurt unten ist auch er dunkel. Weisse Punkte dort
+             saehen aus wie Lichter. */
+          const kopf = (px, py, i) => {
+            const j = (streu(i, sp * 7 + zl, saat + 5) - 0.5) * schritt * 0.18;
+            const L = roehrenLicht((py - y) / h);
+            c.fillStyle = `rgba(20,20,18,${0.12 + 0.2 * L})`;
+            c.beginPath(); c.arc(px + j - SONNE.x * pr * 0.6, py - SONNE.y * pr * 0.6, pr * 1.05, 0, Math.PI * 2); c.fill();
+            const v = Math.round(48 + 170 * L);
+            c.fillStyle = `rgba(${v},${v},${Math.round(v * 0.96)},.9)`;
+            c.beginPath(); c.arc(px + j, py, pr, 0, Math.PI * 2); c.fill();
+            c.fillStyle = `rgba(255,255,252,${0.8 * L})`;
+            c.beginPath(); c.arc(px + j + SONNE.x * pr * 0.35, py + SONNE.y * pr * 0.35, pr * 0.42, 0, Math.PI * 2); c.fill();
+            if (NAHDETAIL.jetzt) {
+              NAHDETAIL.jetzt.koepfe++;
+              if (L < 0.2) nahMerken(NAHDETAIL.jetzt.dunkel, c, px + j, py, { L });
+            }
+          };
+          /* Oberkante und linke Kante jeder Platte; die rechte und die
+             untere gehoeren der Nachbarplatte */
+          const nx = Math.max(2, Math.round(bw2 / schritt));
+          for (let i = 0; i < nx; i++) kopf(xx + 0.15 + (bw2 * (i + 0.5)) / nx, reihe[zl] + 0.15 + pr * 2.2, i);
+          const ny = Math.max(1, Math.round(bh2 / schritt));
+          for (let i = 0; i < ny; i++) kopf(xx + 0.15 + pr * 2.2, reihe[zl] + 0.15 + (bh2 * (i + 0.5)) / ny, i + 40);
+          /* Das Kissen: die Decke woelbt sich zwischen den Kanten ein
+             wenig auf, heller zur Sonne hin */
+          const kg = c.createRadialGradient(
+            xx + bw2 * 0.4, reihe[zl] + bh2 * 0.36, 0,
+            xx + bw2 * 0.4, reihe[zl] + bh2 * 0.36, Math.max(bw2, bh2) * 0.7);
+          kg.addColorStop(0, "rgba(255,255,250,.07)");
+          kg.addColorStop(1, "rgba(255,255,250,0)");
+          c.fillStyle = kg;
+          c.fillRect(xx + 0.15, reihe[zl] + 0.15, bw2, bh2);
         }
       }
     }
@@ -6370,7 +6542,11 @@ function modul(c, x, y, w, h, saat, opt) {
      praktisch unveraendert. Genau dieser Unterschied zwischen zwei
      Bauteilen nebeneinander ist das, woran das Auge "seit Jahren
      draussen" erkennt — nicht gleichmaessiger Schmutz ueber allem. */
-  if (o.alt && h > 8) {
+  /* Nur, wo die Decken zu klein sind, um sie einzeln zu zeichnen: dort
+     bleibt der Fleck als Toenung, aus der Ferne ist er nicht als Form
+     zu sehen */
+  if (o.alt && h > 8 && h <= 9) {
+    if (NAHDETAIL.jetzt) NAHDETAIL.jetzt.fleck++;
     c.fillStyle = "rgba(188,150,96,.16)";
     rundRect(c, x + w * 0.04, y + h * 0.05, w * 0.5, h * 0.66, h * 0.1);
     c.fill();
@@ -8570,6 +8746,7 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler, ohneSch
   /* Haarlinien: siehe haarlinie() — auf der Leiter wie bisher, im
      Nahausschnitt mindestens ein Bildpunkt. */
   BACK_R = R;
+  nahZaehler(c, R);
   const haar = haarlinie(0.4);
   /* 30 Grad aus der reinen Seitenansicht gedreht: alles, was in
      Flugrichtung zeigt, wird dadurch auf die halbe Laenge gestaucht —
@@ -8784,12 +8961,7 @@ function stationStatisch(c, R, fenster, plaetze, teile, masten, kuehler, ohneSch
       rundRect(c, pos, -md * 0.62, md * 0.3, md * 1.24, md * 0.12); c.fill();
       c.strokeStyle = "rgba(20,22,26,.6)"; c.lineWidth = haar;
       rundRect(c, pos, -md * 0.62, md * 0.3, md * 1.24, md * 0.12); c.stroke();
-      c.fillStyle = "rgba(60,58,50,.55)";
-      for (let k = 0; k < 5; k++) {
-        c.beginPath();
-        c.arc(pos + md * 0.15, -md * 0.5 + k * md * 0.25, md * 0.035, 0, Math.PI * 2);
-        c.fill();
-      }
+      knotenNah(c, pos, md, haar);
       knoten.push(pos + md * 0.15);
       pos += md * 0.3;
     }
@@ -28184,6 +28356,7 @@ window.__QUELLE = (liste) => { bruecke_sessions = liste || []; liveNeuBauen(); }
 window.__FRACHT = () => FRACHT;
 window.__SCHILDER = () => TEILSCHILDER;
 window.__FUNK = () => FUNK_LETZT;
+window.__NAHDETAIL = (R) => NAHDETAIL[R] || null;
 window.__FUNKTON = () => ({ an: Z.funkTon, zustand: FUNKTON.ctx ? FUNKTON.ctx.state : null, gespielt: FUNKTON.gespielt.slice() });
 window.__SPRECHEN = () => ({ an: Z.crewSpricht, stimme: SPRECHEN.stimme ? SPRECHEN.stimme.name : null, warte: SPRECHEN.warte.length, spricht: SPRECHEN.spricht, gesprochen: SPRECHEN.gesprochen.slice() });
 window.__MASSSTAB = () => MASSSTAB_LETZT;
