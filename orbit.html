@@ -704,6 +704,8 @@ select.eingabe{appearance:none; cursor:pointer;
 .warnung{border:1px solid rgba(207,164,86,.3); background:rgba(207,164,86,.09);
   border-radius:var(--r1); padding:11px 13px; font-size:12px; color:#dbb878;
   line-height:1.55; margin-bottom:14px;}
+/* Ein Hinweis, kein Fehler: so geht es hier */
+.warnung.ruhig{border-color:rgba(120,180,255,.3); background:rgba(120,180,255,.08); color:#a9cdf5;}
 
 /* ---------- Kino-Hinweis ---------- */
 #kino-tipp{position:fixed; z-index:6; left:50%; bottom:calc(26px + env(safe-area-inset-bottom));
@@ -1620,6 +1622,11 @@ body.sicht #blende-detail, body.sicht #blende-teil{
     <button class="zu" data-zu="blende-schluessel">✕</button>
   </div>
   <div class="blende-inhalt">
+    <div class="warnung ruhig" id="s-vorschau" hidden>
+      In der Vorschau auf claude.ai braucht die Crew keinen Schlüssel, und einer hilft dort auch nicht:
+      Die Vorschau sperrt die Verbindung zu api.anthropic.com. Die Crew fragt Claude dort über dein Konto
+      bei claude.ai. Der Schlüssel gilt im Mac-Programm und in orbit.html im Browser.
+    </div>
     <div class="warnung">
       Der Schlüssel wird nur in <b>diesem Browser</b> gespeichert (localStorage) und
       ausschließlich an <b>api.anthropic.com</b> geschickt — nie an diese Seite oder
@@ -13991,7 +13998,11 @@ function zeichneErdansicht(t, dt) {
       cx.globalAlpha = ERDANSICHT.hinweisDeck;
       const bw = Math.max(...hz.map(z => cx.measureText(z).width)) + pad * 2, bh = hz.length * lh + pad * 1.4;
       const bx = W * DPR / 2 - bw / 2;
-      const by = qy - zeilen.length * 13 * DPR - (zeilen.length ? 10 * DPR : 4 * DPR) - bh - 24 * DPR;
+      /* Unten ueber den Nachweisen, wo Platz ist. Auf schmalen Schirmen
+         (Handy) stuende es dort unter den Knoepfen der Zoomleiste und ueber
+         dem Zeiger zur Station: dort oben unter die Kopfzeile. */
+      const by = W < 700 ? ((rb.oben || 60) + 12) * DPR
+        : qy - zeilen.length * 13 * DPR - (zeilen.length ? 10 * DPR : 4 * DPR) - bh - 24 * DPR;
       cx.fillStyle = "rgba(24,16,6,.88)";
       cx.strokeStyle = "rgba(246,200,120,.55)"; cx.lineWidth = 1 * DPR;
       rundRect(cx, bx, by, bw, bh, 10 * DPR); cx.fill(); cx.stroke();
@@ -22824,6 +22835,100 @@ function kostenSchaetzen(modell, ein, aus) {
   if (!p) return null;
   return (ein / 1e6) * p.ein + (aus / 1e6) * p.aus;
 }
+
+/* --- Ohne Schluessel: Claude ueber die Vorschau auf claude.ai --------------
+   In der Vorschau sperrt der Rahmen jede Anfrage an api.anthropic.com; mit
+   einem eigenen Schluessel kaeme dort nichts durch. Dafuer bietet der
+   Betrachter selbst Claude an ("sample"): auf dem Konto dessen, der die Seite
+   ansieht, und beim ersten Auftrag fragt claude.ai, ob die Seite das darf.
+   Die Seite muss es beim Veroeffentlichen anmelden.
+
+   Einen eigenen Systemtext gibt es dort nicht: Die Rolle des Agenten geht als
+   erster Wechsel vorweg, danach sein Gedaechtnis, zuletzt der Auftrag. Die
+   Modelle heissen dort nach Stufen: Opus ist "complex", Sonnet "default",
+   Haiku "quick"; welche wirklich antwortete, sagt der Betrachter. Das Denken
+   sieht man nicht, und Tokens und Kosten nennt er auch nicht. Jeder Auftrag
+   wird neu gefragt (cache: false), denn ein Auftrag ist kein Nachschlagen. */
+const BETRACHTER = { sample: null, gesperrt: null, geprueft: false };
+const STUFE_NACH_MODELL = { "claude-opus-5": "complex", "claude-sonnet-5": "default", "claude-haiku-4-5": "quick" };
+const STUFE_NAME = { complex: "stärkstes Modell", default: "Standardmodell", quick: "schnelles Modell" };
+/* Was die Fehler des Betrachters fuer den Nutzer heissen. Die ersten fuenf
+   gelten fuer den ganzen Besuch: dann wird nicht noch einmal gefragt. */
+const BETRACHTER_FEHLER = {
+  not_granted: "claude.ai hat Claude für diese Seite nicht erlaubt. Neu laden, um noch einmal gefragt zu werden.",
+  sampling_disabled: "Claude ist für dieses Konto in der Vorschau nicht freigeschaltet.",
+  not_declared: "Diese Fassung der Seite darf Claude in der Vorschau nicht fragen.",
+  capability_disabled: "Claude ist in dieser Ansicht nicht verfügbar.",
+  capability_removed: "Diese Ansicht von claude.ai kann Claude nicht fragen.",
+  rate_limited: "Zu viele Aufträge auf einmal, oder dein Kontingent bei claude.ai ist aufgebraucht. Später noch einmal.",
+  session_expired: "Die Anmeldung bei claude.ai ist abgelaufen. Bitte neu anmelden.",
+  refused: "Claude hat diesen Auftrag abgelehnt.",
+  empty_completion: "Leere Antwort. Den Auftrag anders formulieren.",
+  prompt_too_large: "Auftrag und Gedächtnis sind zu lang. Gedächtnis leeren oder kürzer fragen.",
+  upstream_error: "Die Verbindung zu Claude brach ab. Noch einmal senden.",
+};
+const BETRACHTER_ENDGUELTIG = ["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"];
+
+/* Beim Start in der Vorschau einmal nachfragen, ob der Betrachter Claude
+   anbietet. Die Antwort kommt spaeter (nie im ersten Durchlauf); bis dahin
+   bleibt der Knopf zu, danach wird er neu geprueft. */
+if (inVorschau()) {
+  try {
+    window.claude.use("sample").then((s) => {
+      BETRACHTER.sample = typeof s === "function" ? s : null;
+      BETRACHTER.geprueft = true;
+      schluesselLage();
+    }, () => { BETRACHTER.geprueft = true; schluesselLage(); });
+  } catch { BETRACHTER.geprueft = true; }
+}
+
+/* Fragt Claude ueber den Betrachter, mit denselben Rueckrufen wie
+   frageClaude. Wirft wie frageClaude: AbortError beim Abbrechen, sonst einen
+   Fehler mit deutscher Meldung; zurueck=true heisst, was schon da stand,
+   ist zurueckgezogen (bei "refused"). */
+async function frageBetrachter(agent, auftrag, signal, bei) {
+  const verlauf = agent.gedaechtnis === false ? [] : verlaufKuerzen(agent.verlauf || []);
+  const eingabe = [
+    { role: "user", content: "So arbeitest du bei diesem Auftrag:\n" + (agent.rolle || "Du bist ein hilfreicher Agent.") },
+    ...verlauf,
+    { role: "user", content: auftrag },
+  ];
+  try {
+    const r = await BETRACHTER.sample(eingabe, {
+      signal, cache: false,
+      modelTier: STUFE_NACH_MODELL[agent.modell] || "default",
+      onText: ({ delta }) => bei.text(delta),
+    });
+    return { nutzung: null, stoppGrund: r.truncated ? "max_tokens" : "end_turn", stufe: r.modelTierApplied || null };
+  } catch (e) {
+    const code = e && typeof e.code === "string" ? e.code : "upstream_error";
+    if (code === "cancelled") {
+      const ab = new Error("Abgebrochen.");
+      ab.name = "AbortError";
+      throw ab;
+    }
+    if (BETRACHTER_ENDGUELTIG.includes(code)) { BETRACHTER.gesperrt = code; schluesselLage(); }
+    const f = new Error(BETRACHTER_FEHLER[code] || BETRACHTER_FEHLER.upstream_error);
+    f.code = code;
+    f.zurueck = code === "refused";
+    throw f;
+  }
+}
+
+/* Welcher Weg gilt? In der Vorschau der Betrachter, sonst der Schluessel. */
+function ueberBetrachter() {
+  return inVorschau() && !!BETRACHTER.sample && !BETRACHTER.gesperrt;
+}
+function kannSenden() {
+  return inVorschau() ? ueberBetrachter() : !!Z.key;
+}
+/* Knopf, Hinweis in der Crew und die Blende des Schluessels nachziehen */
+function schluesselLage() {
+  if (typeof pruefeSendeKnopf === "function") pruefeSendeKnopf();
+  if (typeof zeichneCrewListe === "function") zeichneCrewListe();
+  const v = document.getElementById("s-vorschau");
+  if (v) v.hidden = !inVorschau();
+}
 /* ================================================================
    6 — Missionen
    ================================================================ */
@@ -22859,8 +22964,10 @@ async function fuehreAus(agent, auftrag) {
   if (Z.log.length > 60) Z.log.length = 60;
   zeichneLog();
 
+  const betrachter = ueberBetrachter();
+  if (betrachter) eintrag.ueber = "claude.ai";
   try {
-    const { nutzung, stoppGrund } = await frageClaude(agent, auftrag, ac.signal, {
+    const { nutzung, stoppGrund, stufe } = await (betrachter ? frageBetrachter : frageClaude)(agent, auftrag, ac.signal, {
       denken(s) {
         eintrag.denken += s;
         l.gedanke = kuerzen(eintrag.denken, 150);
@@ -22874,20 +22981,26 @@ async function fuehreAus(agent, auftrag) {
       },
     });
 
-    eintrag.ein = nutzung.ein;
-    eintrag.aus = nutzung.aus;
-    eintrag.kosten = kostenSchaetzen(agent.modell, nutzung.ein, nutzung.aus);
+    /* Ueber den Betrachter gibt es keine Zahlen: bezahlt wird dort mit dem
+       Konto bei claude.ai, und Tokens nennt er nicht */
+    if (nutzung) {
+      eintrag.ein = nutzung.ein;
+      eintrag.aus = nutzung.aus;
+      eintrag.kosten = kostenSchaetzen(agent.modell, nutzung.ein, nutzung.aus);
+    }
+    if (stufe) eintrag.stufe = stufe;
 
     if (stoppGrund === "refusal") {
       eintrag.fehler = "Die Anfrage wurde abgelehnt (Sicherheitsfilter).";
     } else if (stoppGrund === "max_tokens") {
-      eintrag.hinweis = "Bei der Längengrenze abgeschnitten — Limit in den Einstellungen erhöhen.";
+      eintrag.hinweis = betrachter ? "Bei der Längengrenze von claude.ai abgeschnitten — weniger auf einmal fragen."
+        : "Bei der Längengrenze abgeschnitten — Limit in den Einstellungen erhöhen.";
     } else if (!eintrag.antwort.trim()) {
       eintrag.hinweis = "Leere Antwort zurückgekommen.";
     }
 
     agent.laeufe = (agent.laeufe || 0) + 1;
-    agent.tokens = (agent.tokens || 0) + nutzung.ein + nutzung.aus;
+    if (nutzung) agent.tokens = (agent.tokens || 0) + nutzung.ein + nutzung.aus;
     if (eintrag.kosten != null) agent.kosten = (agent.kosten || 0) + eintrag.kosten;
 
     /* Nur vollstaendige Wechsel ins Gedaechtnis — eine abgelehnte oder
@@ -22907,6 +23020,8 @@ async function fuehreAus(agent, auftrag) {
       setzeZustand(agent.id, "ruht");
     } else {
       eintrag.fehler = e.message || String(e);
+      /* Hat Claude abgelehnt, ist auch das schon Geschriebene zurueckgezogen */
+      if (e.zurueck) eintrag.antwort = "";
       setzeZustand(agent.id, "fehler");
       console.error(e);
     }
@@ -23141,13 +23256,16 @@ function zeichneLog() {
 
     k.append(kopf, koerper);
 
-    if (e.hinweis || e.aus != null) {
+    if (e.hinweis || e.aus != null || e.ueber) {
       const fuss = document.createElement("div");
       fuss.className = "log-fuss";
       const teile = [];
       if (e.aus != null) teile.push((e.ein || 0) + " ein / " + e.aus + " aus");
       if (e.kosten != null) teile.push("≈ $" + e.kosten.toFixed(4));
-      if (e.modell) teile.push(e.modell.replace("claude-", ""));
+      /* Ueber claude.ai ist das Modell eine Stufe; welches genau, sagt der
+         Betrachter nicht */
+      if (e.ueber) teile.push("über " + e.ueber + (e.stufe ? " · " + (STUFE_NAME[e.stufe] || e.stufe) : ""));
+      else if (e.modell) teile.push(e.modell.replace("claude-", ""));
       const info = document.createElement("span");
       info.textContent = teile.join("  ·  ");
       fuss.appendChild(info);
@@ -23475,11 +23593,28 @@ function zeichneCrewListe() {
 
   zeichneVorschlaege();
 
-  /* Hinweis, solange kein Schluessel hinterlegt ist */
-  $("#schluessel-warnung").innerHTML = Z.key
-    ? ""
-    : '<div class="warnung">Noch kein API-Schlüssel hinterlegt — die Agenten können nichts tun. '
-      + 'Oben rechts auf das Schlüsselsymbol tippen.</div>';
+  /* Hinweis, solange die Crew nichts tun kann. In der Vorschau auf
+     claude.ai hilft ein Schluessel nicht (die API ist dort gesperrt); dort
+     arbeitet sie ueber das Konto bei claude.ai, wenn der Betrachter das
+     anbietet. */
+  const warnung = $("#schluessel-warnung");
+  warnung.textContent = "";
+  let satz = null, ruhig = false;
+  if (inVorschau()) {
+    if (ueberBetrachter()) {
+      satz = "In der Vorschau arbeitet die Crew über dein Konto bei claude.ai, ohne API-Schlüssel. "
+        + "Beim ersten Auftrag fragt claude.ai, ob diese Seite Claude fragen darf; es zählt dann gegen dein Kontingent.";
+      ruhig = true;
+    } else if (BETRACHTER.gesperrt) satz = BETRACHTER_FEHLER[BETRACHTER.gesperrt];
+    else if (BETRACHTER.geprueft) satz = "In dieser Vorschau kann die Crew nicht arbeiten: claude.ai sperrt die Verbindung zur API. "
+      + "Im Mac-Programm oder in orbit.html im Browser geht es mit einem API-Schlüssel.";
+  } else if (!Z.key) satz = "Noch kein API-Schlüssel hinterlegt — die Agenten können nichts tun. Oben rechts auf das Schlüsselsymbol tippen.";
+  if (satz) {
+    const w = document.createElement("div");
+    w.className = ruhig ? "warnung ruhig" : "warnung";
+    w.textContent = satz;
+    warnung.appendChild(w);
+  }
 }
 /* ================================================================
    7b — Ein Astronaut im Detail: wo er ist und was er dort tut
@@ -26282,7 +26417,8 @@ if (logSichern) logSichern.onclick = () => {
     teile.push("## " + (e.name || "Agent") + " · " +
       new Date(e.zeit || 0).toLocaleString("de-DE"));
     const zahlen = [];
-    if (e.modell) zahlen.push(e.modell);
+    if (e.ueber) zahlen.push("über " + e.ueber + (e.stufe ? " (" + (STUFE_NAME[e.stufe] || e.stufe) + ")" : ""));
+    else if (e.modell) zahlen.push(e.modell);
     if (e.ein != null) zahlen.push(e.ein + " ein / " + e.aus + " aus");
     if (e.kosten != null) zahlen.push("$" + e.kosten.toFixed(4));
     if (zahlen.length) teile.push("", "*" + zahlen.join(" · ") + "*");
@@ -26784,8 +26920,11 @@ function hoeheAnpassen() {
   feld.style.height = Math.min(132, feld.scrollHeight) + "px";
 }
 function pruefeSendeKnopf() {
-  $("#senden").disabled = !feld.value.trim() || !Z.key;
-  $("#senden").title = !Z.key ? "Erst einen API-Schlüssel hinterlegen" : "Absenden (⌘/Strg + Enter)";
+  const kann = kannSenden();
+  $("#senden").disabled = !feld.value.trim() || !kann;
+  $("#senden").title = kann ? (ueberBetrachter() ? "Absenden über claude.ai (⌘/Strg + Enter)" : "Absenden (⌘/Strg + Enter)")
+    : inVorschau() ? (BETRACHTER.gesperrt ? BETRACHTER_FEHLER[BETRACHTER.gesperrt] : "In der Vorschau gesperrt")
+    : "Erst einen API-Schlüssel hinterlegen";
 }
 feld.addEventListener("input", () => { hoeheAnpassen(); pruefeSendeKnopf(); });
 feld.addEventListener("keydown", (e) => {
@@ -26796,7 +26935,11 @@ $("#senden").onclick = absenden;
 function absenden() {
   const text = feld.value.trim();
   if (!text) return;
-  if (!Z.key) { blendeAuf("blende-schluessel"); return; }
+  if (!kannSenden()) {
+    /* In der Vorschau hilft ein Schluessel nicht: dort sagt die Crew, warum */
+    if (inVorschau()) { zeichneCrewListe(); blendeAuf("blende-crew"); } else blendeAuf("blende-schluessel");
+    return;
+  }
   starteMission(text);
   feld.value = ""; hoeheAnpassen(); pruefeSendeKnopf();
 }
@@ -27319,9 +27462,10 @@ window.__SET_GED = (id, an) => { const a = agentNach(id); if (a) { a.gedaechtnis
 
 /* Beim allerersten Besuch direkt zum Schluessel fuehren — sonst steht
    man vor einer huebschen Szene, in der nichts passiert. */
-if (!Z.key) {
+if (!Z.key && !inVorschau()) {
   setTimeout(() => { $("#s-maxtok").value = Z.maxTok; blendeAuf("blende-schluessel"); }, 900);
 }
+schluesselLage();
 </script>
 </body>
 </html>
