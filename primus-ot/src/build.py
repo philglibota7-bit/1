@@ -7,8 +7,11 @@ D = os.path.dirname(os.path.abspath(__file__))
 ARTIFACT = '--artifact' in sys.argv
 EMBED = '--embed' in sys.argv or ARTIFACT
 ROOT = os.path.normpath(os.path.join(D, '..', '..'))
+# Vorlagen: template.html (Datenblatt-Fassung) -> primus-ot.html, template-klassisch.html -> primus-ot-klassisch.html
+TPL = sys.argv[sys.argv.index('--tpl')+1] if '--tpl' in sys.argv else 'template.html'
+NAME = 'primus-ot' + TPL[len('template'):-len('.html')]
 OUT = (sys.argv[sys.argv.index('--out')+1] if '--out' in sys.argv else
-       os.path.join(ROOT, 'primus-ot-artifact.html' if ARTIFACT else 'primus-ot.html'))
+       os.path.join(ROOT, NAME + ('-artifact.html' if ARTIFACT else '.html')))
 ASSET_DIR = os.path.join(ROOT, 'primus-ot', 'img')
 ASSET_URL = 'primus-ot/img/'
 
@@ -89,11 +92,12 @@ EKB = re.sub(r'^<p>Einkaufsbedingungen der Primus[^<]*</p>\s*', '', EKB)
 VKB = re.sub(r'^<p>Verkaufsbedingungen der Primus[^<]*</p>\s*', '', VKB)
 
 # ---------- Zusammensetzen ----------
-t = open(os.path.join(D, 'template.html'), encoding='utf-8').read()
+t = open(os.path.join(D, TPL), encoding='utf-8').read()
 t = t.replace('{{EKB}}', EKB).replace('{{VKB}}', VKB)
 t = re.sub(r'\{\{IMG:([^}]+)\}\}', lambda m: img(m.group(1)), t)
 t = re.sub(r'\{\{FONT:([^}]+)\}\}', lambda m: font(m.group(1)), t)
 t = re.sub(r'\{\{ICON:([^}]+)\}\}', lambda m: ICONS[m.group(1)], t)
+t = re.sub(r'\{\{JS:([^}]+)\}\}', lambda m: open(os.path.join(D, m.group(1)), encoding='utf-8').read(), t)
 left = re.findall(r'\{\{[A-Z]+:[^}]+\}\}', t)
 assert not left, left
 if ARTIFACT:

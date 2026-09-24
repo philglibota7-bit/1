@@ -115,7 +115,22 @@ body.menu-open #menuBtn .bars::after{top:4.5px;transform:rotate(-45deg)}
 .menu-search:focus-within{outline:2px solid var(--red-t);outline-offset:2px}
 .menu-search button{padding:0 16px;border-left:1px solid var(--ink);font-weight:600}
 .menu-search button:hover{background:var(--ink);color:var(--paper)}
-.menu-note{margin-top:10px;font-size:var(--t-sm);color:var(--ink-3);min-height:1.4em}
+.menu-note{margin-top:8px;font-size:var(--t-sm);color:var(--ink-3)}
+.menu-note:empty{display:none}
+.menu-find{position:relative;padding-top:28px;max-width:760px}
+.menu-find .menu-search{margin-top:0}
+.menu-search input{padding:14px 16px}
+.menu-search input::-webkit-search-cancel-button{-webkit-appearance:none}
+.menu-search input::placeholder{color:var(--ink-3)}
+.q-list{list-style:none;margin-top:6px;border:1px solid var(--rule-2);background:var(--sheet);max-height:min(60vh,440px);overflow-y:auto;overscroll-behavior:contain}
+.q-hit{display:grid;grid-template-columns:auto 1fr;gap:2px 14px;padding:11px 14px;border-bottom:1px solid var(--rule);cursor:pointer}
+.q-hit:last-child{border-bottom:0}
+.q-hit[aria-selected="true"]{background:var(--plate)}
+.q-hit[aria-selected="true"] .q-title{color:var(--red-t)}
+.q-kind{grid-row:1;font-family:var(--mono);font-size:var(--t-xs);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);padding-top:3px;min-width:9.5em}
+.q-title{font-weight:600}
+.q-snip{grid-column:2;font-size:var(--t-sm);color:var(--ink-2);line-height:1.45}
+.q-snip mark{background:none;color:var(--ink);font-weight:600;text-decoration:underline;text-decoration-color:var(--red-t);text-underline-offset:3px}
 .menu-contact{display:flex;flex-wrap:wrap;gap:8px 28px;padding:20px 0 calc(24px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--rule);
   font-family:var(--mono);font-size:var(--t-sm);color:var(--ink-2)}
 .menu-contact a{text-decoration:none}
@@ -357,6 +372,10 @@ table.alloy td:first-child{font-weight:600}
   .sec-head{grid-template-columns:1fr;gap:6px}
   .intro .actions .btn{flex:1 1 100%}
   .menu-grid{grid-template-columns:1fr;gap:28px;padding-block:24px 36px}
+  .menu-find{padding-top:16px}
+  .q-hit{grid-template-columns:1fr;padding:11px 12px}
+  .q-kind{min-width:0;padding-top:0}
+  .q-snip{grid-column:1}
   form .row2{grid-template-columns:1fr}
   .photos{grid-template-columns:1fr}
   .foot-grid{grid-template-columns:1fr}
@@ -414,6 +433,16 @@ table.alloy td:first-child{font-weight:600}
 
 <nav id="menu" aria-label="Hauptnavigation">
   <div class="wrap">
+    <div class="menu-find">
+      <form class="menu-search" id="menuSearch" role="search">
+        <label class="visually-hidden" for="q">Seite durchsuchen</label>
+        <input id="q" type="search" placeholder="Suchen: Harteloxal, 6082, Bewerbung …" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search"
+          role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="qList">
+        <button type="submit">Suchen</button>
+      </form>
+      <ul class="q-list" id="qList" role="listbox" aria-label="Suchtreffer" hidden></ul>
+      <p class="menu-note" id="menuNote" aria-live="polite"></p>
+    </div>
     <div class="menu-grid">
       <div class="big">
         <span class="label">Seite</span>
@@ -432,13 +461,6 @@ table.alloy td:first-child{font-weight:600}
         <a href="#s-hart" data-sheet>Harteloxal</a>
         <a href="#s-nickel" data-sheet>Chemisch Nickel</a>
         <a href="#s-optik" data-sheet>Chemisch Nickel für Optik</a>
-        <span class="label" style="margin-top:28px">Suche</span>
-        <form class="menu-search" id="menuSearch" role="search">
-          <label class="visually-hidden" for="q">Seite durchsuchen</label>
-          <input id="q" type="search" placeholder="z. B. Harteloxal, 6082, Bewerbung" autocomplete="off">
-          <button type="submit">Suchen</button>
-        </form>
-        <p class="menu-note" id="menuNote" aria-live="polite"></p>
       </div>
       <div>
         <span class="label">Rechtliches</span>
@@ -1236,7 +1258,14 @@ themeBtn.addEventListener('click',function(){ setTheme(de.getAttribute('data-the
 /* ---------- Scrollen sperren, iOS-fest ---------- */
 var lockY=0,locks=0;
 function lock(){ if(locks++)return; lockY=scrollY; body.style.cssText+='position:fixed;top:'+(-lockY)+'px;left:0;right:0;width:100%'; }
-function unlock(){ if(--locks>0)return; locks=0; body.style.position=body.style.top=body.style.left=body.style.right=body.style.width=''; scrollTo(0,lockY); }
+function unlock(){
+  if(--locks>0)return; locks=0;
+  body.style.position=body.style.top=body.style.left=body.style.right=body.style.width='';
+  /* sofort an die alte Stelle, ohne sichtbares Scrollen (sonst „fliegt“ die Seite nach dem Datenblatt nach unten) */
+  var h=de.style.scrollBehavior; de.style.scrollBehavior='auto';
+  try{ scrollTo({top:lockY,left:0,behavior:'instant'}); }catch(e){ scrollTo(0,lockY); }
+  de.style.scrollBehavior=h;
+}
 
 /* ---------- Menü ---------- */
 var btn=document.getElementById('menuBtn'), menu=document.getElementById('menu');
@@ -1246,6 +1275,8 @@ function setMenu(open){
   btn.setAttribute('aria-expanded',open);
   btn.querySelector('.txt').textContent=open?'Schließen':'Menü';
   if(open)lock();else unlock();
+  if(open){ if(matchMedia('(pointer:fine)').matches) setTimeout(function(){ document.getElementById('q').focus({preventScroll:true}); },120); }
+  else if(typeof search!=='undefined') search.reset();
 }
 btn.addEventListener('click',function(e){ e.preventDefault(); setMenu(!body.classList.contains('menu-open')); });
 menu.addEventListener('click',function(e){
@@ -1256,33 +1287,135 @@ menu.addEventListener('click',function(e){
   else setMenu(false);
 });
 
-/* Suche im Menü: führt zu Abschnitt oder Datenblatt */
-var index=[
-  [['strahl','glasperl','vorbehand','kugel','entgrat','mattier'],'#s-strahlen'],
-  [['hart'],'#s-hart'],
-  [['optik','optisch','teleskop','diamant','spiegel','rauheit'],'#s-optik'],
-  [['nickel','chemisch','phosphor'],'#s-nickel'],
-  [['eloxal','anodis','aluminium','alu'],'#s-eloxal'],
-  [['legierung','werkstoff','en aw','6082','7075','5083','6061','2024','check'],'#werkstoff'],
-  [['labor','prüf','analyse','mikroskop','qualität','iso','9001','9100','dekra','zertifikat'],'#labor'],
-  [['bewerb','karriere','job','stelle','ausbildung','azubi'],'#karriere'],
-  [['einkauf','ekb'],'#s-ekb'],[['verkauf','vkb','agb','bedingung'],'#s-vkb'],
-  [['impressum','handelsregister','ust'],'#s-impressum'],[['datenschutz','dsgvo'],'#s-datenschutz'],[['disclaimer','haftung'],'#s-disclaimer'],
-  [['unternehmen','team','über','branche','nachhaltig'],'#unternehmen'],
-  [['download','dokument'],'#downloads'],
-  [['kontakt','anfrage','telefon','mail','adresse','route','fax'],'#kontakt'],
-  [['verfahren','leistung','kenndaten','schichtdicke','härte'],'#verfahren']
-];
-document.getElementById('menuSearch').addEventListener('submit',function(e){
-  e.preventDefault();
-  var q=document.getElementById('q').value.trim().toLowerCase(), note=document.getElementById('menuNote');
-  if(!q){note.textContent='Bitte einen Suchbegriff eingeben.';return;}
-  for(var i=0;i<index.length;i++){ if(index[i][0].some(function(k){return q.indexOf(k)>-1})){
-    var target=index[i][1]; note.textContent=''; setMenu(false);
-    if(target.indexOf('#s-')===0) setTimeout(function(){openSheet(target.slice(1))},60);
-    else setTimeout(function(){document.querySelector(target).scrollIntoView({behavior:reduce?'auto':'smooth'})},60);
-    return; } }
-  note.textContent='Kein Treffer für „'+q+'“. Versuchen Sie z. B. Eloxal, Labor oder Kontakt.';
+/* Suche im Menü: Abschnitte, Datenblätter und Werkstoffe */
+/* ---------- Menüsuche: Treffer schon beim Tippen, Pfeiltasten, Enter öffnet den ersten Treffer ---------- */
+function siteSearch(o){
+  var inp=o.input, list=o.list, note=o.note, items=null, hits=[], act=-1;
+  function norm(s){ return (s||'').toLowerCase().replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss')
+    .replace(/[^a-z0-9µ%+]+/g,' ').trim(); }
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function prep(){
+    if(items)return;
+    items=o.items().map(function(it){ it.nt=norm(it.title); it.nk=norm((it.keys||[]).join(' ')); it.nx=norm(it.text); it.raw=(it.text||'').replace(/\s+/g,' ').trim(); return it; });
+  }
+  /* „eloxieren“ findet „eloxal“, „beschichtungen“ findet „beschichtung“ */
+  function stems(t){ var r=[t]; if(t.length>5){ r.push(t.replace(/(ungen|ieren|en|er|es|e|n|s)$/,'')); } if(t.length>6)r.push(t.slice(0,5)); return r; }
+  function hit(hay,t){ var s=stems(t); for(var i=0;i<s.length;i++){ if(s[i]&&hay.indexOf(s[i])>-1) return i===0?1:.6; } return 0; }
+  function score(it,toks,whole){
+    var sc=0;
+    for(var i=0;i<toks.length;i++){
+      var t=toks[i], a=hit(it.nt,t), b=hit(it.nk,t), c=hit(it.nx,t);
+      if(!a&&!b&&!c) return 0;
+      if(a) sc+=(' '+it.nt).indexOf(' '+t)>-1?34:22*a;
+      sc+=b*16+c*4;
+    }
+    if(it.nt.indexOf(whole)===0) sc+=40; else if(it.nt.indexOf(whole)>-1) sc+=20;
+    return sc+(it.boost||0);
+  }
+  function snippet(it,q){
+    var txt=it.raw; if(!txt)return '';
+    var w=q.toLowerCase().split(/\s+/).filter(Boolean), low=txt.toLowerCase(), pos=-1, len=0;
+    for(var i=0;i<w.length&&pos<0;i++){ pos=low.indexOf(w[i]); len=w[i].length; }
+    if(pos<0) return esc(txt.slice(0,90))+(txt.length>90?' …':'');
+    var a=Math.max(0,pos-38), b=Math.min(txt.length,pos+len+56);
+    return (a>0?'… ':'')+esc(txt.slice(a,pos))+'<mark>'+esc(txt.slice(pos,pos+len))+'</mark>'+esc(txt.slice(pos+len,b))+(b<txt.length?' …':'');
+  }
+  function show(arr,q){
+    hits=arr; act=arr.length?0:-1;
+    list.innerHTML=arr.map(function(it,i){
+      return '<li role="option" id="q-o'+i+'" class="q-hit" data-i="'+i+'" aria-selected="'+(i===act)+'">'+
+        '<span class="q-kind">'+esc(it.kind)+'</span><span class="q-title">'+esc(it.title)+'</span>'+
+        (q?'<span class="q-snip">'+snippet(it,q)+'</span>':'')+'</li>';
+    }).join('');
+    list.hidden=!arr.length;
+    inp.setAttribute('aria-expanded',arr.length?'true':'false');
+    mark();
+  }
+  function mark(){
+    [].forEach.call(list.children,function(li,i){ li.setAttribute('aria-selected',i===act); });
+    if(act>-1){ inp.setAttribute('aria-activedescendant','q-o'+act); var el=list.children[act]; if(el&&el.scrollIntoView)el.scrollIntoView({block:'nearest'}); }
+    else inp.removeAttribute('aria-activedescendant');
+  }
+  function run(){
+    prep();
+    var q=inp.value.trim(); note.textContent='';
+    if(!q){ show(o.defaults?items.filter(function(it){return o.defaults.indexOf(it.title)>-1}).sort(function(a,b){return o.defaults.indexOf(a.title)-o.defaults.indexOf(b.title)}):[],''); return; }
+    var whole=norm(q), toks=whole.split(' ').filter(Boolean);
+    var r=items.map(function(it){ return {it:it,s:score(it,toks,whole)}; }).filter(function(x){return x.s>0})
+      .sort(function(a,b){return b.s-a.s}).slice(0,7).map(function(x){return x.it});
+    show(r,q);
+    if(!r.length) note.textContent='Kein Treffer für „'+q+'“. Versuchen Sie z. B. Eloxal, Labor oder Kontakt.';
+  }
+  function pick(i){
+    var it=hits[i]; if(!it)return;
+    inp.value=''; list.hidden=true; hits=[]; inp.setAttribute('aria-expanded','false');
+    o.onPick(it);
+  }
+  inp.addEventListener('input',run);
+  inp.addEventListener('focus',run);
+  inp.addEventListener('keydown',function(e){
+    if(e.key==='ArrowDown'&&hits.length){ e.preventDefault(); act=(act+1)%hits.length; mark(); }
+    else if(e.key==='ArrowUp'&&hits.length){ e.preventDefault(); act=(act-1+hits.length)%hits.length; mark(); }
+    else if(e.key==='Enter'){ e.preventDefault(); if(!inp.value.trim()&&!hits.length){ note.textContent='Bitte einen Suchbegriff eingeben.'; return; } if(hits.length) pick(act<0?0:act); else run(); }
+    else if(e.key==='Escape'&&inp.value){ e.preventDefault(); e.stopPropagation(); inp.value=''; run(); }
+  });
+  /* mousedown statt click: das Feld behält den Fokus, die Tastatur auf dem Handy klappt nicht vorher zu */
+  list.addEventListener('mousedown',function(e){ e.preventDefault(); });
+  list.addEventListener('click',function(e){ var li=e.target.closest('.q-hit'); if(li) pick(+li.dataset.i); });
+  if(o.form) o.form.addEventListener('submit',function(e){ e.preventDefault(); if(hits.length) pick(act<0?0:act); else { run(); if(!hits.length&&!inp.value.trim()) note.textContent='Bitte einen Suchbegriff eingeben.'; } });
+  if(o.button) o.button.addEventListener('click',function(e){ e.preventDefault(); if(hits.length) pick(act<0?0:act); else run(); });
+  return { reset:function(){ inp.value=''; list.hidden=true; hits=[]; note.textContent=''; } };
+}
+/* Text eines Bereichs mit Leerzeichen zwischen den Elementen (textContent klebt Zellen und Zeilen zusammen) */
+siteSearch.text=function(el,skip){
+  var out=[], w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT,{acceptNode:function(n){
+    for(var p=n.parentNode;p&&p!==el;p=p.parentNode){ if(p.nodeName==='SCRIPT'||p.nodeName==='STYLE'||p.nodeName==='SELECT'||(skip&&p.matches&&p.matches(skip))) return NodeFilter.FILTER_REJECT; }
+    return NodeFilter.FILTER_ACCEPT; }});
+  while(w.nextNode()) out.push(w.currentNode.nodeValue);
+  return out.join(' ').replace(/\s+/g,' ').replace(/ ([,.;:)])/g,'$1').trim();
+};
+
+var SYN={
+  's-strahlen':['strahlen','glasperlen','kugelstrahlen','entgraten','mattieren','vorbehandlung'],
+  's-hart':['hart','hartcoat','verschleiss','600 hv'],
+  's-optik':['optik','optisch','teleskop','diamant','spiegel','rauheit','nm'],
+  's-nickel':['nickel','chemisch','phosphor','stromlos','nip'],
+  's-eloxal':['eloxal','eloxieren','anodisieren','aluminium','einfaerben'],
+  's-bewerbung':['bewerbung','bewerben','job','stelle','ausbildung','azubi','galvaniseur'],
+  's-ekb':['einkauf','ekb','lieferant'],'s-vkb':['verkauf','vkb','agb','bedingungen','zahlung','lieferung'],
+  's-impressum':['impressum','handelsregister','ust','geschaeftsfuehrer'],'s-datenschutz':['datenschutz','dsgvo','cookies'],'s-disclaimer':['disclaimer','haftung'],
+  'werkstoff':['werkstoff','legierung','check','eignung','en aw'],
+  'labor':['labor','pruefung','analyse','mikroskop','qualitaet','iso','9001','9100','dekra','zertifikat'],
+  'karriere':['karriere','jobs','arbeiten'],'unternehmen':['unternehmen','team','branchen','nachhaltig','ueber uns'],
+  'downloads':['download','pdf','dokument','zertifikat'],'kontakt':['kontakt','anfrage','telefon','mail','adresse','route','anfahrt','fax'],
+  'verfahren':['verfahren','leistungen','kenndaten','schichtdicke','haerte','teilegroesse']
+};
+var LEGAL=['s-ekb','s-vkb','s-impressum','s-datenschutz','s-disclaimer'];
+function goTo(sel){ var t=document.querySelector(sel); if(t)t.scrollIntoView({behavior:reduce?'auto':'smooth'}); }
+var search=siteSearch({
+  input:document.getElementById('q'), list:document.getElementById('qList'), note:document.getElementById('menuNote'), form:document.getElementById('menuSearch'),
+  defaults:['Eloxal','Harteloxal','Chemisch Nickel','Welches Verfahren passt zu Ihrem Werkstoff?','Bewerbung vorbereiten','Kontakt'],
+  items:function(){
+    var r=[];
+    [].forEach.call(document.querySelectorAll('.sheet'),function(sh){
+      var h=sh.querySelector('h2'); if(!h)return;
+      r.push({title:h.textContent.trim(),kind:LEGAL.indexOf(sh.id)>-1?'Rechtliches':sh.id==='s-bewerbung'?'Formular':'Datenblatt',
+        text:siteSearch.text(sh.querySelector('.sheet-body'),'h2'),keys:SYN[sh.id],boost:LEGAL.indexOf(sh.id)>-1?0:6,go:function(){openSheet(sh.id)}});
+    });
+    [].forEach.call(document.querySelectorAll('main section[id]'),function(sec){
+      var h=sec.querySelector('h2'); if(!h)return;
+      r.push({title:sec.id==='kontakt'?'Kontakt':h.textContent.trim(),kind:'Abschnitt',text:siteSearch.text(sec,'h2'),keys:SYN[sec.id],boost:4,go:function(){goTo('#'+sec.id)}});
+    });
+    AL.forEach(function(a){
+      r.push({title:'EN AW-'+a[0]+' · '+a[1],kind:'Werkstoff',keys:[a[0],a[2],'aluminium'],text:'Eignung für Eloxal, Harteloxal und Chemisch Nickel im Werkstoff-Check',
+        go:function(){ sel.value='al:'+a[0]; render(); goTo('#werkstoff'); }});
+    });
+    OTHER.forEach(function(m){
+      r.push({title:m[1],kind:'Werkstoff',keys:[m[0]],text:'Eignung für Chemisch Nickel im Werkstoff-Check',go:function(){ sel.value='x:'+m[0]; render(); goTo('#werkstoff'); }});
+    });
+    return r;
+  },
+  onPick:function(it){ setMenu(false); setTimeout(it.go,60); }
 });
 addEventListener('keydown',function(e){ if(e.key==='Escape'){ if(openId)closeSheet(); else setMenu(false); } });
 
