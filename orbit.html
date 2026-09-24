@@ -17074,7 +17074,7 @@ Camagüey||21.38|-77.92|187|348
 Spokane||47.67|-117.42|16|348
 London||42.97|-81.25|202|347
 Verona||45.44|10.99|137|347
-Nur-Sultan||51.18|71.43|133|346
+Astana|Nur-Sultan|51.18|71.43|133|346
 Maebashi||36.39|139.07|135|345
 Amara|Thi Qar|31.84|47.15|141|345
 Charleroi||50.42|4.45|217|345
@@ -18148,6 +18148,16 @@ const ERDNAMEN_KURZ = {
   "Australische Territorien im Indischen Ozean": null, "Britisches Territorium im Indischen Ozean": null,
   "Föderierte Staaten von Mikronesien": "Mikronesien", "St. Vincent und die Grenadinen": "St. Vincent",
 };
+/* Wo die Hauptstadt nicht die groesste Stadt der Liste ist. Wo sie fehlt
+   (Dodoma, Gitega) oder umstritten ist, bleibt es die groesste. */
+const ERDNAMEN_HAUPT = {
+  "Vereinigte Staaten": "Washington", "Kanada": "Ottawa", "Brasilien": "Brasília", "Ecuador": "Quito", "Bolivien": "La Paz",
+  "Australien": "Canberra", "Neuseeland": "Wellington", "Volksrepublik China": "Peking", "Indien": "Delhi",
+  "Pakistan": "Islamabad", "Vietnam": "Hanoi", "Myanmar": "Naypyidaw", "Malaysia": "Kuala Lumpur", "Sri Lanka": "Colombo",
+  "Kasachstan": "Astana", "Türkei": "Ankara", "Syrien": "Damaskus", "Vereinigte Arabische Emirate": "Abu Dhabi",
+  "Schweiz": "Bern", "Polen": "Warschau", "Niederlande": "Amsterdam", "Marokko": "Rabat", "Nigeria": "Abuja",
+  "Südafrika": "Pretoria", "Kamerun": "Yaoundé", "Elfenbeinküste": "Yamoussoukro", "Benin": "Porto-Novo",
+};
 function erdNamenListe() {
   if (ERDNAMEN.liste) return ERDNAMEN.liste;
   const L = ortsliste(), liste = [];
@@ -18158,18 +18168,19 @@ function erdNamenListe() {
   for (const la of L.laender) {
     const kurz = la.name in ERDNAMEN_KURZ ? ERDNAMEN_KURZ[la.name] : la.name;
     if (la.spanne > 0 && kurz)
-      liste.push({ art: "land", name: kurz, breite: la.breite, laenge: la.laenge, p: erdVektor(la.breite, la.laenge), spanne: la.spanne });
+      liste.push({ art: "land", name: kurz, voll: la.name, breite: la.breite, laenge: la.laenge, p: erdVektor(la.breite, la.laenge), spanne: la.spanne });
   }
-  /* Die groesste Stadt jedes Landes kommt vor die anderen: meist die
-     Hauptstadt, und der Name des Landes soll sie nicht verdecken */
-  const groesste = new Map();
+  /* Die Hauptstadt jedes Landes kommt vor die anderen Staedte und vor den
+     Namen ihres Landes, der sie nicht verdecken darf; fehlt sie in der
+     Liste, die groesste Stadt */
+  const haupt = new Map();
   for (const o of L.orte) {
     const e = { art: "ort", name: o.name, breite: o.breite, laenge: o.laenge, p: erdVektor(o.breite, o.laenge), rang: o.rang, land: o.land };
     liste.push(e);
-    const g = groesste.get(o.land);
-    if (!g || o.rang > g.rang) groesste.set(o.land, e);
+    const g = haupt.get(o.land), soll = ERDNAMEN_HAUPT[o.land];
+    if (!g || (soll ? o.name === soll || (g.name !== soll && o.rang > g.rang) : o.rang > g.rang)) haupt.set(o.land, e);
   }
-  for (const e of groesste.values()) e.haupt = true;
+  for (const e of haupt.values()) e.haupt = true;
   liste.forEach((e, i) => { e.nr = i; });
   return (ERDNAMEN.liste = liste);
 }
@@ -18229,20 +18240,27 @@ function erdNamenZeichnen(g, blick, sat, uhr) {
   }
   /* Wer zuerst Platz bekommt: die Ozeane, dann nach Gewicht. Ein Land wiegt
      nach seiner Groesse auf dem Schirm, eine Stadt nach ihren Einwohnern,
-     gemessen an der Grenze dieses Zooms; die groesste Stadt eines Landes
-     (meist die Hauptstadt) wiegt mehr, sonst verdeckte der Name des Landes
-     sie. Was in der Mitte liegt, zaehlt mehr als was am Rand der Kugel, und
-     wer schon stand, bleibt vor einem Neuen: Beim Zoomen springt nichts. */
+     gemessen an der Grenze dieses Zooms; eine Hauptstadt wiegt mehr, so
+     stehen Madrid und Warschau vor Spanien und Polen, und eine Stadt wie
+     Istanbul vor dem Namen eines kleinen Landes daneben. Was in der Mitte
+     liegt, zaehlt mehr als was am Rand der Kugel, und wer schon stand,
+     bleibt vor einem Neuen: Beim Zoomen springt nichts. */
+  /* Das Land, auf das man schaut (sein Name am naechsten an der Mitte),
+     bekommt seinen Namen vor den Staedten ringsum */
+  const mx = W / 2 * DPR, my = (oben + unten) / 2;
+  let blickLand = null, blickAbstand = Math.min(W, H) * 0.22 * DPR;
+  for (const k of kandidaten) {
+    if (k.e.art !== "land") continue;
+    const a = Math.hypot(k.x - mx, k.y - my);
+    if (a < blickAbstand) { blickAbstand = a; blickLand = k; }
+  }
   for (const k of kandidaten) {
     const e = k.e;
     const roh = e.art === "ozean" ? 1e6
       : e.art === "land" ? 300 + Math.min(e.spanne * ppg, 600)
       : e.art === "meer" ? 100 + Math.min(e.spanne * ppg, 600) * 0.3
-      : 150 + 120 * Math.log2(Math.max(1, e.rang / minEinw)) + (e.haupt ? 150 : 0);
-    /* Das Land, auf das man schaut, bekommt seinen Namen vor den Staedten
-       ringsum */
-    const mitte = e.art === "land" && Math.hypot(k.x / DPR - W / 2, k.y / DPR - (oben + unten) / 2 / DPR) < Math.min(W, H) * 0.22 ? 2 : 1;
-    k.wert = roh * mitte * (0.15 + 0.85 * Math.pow(k.z, 4)) * (N_.stehen.has(e.nr) ? 1.12 : 1);
+      : 150 + 120 * Math.log2(Math.max(1, e.rang / minEinw)) + (e.haupt ? 250 : 0);
+    k.wert = roh * (k === blickLand ? 2 : 1) * (0.15 + 0.85 * Math.pow(k.z, 4)) * (N_.stehen.has(e.nr) ? 1.12 : 1);
   }
   kandidaten.sort((a, b) => b.wert - a.wert);
   N_.kandidaten = kandidaten;
@@ -18259,11 +18277,25 @@ function erdNamenZeichnen(g, blick, sat, uhr) {
   if (nq) belegt.push([0, unten - (nq * 13 + 14) * DPR, 520 * DPR, unten + 10 * DPR]);
   const hb = ERDANSICHT.hinweisBox;
   if (hb) belegt.push([hb.x * DPR, hb.y * DPR, (hb.x + hb.b) * DPR, (hb.y + hb.h) * DPR]);
-  const frei = (b) => {
-    if (b[1] < oben || b[3] > unten || b[2] < 0 || b[0] > W * DPR) return false;
-    for (const o of belegt) if (b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]) return false;
+  /* Ein Name bleibt auf der Kugel und haengt nicht in den Himmel */
+  const kx = g.cx * DPR, ky = g.cy * DPR, kr2 = Math.pow((g.r - 1) * DPR, 2);
+  const aufKugel = (b) => {
+    for (const x of [b[0], b[2]]) for (const y of [b[1], b[3]])
+      if ((x - kx) * (x - kx) + (y - ky) * (y - ky) > kr2) return false;
     return true;
   };
+  const frei = (b, dazu) => {
+    if (b[1] < oben || b[3] > unten || b[2] < 0 || b[0] > W * DPR || !aufKugel(b)) return false;
+    for (const o of belegt) if (b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]) return false;
+    if (dazu) for (const o of dazu) if (b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]) return false;
+    return true;
+  };
+  /* Die Punkte der Hauptstaedte: kein Name eines Landes oder Meeres
+     darueber, auch wenn die Stadt erst spaeter an die Reihe kommt */
+  const punkt = (k) => [k.x - 5 * DPR, k.y - 5 * DPR, k.x + 5 * DPR, k.y + 5 * DPR];
+  const hauptPunkte = kandidaten.filter(k => k.e.haupt).map(punkt);
+  const hauptVon = new Map();
+  for (const k of kandidaten) if (k.e.haupt) hauptVon.set(k.e.land, punkt(k));
   const neu = new Map();
   const schriften = "OrbitInter, -apple-system, system-ui, sans-serif";
   cx.save();
@@ -18298,10 +18330,29 @@ function erdNamenZeichnen(g, blick, sat, uhr) {
       /* Liegt dort schon etwas (etwa die Hauptstadt), ein Stueck darueber
          oder darunter; Namen von Flaechen haben Platz */
       tx = k.x - b / 2;
-      for (const dy of k.e.art === "land" ? [0, -1.5, 1.5] : [0]) {
-        const y = k.y + dy * h;
-        const probe = [tx - 4 * DPR, y - h / 2 - 3 * DPR, tx + b + 4 * DPR, y + h / 2 + 3 * DPR];
-        if (frei(probe)) { box = probe; ty = y; break; }
+      /* Lagen als Versatz in Bildpunkten: ein Land ein Stueck hinauf oder
+         hinab, soweit es reicht; ein Meer am Rand der Kugel ein Stueck zur
+         Mitte hin, damit sein langer Name ganz auf der Erde steht */
+      let lagen = [[0, 0]];
+      if (k.e.art === "land") {
+        const reicht = Math.max(k.e.spanne * ppg * DPR * 0.35, 1.5 * h);
+        lagen = [0, -1.5, 1.5, -2.6, 2.6].filter(dy => Math.abs(dy * h) <= reicht).map(dy => [0, dy * h]);
+      } else {
+        const rx = kx - k.x, ry = ky - k.y, rl = Math.hypot(rx, ry) || 1;
+        for (const f of [0.08, 0.16, 0.24]) lagen.push([rx / rl * f * g.r * DPR, ry / rl * f * g.r * DPR]);
+      }
+      const versuche = [[lagen, k.e.art === "ozean" ? null : hauptPunkte]];
+      if (k === blickLand) {
+        const eigene = hauptVon.get(k.e.voll);
+        versuche.push([lagen.slice(0, 3), eigene ? [eigene] : null]);
+      }
+      for (const [liste, meiden] of versuche) {
+        for (const [ox, oy] of liste) {
+          const x0 = k.x - b / 2 + ox, y = k.y + oy;
+          const probe = [x0 - 4 * DPR, y - h / 2 - 3 * DPR, x0 + b + 4 * DPR, y + h / 2 + 3 * DPR];
+          if (frei(probe, meiden)) { box = probe; tx = x0; ty = y; break; }
+        }
+        if (box) break;
       }
       if (!box) continue;
     }
