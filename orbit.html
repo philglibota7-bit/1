@@ -765,6 +765,9 @@ select.eingabe{appearance:none; cursor:pointer;
   width:100%; height:44px; border-radius:var(--r1); font-weight:600; font-size:14px;
   display:flex; align-items:center; justify-content:center; gap:8px;
   transition:all .22s var(--ease);}
+/* display:flex hebt sonst das hidden auf: unter jeder Bauteilkarte stand
+   ein leerer Knopf, der nur bei der Erde "Als Zuhause merken" sagt */
+.knopf[hidden]{display:none;}
 .knopf.voll{background:var(--acc); color:#06121f;}
 .knopf.voll:hover{filter:brightness(1.12);}
 .knopf.voll:disabled{opacity:.35; cursor:default;}
@@ -7715,47 +7718,133 @@ function zeichneLager(c, R, t) {
     const yo = Math.min(oy, oy + hoch), yu = Math.max(oy, oy + hoch);
     /* Der Fuss auf dem Deck, oder die Aufhaengung unter der Platte */
     beruehrung(c, bx + bw / 2 + dx * 0.5, oy + dy * 0.5, bw * 0.62, R * 0.028, 0.45);
-    /* Rechte Wand: im Schatten, zur Kante hin Erdschein */
-    const gw = c.createLinearGradient(bx + bw, yo, bx + bw + dx, yo);
-    gw.addColorStop(0, dunkeln("#7d848c")); gw.addColorStop(1, dunkeln("#4f555c"));
-    c.fillStyle = gw;
-    c.beginPath();
-    c.moveTo(bx + bw, yo); c.lineTo(bx + bw + dx, yo + dy);
-    c.lineTo(bx + bw + dx, yu + dy); c.lineTo(bx + bw, yu);
-    c.closePath(); c.fill();
-    /* Oberseite, nur oben zu sehen: sie faengt das Licht flach */
-    if (p.oben) {
-      c.fillStyle = dunkeln("#eef0f2");
-      c.beginPath();
-      c.moveTo(bx, yo); c.lineTo(bx + bw, yo);
-      c.lineTo(bx + bw + dx, yo + dy); c.lineTo(bx + dx, yo + dy);
-      c.closePath(); c.fill();
-    }
-    /* Stirnseite: weisse Schutzdecke, schattiert wie die Kisten am Traeger */
-    c.fillStyle = sonnenlauf(c, bx, yo, bw, yu - yo, dunkeln("#f4f2ea"), dunkeln("#c4c3bb"), dunkeln("#6d6f72"));
-    c.fillRect(bx, yo, bw, yu - yo);
-    /* Das Band in der Farbe des Repos, oben an der Stirn und um die Ecke */
-    const b0 = yo + (yu - yo) * 0.12, b1 = (yu - yo) * 0.22;
-    c.fillStyle = dunkeln(farbe);
-    c.fillRect(bx, b0, bw, b1);
-    c.globalAlpha = 0.7;
-    c.beginPath();
-    c.moveTo(bx + bw, b0); c.lineTo(bx + bw + dx, b0 + dy);
-    c.lineTo(bx + bw + dx, b0 + b1 + dy); c.lineTo(bx + bw, b0 + b1);
-    c.closePath(); c.fill();
-    c.globalAlpha = 1;
-    /* Kanten und Griffe, wie an jedem Behaelter, den man im Anzug traegt */
-    c.strokeStyle = dunkeln("rgba(40,44,50,.7)");
-    c.lineWidth = Math.max(0.3, R * 0.004);
-    c.strokeRect(bx, yo, bw, yu - yo);
-    c.strokeStyle = dunkeln("#d8b64a");
-    c.lineWidth = Math.max(0.35, R * 0.006);
-    c.beginPath();
-    c.moveTo(bx + bw * 0.08, yo + (yu - yo) * 0.5); c.lineTo(bx + bw * 0.08, yo + (yu - yo) * 0.84);
-    c.moveTo(bx + bw * 0.92, yo + (yu - yo) * 0.5); c.lineTo(bx + bw * 0.92, yo + (yu - yo) * 0.84);
-    c.stroke();
-    /* Aus der Naehe die Nummer: "#12", sonst der Zweig */
     const px = bw * Math.hypot(m0.a, m0.b);
+    /* Ein Push auf den Hauptzweig ist ein liegender Tank, ein gemergter
+       PR eine Kiste: so stehen auf den echten Plattformen Stickstoff- und
+       Ammoniaktanks neben Pumpen und Batterien, und man sieht auf einen
+       Blick, was es war. */
+    const tank = /^Push/.test(x.kurz || "");
+    let umriss;                                   // fuer den Schein, wenn frisch
+    if (tank) {
+      /* Der Zylinder liegt laengs des Traegers. Sein Querschnitt ist in
+         dieser Schraegsicht eine Ellipse: senkrecht der Halbmesser h, in
+         die Tiefe die halbe Kistentiefe (ex, ey). Der Umriss beruehrt
+         beide Enden dort, wo die Ellipse ganz oben und ganz unten ist. */
+      const h = (yu - yo) / 2, cy = yo + h, ex = dx / 2, ey = dy / 2;
+      const L = Math.hypot(h, ey), w1 = Math.atan2(-ey, h);
+      const ende = (xe, von, bis, gegen) => {
+        c.save(); c.transform(0, -h, ex, ey, xe + ex, cy + ey); c.arc(0, 0, 1, von, bis, gegen); c.restore();
+      };
+      umriss = () => {
+        c.beginPath();
+        c.moveTo(bx + ex - ex * ey / L, cy + ey - L);
+        c.lineTo(bx + bw + ex - ex * ey / L, cy + ey - L);
+        ende(bx + bw, w1, w1 + Math.PI, false);
+        c.lineTo(bx + ex + ex * ey / L, cy + ey + L);
+        ende(bx, w1 + Math.PI, w1 + 2 * Math.PI, false);
+        c.closePath();
+      };
+      /* Saettel: oben steht er auf dem Deck, unten haengt er daran */
+      c.fillStyle = dunkeln("#4d535a");
+      for (const f of [0.22, 0.7]) {
+        const sx = bx + bw * f;
+        if (p.oben) c.fillRect(sx, cy + ey + L * 0.55, bw * 0.08, oy - (cy + ey + L * 0.55) + dy * 0.4);
+        else c.fillRect(sx, oy + dy * 0.4, bw * 0.08, cy + ey - L * 0.55 - oy - dy * 0.4);
+      }
+      /* Der Mantel: oben im Licht, unten im Schatten, am Rand Erdschein */
+      const gm = c.createLinearGradient(0, cy + ey - L, 0, cy + ey + L);
+      gm.addColorStop(0, dunkeln("#f6f5ef")); gm.addColorStop(0.3, dunkeln("#e2e0d8"));
+      gm.addColorStop(0.72, dunkeln("#8b8e91")); gm.addColorStop(1, `rgba(${ERDSCHEIN},.9)`);
+      umriss();
+      c.fillStyle = gm; c.fill();
+      /* Das Band in der Farbe des Repos, rund um den Mantel: zwischen zwei
+         Querschnitten, soweit man sie von vorn sieht */
+      const x1 = bx + bw * 0.14, x2 = bx + bw * 0.27;
+      c.beginPath();
+      c.save(); c.transform(0, -h, ex, ey, x1 + ex, cy + ey); c.arc(0, 0, 1, w1 + 2 * Math.PI, w1 + Math.PI, true); c.restore();
+      c.save(); c.transform(0, -h, ex, ey, x2 + ex, cy + ey); c.arc(0, 0, 1, w1 + Math.PI, w1 + 2 * Math.PI, false); c.restore();
+      c.closePath();
+      c.fillStyle = dunkeln(farbe); c.fill();
+      /* Das rechte Ende: man sieht schraeg darauf, mit Rand und Stutzen */
+      c.save(); c.transform(0, -h, ex, ey, bx + bw + ex, cy + ey);
+      c.beginPath(); c.arc(0, 0, 1, 0, Math.PI * 2);
+      c.restore();
+      c.fillStyle = dunkeln("#b3b8bd"); c.fill();
+      c.strokeStyle = dunkeln("rgba(40,44,50,.6)");
+      c.lineWidth = Math.max(0.3, R * 0.004);
+      c.stroke();
+      c.fillStyle = dunkeln("#6e757c");
+      c.beginPath(); c.arc(bx + bw + ex, cy + ey, h * 0.22, 0, Math.PI * 2); c.fill();
+      /* Umriss, und die Lichtkante oben laengs */
+      umriss();
+      c.strokeStyle = dunkeln("rgba(40,44,50,.55)"); c.stroke();
+      c.strokeStyle = dunkeln("rgba(255,255,255,.7)");
+      c.beginPath();
+      c.moveTo(bx + ex - ex * ey / L, cy + ey - L * 0.94); c.lineTo(bx + bw + ex - ex * ey / L, cy + ey - L * 0.94);
+      c.stroke();
+    } else {
+      /* Rechte Wand: im Schatten, zur Kante hin Erdschein */
+      const gw = c.createLinearGradient(bx + bw, yo, bx + bw + dx, yo);
+      gw.addColorStop(0, dunkeln("#7d848c")); gw.addColorStop(1, dunkeln("#4f555c"));
+      c.fillStyle = gw;
+      c.beginPath();
+      c.moveTo(bx + bw, yo); c.lineTo(bx + bw + dx, yo + dy);
+      c.lineTo(bx + bw + dx, yu + dy); c.lineTo(bx + bw, yu);
+      c.closePath(); c.fill();
+      /* Oberseite, nur oben zu sehen: sie faengt das Licht flach, hinten
+         heller als an der Kante vorn, wie die Oberseite des Traegers */
+      if (p.oben) {
+        const go = c.createLinearGradient(0, yo + dy, 0, yo);
+        go.addColorStop(0, dunkeln("#f3f5f7")); go.addColorStop(1, dunkeln("#c9ced5"));
+        c.fillStyle = go;
+        c.beginPath();
+        c.moveTo(bx, yo); c.lineTo(bx + bw, yo);
+        c.lineTo(bx + bw + dx, yo + dy); c.lineTo(bx + dx, yo + dy);
+        c.closePath(); c.fill();
+      }
+      /* Stirnseite: weisse Schutzdecke, schattiert wie die Kisten am Traeger */
+      c.fillStyle = sonnenlauf(c, bx, yo, bw, yu - yo, dunkeln("#f4f2ea"), dunkeln("#c4c3bb"), dunkeln("#6d6f72"));
+      c.fillRect(bx, yo, bw, yu - yo);
+      /* Das Band in der Farbe des Repos, oben an der Stirn und um die Ecke */
+      const b0 = yo + (yu - yo) * 0.12, b1 = (yu - yo) * 0.22;
+      c.fillStyle = dunkeln(farbe);
+      c.fillRect(bx, b0, bw, b1);
+      c.globalAlpha = 0.7;
+      c.beginPath();
+      c.moveTo(bx + bw, b0); c.lineTo(bx + bw + dx, b0 + dy);
+      c.lineTo(bx + bw + dx, b0 + b1 + dy); c.lineTo(bx + bw, b0 + b1);
+      c.closePath(); c.fill();
+      c.globalAlpha = 1;
+      /* Aus der Naehe: zwei Steppnaehte der Schutzdecke, wie an den Modulen */
+      if (px > 40) {
+        c.strokeStyle = dunkeln("rgba(120,122,118,.35)");
+        c.lineWidth = Math.max(0.3, R * 0.0025);
+        c.beginPath();
+        for (const f of [0.36, 0.64]) {
+          c.moveTo(bx + bw * f, b0 + b1); c.lineTo(bx + bw * f, yu);
+        }
+        c.stroke();
+      }
+      /* Kanten und Griffe, wie an jedem Behaelter, den man im Anzug traegt */
+      c.strokeStyle = dunkeln("rgba(40,44,50,.7)");
+      c.lineWidth = Math.max(0.3, R * 0.004);
+      c.strokeRect(bx, yo, bw, yu - yo);
+      /* Die obere Kante faengt das Licht, die zur Wand liegt im Schatten */
+      if (p.oben) {
+        c.strokeStyle = dunkeln("rgba(255,255,255,.75)");
+        c.beginPath(); c.moveTo(bx, yo); c.lineTo(bx + bw, yo); c.stroke();
+      }
+      c.strokeStyle = dunkeln("rgba(30,34,40,.55)");
+      c.beginPath(); c.moveTo(bx + bw, yo); c.lineTo(bx + bw + dx, yo + dy); c.stroke();
+      c.strokeStyle = dunkeln("#d8b64a");
+      c.lineWidth = Math.max(0.35, R * 0.006);
+      c.beginPath();
+      c.moveTo(bx + bw * 0.08, yo + (yu - yo) * 0.5); c.lineTo(bx + bw * 0.08, yo + (yu - yo) * 0.84);
+      c.moveTo(bx + bw * 0.92, yo + (yu - yo) * 0.5); c.lineTo(bx + bw * 0.92, yo + (yu - yo) * 0.84);
+      c.stroke();
+      umriss = () => { c.beginPath(); c.rect(bx - R * 0.006, yo - R * 0.006, bw + R * 0.012, yu - yo + R * 0.012); };
+    }
+    /* Aus der Naehe die Nummer: "#12", sonst der Zweig */
     let aufschrift = "";
     if (px > 26) {
       const nr = /#(\d+)/.exec(x.kurz || "");
@@ -7763,7 +7852,7 @@ function zeichneLager(c, R, t) {
       c.fillStyle = dunkeln("rgba(24,28,34,.85)");
       c.font = "600 " + (R * 0.026).toFixed(2) + "px Inter, system-ui, sans-serif";
       c.textAlign = "center"; c.textBaseline = "middle";
-      c.fillText(text.slice(0, 9), bx + bw / 2, yo + (yu - yo) * 0.66);
+      c.fillText(text.slice(0, 9), bx + bw / 2, tank ? yo + (yu - yo) * 0.58 : yo + (yu - yo) * 0.66);
       aufschrift = text.slice(0, 9);
     }
     /* Frisch ausgeladen: zehn Minuten ein sanfter Schein in der Farbe */
@@ -7773,14 +7862,14 @@ function zeichneLager(c, R, t) {
       c.strokeStyle = dunkeln(farbe);
       c.globalAlpha = 0.35 + 0.4 * pul;
       c.lineWidth = Math.max(0.6, R * 0.01);
-      c.strokeRect(bx - R * 0.006, yo - R * 0.006, bw + R * 0.012, yu - yo + R * 0.012);
+      umriss(); c.stroke();
       c.globalAlpha = 1;
     }
     const m = c.getTransform();
     const a = new DOMPoint(bx, yo).matrixTransform(m), b = new DOMPoint(bx + bw, yu).matrixTransform(m);
     /* In Bildpunkten der Seite, wie die Schilder */
     LAGER_LETZT.push({ schluessel: x.schluessel, x: Math.min(a.x, b.x) / DPR, y: Math.min(a.y, b.y) / DPR,
-      w: Math.abs(b.x - a.x) / DPR, h: Math.abs(b.y - a.y) / DPR, farbe, reihe: r, oben: p.oben, platz: k, aufschrift, frisch });
+      w: Math.abs(b.x - a.x) / DPR, h: Math.abs(b.y - a.y) / DPR, farbe, reihe: r, oben: p.oben, platz: k, aufschrift, frisch, tank });
   }
   c.restore();
 }
@@ -28473,8 +28562,9 @@ const HILFE = [
       + "hinterlässt dort einen kurzen Einsatzbericht: wie lange er draußen war und wie weit seine "
       + "Aufgabenliste gekommen ist. Ist GitHub angeschlossen, bringt der Frachter, was wirklich "
       + "geliefert wurde: einen gemergten Pull Request oder einen Push auf den Hauptzweig. Ein Schild "
-      + "sagt, was er an Bord hat; ohne Lieferung kommt er nicht. Was er bringt, bleibt als Behälter "
-      + "im Außenlager am Träger stehen, mit dem Repo als Farbe; ein Tipp darauf zeigt die Liste.",
+      + "sagt, was er an Bord hat; ohne Lieferung kommt er nicht. Was er bringt, bleibt im Außenlager "
+      + "am Träger stehen, ein gemergter PR als Kiste, ein Push als Tank, mit dem Repo als Farbe; ein "
+      + "Tipp darauf zeigt die Liste.",
   },
   {
     titel: "Die Station",
