@@ -435,6 +435,12 @@ footer{
 }
 .blende.offen{opacity:1;}
 .blende.offen{transform:translateY(0);}
+/* Steht oben das Band einer faelligen Erinnerung, beginnt eine Blende auf
+   dem Handy darunter. Sonst lag das Band auf ihrem Kopf, samt dem Knopf
+   zum Schliessen. Die Unterkante misst das Band selbst (--band-unten). */
+@media (max-width:759px){
+  body.band-da .blende{max-height:min(86dvh, calc(100dvh - var(--band-unten, 0px) - 10px));}
+}
 @media (min-width:760px){
   .blende{inset:auto auto 16px 16px; width:430px; max-height:calc(100dvh - 120px);
     border-radius:var(--r3); transform:translateY(calc(100% + 30px));}
@@ -23925,10 +23931,15 @@ function erinnerungBandLage() {
   const vb = document.getElementById("vorf-band");
   const unter = !!vb && getComputedStyle(vb).display !== "none";
   ERINNERUNG_BAND.classList.toggle("unter-vorf", unter);
+  /* offsetTop statt der Box auf dem Schirm: die kennt das Einblenden nicht,
+     das in der ersten halben Sekunde zehn Punkte hoeher beginnt */
+  if (!ERINNERUNG_BAND.hidden)
+    document.documentElement.style.setProperty("--band-unten", (ERINNERUNG_BAND.offsetTop + ERINNERUNG_BAND.offsetHeight) + "px");
 }
 function erinnerungenZeichnen() {
   const f = erinnerungenFaellig();
   ERINNERUNG_BAND.hidden = !f.length;
+  document.body.classList.toggle("band-da", !!f.length);
   if (f.length) {
     const e = f[0];
     $("#erinnerung-kopf").textContent = "ERINNERUNG · " + erinnerungZeit(e.um)
