@@ -19288,8 +19288,8 @@ function heimKnopf() {
 }
 
 function erdeUntenKnopf() {
-  tmSchalter("tm-unten", Z.erdeUnten, "Erde unter der Station",
-    Z.erdeUnten ? "mit Wolken, Gewittern und den Lichtern der Nacht" : "aus: schwarzer Himmel; die Erde hinter dem Knopf „Erde“", "gestern");
+  tmSchalter("tm-unten", Z.erdeUnten, "Erde unten",
+    Z.erdeUnten ? "unter der Station, mit Wolken, Gewittern und Lichtern" : "aus: schwarzer Himmel; die Erde hinter dem Knopf „Erde“", "gestern");
 }
 function regenKnopf() {
   tmSchalter("tm-regen", Z.regen, "Regenradar",
@@ -22357,7 +22357,7 @@ function zeigerZuSzene(px, py) {
 
 function zoomeAuf(px, py, faktor) {
   FLUG = null;                            // wer selbst zoomt, fliegt nicht mehr
-  if (REISE.ziel) return;                 // auf dem Weg zur Erde oder zurueck nicht
+  if (REISE.ziel) reiseEnde();            // wer unterwegs zoomt, ist sofort am Ziel
   if (ERDANSICHT.an && ERDKARTE.bereit) {
     /* Ueber der ganzen Erde zoomt man die Kugel selbst, bis sie
        zweieinhalbmal so gross ist oder halb so klein. Zurueck zur Station
@@ -28850,7 +28850,7 @@ const HILFE = [
       + "EUMETSAT, und die Erde von gestern: das Echtfarbenbild des Satelliten Suomi NPP von der NASA, "
       + "mit Land und Wolken, wie sie gestern wirklich waren. Tippst du auf die Erde, steht da, welches "
       + "Land oder Meer an der Stelle liegt; unter der Station zeigt sie sich nur, wenn du unter Stationswerte "
-      + "„Erde unter der Station“ einschaltest. Mit dem Knopf „Erde“ rechts oder der Taste E fliegst du zur ganzen Erde: die Kugel mit Tag, "
+      + "„Erde unten“ einschaltest. Mit dem Knopf „Erde“ rechts oder der Taste E fliegst du zur ganzen Erde: die Kugel mit Tag, "
       + "Dämmerung und den Lichtern der Nacht, darum die Bahn in echter Höhe und oben die Station. "
       + "Ziehen dreht die Kugel, Zoomen macht sie größer; der Knopf „Station“ oder ein Tipp auf die Station bringt dich zurück. "
       + "Liegt sie gerade hinter der Erde oder außerhalb des Bilds, zeigt ein kleiner Pfeil am Rand zu ihr; "
