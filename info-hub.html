@@ -1950,15 +1950,9 @@ const APPS = [
    desc:'Subnetting, IPv6 & vollwertiger Taschenrechner'},
 
   // Webseiten
-  {file:'index.html', desktopFile:'marwa.html', name:'For Marwa', em:'💌', gruppe:'Seiten',
-   desc:'Deine persönliche Seite'},
   {file:'primus-ot.html',  name:'Primus Oberflächentechnik', em:'🏭', gruppe:'Seiten',
    desc:'Firmen-Website, komplettes Redesign'},
 ];
-
-/* In der Desktop-App heißt die Startdatei selbst index.html — die
-   gleichnamige Seite liegt dort unter einem anderen Namen. */
-const appUrl = a => (isDesktopApp && a.desktopFile) ? a.desktopFile : a.file;
 
 function renderArcade(){
   const g = $('#arcadeGrid');
@@ -1985,7 +1979,7 @@ function renderArcade(){
 }
 
 function openApp(a){
-  const url = appUrl(a);
+  const url = a.file;
   $('#playerTitle').textContent = a.name;
   $('#playerExt').href = url;
   // erst leeren, damit ein Sprungziel auch beim zweiten Mal greift
