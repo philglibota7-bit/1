@@ -22424,7 +22424,10 @@ function kameraZurueck() {
    unterwegs ins Bild greift, ist sofort am Ziel. */
 const REISE = { ziel: null, stufe: 0, t0: 0, z0: 1, x0: 0, y0: 0 };
 const REISE_WEG = 700, REISE_ANKUNFT = 1100;
+/* Steht das Ziel schon im Bild und kommt nur noch heran (Stufe 2), ist
+   man dort: ein neuer Druck auf den Knopf gilt dann sofort */
 function reiseZurErde() {
+  if (REISE.ziel === "station" && REISE.stufe === 2) reiseEnde();
   if (ERDANSICHT.an || REISE.ziel) return false;
   erdkarteLaden();
   if (ERDKARTE.kaputt) return false;
@@ -22436,6 +22439,7 @@ function reiseZurErde() {
   return true;
 }
 function reiseZurStation() {
+  if (REISE.ziel === "erde" && REISE.stufe === 2) reiseEnde();
   if (!ERDANSICHT.an || REISE.ziel) return false;
   FLUG = null;
   Object.assign(REISE, { ziel: "station", stufe: 1, t0: performance.now(), z0: ERDANSICHT.zoom || 1 });
@@ -22481,6 +22485,7 @@ function reiseTakt(jetzt) {
         /* Die Kugel beginnt klein und kommt heran */
         ERDANSICHT.zoom = 0.5;
         Object.assign(REISE, { stufe: 2, t0: jetzt });
+        zeigeZoomLeiste();
       }
       return;
     }
@@ -22501,6 +22506,7 @@ function reiseTakt(jetzt) {
       KAM.zoom = 0.3; KAM.zielZoom = 1;
       KAM.x = KAM.zielX = 0; KAM.y = KAM.zielY = 0;
       Object.assign(REISE, { stufe: 2, t0: jetzt });
+      zeigeZoomLeiste();
     }
     return;
   }
@@ -29811,7 +29817,7 @@ function zeigeZoomLeiste() {
   const zurueck = ERDANSICHT.an || REISE.ziel === "erde";
   $("#zoom-reise-text").textContent = zurueck ? "Station" : "Erde";
   k.title = zurueck ? "Zurück zur Station (E)" : "Zur Erde fliegen (E)";
-  k.disabled = !!ERDKARTE.kaputt || !!REISE.ziel;
+  k.disabled = !!ERDKARTE.kaputt || (!!REISE.ziel && REISE.stufe !== 2);
 }
 
 /* --- Was steht hier oben? --------------------------------------------
