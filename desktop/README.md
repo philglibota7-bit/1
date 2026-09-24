@@ -1,25 +1,44 @@
 # PULSE als Mac-Programm
 
-`PULSE.app` ist ein echtes macOS-Programm: doppelklicken, fertig. Kein Browser,
-kein Terminal, keine Installation von Node oder sonstigem.
+`PULSE.app` ist ein echtes macOS-Programm. Kein Browser, keine Installation von
+Node oder sonstigem. Einmal freigeben, danach startet sie per Doppelklick.
 
 ## Herunterladen und starten
 
 1. **[download/PULSE-mac.zip](../download/PULSE-mac.zip)** herunterladen und entpacken
 2. `PULSE.app` in den Ordner **Programme** ziehen
-3. Beim **allerersten Start**: Rechtsklick auf `PULSE.app` → **Öffnen** → im Dialog
-   nochmal **Öffnen** klicken
+3. Einmalig freigeben — siehe unten
 
-Der dritte Schritt ist einmalig nötig, weil die App nicht bei Apple registriert ist
-(das kostet 99 $ im Jahr). Danach startet sie ganz normal per Doppelklick.
+### Warum der dritte Schritt nötig ist
 
-Falls macOS trotzdem blockt, hilft ein Befehl im Terminal:
+Die App ist nicht bei Apple notariell beglaubigt; das setzt ein kostenpflichtiges
+Entwicklerkonto voraus. macOS zeigt deshalb beim ersten Start:
+
+> „PULSE" nicht geöffnet — Apple konnte nicht überprüfen, ob „PULSE" frei von
+> Schadsoftware ist.
+
+Dieser Dialog bietet **nur „In den Papierkorb legen" und „Fertig"** an. Seit
+macOS 15 (Sequoia) gibt es den früheren Weg über Rechtsklick → Öffnen nicht
+mehr. **„Fertig" drücken**, dann einen der beiden Wege gehen:
+
+**Über das Terminal (ein Befehl):**
 
 ```bash
 xattr -cr /Applications/PULSE.app
 ```
 
-Das entfernt nur die Download-Markierung, sonst nichts.
+Danach startet die App per Doppelklick. Der Befehl entfernt nur die
+Download-Markierung, sonst nichts.
+
+**Oder über die Oberfläche:**
+
+Systemeinstellungen → **Datenschutz & Sicherheit** → ganz nach unten scrollen.
+Dort steht nach dem Startversuch „PULSE wurde blockiert…" mit dem Knopf
+**„Trotzdem öffnen"**. Mit TouchID bestätigen; der folgende Dialog hat dann
+einen **„Öffnen"**-Knopf.
+
+Bei älteren macOS-Versionen (14 und davor) genügt Rechtsklick auf `PULSE.app`
+→ **Öffnen** → im Dialog nochmal **Öffnen**.
 
 ## Technisch
 
